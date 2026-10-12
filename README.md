@@ -17,10 +17,16 @@ Install `@zereight/mcp-gitlab` with the recommended local personal-access-token 
 
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
 
-| Client       | Install                                                                                                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code  | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
-| Codex        | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+Read the token without echo, then export it. The shell history keeps the variable name.
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+```
+
+| Client       | Install                                                                                                                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Claude Code  | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex        | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
 | Cursor       | [Cursor setup guide](./docs/clients/cursor.md)                                                                                                                                    |
 | VS Code      | [VS Code setup guide](./docs/clients/vscode.md)                                                                                                                                   |
 | JSON clients | [JSON-based MCP clients setup guide](./docs/clients/json-clients.md)                                                                                                              |
@@ -204,10 +210,12 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 
 - sse
 
+Pass the variable name only. The Docker client copies the exported `GITLAB_PERSONAL_ACCESS_TOKEN` into the container.
+
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e GITLAB_PERSONAL_ACCESS_TOKEN \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \

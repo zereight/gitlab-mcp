@@ -12,10 +12,16 @@
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
 
-| 클라이언트      | 설치                                                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code     | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
-| Codex           | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+토큰을 화면에 표시하지 않고 읽은 다음 export 하세요. 셸 기록에는 변수 이름만 남습니다.
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+```
+
+| 클라이언트      | 설치                                                                                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Claude Code     | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex           | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
 | Cursor          | [Cursor 설정 가이드](./docs/clients/cursor.md)                                                                                                                                    |
 | VS Code         | [VS Code 설정 가이드](./docs/clients/vscode.md)                                                                                                                                   |
 | JSON 클라이언트 | [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)                                                                                                            |
@@ -198,10 +204,12 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 - sse
 
+변수 이름만 넘기세요. Docker 클라이언트는 export한 `GITLAB_PERSONAL_ACCESS_TOKEN` 값을 컨테이너로 복사합니다.
+
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e GITLAB_PERSONAL_ACCESS_TOKEN \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \

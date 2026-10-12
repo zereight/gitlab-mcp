@@ -39,11 +39,17 @@ If Codex cannot find `zereight-mcp-gitlab`, use the absolute path from `which ze
 
 ## Option 1 — Add with `codex mcp add`
 
-PAT example:
+Read the token without echo, then export it. The shell history keeps the variable name.
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+```
+
+`--env KEY=VALUE` is the Codex flag for a stdio server. The shell expands `"$GITLAB_PERSONAL_ACCESS_TOKEN"` before Codex stores the value.
 
 ```bash
 codex mcp add gitlab \
-  --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token \
+  --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
   -- zereight-mcp-gitlab
 ```

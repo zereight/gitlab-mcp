@@ -4,9 +4,7 @@ This guide explains how to use `@zereight/mcp-gitlab` with Cursor.
 
 [![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=zereight.gitlab-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB6ZXJlaWdodC9tY3AtZ2l0bGFiQGxhdGVzdCJdLCJlbnYiOnsiR0lUTEFCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6IiR7ZW52OkdJVExBQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU59IiwiR0lUTEFCX0FQSV9VUkwiOiJodHRwczovL2dpdGxhYi5jb20vYXBpL3Y0IiwiR0lUTEFCX1BFUk1JU1NJT05fTU9ERSI6ImZ1bGwifX0%3D)
 
-Cursor reads the token from the `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable, or you can edit it in `mcp.json` after install.
-
-> Note: this guide is based on common community MCP configuration patterns for Cursor. The exact Cursor MCP wrapper schema and settings surface can vary by version or distribution, so treat the examples below as best-effort patterns rather than repository-verified official Cursor documentation.
+Set `GITLAB_PERSONAL_ACCESS_TOKEN` in the environment of the Cursor process. In `mcp.json`, Cursor substitutes `${env:GITLAB_PERSONAL_ACCESS_TOKEN}` in the `env` field.
 
 ## Recommended config location
 
@@ -39,7 +37,7 @@ If Cursor cannot find `zereight-mcp-gitlab`, use the absolute path from `which z
     "gitlab": {
       "command": "zereight-mcp-gitlab",
       "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${env:GITLAB_PERSONAL_ACCESS_TOKEN}",
         "GITLAB_API_URL": "https://gitlab.com/api/v4"
       }
     }

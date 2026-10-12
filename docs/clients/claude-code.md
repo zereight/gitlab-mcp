@@ -42,10 +42,18 @@ If Claude Code cannot find `zereight-mcp-gitlab`, use the absolute path from `wh
 
 This is the fastest path for a local personal setup.
 
+Read the token without echo, then export it. The shell history keeps the variable name.
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+```
+
+`--env KEY=value` is the Claude Code flag. The shell expands `"$GITLAB_PERSONAL_ACCESS_TOKEN"` before Claude Code stores the value.
+
 ```bash
 claude mcp add gitlab --transport stdio \
   --scope local \
-  --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token \
+  --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
   -- zereight-mcp-gitlab
 ```
@@ -98,10 +106,10 @@ If your GitLab OAuth app is confidential, also add:
 
 Use this when you want to register a ready-made JSON server config.
 
-PAT example:
+The JSON stays in single quotes except for the token. The shell inserts the exported value there, so the history line keeps `$GITLAB_PERSONAL_ACCESS_TOKEN`.
 
 ```bash
-claude mcp add-json gitlab '{"type":"stdio","command":"zereight-mcp-gitlab","env":{"GITLAB_PERSONAL_ACCESS_TOKEN":"glpat-your-token","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
+claude mcp add-json gitlab '{"type":"stdio","command":"zereight-mcp-gitlab","env":{"GITLAB_PERSONAL_ACCESS_TOKEN":"'"$GITLAB_PERSONAL_ACCESS_TOKEN"'","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
 ```
 
 OAuth example:
@@ -122,6 +130,7 @@ Create a `.mcp.json` file at your project root:
     "gitlab": {
       "command": "zereight-mcp-gitlab",
       "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_PERSONAL_ACCESS_TOKEN}",
         "GITLAB_API_URL": "https://gitlab.com/api/v4"
       }
     }
@@ -129,7 +138,7 @@ Create a `.mcp.json` file at your project root:
 }
 ```
 
-Then add secrets via environment variables in your shell before starting Claude Code.
+Claude Code expands `${GITLAB_PERSONAL_ACCESS_TOKEN}` from the environment when it starts the server.
 
 ## Suggested first prompt
 

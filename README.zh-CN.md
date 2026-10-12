@@ -12,10 +12,16 @@
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。
 
-| 客户端      | 安装                                                                                                                                                                              |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
-| Codex       | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+先不回显地读取令牌，再 export。shell 历史里只保留变量名。
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+```
+
+| 客户端      | 安装                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Claude Code | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex       | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
 | Cursor      | [Cursor 设置指南](./docs/clients/cursor.md)                                                                                                                                       |
 | VS Code     | [VS Code 设置指南](./docs/clients/vscode.md)                                                                                                                                      |
 | JSON 客户端 | [基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)                                                                                                                 |
@@ -197,10 +203,12 @@ CLI 参数优先于环境变量。
 
 - sse
 
+只传变量名。Docker 客户端把已 export 的 `GITLAB_PERSONAL_ACCESS_TOKEN` 复制进容器。
+
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e GITLAB_PERSONAL_ACCESS_TOKEN \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
