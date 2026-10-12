@@ -53,10 +53,10 @@
         },
         {
           "name": "GITLAB_OAUTH_TOKEN_SCRIPT",
-          "description": "Path to a script that prints an OAuth access token. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_CLIENT_ID.",
+          "description": "Command that prints an OAuth access token. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_CLIENT_ID.",
           "isRequired": false,
           "isSecret": false,
-          "format": "filepath"
+          "format": "string"
         },
         {
           "name": "GITLAB_API_URL",
