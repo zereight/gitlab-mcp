@@ -1,13 +1,16 @@
 /**
  * Generate VS Code MCP one-click install badge/link.
  *
+ * GitHub drops non-http links, so the badge uses the https redirect.
+ * That redirect opens vscode:mcp/install with the same server entry.
  * Install URLs only embed the server entry (not the top-level `inputs` array).
  * Use ${input:gitlab-token} in env and add the matching `inputs` block in mcp.json
- * after install — see docs/clients/vscode.md.
+ * after install. See docs/clients/vscode.md.
  */
 
-const serverConfig = {
-  name: "zereight.gitlab-mcp",
+const SERVER_NAME = "zereight.gitlab-mcp";
+
+const configWithoutName = {
   type: "stdio",
   command: "npx",
   args: ["-y", "@zereight/mcp-gitlab@latest"],
@@ -18,10 +21,15 @@ const serverConfig = {
   },
 };
 
-const installUrl = `vscode:mcp/install?${encodeURIComponent(JSON.stringify(serverConfig))}`;
+const httpsInstallUrl = `https://insiders.vscode.dev/redirect/mcp/install?name=${encodeURIComponent(SERVER_NAME)}&config=${encodeURIComponent(JSON.stringify(configWithoutName))}`;
 
-const badge = `[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](${installUrl})`;
+const rawInstallUrl = `vscode:mcp/install?${encodeURIComponent(
+  JSON.stringify({ name: SERVER_NAME, ...configWithoutName }),
+)}`;
 
-console.log(installUrl);
+const badge = `[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](${httpsInstallUrl})`;
+
+console.log(httpsInstallUrl);
+console.log(rawInstallUrl);
 console.log("");
 console.log(badge);
