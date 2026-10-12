@@ -302,9 +302,8 @@ describe("When the server starts", () => {
         GITLAB_PERSONAL_ACCESS_TOKEN_FILE: filePath,
       });
       assert.equal(run.code, 1);
-      assert.match(
-        run.stderr,
-        new RegExp(`Cannot load GITLAB_PERSONAL_ACCESS_TOKEN_FILE at ${filePath} \\(ENOENT\\)`)
+      assert.ok(
+        run.stderr.includes(`Cannot load GITLAB_PERSONAL_ACCESS_TOKEN_FILE at ${filePath} (ENOENT)`)
       );
     });
   });
