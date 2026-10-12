@@ -19,6 +19,7 @@ servers.
 
 - [GitLab MCP A (community CQRS-style)](community-gitlab-mcp-a.md) — architectural comparison
   against grouped read/write tool models
+- GitLab's [official MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/) ships inside GitLab. Free, Premium, and Ultimate. Generally available in GitLab 19.5.
 
 ## Choosing @zereight/mcp-gitlab
 
