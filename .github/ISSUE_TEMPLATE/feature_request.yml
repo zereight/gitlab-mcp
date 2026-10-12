@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest a GitLab capability or a change to server behavior.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here.
+        Use GitHub private vulnerability reporting instead.
+        https://github.com/zereight/gitlab-mcp/security/advisories/new
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow is blocked, and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What the server should do.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: GitLab type, version, or a link to the API you want. Optional.
+    validations:
+      required: false

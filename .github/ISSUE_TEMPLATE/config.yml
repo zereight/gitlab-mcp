@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/zereight/gitlab-mcp/security/advisories/new
+    about: Use private vulnerability reporting. Do not open a public issue.

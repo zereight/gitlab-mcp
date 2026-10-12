@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a defect in the MCP server.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here.
+        Use GitHub private vulnerability reporting instead.
+        https://github.com/zereight/gitlab-mcp/security/advisories/new
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Installed package version, for example 2.x.y.
+      placeholder: "2.x.y"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      description: Client name and version, such as Claude Code, Cursor, or VS Code.
+      placeholder: "Cursor 1.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      description: How the client connects to this server.
+      options:
+        - stdio
+        - SSE
+        - Streamable HTTP
+    validations:
+      required: true
+  - type: textarea
+    id: gitlab
+    attributes:
+      label: GitLab
+      description: gitlab.com or self-managed, and the GitLab version if you know it.
+      placeholder: "gitlab.com, 17.x"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: What you ran, what you expected, and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant logs. Remove tokens, passwords, cookies, and Authorization headers first. Replace a personal access token (glpat-) with [REDACTED].
+      render: text
+    validations:
+      required: false
