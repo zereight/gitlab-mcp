@@ -17,7 +17,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     # Fail fast instead of burning the full 6h when a platform leg hangs.
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - name: Checkout code
