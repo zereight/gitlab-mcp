@@ -89,7 +89,7 @@ The server supports four authentication methods:
 
 **For local/desktop use** (most common):
 
-1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN`) — simplest setup
+1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) — simplest setup
 2. **OAuth2 — Local Browser** (`GITLAB_USE_OAUTH`) — recommended for better security
 
 **For server/remote deployments**:

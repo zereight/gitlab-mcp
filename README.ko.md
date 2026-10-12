@@ -84,7 +84,7 @@ GitLab은 [공식 MCP 서버](https://docs.gitlab.com/user/model_context_protoco
 
 **로컬/데스크톱 사용**(가장 일반적):
 
-1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN`) — 가장 단순한 설정
+1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN` 또는 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) — 가장 단순한 설정
 2. **OAuth2 — 로컬 브라우저** (`GITLAB_USE_OAUTH`) — 더 나은 보안을 위해 권장
 
 **서버/원격 배포**:

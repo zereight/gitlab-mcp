@@ -1439,7 +1439,8 @@ function validateConfiguration(): void {
   // Validate auth configuration
   const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
   const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
-  const hasToken = !!getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
+  // getConfig() would ignore GITLAB_PERSONAL_ACCESS_TOKEN_FILE.
+  const hasToken = !!GITLAB_PERSONAL_ACCESS_TOKEN;
   const hasJobToken = !!getConfig("job-token", "GITLAB_JOB_TOKEN");
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";

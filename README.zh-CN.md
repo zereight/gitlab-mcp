@@ -84,7 +84,7 @@ GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_contex
 
 **本地/桌面使用**（最常见）：
 
-1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN`) — 最简单的设置
+1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN` 或 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) — 最简单的设置
 2. **OAuth2 — 本地浏览器** (`GITLAB_USE_OAUTH`) — 推荐用于更好的安全性
 
 **服务器/远程部署**：

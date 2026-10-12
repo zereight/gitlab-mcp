@@ -33,6 +33,8 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 export GITLAB_API_URL=https://gitlab.example.com/api/v4   # omit for gitlab.com
 ```
 
+`GITLAB_PERSONAL_ACCESS_TOKEN_FILE` can point at a token file instead. The process reads it once at startup and trims surrounding whitespace. If `GITLAB_PERSONAL_ACCESS_TOKEN` is already non-empty, the file is ignored and a warning is written to stderr.
+
 **B. OAuth device flow** (needs a GitLab OAuth application ID)
 
 ```bash
