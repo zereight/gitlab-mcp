@@ -18,8 +18,8 @@
       "environmentVariables": [
         {
           "name": "GITLAB_PERSONAL_ACCESS_TOKEN",
-          "description": "GitLab personal access token for local stdio use. Create a token with the GitLab scopes needed by the tools you plan to use, such as api or read_api.",
-          "isRequired": true,
+          "description": "GitLab personal access token for local stdio use. One of this token, GITLAB_JOB_TOKEN, GITLAB_AUTH_COOKIE_PATH, or GITLAB_USE_OAUTH=true must be set. Create a token with the GitLab scopes the tools need, such as api or read_api.",
+          "isRequired": false,
           "isSecret": true,
           "format": "string"
         },
@@ -38,6 +38,27 @@
           "format": "filepath"
         },
         {
+          "name": "GITLAB_USE_OAUTH",
+          "description": "Set to true to start with GitLab OAuth instead of a personal access token, job token, or cookie file.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "boolean"
+        },
+        {
+          "name": "GITLAB_OAUTH_CLIENT_ID",
+          "description": "GitLab OAuth application ID. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_TOKEN_SCRIPT.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_OAUTH_TOKEN_SCRIPT",
+          "description": "Command that prints an OAuth access token. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_CLIENT_ID.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
           "name": "GITLAB_API_URL",
           "description": "GitLab API base URL. Use https://gitlab.com/api/v4 for GitLab.com or your self-managed GitLab API URL.",
           "isRequired": false,
@@ -53,20 +74,16 @@
           "format": "string"
         },
         {
-          "name": "GITLAB_READ_ONLY_MODE",
-          "description": "Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead.",
+          "name": "GITLAB_PERMISSION_MODE",
+          "description": "Tool exposure. Allowed values are readonly, modify, and full. Unset uses full. readonly keeps read-only tools. modify blocks delete and teardown tools.",
           "isRequired": false,
           "isSecret": false,
           "format": "string",
-          "default": "false"
-        },
-        {
-          "name": "USE_GITLAB_WIKI",
-          "description": "Deprecated (removed in next major (v3.0.0)); use GITLAB_TOOLSETS=core,wiki instead. If you already set GITLAB_TOOLSETS, append wiki to your existing list instead of replacing it.",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string",
-          "default": "false"
+          "choices": [
+            "readonly",
+            "modify",
+            "full"
+          ]
         },
         {
           "name": "GITLAB_TOOLSETS",

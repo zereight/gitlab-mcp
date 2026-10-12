@@ -39,8 +39,7 @@ to container loopback and the published port stays unreachable.
 | `HOST`                           | `127.0.0.1`                  | Set `0.0.0.0` inside containers                    |
 | `PORT`                           | `3002`                       | HTTP port for SSE / Streamable HTTP                |
 | `GITLAB_PERMISSION_MODE`         | `full`                       | `readonly`, `modify`, or `full`                    |
-| `GITLAB_TOOLSETS`                | lean `core` when unset       | Comma-separated toolset IDs. Append to an existing list instead of replacing it. |
-| `GITLAB_READ_ONLY_MODE`          | `false`                      | Deprecated (removed in next major (v3.0.0)); use `GITLAB_PERMISSION_MODE=readonly` instead |
+| `GITLAB_TOOLSETS`                | lean `core` when unset       | Comma-separated toolset IDs. A non-empty value replaces the default core set. Include `core` to keep that set. |
 | `GITLAB_ALLOWED_PROJECT_IDS`     | —                            | Comma-separated project allowlist                  |
 | `REMOTE_AUTHORIZATION`           | `false`                      | Multi-user mode, each caller sends its own token   |
 
