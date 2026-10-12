@@ -7,6 +7,18 @@
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** 설정 가이드, 환경 변수, 전체 도구 레퍼런스는 호스팅된 문서 사이트에서 확인할 수 있습니다.
 
+`@zereight/mcp-gitlab`의 권장 로컬 PAT 설치입니다. 명령 인자는 [Claude Code](./docs/clients/claude-code.md)와 [Codex](./docs/clients/codex.md) 가이드와 같습니다.
+
+`zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
+
+| 클라이언트      | 설치                                                                                                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code     | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex           | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+| Cursor          | [Cursor 설정 가이드](./docs/clients/cursor.md)                                                                                                                                    |
+| VS Code         | [VS Code 설정 가이드](./docs/clients/vscode.md)                                                                                                                                   |
+| JSON 클라이언트 | [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)                                                                                                            |
+
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
@@ -28,15 +40,23 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 비교 요약
 
-| | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
-|---|----------------------|--------------------------------|
-| **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
-| **도구 모델** | 274개 도구: toolset 272개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
-| **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
-| **Node.js** | >=18.17 | 보통 >=24 |
-| **라이선스** | MIT | 서버마다 다름 |
+|                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
+| **도구 모델**   | 274개 도구: toolset 272개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
+| **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
+| **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-[전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)
+[GitLab MCP A 전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)
+
+GitLab은 [공식 MCP 서버](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)도 제공합니다.
+
+- Free, Premium, Ultimate. GitLab 19.2에서 Premium에서 Free로 옮겨졌고, GitLab 19.5에서 GA입니다.
+- GitLab.com에서는 최상위 그룹 Owner가 MCP 서버 접근을 허용합니다. GitLab Self-Managed와 GitLab Dedicated는 인스턴스 설정입니다. 기본값 규칙은 공식 페이지에 있습니다.
+- 원격 클라이언트는 HTTP `https://<gitlab.example.com>/api/v4/mcp`와 OAuth 2.0 동적 클라이언트 등록을 사용합니다.
+- stdio는 `mcp-remote`를 거치며 Node.js 20 이상이 필요합니다.
+- Toolset은 `X-Gitlab-Enabled-Mcp-Server-Toolsets` 헤더를 사용합니다. 선택 헤더 `X-Gitlab-Mcp-Server-Tool-Name-Prefix`는 도구 이름 접두사의 앞 32자만 유지합니다.
 
 빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 

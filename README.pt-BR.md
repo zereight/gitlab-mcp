@@ -7,6 +7,18 @@
 
 📖 **[Documentação →](https://zereight.github.io/gitlab-mcp/)** Guias de configuração, variáveis de ambiente e a referência completa de ferramentas estão disponíveis no site de documentação.
 
+Instalação local recomendada com PAT para `@zereight/mcp-gitlab`. Os argumentos são os mesmos dos guias de [Claude Code](./docs/clients/claude-code.md) e [Codex](./docs/clients/codex.md).
+
+Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
+
+| Cliente       | Instalação                                                                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code   | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex         | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+| Cursor        | [Guia de configuração do Cursor](./docs/clients/cursor.md)                                                                                                                        |
+| VS Code       | [Guia de configuração do VS Code](./docs/clients/vscode.md)                                                                                                                       |
+| Clientes JSON | [Guia para clientes MCP baseados em JSON](./docs/clients/json-clients.md)                                                                                                         |
+
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
@@ -28,15 +40,23 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Comparação
 
-|                           | @zereight/mcp-gitlab                           | GitLab MCP A (comunidade, estilo CQRS)                    |
-| ------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
-| **Mais indicado para**    | Workflows de agentes de IA                     | Múltiplas instâncias corporativas / ferramentas agrupadas |
-| **Modelo de ferramentas** | 274 ferramentas: 272 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      |
-| **Revisão de MR**         | Diff em lote em 2 etapas                       | Varia                                                     |
-| **Node.js**               | >=18.17                                        | Frequentemente >=24                                       |
-| **Licença**               | MIT                                            | Varia                                                     |
+|                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
+| **Modelo de ferramentas** | 274 ferramentas: 272 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
+| **Node.js**               | >=18.17                                                                 | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
+| **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-[Comparação completa →](./docs/comparison/community-gitlab-mcp-a.md)
+[Comparação completa com o GitLab MCP A →](./docs/comparison/community-gitlab-mcp-a.md)
+
+O GitLab também inclui um [servidor MCP oficial](https://docs.gitlab.com/user/model_context_protocol/mcp_server/).
+
+- Free, Premium e Ultimate. Passou de Premium para Free no GitLab 19.2. Disponibilidade geral no GitLab 19.5.
+- No GitLab.com, o Owner do grupo de nível superior permite o acesso ao servidor MCP. No GitLab Self-Managed e no GitLab Dedicated, um administrador controla a configuração da instância. As regras padrão estão na página oficial.
+- Clientes remotos usam HTTP `https://<gitlab.example.com>/api/v4/mcp` com OAuth 2.0 dynamic client registration.
+- O stdio passa por `mcp-remote` e exige Node.js 20 ou posterior.
+- Os toolsets usam o cabeçalho `X-Gitlab-Enabled-Mcp-Server-Toolsets`. O cabeçalho opcional `X-Gitlab-Mcp-Server-Tool-Name-Prefix` mantém os primeiros 32 caracteres de um prefixo de nome de ferramenta.
 
 Início rápido: escolha abaixo uma configuração com Personal Access Token ou OAuth2, instale `@zereight/mcp-gitlab` e use `zereight-mcp-gitlab` na configuração do seu cliente MCP.
 

@@ -94,7 +94,7 @@ unverified.
 | Auto schema filtering by GitLab edition/tier | `@structured-world/gitlab-mcp` | High |
 | MCP prompts/resources as first-class primitives (not just tools) | `python-gitlab-mcp` (PyPI) | Medium |
 | GraphQL API option alongside REST | `vish288/mcp-gitlab`, `jmrplens/gitlab-mcp-server` | Low–Medium (tool-count claims unverified) |
-| OAuth Dynamic Client Registration (self-register against the GitLab instance, no manual app setup) | Official GitLab MCP (Premium/Ultimate, Beta) | Medium |
+| OAuth Dynamic Client Registration (self-register against the GitLab instance, no manual app setup) | Official GitLab MCP (Free, Premium, and Ultimate, generally available in GitLab 19.5) | Medium |
 
 Note: protected branches (`list_protected_branches`, `get_protected_branch`, `protect_branch`,
 `unprotect_branch`) were already covered by `yoda-digital/mcp-gitlab-server` at survey time — we

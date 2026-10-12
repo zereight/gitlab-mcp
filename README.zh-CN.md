@@ -7,6 +7,18 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** 设置指南、环境变量和完整工具参考请查看托管文档站点。
 
+下面是 `@zereight/mcp-gitlab` 的推荐本地 PAT 安装。命令参数与 [Claude Code](./docs/clients/claude-code.md) 和 [Codex](./docs/clients/codex.md) 指南相同。
+
+先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。
+
+| 客户端      | 安装                                                                                                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
+| Codex       | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
+| Cursor      | [Cursor 设置指南](./docs/clients/cursor.md)                                                                                                                                       |
+| VS Code     | [VS Code 设置指南](./docs/clients/vscode.md)                                                                                                                                      |
+| JSON 客户端 | [基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)                                                                                                                 |
+
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
@@ -28,15 +40,23 @@
 
 ### 对比摘要
 
-| | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
-|---|----------------------|------------------------------|
-| **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
-| **工具模型** | 274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
-| **MR 审查** | 两步批量 diff | 因服务器而异 |
-| **Node.js** | >=18.17 | 通常 >=24 |
-| **许可证** | MIT | 因服务器而异 |
+|              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
+| **工具模型** | 274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
+| **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
+| **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-[完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)
+[与 GitLab MCP A 的完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)
+
+GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)。
+
+- Free、Premium、Ultimate。GitLab 19.2 从 Premium 移到 Free。GitLab 19.5 正式可用。
+- 在 GitLab.com 上，顶级群组 Owner 允许访问 MCP 服务器。GitLab Self-Managed 和 GitLab Dedicated 使用实例设置。默认规则见官方页面。
+- 远程客户端使用 HTTP `https://<gitlab.example.com>/api/v4/mcp` 和 OAuth 2.0 动态客户端注册。
+- stdio 通过 `mcp-remote`，需要 Node.js 20 或更高版本。
+- Toolset 使用请求头 `X-Gitlab-Enabled-Mcp-Server-Toolsets`。可选请求头 `X-Gitlab-Mcp-Server-Tool-Name-Prefix` 只保留工具名前缀的前 32 个字符。
 
 快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`，并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
 
