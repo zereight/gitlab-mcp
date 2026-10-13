@@ -230,6 +230,124 @@ describe("When executing gitlab_api_request", () => {
     });
   });
 
+  describe("with a single-encoded projects prefix outside the allowlist", () => {
+    it("should reject before fetch", async () => {
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "%70rojects/9" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl: async () => {
+              throw new Error("fetch should not run");
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Project 9 is not in the allowed project list/);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe("with a double-encoded projects prefix outside the allowlist", () => {
+    it("should reject before fetch", async () => {
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "%2570rojects/9" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl: async () => {
+              throw new Error("fetch should not run");
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Project 9 is not in the allowed project list/);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe("with an allowlist and a redirect to a single-encoded projects prefix", () => {
+    it("should refuse the hop before requesting it", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/api/v4/%70rojects/9", calls);
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Project 9 is not in the allowed project list/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+    });
+  });
+
+  describe("with an allowlist and a redirect to a double-encoded projects prefix", () => {
+    it("should refuse the hop before requesting it", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/api/v4/%2570rojects/9", calls);
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Project 9 is not in the allowed project list/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+    });
+  });
+
+  describe("with an encoded project path inside the allowlist", () => {
+    it("should request that project", async () => {
+      let requested = "";
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/group%2Fproj" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["group/proj"],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl: async url => {
+          requested = url;
+          return new UndiciResponse(JSON.stringify({ ok: true }), { status: 200 });
+        },
+      });
+
+      assert.equal(requested, `${API_BASE}/projects/group%2Fproj`);
+      assert.match(result.content[0].text, /"ok": true/);
+    });
+  });
+
   describe("with a non-JSON success body", () => {
     it("should redact a plain-text token before returning it", async () => {
       const result = await executeGitLabApiRequestAsync({

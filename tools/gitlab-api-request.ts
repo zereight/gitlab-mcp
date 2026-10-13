@@ -185,18 +185,17 @@ function assertProjectAllowlist(relativePath: string, allowlist: readonly string
   if (allowlist.length === 0) {
     return;
   }
-  const match = /^projects\/([^/]+)(?:\/|$)/.exec(relativePath);
-  if (!match) {
-    return;
-  }
-  const rawSegment = match[1];
-  let projectId: string;
+  let projectId: string | undefined;
   try {
-    projectId = readProjectIdFromApiRelativePath(relativePath) ?? rawSegment;
+    projectId = readProjectIdFromApiRelativePath(relativePath);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new GitLabApiRequestInputError(message);
   }
+  if (projectId === undefined) {
+    return;
+  }
+  const rawSegment = relativePath.split("/")[1] ?? projectId;
   if (!projectAllowed(projectId, rawSegment, allowlist)) {
     throw new GitLabApiRequestInputError(
       `Access denied: Project ${projectId} is not in the allowed project list: ${allowlist.join(", ")}`

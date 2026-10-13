@@ -233,15 +233,33 @@ export function resolveGitLabApiRequestUrl(apiBase: string, rawPath: string): UR
   return resolved;
 }
 
-/** Project id from `projects/:id` or `projects/:id/...`. Other paths return undefined. */
-export function readProjectIdFromApiRelativePath(relativePath: string): string | undefined {
-  const match = /^projects\/([^/]+)(?:\/|$)/.exec(relativePath);
-  if (!match) {
-    return undefined;
-  }
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
+function decodeApiPathSegment(segment: string): string {
+  const decoded = decodeFully(segment);
+  if (decoded === null) {
     throw new Error("GitLab API path has an invalid project id encoding");
   }
+  return decoded;
+}
+
+/**
+ * Project id from `projects/:id` or `projects/:id/...`.
+ *
+ * Segments are percent-decoded until stable, the same way the outgoing request
+ * is built. An encoded `projects` prefix still selects this route. A slash
+ * encoded inside the id (`group%2Fproj`) stays part of that one id.
+ * Other paths return undefined.
+ */
+export function readProjectIdFromApiRelativePath(relativePath: string): string | undefined {
+  const segments = relativePath.split("/");
+  if (segments.length < 2) {
+    return undefined;
+  }
+  if (decodeApiPathSegment(segments[0]) !== "projects") {
+    return undefined;
+  }
+  const projectId = decodeApiPathSegment(segments[1]);
+  if (projectId.length === 0) {
+    return undefined;
+  }
+  return projectId;
 }
