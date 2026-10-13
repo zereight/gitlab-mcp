@@ -215,7 +215,7 @@ import {
   classifyHealthCheckTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
-import { redactUrlSecretsInText } from "./utils/redact-url.js";
+import { redactUrlSecretsInText, splitCommaSeparatedUrls } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -1401,7 +1401,8 @@ function validateConfiguration(): void {
   }
 
   // Validate GITLAB_API_URL format
-  const apiUrls = getConfig("api-url", "GITLAB_API_URL")?.split(",") || [];
+  const configuredApiUrls = getConfig("api-url", "GITLAB_API_URL");
+  const apiUrls = configuredApiUrls === undefined ? [] : splitCommaSeparatedUrls(configuredApiUrls);
   if (apiUrls.length > 0) {
     for (const url of apiUrls) {
       try {
@@ -1682,9 +1683,9 @@ const hiddenToolSet = new Set(
 }
 
 const clientPool = new GitLabClientPool({
-  apiUrls: (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
-    .split(",")
-    .map(normalizeGitLabApiUrl),
+  apiUrls: splitCommaSeparatedUrls(
+    getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
+  ).map(normalizeGitLabApiUrl),
   httpProxy: HTTP_PROXY,
   httpsProxy: HTTPS_PROXY,
   noProxy: NO_PROXY,
@@ -2179,9 +2180,9 @@ function resolveTrustedGitLabApiUrl(value: string): string {
 }
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
-const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
-  .split(",")
-  .map(normalizeGitLabApiUrl);
+const GITLAB_API_URLS = splitCommaSeparatedUrls(
+  getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
+).map(normalizeGitLabApiUrl);
 const GITLAB_API_URL = GITLAB_API_URLS[0];
 const GITLAB_ALLOWED_API_URLS_BY_HOST = new Map<string, string>();
 for (const { host, apiUrl } of [

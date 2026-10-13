@@ -12,6 +12,8 @@ const SECRET_QUERY = "fakesecret123";
 const SLASHLESS_PASSWORD = "slashless-pass";
 const DEFAULT_STARTUP_API_URL = `https://${SECRET_USER}:${SECRET_PASSWORD}@gitlab.example.com/api/v4?private_token=${SECRET_QUERY}`;
 const SLASHLESS_LIST_API_URL = `https://gitlab.example/api/v4,https:slashless-user:${SLASHLESS_PASSWORD}@other.example`;
+const COMMA_PASSWORD = "pass,word";
+const COMMA_API_URL = `https://comma-user:${COMMA_PASSWORD}@gitlab.example.com/api/v4`;
 
 interface StartupLogs {
   readonly stdout: string;
@@ -166,6 +168,25 @@ describe("When the stdio server starts", () => {
       const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
 
       assert.equal(logs.stderr.includes(SLASHLESS_PASSWORD), false);
+    });
+  });
+
+  describe("with a comma inside the password", () => {
+    it("should redact the configured URL log", async () => {
+      const logs = await captureStartupLogsAsync(COMMA_API_URL);
+
+      assert.equal(
+        logs.stderr.includes(
+          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4"
+        ),
+        true
+      );
+    });
+
+    it("should omit the password from stderr", async () => {
+      const logs = await captureStartupLogsAsync(COMMA_API_URL);
+
+      assert.equal(logs.stderr.includes(COMMA_PASSWORD), false);
     });
   });
 });
