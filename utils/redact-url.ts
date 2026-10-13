@@ -36,12 +36,15 @@ export function redactUrlSecretsInText(text: string): string {
 }
 
 function redactSensitiveQuery(url: string): string {
-  return url.replace(/([?&])([^=&\s#]+)=[^&\s#]+/g, (match, separator: string, rawName: string) => {
-    if (!isSensitiveQueryName(rawName)) {
-      return match;
+  return url.replace(
+    /([?&#])([^=&\s#]+)=[^&\s#]+/g,
+    (match, separator: string, rawName: string) => {
+      if (!isSensitiveQueryName(rawName)) {
+        return match;
+      }
+      return `${separator}${rawName}=[REDACTED]`;
     }
-    return `${separator}${rawName}=[REDACTED]`;
-  });
+  );
 }
 
 function isSensitiveQueryName(rawName: string): boolean {
@@ -57,8 +60,9 @@ function decodeQueryName(rawName: string): string {
 }
 
 function redactUrlUserinfoInText(message: string): string {
-  const withoutCompactUserinfo = message.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, urlToken =>
-    redactCompactUserinfo(urlToken)
+  const withoutCompactUserinfo = message.replace(
+    /\b[a-z][a-z0-9+.-]*:(?:\/\/|\/)?[^\s]+/gi,
+    urlToken => redactCompactUserinfo(urlToken)
   );
   return withoutCompactUserinfo.replace(
     /\b([a-z][a-z0-9+.-]*:\/\/)([^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+)@/gi,
@@ -97,13 +101,13 @@ function tryParseUrl(value: string): URL | null {
 function splitAuthorityUserinfo(
   url: string
 ): { readonly scheme: string; readonly afterAt: string } | null {
-  // WHATWG special schemes still expose userinfo for "https:user:pass@host".
-  const schemeMatch = /^([a-z][a-z0-9+.-]*:)(\/\/)?/i.exec(url);
-  if (schemeMatch === null) {
+  // WHATWG special schemes still expose userinfo for "https:user:pass@host"
+  // and for one slash, "https:/user:pass@host".
+  const prefix = readSchemePrefix(url);
+  if (prefix === null) {
     return null;
   }
-  const schemeEnd = schemeMatch[0].length;
-  const rest = url.slice(schemeEnd);
+  const rest = prefix.rest;
   const slash = rest.indexOf("/");
   const query = rest.indexOf("?");
   const hash = rest.indexOf("#");
@@ -115,19 +119,79 @@ function splitAuthorityUserinfo(
     return null;
   }
   return {
-    scheme: url.slice(0, schemeEnd),
+    scheme: prefix.scheme,
     afterAt: `${authority.slice(atIndex + 1)}${rest.slice(authorityEnd)}`,
   };
 }
 
 function redactCompactUserinfo(urlToken: string): string {
-  const schemeIndex = urlToken.indexOf("://");
-  const rest = urlToken.slice(schemeIndex + 3);
-  const atIndex = rest.lastIndexOf("@");
+  const prefix = readSchemePrefix(urlToken);
+  if (prefix === null) {
+    return urlToken;
+  }
+  const atIndex = prefix.rest.lastIndexOf("@");
   if (atIndex <= 0) {
     return urlToken;
   }
-  return `${urlToken.slice(0, schemeIndex + 3)}[REDACTED]@${rest.slice(atIndex + 1)}`;
+  return `${prefix.scheme}[REDACTED]@${prefix.rest.slice(atIndex + 1)}`;
+}
+
+const SCHEME_PREFIX_PATTERN = /^([a-z][a-z0-9+.-]*:)(\/\/|\/)?/i;
+
+function readSchemePrefix(
+  value: string
+): { readonly scheme: string; readonly rest: string } | null {
+  const schemeMatch = SCHEME_PREFIX_PATTERN.exec(value);
+  if (schemeMatch === null) {
+    return null;
+  }
+  const scheme = schemeMatch[0];
+  return {
+    scheme,
+    rest: value.slice(scheme.length),
+  };
+}
+
+export function splitCommaSeparatedUrls(value: string): readonly string[] {
+  const parts: string[] = [];
+  let start = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== ",") {
+      continue;
+    }
+    if (commaIsInsideUserinfo(value, start, index)) {
+      continue;
+    }
+    parts.push(value.slice(start, index).trim());
+    start = index + 1;
+  }
+  parts.push(value.slice(start).trim());
+  return parts;
+}
+
+function commaIsInsideUserinfo(value: string, start: number, commaIndex: number): boolean {
+  const prefix = readSchemePrefix(value.slice(start, commaIndex).trimStart());
+  if (prefix === null || authorityAlreadyClosed(prefix.rest)) {
+    return false;
+  }
+  return userinfoAtFollows(value.slice(commaIndex + 1));
+}
+
+function authorityAlreadyClosed(rest: string): boolean {
+  return rest.includes("@") || rest.includes("/") || rest.includes("?") || rest.includes("#");
+}
+
+function userinfoAtFollows(afterComma: string): boolean {
+  for (let index = 0; index < afterComma.length; index += 1) {
+    const char = afterComma[index];
+    if (char === "@") {
+      return true;
+    }
+    if (char === "/" || char === "?" || char === "#" || char === " " || char === "\t") {
+      return false;
+    }
+  }
+  return false;
 }
 
 // "user:pa ss@host" is a password. "localhost:3000 a@b.com" is a host, then an email.
