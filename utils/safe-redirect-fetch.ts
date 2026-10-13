@@ -230,6 +230,7 @@ export interface FetchWithValidatedRedirectsOptions {
    * credentials, unless an earlier untrusted hop has already withheld them.
    */
   isTrustedRedirectHost?: (host: string) => boolean;
+  validateRedirectTarget?: (target: URL) => void | Promise<void>;
 }
 
 /**
@@ -429,6 +430,8 @@ export async function fetchWithValidatedRedirects(
       credentialsWithheld ||= !trusted;
       currentHeaders = credentialsWithheld ? withoutCredentialHeaders(options) : options.headers;
     }
+
+    await options.validateRedirectTarget?.(target);
 
     const rewritten = methodAfterRedirect(response.status, currentMethod);
     currentMethod = rewritten.method;
