@@ -6,6 +6,11 @@ import {
   redactSensitiveGitLabText,
 } from "../utils/redact-sensitive.js";
 import {
+  fetchWithValidatedRedirects,
+  UnsafeRedirectError,
+  type ValidatedRedirectFetch,
+} from "../utils/safe-redirect-fetch.js";
+import {
   normalizeGitLabApiRelativePath,
   readProjectIdFromApiRelativePath,
   resolveGitLabApiRequestUrl,
@@ -61,19 +66,18 @@ export class GitLabApiRequestHttpError extends Error {
   }
 }
 
-export interface GitLabApiRequestResponse {
-  readonly ok: boolean;
-  readonly status: number;
-  readonly statusText: string;
-  text(): Promise<string>;
-}
-
 export interface ExecuteGitLabApiRequestInput {
   readonly args: unknown;
   readonly apiBaseUrl: string;
   readonly permissionMode: string;
   readonly allowedProjectIds: readonly string[];
-  readonly fetchImpl: (url: string, init: UndiciRequestInit) => Promise<GitLabApiRequestResponse>;
+  readonly fetchImpl: ValidatedRedirectFetch;
+  readonly unauthenticatedFetchImpl?: ValidatedRedirectFetch;
+  /**
+   * Operator-declared GitLab hosts. Those hops may resolve to a private address and
+   * keep the credential headers. Every other redirect target is checked and stripped.
+   */
+  readonly isTrustedRedirectHost?: (host: string) => boolean;
   readonly fetchConfig: () => UndiciRequestInit;
 }
 
@@ -152,6 +156,41 @@ function assertProjectAllowlist(relativePath: string, allowlist: readonly string
   }
 }
 
+function isHeaderList(
+  headers: object
+): headers is { forEach: (callback: (value: string, key: string) => void) => void } {
+  return !Array.isArray(headers) && "forEach" in headers && typeof headers.forEach === "function";
+}
+
+function headerRecord(headers: UndiciRequestInit["headers"]): Record<string, string> {
+  if (!headers) {
+    return {};
+  }
+  if (Array.isArray(headers)) {
+    const record: Record<string, string> = {};
+    for (const [name, value] of headers) {
+      if (typeof value === "string") {
+        record[name] = value;
+      }
+    }
+    return record;
+  }
+  if (isHeaderList(headers)) {
+    const record: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      record[key] = value;
+    });
+    return record;
+  }
+  const record: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === "string") {
+      record[key] = value;
+    }
+  }
+  return record;
+}
+
 function appendQuery(url: URL, query: GitLabApiRequestArgs["query"]): void {
   if (!query) {
     return;
@@ -216,14 +255,22 @@ export async function executeGitLabApiRequestAsync(
   assertProjectAllowlist(relative, input.allowedProjectIds);
   appendQuery(url, args.query);
 
+  const config = input.fetchConfig();
+  const headers = headerRecord(config.headers);
+  const body = method === "GET" || args.body === undefined ? undefined : JSON.stringify(args.body);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await input.fetchImpl(url.toString(), {
-      ...input.fetchConfig(),
-      method,
-      ...(method === "GET" || args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
+    const response = await fetchWithValidatedRedirects(url.toString(), {
+      headers,
+      dispatcher: config.dispatcher,
       signal: controller.signal,
+      method,
+      ...(body === undefined ? {} : { body }),
+      fetchImpl: input.fetchImpl,
+      unauthenticatedFetchImpl: input.unauthenticatedFetchImpl,
+      isTrustedRedirectHost: input.isTrustedRedirectHost,
     });
     const rawBody = await response.text();
     if (!response.ok) {
@@ -232,6 +279,11 @@ export async function executeGitLabApiRequestAsync(
       );
     }
     return { content: [{ type: "text", text: formatSuccessBody(rawBody) }] };
+  } catch (error) {
+    if (error instanceof UnsafeRedirectError) {
+      throw new GitLabApiRequestHttpError(error.message);
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Response as UndiciResponse } from "undici";
 
 import { isToolExposed } from "../../cli/exposure.js";
 import { selectExposedTools } from "../../tools/exposed-tools.js";
@@ -20,9 +21,34 @@ import {
   GitLabApiRequestHttpError,
   GitLabApiRequestInputError,
 } from "../../tools/gitlab-api-request.js";
+import type { ValidatedRedirectFetch } from "../../utils/safe-redirect-fetch.js";
 import { resolveGitLabApiRequestUrl } from "../../utils/url.js";
 
 const API_BASE = "http://127.0.0.1:9/api/v4";
+
+const PUBLIC_REDIRECT_HOST = "93.184.216.34";
+
+interface RecordedHop {
+  readonly url: string;
+  readonly headers: Record<string, string>;
+}
+
+function redirectFetch(location: string, calls: RecordedHop[]): ValidatedRedirectFetch {
+  return async (input, init) => {
+    calls.push({ url: String(input), headers: { ...(init?.headers ?? {}) } });
+    if (calls.length === 1) {
+      return new UndiciResponse(null, { status: 302, headers: { location } });
+    }
+    return new UndiciResponse(JSON.stringify({ followed: true }), { status: 200 });
+  };
+}
+
+const CREDENTIAL_HEADERS = {
+  Accept: "application/json",
+  Authorization: "Bearer secret",
+  "Private-Token": "pat-secret",
+  "JOB-TOKEN": "job-secret",
+};
 
 function resolveOrThrow(path: string): URL {
   return resolveGitLabApiRequestUrl(API_BASE, path);
@@ -172,7 +198,7 @@ describe("When executing gitlab_api_request", () => {
         fetchConfig: () => ({ headers: {} }),
         fetchImpl: async url => {
           requested = url;
-          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+          return new UndiciResponse(JSON.stringify({ ok: true }), { status: 200 });
         },
       });
 
@@ -212,7 +238,7 @@ describe("When executing gitlab_api_request", () => {
         permissionMode: "full",
         allowedProjectIds: [],
         fetchConfig: () => ({ headers: {} }),
-        fetchImpl: async () => new Response("token: plain-secret\nkeep", { status: 200 }),
+        fetchImpl: async () => new UndiciResponse("token: plain-secret\nkeep", { status: 200 }),
       });
 
       assert.equal(result.content[0].text.includes("plain-secret"), false);
@@ -231,7 +257,7 @@ describe("When executing gitlab_api_request", () => {
             allowedProjectIds: [],
             fetchConfig: () => ({ headers: {} }),
             fetchImpl: async () =>
-              new Response("import_url=https://user:pass@example.com/repo.git", {
+              new UndiciResponse("import_url=https://user:pass@example.com/repo.git", {
                 status: 500,
                 statusText: "Error",
               }),
@@ -246,6 +272,193 @@ describe("When executing gitlab_api_request", () => {
     });
   });
 
+  describe("with a JSON body", () => {
+    it("should send POST and the serialized body", async () => {
+      const seen = { method: "", body: "" };
+      const fetchImpl: ValidatedRedirectFetch = async (_input, init) => {
+        seen.method = init?.method ?? "";
+        seen.body = init?.body ?? "";
+        return new UndiciResponse(JSON.stringify({ id: 1 }), {
+          status: 201,
+          statusText: "Created",
+        });
+      };
+
+      await executeGitLabApiRequestAsync({
+        args: { method: "POST", path: "projects/5/issues", body: { title: "t" } },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl,
+      });
+
+      assert.deepEqual([seen.method, seen.body], ["POST", JSON.stringify({ title: "t" })]);
+    });
+  });
+
+  describe("with a cross-origin redirect", () => {
+    it("should withhold credential headers from the next hop", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch(`http://${PUBLIC_REDIRECT_HOST}/object`, calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5/jobs/7/artifacts" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, `http://${PUBLIC_REDIRECT_HOST}/object`);
+      assert.equal(calls[1]?.headers.Authorization, undefined);
+      assert.equal(calls[1]?.headers["Private-Token"], undefined);
+      assert.equal(calls[1]?.headers["JOB-TOKEN"], undefined);
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+
+  describe("with a POST redirected to another origin", () => {
+    it("should follow as GET without the body or credential headers", async () => {
+      const calls: Array<RecordedHop & { readonly method: string; readonly body?: string }> = [];
+      const fetchImpl: ValidatedRedirectFetch = async (input, init) => {
+        calls.push({
+          url: String(input),
+          method: init?.method ?? "",
+          body: init?.body,
+          headers: { ...(init?.headers ?? {}) },
+        });
+        if (calls.length === 1) {
+          return new UndiciResponse(null, {
+            status: 302,
+            headers: { location: `http://${PUBLIC_REDIRECT_HOST}/object` },
+          });
+        }
+        return new UndiciResponse(JSON.stringify({ followed: true }), { status: 200 });
+      };
+
+      await executeGitLabApiRequestAsync({
+        args: { method: "POST", path: "projects/5/issues", body: { title: "t" } },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[0]?.method, "POST");
+      assert.equal(calls[1]?.method, "GET");
+      assert.equal(calls[1]?.body, undefined);
+      assert.equal(calls[1]?.headers["Private-Token"], undefined);
+      assert.equal(calls[1]?.headers["JOB-TOKEN"], undefined);
+    });
+  });
+
+  describe("with a same-origin redirect", () => {
+    it("should keep credential headers on the next hop", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/api/v4/projects/5", calls);
+      await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.headers["Private-Token"], "pat-secret");
+      assert.equal(calls[1]?.headers["JOB-TOKEN"], "job-secret");
+    });
+  });
+
+  describe("with a redirect to a private address", () => {
+    it("should refuse the hop before reading a body", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("http://169.254.169.254/latest/meta-data/", calls);
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5/jobs/7/artifacts" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: [],
+            fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestHttpError);
+          assert.match(error.message, /non-public address/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+    });
+  });
+
+  describe("with a 303 redirect", () => {
+    it("should follow PUT as GET and drop the body", async () => {
+      const calls: Array<{ readonly method: string; readonly body?: string }> = [];
+      const fetchImpl: ValidatedRedirectFetch = async (_input, init) => {
+        calls.push({ method: init?.method ?? "", body: init?.body });
+        if (calls.length === 1) {
+          return new UndiciResponse(null, {
+            status: 303,
+            headers: { location: `http://${PUBLIC_REDIRECT_HOST}/object` },
+          });
+        }
+        return new UndiciResponse(JSON.stringify({ followed: true }), { status: 200 });
+      };
+
+      await executeGitLabApiRequestAsync({
+        args: { method: "PUT", path: "projects/5/issues/1", body: { title: "t" } },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.method, "GET");
+      assert.equal(calls[1]?.body, undefined);
+    });
+  });
+
+  describe("with a 307 redirect", () => {
+    it("should keep the POST method and body", async () => {
+      const calls: Array<{ readonly method: string; readonly body?: string }> = [];
+      const fetchImpl: ValidatedRedirectFetch = async (_input, init) => {
+        calls.push({ method: init?.method ?? "", body: init?.body });
+        if (calls.length === 1) {
+          return new UndiciResponse(null, {
+            status: 307,
+            headers: { location: "/api/v4/projects/5/issues" },
+          });
+        }
+        return new UndiciResponse(JSON.stringify({ kept: true }), { status: 200 });
+      };
+
+      await executeGitLabApiRequestAsync({
+        args: { method: "POST", path: "projects/5/issues", body: { title: "t" } },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.method, "POST");
+      assert.equal(calls[1]?.body, JSON.stringify({ title: "t" }));
+    });
+  });
+
   describe("with a non-2xx JSON body", () => {
     it("should raise a status error without the token field", async () => {
       await assert.rejects(
@@ -257,7 +470,7 @@ describe("When executing gitlab_api_request", () => {
             allowedProjectIds: [],
             fetchConfig: () => ({ headers: {} }),
             fetchImpl: async () =>
-              new Response(JSON.stringify({ message: "nope", token: "secret-token" }), {
+              new UndiciResponse(JSON.stringify({ message: "nope", token: "secret-token" }), {
                 status: 403,
                 statusText: "Forbidden",
               }),

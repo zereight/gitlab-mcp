@@ -11628,6 +11628,8 @@ async function handleToolCall(params: any) {
             permissionMode: GITLAB_PERMISSION_MODE,
             allowedProjectIds: getEffectiveAllowedProjectIds(),
             fetchImpl: fetch,
+            unauthenticatedFetchImpl: undiciFetch,
+            isTrustedRedirectHost: isTrustedGitLabRedirectHost,
             fetchConfig: getFetchConfig,
           });
         } catch (error) {

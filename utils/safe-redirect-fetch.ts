@@ -180,12 +180,26 @@ export function isNonPublicAddress(address: string): boolean {
   return true;
 }
 
+export type ValidatedRedirectFetch = (
+  input: string,
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    dispatcher?: Dispatcher;
+    signal?: AbortSignal;
+    redirect?: "manual";
+  }
+) => Promise<FetchResponse>;
+
 export interface FetchWithValidatedRedirectsOptions {
   headers: Record<string, string>;
   dispatcher?: Dispatcher;
   signal?: AbortSignal;
+  method?: string;
+  body?: string;
   /** Client used while the request still carries the credentials. Defaults to undici's. */
-  fetchImpl?: typeof undiciFetch;
+  fetchImpl?: ValidatedRedirectFetch;
   /**
    * Client used for the hops whose credentials have been withheld. Defaults to plain
    * `undici`, *not* to {@link fetchImpl}.
@@ -198,7 +212,7 @@ export interface FetchWithValidatedRedirectsOptions {
    * reopening that hole, so pass the wrapped client here only if the hops without
    * credentials are expected to reach it.
    */
-  unauthenticatedFetchImpl?: typeof undiciFetch;
+  unauthenticatedFetchImpl?: ValidatedRedirectFetch;
   maxRedirects?: number;
   /**
    * Header names withheld from redirect targets outside the initial origin unless
@@ -292,8 +306,21 @@ async function assertRedirectTargetAllowed(
   }
 }
 
+function methodAfterRedirect(
+  status: number,
+  method: string
+): { readonly method: string; readonly dropBody: boolean } {
+  if ((status === 301 || status === 302) && method === "POST") {
+    return { method: "GET", dropBody: true };
+  }
+  if (status === 303 && method !== "GET" && method !== "HEAD") {
+    return { method: "GET", dropBody: true };
+  }
+  return { method, dropBody: false };
+}
+
 /**
- * Perform a GET request that validates every redirect hop before following it.
+ * Perform a request that validates every redirect hop before following it.
  *
  * The HTTP client default follows redirects without re-validating the destination,
  * which lets an upstream response redirect the server to an arbitrary host
@@ -337,6 +364,8 @@ export async function fetchWithValidatedRedirects(
   let currentUrl = url;
   let currentProtocol = new URL(url).protocol;
   let currentHeaders = options.headers;
+  let currentMethod = (options.method ?? "GET").toUpperCase();
+  let currentBody = options.body;
   // Set once a hop outside the origin has been followed without the credentials, so a
   // later hop back to the origin cannot re-attach them.
   let credentialsWithheld = false;
@@ -345,8 +374,9 @@ export async function fetchWithValidatedRedirects(
     // A stripped hop must not go through a client that can add credentials again.
     const hopFetch = credentialsWithheld ? unauthenticatedFetch : authenticatedFetch;
     const response = await hopFetch(currentUrl, {
-      method: "GET",
+      method: currentMethod,
       headers: currentHeaders,
+      ...(currentBody === undefined ? {} : { body: currentBody }),
       dispatcher: options.dispatcher,
       signal: options.signal,
       redirect: "manual",
@@ -398,6 +428,12 @@ export async function fetchWithValidatedRedirects(
       // hop chose this URL, and the caller reads its response as the download.
       credentialsWithheld ||= !trusted;
       currentHeaders = credentialsWithheld ? withoutCredentialHeaders(options) : options.headers;
+    }
+
+    const rewritten = methodAfterRedirect(response.status, currentMethod);
+    currentMethod = rewritten.method;
+    if (rewritten.dropBody) {
+      currentBody = undefined;
     }
 
     currentUrl = target.toString();
