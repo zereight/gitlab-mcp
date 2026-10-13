@@ -36,7 +36,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **274개 도구: toolset 272개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **275개 도구: toolset 273개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -50,7 +50,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 274개 도구: toolset 272개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 275개 도구: toolset 273개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
@@ -162,7 +162,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
-- `--toolsets=all` - 지정한 툴셋 활성화 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값 사용)
+- `--toolsets=all` - 지정한 툴셋 활성화. 명시적 `api` 툴셋은 빠짐 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값 사용). `gitlab_api_request`는 `--toolsets=api`
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,milestones`를 사용 (`USE_MILESTONE` 대체)
@@ -201,6 +201,10 @@ CLI 인자는 환경 변수보다 우선합니다.
 > `GITLAB_TOOLS`가 없으면 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`로 설정하세요. 이미 있으면 `validate_ci_lint,validate_project_ci_lint`를 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
 > [Tools Reference](./docs/tools/index.md#feature-toggles)와
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
+
+> [!CAUTION]
+> `gitlab_api_request`(`api` 툴셋)는 `GITLAB_ALLOWED_GROUPS`와 그 밖의 그룹 제한, 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
+> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, 레거시 `USE_*`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`는 `/projects/:id` 경로만 검사합니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 제한되지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
 
 - sse
 

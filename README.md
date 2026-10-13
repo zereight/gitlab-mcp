@@ -41,7 +41,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **274 tools: 272 in toolsets + `execute_graphql` + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
+- **275 tools: 273 in toolsets + `execute_graphql` + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -55,7 +55,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 |                | @zereight/mcp-gitlab                                              | GitLab MCP A (community CQRS-style)          | GitLab official MCP server                                                                                                                       |
 | -------------- | ----------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Best for**   | AI agent workflows                                                | Enterprise multi-instance / grouped tools    | Built into GitLab, no separate install                                                                                                           |
-| **Tool model** | 274 tools: 272 in toolsets + `execute_graphql` + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
+| **Tool model** | 275 tools: 273 in toolsets + `execute_graphql` + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
 | **MR review**  | 2-step batched diff                                               | Varies                                       | `get_merge_request` with diffs                                                                                                                   |
 | **Node.js**    | >=18.17                                                           | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
@@ -167,7 +167,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead (replaces `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
-- `--toolsets=all` - Enable named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default)
+- `--toolsets=all` - Enable named toolsets except the explicit-only `api` toolset (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default). `gitlab_api_request` needs `--toolsets=api`
 - `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` instead (replaces `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` instead (replaces `USE_MILESTONE`)
@@ -207,6 +207,10 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 > If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 > See [Tools Reference](./docs/tools/index.md#feature-toggles) and
 > [Environment Variables](./docs/configuration/environment-variables.md).
+
+> [!CAUTION]
+> `gitlab_api_request` (toolset `api`) bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it.
+> Enable it only by listing `api` in `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not). `GITLAB_ALLOWED_PROJECT_IDS` is checked only for `/projects/:id` paths. Endpoints such as `/search`, `/users`, `/groups/:id`, and `/runners` are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
 - sse
 
@@ -918,7 +922,8 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 271. `delete_snippet` - Delete a snippet
 272. `list_project_runners` - List runners available to a project (type, status, paused, tag_list). Omits registration and authentication tokens.
 273. `get_runner` - Get a runner's tag_list, run_untagged, locked, and access_level. When a project allowlist is active, the runner must be available to an allowed project. Omits registration and authentication tokens.
-274. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+274. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
+275. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 

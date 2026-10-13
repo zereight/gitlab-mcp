@@ -28,6 +28,7 @@ export interface UnavailableToolMessageInput {
   readonly deniedByRegex: boolean;
   readonly excludedBySlimProfile: boolean;
   readonly enabledByCurrentToolsets: boolean;
+  readonly explicitToolsetOnly?: boolean;
 }
 
 /**
@@ -42,6 +43,9 @@ export function buildUnavailableToolMessage(input: UnavailableToolMessageInput):
   }
   if (input.excludedBySlimProfile) {
     return `${base}. ${slimExclusionGuidance(input.toolName, toolset, input.enabledByCurrentToolsets)}`;
+  }
+  if (input.explicitToolsetOnly) {
+    return `${base}. The "${toolset}" toolset is not enabled. discover_tools cannot activate it. Add "${toolset}" to GITLAB_TOOLSETS. GITLAB_TOOLSETS=all, GITLAB_TOOLS, and GITLAB_TOOL_PROFILE do not enable it.`;
   }
   return `${base}. It belongs to the "${toolset}" toolset, which is not enabled: call discover_tools with category "${toolset}" or add "${toolset}" to GITLAB_TOOLSETS.`;
 }

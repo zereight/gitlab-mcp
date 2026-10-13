@@ -43,7 +43,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
 | `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead. |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
-| `--toolsets=all`       | `GITLAB_TOOLSETS`              | Enable named toolsets. Unset uses lean `core`.      |
+| `--toolsets=all`       | `GITLAB_TOOLSETS`              | Enable named toolsets. Unset uses lean `core`. `all` does not enable the explicit-only `api` toolset; use `--toolsets=api`. |
 | `--tools=list_issues`  | `GITLAB_TOOLS`                 | Add individual tools on top of enabled toolsets.    |
 | `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` or `GITLAB_TOOLSETS=core,wiki` instead. |
 | `--use-milestone=true` | `USE_MILESTONE`                | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` or `GITLAB_TOOLSETS=core,milestones` instead. |

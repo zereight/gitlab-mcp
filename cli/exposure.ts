@@ -8,6 +8,7 @@ import {
 import { compileDeniedToolsRegex } from "../tools/denied-regex.js";
 import {
   buildFeatureFlagOverrides,
+  isExplicitToolsetOnlyTool,
   isToolInEnabledToolset,
   parseEnabledToolsets,
   parseIndividualTools,
@@ -51,6 +52,9 @@ export function isToolExposed(input: ToolExposureInput): boolean {
   if (isToolInEnabledToolset(input.toolName, input.enabledToolsets)) {
     return true;
   }
+  if (isExplicitToolsetOnlyTool(input.toolName)) {
+    return false;
+  }
   if (input.individuallyEnabledTools.has(input.toolName)) {
     return true;
   }
@@ -66,6 +70,9 @@ export function exposureRefusalMessage(input: ToolExposureInput): string | undef
   }
   if (isToolExposed(input)) {
     return undefined;
+  }
+  if (isExplicitToolsetOnlyTool(input.toolName)) {
+    return `${input.toolName} is enabled only by listing its toolset in GITLAB_TOOLSETS. GITLAB_TOOLS, GITLAB_TOOLSETS=all, and discover_tools do not enable it.`;
   }
   return `${input.toolName} is not enabled by GITLAB_TOOLSETS, GITLAB_TOOLS, or legacy wiki/milestone/pipeline flags`;
 }

@@ -36,7 +36,7 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 
 ### 为什么使用这个 GitLab MCP？
 
-- **274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **275 个工具：toolset 中 273 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -50,7 +50,7 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 275 个工具：toolset 中 273 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
@@ -162,7 +162,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--permission-mode=readonly`（替代 `GITLAB_READ_ONLY_MODE`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
-- `--toolsets=all` - 启用指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）
+- `--toolsets=all` - 启用指定工具集，但不包括必须显式列出的 `api`（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）
@@ -200,6 +200,10 @@ CLI 参数优先于环境变量。
 > 如果未设置 `GITLAB_TOOLS`，请设置 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`。如果已经设置，请把 `validate_ci_lint,validate_project_ci_lint` 追加到现有列表，不要整段替换。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
+
+> [!CAUTION]
+> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
+> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。`GITLAB_ALLOWED_PROJECT_IDS` 只检查 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点不受约束。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
 
