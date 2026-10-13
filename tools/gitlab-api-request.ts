@@ -155,10 +155,18 @@ function assertRedirectedApiPathAllowed(
   target: URL,
   trustedAlternateHost: boolean
 ): void {
+  const relative = apiRelativePathFromRedirect(apiBaseUrl, target, trustedAlternateHost);
+  const apiBase = new URL(apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`);
+  // Same-origin hops keep credential headers. A path outside /api/v4 must be refused
+  // before the allowlist short-circuit, including when the allowlist is empty.
+  if (relative === undefined && target.origin === apiBase.origin) {
+    throw new GitLabApiRequestInputError(
+      "Redirect target must remain under the GitLab API base path"
+    );
+  }
   if (allowlist.length === 0) {
     return;
   }
-  const relative = apiRelativePathFromRedirect(apiBaseUrl, target, trustedAlternateHost);
   if (relative === undefined || relative.length === 0) {
     return;
   }

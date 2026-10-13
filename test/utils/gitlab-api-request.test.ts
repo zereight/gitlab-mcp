@@ -375,6 +375,111 @@ describe("When executing gitlab_api_request", () => {
     });
   });
 
+  describe("with a same-origin redirect outside the API base path", () => {
+    it("should reject the hop before sending credentials", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/users/sign_in", calls);
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: [],
+            fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Redirect target must remain under the GitLab API base path/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.url, `${API_BASE}/projects/5`);
+      assert.equal(
+        calls.some(call => call.url.includes("/users/sign_in")),
+        false
+      );
+    });
+  });
+
+  describe("with an allowlist and a same-origin redirect outside the API base path", () => {
+    it("should reject the hop before sending credentials", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/users/sign_in", calls);
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Redirect target must remain under the GitLab API base path/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.url, `${API_BASE}/projects/5`);
+      assert.equal(
+        calls.some(call => call.url.includes("/users/sign_in")),
+        false
+      );
+    });
+  });
+
+  describe("with an allowlist and a cross-origin redirect outside the API base path", () => {
+    it("should follow the hop without credential headers", async () => {
+      const calls: RecordedHop[] = [];
+      const location = `http://${PUBLIC_REDIRECT_HOST}/users/sign_in`;
+      const fetchImpl = redirectFetch(location, calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5"],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, location);
+      assert.equal(calls[1]?.headers.Authorization, undefined);
+      assert.equal(calls[1]?.headers["Private-Token"], undefined);
+      assert.equal(calls[1]?.headers["JOB-TOKEN"], undefined);
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+
+  describe("with a redirect to the API base path itself", () => {
+    it("should follow the empty relative path", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/api/v4/", calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5"],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, `${API_BASE}/`);
+      assert.equal(calls[1]?.headers["Private-Token"], "pat-secret");
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+
   describe("with an allowlist and a redirect to another project", () => {
     it("should refuse the hop before requesting it", async () => {
       const calls: RecordedHop[] = [];
