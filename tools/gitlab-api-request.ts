@@ -133,9 +133,13 @@ function projectAllowed(
   return false;
 }
 
-function apiRelativePathFromRedirect(apiBaseUrl: string, target: URL): string | undefined {
+function apiRelativePathFromRedirect(
+  apiBaseUrl: string,
+  target: URL,
+  trustedAlternateHost: boolean
+): string | undefined {
   const base = new URL(apiBaseUrl.endsWith("/") ? apiBaseUrl : `${apiBaseUrl}/`);
-  if (target.origin !== base.origin) {
+  if (target.origin !== base.origin && !trustedAlternateHost) {
     return undefined;
   }
   const basePrefix = base.pathname.endsWith("/") ? base.pathname : `${base.pathname}/`;
@@ -148,12 +152,13 @@ function apiRelativePathFromRedirect(apiBaseUrl: string, target: URL): string | 
 function assertRedirectedApiPathAllowed(
   apiBaseUrl: string,
   allowlist: readonly string[],
-  target: URL
+  target: URL,
+  trustedAlternateHost: boolean
 ): void {
   if (allowlist.length === 0) {
     return;
   }
-  const relative = apiRelativePathFromRedirect(apiBaseUrl, target);
+  const relative = apiRelativePathFromRedirect(apiBaseUrl, target, trustedAlternateHost);
   if (relative === undefined || relative.length === 0) {
     return;
   }
@@ -306,7 +311,12 @@ export async function executeGitLabApiRequestAsync(
       unauthenticatedFetchImpl: input.unauthenticatedFetchImpl,
       isTrustedRedirectHost: input.isTrustedRedirectHost,
       validateRedirectTarget: target => {
-        assertRedirectedApiPathAllowed(input.apiBaseUrl, input.allowedProjectIds, target);
+        assertRedirectedApiPathAllowed(
+          input.apiBaseUrl,
+          input.allowedProjectIds,
+          target,
+          input.isTrustedRedirectHost?.(target.host) === true
+        );
       },
     });
     const rawBody = await response.text();

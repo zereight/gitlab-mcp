@@ -420,6 +420,81 @@ describe("When executing gitlab_api_request", () => {
     });
   });
 
+  describe("with an allowlist and a redirect to another project on a trusted host", () => {
+    it("should refuse the hop before requesting it", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch(
+        "https://gitlab-alias.example/api/v4/projects/9/issues",
+        calls
+      );
+
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+            fetchImpl,
+            unauthenticatedFetchImpl: fetchImpl,
+            isTrustedRedirectHost: host => host === "gitlab-alias.example",
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, /Project 9 is not in the allowed project list/);
+          return true;
+        }
+      );
+      assert.equal(calls.length, 1);
+    });
+  });
+
+  describe("with an allowlist and a redirect to the same project on a trusted host", () => {
+    it("should follow the hop and keep the credential headers", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch(
+        "https://gitlab-alias.example/api/v4/projects/5/issues",
+        calls
+      );
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5"],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+        isTrustedRedirectHost: host => host === "gitlab-alias.example",
+      });
+
+      assert.equal(calls[1]?.url, "https://gitlab-alias.example/api/v4/projects/5/issues");
+      assert.equal(calls[1]?.headers["Private-Token"], "pat-secret");
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+
+  describe("with an allowlist and an untrusted redirect to another project API path", () => {
+    it("should follow the hop without credential headers", async () => {
+      const calls: RecordedHop[] = [];
+      const location = `http://${PUBLIC_REDIRECT_HOST}/api/v4/projects/9/issues`;
+      const fetchImpl = redirectFetch(location, calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5"],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, location);
+      assert.equal(calls[1]?.headers["Private-Token"], undefined);
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+
   describe("with a redirect to a private address", () => {
     it("should refuse the hop before reading a body", async () => {
       const calls: RecordedHop[] = [];
