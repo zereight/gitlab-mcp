@@ -5,6 +5,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ServerCapabilities } from "@modelcontextprotocol/sdk/types.js";
 import { MCPClientInterface, MCPConnectionError, MCPToolCallError } from "./client.js";
 
 export class StdioTestClient implements MCPClientInterface {
@@ -110,6 +111,54 @@ export class StdioTestClient implements MCPClientInterface {
       throw new MCPToolCallError(
         `Failed to call tool '${name}': ${error instanceof Error ? error.message : String(error)}`,
         name,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async listResources() {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return await this.client.listResources();
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to list resources: ${error instanceof Error ? error.message : String(error)}`,
+        'listResources',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async readResource(uri: string) {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return await this.client.readResource({ uri });
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to read resource '${uri}': ${error instanceof Error ? error.message : String(error)}`,
+        uri,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async serverCapabilities(): Promise<ServerCapabilities | undefined> {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return this.client.getServerCapabilities();
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to read server capabilities: ${error instanceof Error ? error.message : String(error)}`,
+        'serverCapabilities',
         error instanceof Error ? error : undefined
       );
     }
