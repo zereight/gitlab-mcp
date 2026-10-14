@@ -3972,7 +3972,9 @@ export const DownloadAttachmentSchema = z.object({
   local_path: z
     .string()
     .optional()
-    .describe("Local path to save the file (optional, defaults to current directory)"),
+    .describe(
+      "Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected"
+    ),
 });
 
 export const DownloadAttachmentRemoteSchema = z.object({

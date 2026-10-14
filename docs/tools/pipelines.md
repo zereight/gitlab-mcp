@@ -61,7 +61,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 - [`wait_for_pipeline`](#wait_for_pipeline) — 📖 Read-only
 - [`wait_for_job`](#wait_for_job) — 📖 Read-only
 - [`list_job_artifacts`](#list_job_artifacts) — 📖 Read-only
-- [`download_job_artifacts`](#download_job_artifacts) — 📖 Read-only
+- [`download_job_artifacts`](#download_job_artifacts) — 📖✏️ Reads and writes
 - [`get_job_artifact_file`](#get_job_artifact_file) — 📖 Read-only
 - [`list_project_runners`](#list_project_runners) — 📖 Read-only
 - [`get_runner`](#get_runner) — 📖 Read-only
@@ -876,9 +876,9 @@ List artifact files in a job's archive. Use this for a collection of resources; 
 
 ### `download_job_artifacts`
 
-*📖 Read-only*
+*📖✏️ Reads and writes*
 
-Download job artifact archive (zip) and save to a local path. Use this to retrieve a pipeline job's artifact archive; remote HTTP mode returns a download URL while local mode saves the archive to a local path. It is read-only but may create a local file in stdio mode, requires job/project access, and returns the download result or an artifact/permission error.
+Download job artifact archive (zip) and save to a local path. Use this to retrieve a pipeline job's artifact archive; remote HTTP mode returns a download URL while local mode saves the archive to a local path. It is read-only on GitLab but creates a local file in stdio mode (rejected in readonly mode), requires job/project access, and returns the download result or an artifact/permission error.
 
 **Parameters**
 

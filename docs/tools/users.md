@@ -13,7 +13,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 - [`list_events`](#list_events) — 📖 Read-only
 - [`get_project_events`](#get_project_events) — 📖 Read-only
 - [`upload_markdown`](#upload_markdown) — ✏️ Writes
-- [`download_attachment`](#download_attachment) — 📖 Read-only
+- [`download_attachment`](#download_attachment) — 📖✏️ Reads and writes
 
 ---
 
@@ -104,9 +104,9 @@ Upload a file for use in markdown content. Use this for the specific operation d
 
 ### `download_attachment`
 
-*📖 Read-only*
+*📖✏️ Reads and writes*
 
-Download an uploaded file from a project (images returned as base64; use local_path to save to disk). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode can save to a path. It is read-only with respect to GitLab, requires project access, and returns the file content or an attachment/permission error.
+Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode saves the file as a new file under the download directory (GITLAB_DOWNLOAD_DIR, default .gitlab-mcp-downloads). It is read-only with respect to GitLab but creates a local file in stdio mode (readonly mode returns images inline and rejects everything else), never replaces an existing file, requires project access, and returns the file content or an attachment/permission error.
 
 **Parameters**
 
@@ -115,4 +115,4 @@ Download an uploaded file from a project (images returned as base64; use local_p
 | `project_id` | string | ✓ | Project ID or URL-encoded path of the project |
 | `secret` | string | ✓ | The 32-character secret of the upload |
 | `filename` | string | ✓ | The filename of the upload |
-| `local_path` | string |  | Local path to save the file (optional, defaults to current directory) |
+| `local_path` | string |  | Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected |

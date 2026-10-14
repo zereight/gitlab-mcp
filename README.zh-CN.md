@@ -172,6 +172,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
 - `--masking-policy-file` - 受保护的托管策略文件路径（替代 `GITLAB_MASKING_POLICY_FILE`）
 - `--masking-workspace-dir` - 用于解析掩码文件的目录（替代 `GITLAB_MASKING_WORKSPACE_DIR`）
+- `--download-dir` - `download_attachment` 保存文件的目录（替代 `GITLAB_DOWNLOAD_DIR`，默认 `.gitlab-mcp-downloads`）
 - `--compact-results=true` - 将过大的 MCP 工具回复截断为预览并附带 CLI 命令（替代 `GITLAB_MCP_COMPACT_RESULTS`，默认关闭）
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）

@@ -52,6 +52,7 @@ import {
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
   GITLAB_TOOL_PROFILE,
+  GITLAB_DOWNLOAD_DIR,
   buildDeprecatedEnvInput,
 } from "./config.js";
 import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
@@ -196,6 +197,7 @@ import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
   openSafeOutputWriteStream,
+  resolveDownloadRoot,
   readSafeExistingFile,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
@@ -8533,10 +8535,13 @@ async function downloadJobArtifacts(
   if (!response.body) {
     throw new Error("No response body from GitLab");
   }
+  // The archive name is fixed, but local_path still comes from the model.
   const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
     filename,
     localPath,
-    "local_path"
+    "local_path",
+    undefined,
+    { rejectDotNames: true }
   );
   await streamPipeline(response.body, saveStream);
 
@@ -10930,8 +10935,9 @@ async function downloadAttachment(
 
   const mimeType = getImageMimeType(safeFilename);
 
-  // For non-image files, always save to disk.
-  // For image files, only save to disk if local_path is explicitly provided.
+  // Non-image files, and images with local_path, are saved as new files under the
+  // download directory. Upload names and local_path come from untrusted content, so
+  // dot names (.git, .vscode, .envrc) are refused and existing files are never replaced.
   if (!mimeType || localPath) {
     if (!response.body) {
       throw new Error("No response body from GitLab");
@@ -10939,11 +10945,19 @@ async function downloadAttachment(
     const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
       safeFilename,
       localPath,
-      "local_path"
+      "local_path",
+      resolveDownloadRoot(GITLAB_DOWNLOAD_DIR),
+      { exclusive: true, rejectDotNames: true }
     );
 
     // Stream directly to disk instead of buffering in memory
-    await streamPipeline(response.body, saveStream);
+    try {
+      await streamPipeline(response.body, saveStream);
+    } catch (error) {
+      // The file was created by this call; drop the partial copy so a retry can succeed.
+      fs.rmSync(savePath, { force: true });
+      throw error;
+    }
     return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
 
@@ -14275,6 +14289,11 @@ async function handleToolCall(params: any) {
             ],
           };
         }
+        if (GITLAB_PERMISSION_MODE === "readonly") {
+          throw new Error(
+            "download_job_artifacts saves files to disk, which readonly mode does not allow. Use list_job_artifacts and get_job_artifact_file instead."
+          );
+        }
         const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
         return {
           content: [
@@ -14890,6 +14909,13 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+        }
+
+        // Readonly mode never writes to disk: images still come back inline.
+        if (GITLAB_PERMISSION_MODE === "readonly" && (!mimeType || args.local_path)) {
+          throw new Error(
+            "download_attachment saves this file to disk, which readonly mode does not allow. Only images without local_path can be downloaded in readonly mode."
+          );
         }
 
         const result = await downloadAttachment(

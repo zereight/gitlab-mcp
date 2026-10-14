@@ -177,6 +177,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--masking-config` - Path to a masking configuration file (replaces `GITLAB_MASKING_CONFIG`)
 - `--masking-policy-file` - Path to a protected managed-policy file (replaces `GITLAB_MASKING_POLICY_FILE`)
 - `--masking-workspace-dir` - Directory used to resolve masking files (replaces `GITLAB_MASKING_WORKSPACE_DIR`)
+- `--download-dir` - Directory `download_attachment` saves files under (replaces `GITLAB_DOWNLOAD_DIR`; default `.gitlab-mcp-downloads`)
 - `--compact-results=true` - Truncate oversized MCP tool replies and attach a CLI command for the full payload (replaces `GITLAB_MCP_COMPACT_RESULTS`; default off)
 - `--compact-result-chars` - Character threshold for compacting (replaces `GITLAB_MCP_COMPACT_RESULT_CHARS`; default `4000`)
 - `--compact-tools` - Comma-separated tool names to compact when oversized, without turning global compact on (replaces `GITLAB_MCP_COMPACT_TOOLS`)
@@ -846,7 +847,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 195. `create_commit_status` - Create or update the status of a commit
 196. `list_group_iterations` - List group iterations with filtering options
 197. `upload_markdown` - Upload a file for use in markdown content
-198. `download_attachment` - Download an uploaded file from a project (images returned as base64; use local_path to save to disk)
+198. `download_attachment` - Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)
 199. `health_check` - Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
 200. `list_events` - List events for the authenticated user (before/after: YYYY-MM-DD)
 201. `get_project_events` - List events for a project (before/after: YYYY-MM-DD)
