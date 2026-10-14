@@ -25,7 +25,6 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 const MOCK_TOKEN = "glpat-token-opt-test";
 
 // Port bases (offset to avoid collision with other suites)
-const MOCK_PORT_BASE = 9400;
 const MCP_PORT_BASE = 3400;
 let portCounter = 0;
 

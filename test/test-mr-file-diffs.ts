@@ -41,7 +41,7 @@ async function callListMergeRequestChangedFiles(args: Record<string, any> = {}, 
           if (content) {
             try {
               resolve(JSON.parse(content));
-            } catch (e) {
+            } catch {
               reject(new Error(`Failed to parse tool output JSON: ${content}`));
             }
           } else {
@@ -94,7 +94,7 @@ async function callGetMergeRequestFileDiff(args: Record<string, any> = {}, env: 
           if (content) {
             try {
               resolve(JSON.parse(content));
-            } catch (e) {
+            } catch {
               reject(new Error(`Failed to parse tool output JSON: ${content}`));
             }
           } else {

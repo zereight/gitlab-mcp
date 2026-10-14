@@ -99,7 +99,7 @@ export class SSETestClient implements MCPClientInterface {
     try {
       const tools = await this.listTools();
       return Array.isArray(tools.tools) && tools.tools.length > 0;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

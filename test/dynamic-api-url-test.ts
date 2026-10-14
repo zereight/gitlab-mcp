@@ -21,8 +21,6 @@ const MOCK_TOKEN_1 = 'glpat-mock-token-instance-1';
 const MOCK_TOKEN_2 = 'glpat-mock-token-instance-2';
 
 // Port ranges
-const MOCK_GITLAB_PORT_BASE_1 = 9100;
-const MOCK_GITLAB_PORT_BASE_2 = 9200;
 const MCP_SERVER_PORT_BASE = 3100;
 
 console.log('🌐 Dynamic GitLab API URL Test Suite');
@@ -34,7 +32,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
   let mockGitLab2: MockGitLabServer;
   let mockGitLabUrl1: string;
   let mockGitLabUrl2: string;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     // Start first mock GitLab server
@@ -246,7 +244,7 @@ describe('Dynamic API URL - Connection Pool', () => {
   let mockGitLab2: MockGitLabServer;
   let mockGitLabUrl1: string;
   let mockGitLabUrl2: string;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     // Start mock GitLab servers

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as path from "node:path";
-import { getWorkspaceRoot, ensureDir, safeReadFile, safeWriteFile, safeJsonParse, generateId, errorResponse } from "./utils.js";
+import { getWorkspaceRoot, ensureDir, safeReadFile, safeWriteFile, safeJsonParse, generateId } from "./utils.js";
 
 function getPrdPath(): string {
   return path.join(getWorkspaceRoot(), ".omc", "prd.json");
