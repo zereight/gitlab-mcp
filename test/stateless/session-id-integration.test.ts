@@ -33,13 +33,12 @@ import {
 const MOCK_TOKEN = "glpat-mockstateless-12345-abcdef";
 
 // Use unusual port ranges to avoid colliding with other suites.
-const MOCK_PORT_BASE = 9800;
 const SERVER_PORT_BASE_A = 3800;
 const SERVER_PORT_BASE_B = 3850;
 const SERVER_PORT_BASE_TTL = 3900;
 
 describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let mockGitLab: MockGitLabServer;
   let urlA: string;
   let urlB: string;
@@ -601,7 +600,6 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
 describe("Stateless Mcp-Session-Id — OAuth + sid-only follow-up", () => {
   const MOCK_OAUTH_TOKEN = "ya29.mock-oauth-token-stateless-abcdef";
   const MOCK_CLIENT_ID = "mock-app-uid-oauth-stateless";
-  const OAUTH_MOCK_PORT_BASE = 9950;
   const OAUTH_SERVER_PORT_BASE_A = 3950;
   const OAUTH_SERVER_PORT_BASE_B = 3970;
 

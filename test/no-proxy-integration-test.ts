@@ -20,7 +20,6 @@ import { CustomHeaderClient } from './clients/custom-header-client.js';
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 
 // Port ranges
-const MOCK_GITLAB_PORT_BASE = 9600;
 const MCP_SERVER_PORT_BASE = 3600;
 
 console.log('🌐 NO_PROXY Integration Test Suite');
@@ -29,7 +28,7 @@ console.log('');
 describe('NO_PROXY Integration Tests', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let mockGitLabUrl: string;
   let mockGitLabHost: string;
 

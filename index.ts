@@ -638,7 +638,6 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
-  type UpdateIssueDescriptionPatchOptions,
   UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -712,14 +711,7 @@ import {
   HealthCheckSchema,
 } from "./schemas.js";
 
-import {
-  randomUUID,
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-  timingSafeEqual,
-} from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -1223,23 +1215,6 @@ function createServer(): McpServer {
   });
 
   return mcpServer;
-}
-
-/**
- * Validate configuration at startup
- */
-function isLoopbackBindHost(host: string): boolean {
-  const normalized = host
-    .trim()
-    .toLowerCase()
-    .replace(/^\[|\]$/g, "");
-  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
-  return (
-    normalized === "localhost" ||
-    isIpv4Loopback ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:1"
-  );
 }
 
 function formatHostWithPort(host: string, port: number): string | null {
@@ -9783,7 +9758,7 @@ async function getCommitDiff(
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}/diff`;
 
-  let allDiffs: GitLabMergeRequestDiff[] = [];
+  const allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
 
   while (true) {
@@ -9977,7 +9952,7 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   }
 
   // Use listIssues with assignee_username filter
-  let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
+  const listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
     state: options.state || "opened", // Default to "opened" if not specified
     labels: options.labels,
     milestone: options.milestone,

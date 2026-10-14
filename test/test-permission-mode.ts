@@ -22,7 +22,6 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-permission-mode-test";
 
-const MOCK_PORT_BASE = 9700;
 const MCP_PORT_BASE = 3700;
 
 let mockGitLab: MockGitLabServer;

@@ -3,7 +3,6 @@
  * Tests for per-session HTTP header-based authorization
  */
 
-import * as path from 'path';
 import { describe, test, after, before } from 'node:test';
 import assert from 'node:assert';
 import { 

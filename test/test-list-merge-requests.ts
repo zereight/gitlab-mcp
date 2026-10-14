@@ -40,7 +40,7 @@ async function callListMergeRequests(args: Record<string, any> = {}, env: NodeJS
           if (content) {
             try {
               resolve(JSON.parse(content));
-            } catch (e) {
+            } catch {
               reject(new Error(`Failed to parse tool output JSON: ${content}`));
             }
           } else {

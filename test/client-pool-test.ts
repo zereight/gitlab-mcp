@@ -21,7 +21,6 @@ const MOCK_TOKEN = 'glpat-mock-token-12345';
 const POOL_MAX_SIZE = 2;
 
 // Port ranges
-const MOCK_GITLAB_PORT_BASE = 9500;
 const MCP_SERVER_PORT_BASE = 3500;
 
 console.log('🏊 Client Pool Test Suite');
@@ -30,7 +29,7 @@ console.log('');
 describe('Client Pool Limits', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let mockGitLabUrl: string;
 
   before(async () => {

@@ -7,7 +7,6 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import {
   launchServer,
-  findAvailablePort,
   cleanupServers,
   ServerInstance,
   TransportMode,
@@ -180,7 +179,6 @@ describe("update_issue_description_patch MCP tool", () => {
   let server: ServerInstance;
   let client: CustomHeaderClient;
 
-  const MOCK_PORT_BASE = 9600;
   const MCP_PORT_BASE = 3600;
   let portCounter = 0;
 

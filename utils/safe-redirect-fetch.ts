@@ -273,7 +273,7 @@ function withoutCredentialHeaders(
 async function assertRedirectTargetAllowed(
   target: URL,
   trusted: boolean,
-  options: FetchWithValidatedRedirectsOptions
+  _options: FetchWithValidatedRedirectsOptions
 ): Promise<void> {
   if (trusted) {
     return;

@@ -24,7 +24,6 @@ describe("update_issue slim response", () => {
   let server: ServerInstance;
   let client: CustomHeaderClient;
 
-  const MOCK_PORT_BASE = 9650;
   const MCP_PORT_BASE = 3650;
 
   before(async () => {

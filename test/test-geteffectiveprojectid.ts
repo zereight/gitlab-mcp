@@ -36,7 +36,7 @@ describe('getEffectiveProjectId', { concurrency: 1 }, () => {
 describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
   let group123Requested = false;
   let group789Requested = false;
@@ -341,7 +341,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
 describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {
@@ -448,7 +448,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
 describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {
@@ -542,7 +542,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
 describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {
@@ -644,7 +644,7 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
 describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allowlist-only, no GITLAB_PROJECT_ID)', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {
@@ -785,7 +785,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
 describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {
@@ -852,7 +852,7 @@ describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
 describe('GITLAB_PROJECT_ID guards dependency proxy tools', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
 
   before(async () => {

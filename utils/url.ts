@@ -44,6 +44,7 @@ const DOT_SEGMENT_PATTERN = /(^|[\\/])\.\.?([\\/]|$)/;
 const LEADING_SEPARATOR_PATTERN = /^[\\/]/;
 
 /** NUL, newline and the other control characters: never valid in a path segment. */
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/;
 
 /**

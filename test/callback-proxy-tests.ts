@@ -19,7 +19,6 @@ import {
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_GITLAB_PORT_BASE = 9400;
 const MCP_SERVER_PORT_BASE = 3400;
 const MOCK_ACCESS_TOKEN = "ya29.mock-callback-proxy-token-123456";
 const MOCK_REFRESH_TOKEN = "mock-refresh-token-abcdef";
@@ -129,7 +128,7 @@ describe("Callback Proxy Mode", () => {
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
   let mockGitLabUrl: string;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   const clientRedirectUri = "http://localhost:19999/oauth/callback";
 
   // Track the last code+verifier GitLab received so we can verify the proxy PKCE

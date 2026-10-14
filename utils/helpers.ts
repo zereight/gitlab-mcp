@@ -301,7 +301,7 @@ export function filterDiffsByPatterns<T extends { new_path: string }>(
     .map(pattern => {
       try {
         return new RegExp(pattern);
-      } catch (e) {
+      } catch {
         console.warn(`Invalid regex pattern ignored: ${pattern}`);
         return null;
       }
