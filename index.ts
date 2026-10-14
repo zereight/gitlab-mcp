@@ -2013,6 +2013,33 @@ function getEffectiveAllowedProjectIds(): string[] {
 }
 
 /**
+ * Keep a dynamic project scope bound to its session
+ * A request that omits X-GitLab-Allowed-Project-Ids keeps the session scope, and a
+ * request naming a different scope is refused (null). An unscoped session may be
+ * narrowed. Re-initialize to change the scope.
+ */
+function bindSessionProjectScope(
+  requested: string[] | undefined,
+  sessionScope: string[] | undefined
+): string[] | undefined | null {
+  if (!sessionScope || sessionScope.length === 0) {
+    return requested;
+  }
+  if (requested === undefined) {
+    return sessionScope;
+  }
+  const want = new Set(requested);
+  const have = new Set(sessionScope);
+  return want.size === have.size && [...want].every(id => have.has(id)) ? sessionScope : null;
+}
+
+const SESSION_PROJECT_SCOPE_MISMATCH = {
+  error: "Project scope mismatch",
+  message:
+    "X-GitLab-Allowed-Project-Ids does not match the project scope of this session. Re-initialize to change it.",
+};
+
+/**
  * Reject tools that cannot be limited to allowed projects when
  * ENABLE_STRICT_PROJECT_SCOPE is set and an allowlist is in effect
  */
@@ -16167,6 +16194,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     const incomingSid = readMcpSessionIdHeader(req);
     const isInit = isInitializationRequestBody(req.body);
     const headerAuth = parseAuthHeaders(req);
+    const opened =
+      incomingSid && looksLikeStatelessSessionId(incomingSid)
+        ? openSessionId(material, incomingSid, sessionTtlSeconds)
+        : null;
 
     // In GITLAB_MCP_OAUTH mode, req.auth may be populated by requireBearerAuth.
     // Use it when headerAuth is null (no Private-Token / JOB-TOKEN / Authorization).
@@ -16180,7 +16211,6 @@ async function startStreamableHTTPServer(): Promise<void> {
     if (headerAuth) {
       let needsUpstreamValidation = isInit || !incomingSid;
       if (!needsUpstreamValidation && incomingSid && looksLikeStatelessSessionId(incomingSid)) {
-        const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
         needsUpstreamValidation =
           !opened ||
           opened.h !== headerAuth.header ||
@@ -16226,7 +16256,6 @@ async function startStreamableHTTPServer(): Promise<void> {
     let sidPresentedButInvalid = false;
     if (!effective && incomingSid) {
       if (looksLikeStatelessSessionId(incomingSid)) {
-        const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
         if (opened) {
           effective = {
             header: opened.h,
@@ -16269,6 +16298,19 @@ async function startStreamableHTTPServer(): Promise<void> {
           "header, or a valid Mcp-Session-Id from a previous response.",
       });
       return;
+    }
+
+    // The project scope sealed into the sid belongs to the session: live headers
+    // may refresh the token but cannot drop or replace the scope.
+    if (ENABLE_DYNAMIC_PROJECT_SCOPE && freshAuthPresent && !isInit && opened) {
+      const allowedProjectIds = bindSessionProjectScope(effective.allowedProjectIds, opened.p);
+      if (allowedProjectIds === null) {
+        metrics.authFailures++;
+        metrics.statelessAuthFailures++;
+        res.status(401).json(SESSION_PROJECT_SCOPE_MISMATCH);
+        return;
+      }
+      effective.allowedProjectIds = allowedProjectIds;
     }
 
     // Always mint a fresh sid so the embedded iat advances on every request.
@@ -16727,9 +16769,18 @@ async function startStreamableHTTPServer(): Promise<void> {
             setAuthTimeout(sessionId);
           }
         } else if (sessionId && authData) {
+          const allowedProjectIds = bindSessionProjectScope(
+            authData.allowedProjectIds,
+            authBySession[sessionId].allowedProjectIds
+          );
+          if (allowedProjectIds === null) {
+            metrics.authFailures++;
+            res.status(401).json(SESSION_PROJECT_SCOPE_MISMATCH);
+            return;
+          }
           const result = await storeValidatedSessionAuth(
             sessionId,
-            authData,
+            { ...authData, allowedProjectIds },
             publicBaseUrl,
             authBySession[sessionId],
             { skipIfUnchanged: true }
@@ -16745,6 +16796,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           remoteAuthValidatedForInit = true;
           if (result === "stored") {
             logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
+          } else {
+            // Same token: keep the stored auth but let an unscoped session narrow.
+            authBySession[sessionId].allowedProjectIds = allowedProjectIds;
           }
         } else if (sessionId && authBySession[sessionId]) {
           // Existing session with stored auth: update last used time and reset timeout
@@ -16772,8 +16826,17 @@ async function startStreamableHTTPServer(): Promise<void> {
               );
               setAuthTimeout(sessionId);
             } else {
+              const allowedProjectIds = bindSessionProjectScope(
+                headerAuthData.allowedProjectIds,
+                authBySession[sessionId].allowedProjectIds
+              );
+              if (allowedProjectIds === null) {
+                metrics.authFailures++;
+                res.status(401).json(SESSION_PROJECT_SCOPE_MISMATCH);
+                return;
+              }
               authBySession[sessionId] = withPublicBaseUrl(
-                headerAuthData,
+                { ...headerAuthData, allowedProjectIds },
                 publicBaseUrl,
                 authBySession[sessionId]
               );

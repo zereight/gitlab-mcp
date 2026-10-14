@@ -1,5 +1,6 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
+import { randomBytes } from "node:crypto";
 import {
   cleanupServers,
   findAvailablePort,
@@ -575,6 +576,219 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         ["project:update"],
         "must route to the scoped project, not the personal /snippets endpoint"
       );
+    });
+  });
+
+  describe("scope stays bound to the session", () => {
+    const ROTATED_TOKEN = "glpat-dynamic-scope-token-rotated";
+    let mockGitLab: MockGitLabServer;
+    const servers: ServerInstance[] = [];
+    let statelessUrl: string;
+    let statefulUrl: string;
+
+    interface PostResult {
+      status: number;
+      sid: string | null;
+      json: { result?: CallToolResult } | undefined;
+    }
+
+    async function post(
+      url: string,
+      body: Record<string, unknown>,
+      headers: Record<string, string>
+    ): Promise<PostResult> {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          ...headers,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", ...body }),
+      });
+      const text = await res.text();
+      const data = text.split("\n").find(line => line.startsWith("data:"));
+      const payload = data ? data.slice("data:".length) : text;
+      return {
+        status: res.status,
+        sid: res.headers.get("mcp-session-id"),
+        json: payload ? JSON.parse(payload) : undefined,
+      };
+    }
+
+    function auth(token = MOCK_TOKEN, scope?: string): Record<string, string> {
+      const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+      if (scope !== undefined) {
+        headers[SCOPE_HEADER] = scope;
+      }
+      return headers;
+    }
+
+    async function initSession(url: string, headers: Record<string, string>): Promise<string> {
+      const res = await post(
+        url,
+        {
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-03-26",
+            capabilities: {},
+            clientInfo: { name: "scope-binding-test", version: "1.0.0" },
+          },
+        },
+        headers
+      );
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.sid, "initialize must return an Mcp-Session-Id");
+      await post(
+        url,
+        { method: "notifications/initialized" },
+        { ...headers, "mcp-session-id": res.sid }
+      );
+      return res.sid;
+    }
+
+    function getProject(
+      url: string,
+      projectId: string,
+      headers: Record<string, string>
+    ): Promise<PostResult> {
+      return post(
+        url,
+        {
+          id: 2,
+          method: "tools/call",
+          params: { name: "get_project", arguments: { project_id: projectId } },
+        },
+        headers
+      );
+    }
+
+    function assertDenied(res: PostResult): void {
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.json?.result, "expected a tool result");
+      assertProjectAllowlistDenial(res.json.result);
+    }
+
+    before(async () => {
+      const mockPort = await findMockServerPort();
+      mockGitLab = new MockGitLabServer({
+        port: mockPort,
+        validTokens: [MOCK_TOKEN, ROTATED_TOKEN],
+      });
+      await mockGitLab.start();
+
+      const env = {
+        STREAMABLE_HTTP: "true",
+        REMOTE_AUTHORIZATION: "true",
+        ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
+        GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+        GITLAB_ALLOWED_PROJECT_IDS: "1,2",
+      };
+
+      const statelessPort = await findAvailablePort(3200);
+      servers.push(
+        await launchServer({
+          mode: TransportMode.STREAMABLE_HTTP,
+          port: statelessPort,
+          timeout: 5000,
+          env: {
+            ...env,
+            OAUTH_STATELESS_MODE: "true",
+            OAUTH_STATELESS_SECRET: randomBytes(32).toString("base64url"),
+          },
+        })
+      );
+      statelessUrl = `http://${HOST}:${statelessPort}/mcp`;
+
+      const statefulPort = await findAvailablePort(3200);
+      servers.push(
+        await launchServer({
+          mode: TransportMode.STREAMABLE_HTTP,
+          port: statefulPort,
+          timeout: 5000,
+          env,
+        })
+      );
+      statefulUrl = `http://${HOST}:${statefulPort}/mcp`;
+    });
+
+    after(async () => {
+      cleanupServers(servers);
+      await mockGitLab?.stop();
+    });
+
+    test("stateless: omitting the header keeps the sealed scope", async () => {
+      const sid = await initSession(statelessUrl, auth(MOCK_TOKEN, "1"));
+      const res = await getProject(statelessUrl, "2", { ...auth(), "mcp-session-id": sid });
+      assertDenied(res);
+
+      assert.ok(res.sid, "response must carry a rotated sid");
+      assertDenied(await getProject(statelessUrl, "2", { "mcp-session-id": res.sid }));
+    });
+
+    test("stateless: a different header is rejected", async () => {
+      const sid = await initSession(statelessUrl, auth(MOCK_TOKEN, "1"));
+      const res = await getProject(statelessUrl, "2", {
+        ...auth(MOCK_TOKEN, "2"),
+        "mcp-session-id": sid,
+      });
+      assert.strictEqual(res.status, 401);
+    });
+
+    test("stateless: the same header keeps working", async () => {
+      const sid = await initSession(statelessUrl, auth(MOCK_TOKEN, "1"));
+      const res = await getProject(statelessUrl, "1", {
+        ...auth(MOCK_TOKEN, "1"),
+        "mcp-session-id": sid,
+      });
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.json?.result);
+      const project = parseToolJson(res.json.result) as { id: number };
+      assert.strictEqual(project.id, 1);
+    });
+
+    test("stateless: a refreshed token keeps the sealed scope", async () => {
+      const sid = await initSession(statelessUrl, auth(MOCK_TOKEN, "1"));
+      assertDenied(
+        await getProject(statelessUrl, "2", { ...auth(ROTATED_TOKEN), "mcp-session-id": sid })
+      );
+    });
+
+    test("stateless: an unscoped session can be narrowed, and stays narrowed", async () => {
+      const sid = await initSession(statelessUrl, auth());
+      const res = await getProject(statelessUrl, "2", {
+        ...auth(MOCK_TOKEN, "1"),
+        "mcp-session-id": sid,
+      });
+      assertDenied(res);
+
+      assert.ok(res.sid, "response must carry a rotated sid");
+      assertDenied(await getProject(statelessUrl, "2", { ...auth(), "mcp-session-id": res.sid }));
+    });
+
+    test("stateful: an unscoped session can be narrowed, and stays narrowed", async () => {
+      const sid = await initSession(statefulUrl, auth());
+      assertDenied(
+        await getProject(statefulUrl, "2", { ...auth(MOCK_TOKEN, "1"), "mcp-session-id": sid })
+      );
+      assertDenied(await getProject(statefulUrl, "2", { ...auth(), "mcp-session-id": sid }));
+    });
+
+    test("stateful: a refreshed token keeps the session scope", async () => {
+      const sid = await initSession(statefulUrl, auth(MOCK_TOKEN, "1"));
+      assertDenied(
+        await getProject(statefulUrl, "2", { ...auth(ROTATED_TOKEN), "mcp-session-id": sid })
+      );
+    });
+
+    test("stateful: a different header is rejected", async () => {
+      const sid = await initSession(statefulUrl, auth(MOCK_TOKEN, "1"));
+      const res = await getProject(statefulUrl, "2", {
+        ...auth(ROTATED_TOKEN, "2"),
+        "mcp-session-id": sid,
+      });
+      assert.strictEqual(res.status, 401);
     });
   });
 
