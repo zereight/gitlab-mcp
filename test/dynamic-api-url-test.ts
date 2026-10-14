@@ -65,6 +65,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         ENABLE_DYNAMIC_API_URL: 'true',
+        GITLAB_ALLOWED_HOSTS: `${mockGitLabUrl1}/api/v4,${mockGitLabUrl2}/api/v4`,
         GITLAB_READ_ONLY_MODE: 'true',
       }
     });
@@ -276,6 +277,7 @@ describe('Dynamic API URL - Connection Pool', () => {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         ENABLE_DYNAMIC_API_URL: 'true',
+        GITLAB_ALLOWED_HOSTS: `${mockGitLabUrl1}/api/v4,${mockGitLabUrl2}/api/v4`,
         GITLAB_CLIENT_POOL_SIZE: '5',
         GITLAB_CLIENT_IDLE_TIMEOUT: '30000',
       }

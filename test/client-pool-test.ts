@@ -32,6 +32,7 @@ describe('Client Pool Limits', () => {
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
   let mockGitLabUrl: string;
+  let mockGitLab2: MockGitLabServer;
 
   before(async () => {
     // Start mock GitLab server
@@ -42,6 +43,13 @@ describe('Client Pool Limits', () => {
     });
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
+
+    // Second mock GitLab server, used as the third distinct pool entry
+    mockGitLab2 = new MockGitLabServer({
+      port: await findMockServerPort(),
+      validTokens: [MOCK_TOKEN]
+    });
+    await mockGitLab2.start();
 
     // Start MCP server with pool limit
     const mcpPort = await findAvailablePort(MCP_SERVER_PORT_BASE);
@@ -54,6 +62,7 @@ describe('Client Pool Limits', () => {
         REMOTE_AUTHORIZATION: 'true',
         ENABLE_DYNAMIC_API_URL: 'true', // Enable dynamic URLs to test pooling
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_ALLOWED_HOSTS: `${mockGitLabUrl.replace('127.0.0.1', 'localhost')}/api/v4,${mockGitLab2.getUrl()}/api/v4`,
         GITLAB_POOL_MAX_SIZE: String(POOL_MAX_SIZE),
       }
     });
@@ -69,6 +78,9 @@ describe('Client Pool Limits', () => {
     cleanupServers(servers);
     if (mockGitLab) {
       await mockGitLab.stop();
+    }
+    if (mockGitLab2) {
+      await mockGitLab2.stop();
     }
   });
 
@@ -108,11 +120,11 @@ describe('Client Pool Limits', () => {
     }
     await client2.disconnect();
 
-    // URL 3: gitlab-3.example.com (Fake, distinct string)
+    // URL 3: second mock server (distinct origin)
     // This should trigger the pool limit check
     const client3 = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`,
-      'x-gitlab-api-url': 'https://gitlab-3.example.com/api/v4'
+      'x-gitlab-api-url': `${mockGitLab2.getUrl()}/api/v4`
     });
     await client3.connect(mcpUrl);
     

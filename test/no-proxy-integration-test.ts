@@ -123,17 +123,15 @@ describe('NO_PROXY Integration Tests', () => {
     const client = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`,
     });
-    await client.connect(mcpUrl);
-    
-    // This should fail because it tries to use the nonexistent proxy
-    try {
+
+    // This should fail because it tries to use the nonexistent proxy.
+    // The token is checked against GitLab when the session starts, so the
+    // proxy error can surface on connect or on the first tool call.
+    await assert.rejects(async () => {
+      await client.connect(mcpUrl);
       await client.callTool('list_projects', { per_page: 1 });
-      assert.fail('Request should have failed due to proxy connection error');
-    } catch (error: any) {
-      console.log('  ✓ Request failed as expected (proxy error)');
-      // Expected to fail with connection/proxy error
-      assert.ok(error, 'Should throw an error when proxy fails');
-    }
+    }, 'Request should have failed due to proxy connection error');
+    console.log('  ✓ Request failed as expected (proxy error)');
     
     await client.disconnect();
   });
