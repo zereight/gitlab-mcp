@@ -718,7 +718,7 @@ Examples:
 
 ### `GITLAB_TOOL_POLICY_HIDDEN`
 
-Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
+Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS` or a legacy flag, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
 
 CLI: `--tool-policy-hidden`
 

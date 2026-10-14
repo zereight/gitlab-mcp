@@ -283,7 +283,7 @@ import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
 } from "./tools/discover-activation.js";
-import { selectExposedTools } from "./tools/exposed-tools.js";
+import { selectCallableHiddenToolNames, selectExposedTools } from "./tools/exposed-tools.js";
 import {
   createListedToolsCache,
   decorateToolsForList,
@@ -815,17 +815,20 @@ function buildToolUnavailableMessage(toolName: string): string {
  */
 /** Builds an MCP server with the tool list filtered by toolsets, permission mode, and policy. */
 function createServer(): McpServer {
-  const filteredTools = selectExposedTools({
+  const exposedToolSelection = {
     tools: allTools,
-    isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
+    isInEnabledToolset: (toolName: string) => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools,
     featureFlagOverrides,
     isAllowedByPermissionMode: isToolAllowedByPermissionMode,
     deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
     hiddenToolNames: hiddenToolSet,
     applySlimProfile,
-    isAdditiveEnablementAllowed: toolName => !isExplicitToolsetOnlyTool(toolName),
-  });
+    isAdditiveEnablementAllowed: (toolName: string) => !isExplicitToolsetOnlyTool(toolName),
+  };
+  const filteredTools = selectExposedTools(exposedToolSelection);
+  // Unlisted but callable; extended by discover_tools alongside filteredTools.
+  const callableHiddenToolNames = selectCallableHiddenToolNames(exposedToolSelection);
   const listedToolDecoration: ListedToolDecorationContext = {
     readOnlyToolNames: new Set([...readOnlyTools].filter(toolName => advertisesReadOnly(toolName))),
     destructiveToolNames: destructiveTools,
@@ -1010,14 +1013,12 @@ function createServer(): McpServer {
       }
 
       // Enforce list-time filtering on direct calls: clients can call names that tools/list omits.
-      // filteredTools is extended by discover_tools; hidden-policy tools stay callable by design,
-      // but GITLAB_DENIED_TOOLS_REGEX always wins over the hidden exemption.
+      // filteredTools is extended by discover_tools; hidden-policy tools stay callable only while
+      // the other list filters still expose them, so hiding a tool never enables it.
       // Permission-mode denials fall through so handleToolCall reports its mode-specific error.
-      const hiddenAndNotDenied =
-        hiddenToolSet.has(toolName) && !GITLAB_DENIED_TOOLS_REGEX?.test(toolName);
       if (
         isToolAllowedByPermissionMode(toolName) &&
-        !hiddenAndNotDenied &&
+        !callableHiddenToolNames.has(toolName) &&
         !filteredTools.some(t => t.name === toolName)
       ) {
         throw new Error(buildToolUnavailableMessage(toolName));
@@ -1027,13 +1028,15 @@ function createServer(): McpServer {
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
         const currentToolNames = new Set(filteredTools.map(t => t.name));
-        const isNotActivatable = (name: string): boolean =>
+        const isActivationSkipped = (name: string, hidden: boolean): boolean =>
           isSkippedByDiscoverActivation({
             allowedByPermissionMode: isToolAllowedByPermissionMode(name),
             deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(name) === true,
-            hidden: hiddenToolSet.has(name),
+            hidden,
             excludedBySlimProfile: isExcludedFromToolsetListing(name),
           });
+        const isNotActivatable = (name: string): boolean =>
+          isActivationSkipped(name, hiddenToolSet.has(name));
 
         if (!category) {
           // Fully listed only. Partial overlap with `core` must stay inactive so
@@ -1090,6 +1093,14 @@ function createServer(): McpServer {
             content: [{ type: "text", text: `Category "${category}" not found.` }],
             isError: true,
           });
+        }
+
+        // Hidden tools in this toolset stay unlisted but become callable like the rest of it.
+        // Runs before the `active` check because hidden tools never keep a toolset inactive.
+        for (const name of toolsetDef.tools) {
+          if (hiddenToolSet.has(name) && !isActivationSkipped(name, false)) {
+            callableHiddenToolNames.add(name);
+          }
         }
 
         // Same predicate as the category listing `active` flag.
