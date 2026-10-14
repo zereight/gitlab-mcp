@@ -45,7 +45,11 @@
  * Activated when GITLAB_MCP_OAUTH=true. All other auth modes are unaffected.
  */
 
-import { InvalidTokenError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import {
+  CustomOAuthError,
+  InvalidTokenError,
+  ServerError,
+} from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type {
   OAuthClientInformationFull,
@@ -77,6 +81,7 @@ import {
   PROXY_CODE_CACHE_FULL,
 } from "./stateless/index.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
+import { ConsentGate, DEFAULT_ALLOWED_REDIRECT_URIS, RedirectUriPolicy } from "./oauth-consent.js";
 import { createLogger } from "./utils/logger.js";
 import { redactUrlSecretsInText } from "./utils/redact-url.js";
 
@@ -238,6 +243,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // Checked once at token issuance (exchangeAuthorizationCode), not per request.
   private readonly _allowedGroups: string[] | null;
 
+  // Callback proxy safeguards (see oauth-consent.ts). Null in passthrough
+  // mode, where GitLab checks redirect_uri against the app registration.
+  private readonly _redirectPolicy: RedirectUriPolicy | null = null;
+  private readonly _consent: ConsentGate | null = null;
+
   constructor(
     gitlabBaseUrl: string,
     gitlabAppId: string,
@@ -247,7 +257,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     allowedGroups?: string[],
     callbackProxyEnabled = false,
     callbackUrl = "",
-    stateless: StatelessOAuthOptions | null = null
+    stateless: StatelessOAuthOptions | null = null,
+    allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -267,9 +278,21 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
     }
     if (callbackProxyEnabled) {
+      this._redirectPolicy = new RedirectUriPolicy(allowedRedirectUris);
+      this._consent = new ConsentGate({
+        resourceName,
+        secureCookies: callbackUrl.startsWith("https:"),
+        stateless: stateless?.material ?? null,
+      });
       logger.info(
         `Callback proxy mode enabled — fixed callback URL: ${redactUrlSecretsInText(callbackUrl)}`
       );
+      if (this._redirectPolicy.allowsAny) {
+        logger.warn(
+          "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS contains \"*\": any registered client may receive " +
+            "authorization codes; only the consent page stands between a phishing link and a user's GitLab token"
+        );
+      }
     }
     if (stateless) {
       logger.info(
@@ -286,6 +309,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     const cache = this._clientCache;
     const resourceName = this._resourceName;
     const stateless = this._stateless;
+    const redirectPolicy = this._redirectPolicy;
 
     return {
       getClient: async (clientId: string) => {
@@ -331,6 +355,24 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       ) => {
         const grantTypes = client.grant_types ?? ["authorization_code"];
         const redirectUris = client.redirect_uris ?? [];
+
+        // Callback proxy mode: GitLab never sees the client's redirect_uri, so
+        // this server is the only place it can be checked.
+        const rejected = redirectPolicy
+          ? redirectUris.filter((uri) => !redirectPolicy.allows(uri))
+          : [];
+        if (rejected.length > 0) {
+          logger.warn(
+            `DCR: rejected redirect_uris not allowed by GITLAB_OAUTH_ALLOWED_REDIRECT_URIS: ${rejected
+              .map((uri) => JSON.stringify(redactUrlSecretsInText(uri)))
+              .join(", ")}`
+          );
+          throw new CustomOAuthError(
+            "invalid_redirect_uri",
+            `redirect_uri ${rejected[0]} is not allowed by this server. ` +
+              "The server operator can add it to GITLAB_OAUTH_ALLOWED_REDIRECT_URIS."
+          );
+        }
         const clientName = client.client_name
           ? `${client.client_name} via ${resourceName}`
           : resourceName;
@@ -397,6 +439,29 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
     if (this._callbackProxyEnabled) {
       // --- Callback proxy mode ---
+      // Re-check the policy here too: signed client_ids minted before an
+      // upgrade or allowlist change still carry their old redirect_uris.
+      // Answer directly; redirecting the error would send the browser to
+      // the URI we just refused.
+      if (this._redirectPolicy && !this._redirectPolicy.allows(params.redirectUri)) {
+        logger.warn(
+          `authorize (callback proxy): refused redirect_uri ${JSON.stringify(
+            redactUrlSecretsInText(params.redirectUri)
+          )} (not in GITLAB_OAUTH_ALLOWED_REDIRECT_URIS)`
+        );
+        res.status(400).json({
+          error: "invalid_request",
+          error_description: "redirect_uri is not allowed by this server",
+        });
+        return;
+      }
+      // Ask the user before sending them to GitLab. Without this, any link
+      // to /authorize gets the operator's GitLab app consent screen and the
+      // resulting code goes to whichever client registered the link.
+      if (this._consent && this._consent.check(client, params, res) === "handled") {
+        return;
+      }
+
       // Generate a proxy PKCE pair (MCP server ↔ GitLab)
       const proxyCodeVerifier = randomBytes(32).toString("base64url");
       const proxyCodeChallenge = createHash("sha256")
@@ -967,6 +1032,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  * @param stateless      Optional stateless-mode options. When set, DCR and later
  *                        callback-proxy state is encoded into opaque OAuth values
  *                        instead of an in-memory cache, enabling multi-pod deploys.
+ * @param allowedRedirectUris  Callback proxy mode only: client redirect URIs that
+ *                        may register and receive codes (see oauth-consent.ts).
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
@@ -977,7 +1044,8 @@ export function createGitLabOAuthProvider(
   allowedGroups?: string[],
   callbackProxyEnabled = false,
   callbackUrl = "",
-  stateless: StatelessOAuthOptions | null = null
+  stateless: StatelessOAuthOptions | null = null,
+  allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
 ): GitLabOAuthServerProvider {
   return new GitLabOAuthServerProvider(
     gitlabBaseUrl,
@@ -988,6 +1056,7 @@ export function createGitLabOAuthProvider(
     allowedGroups,
     callbackProxyEnabled,
     callbackUrl,
-    stateless
+    stateless,
+    allowedRedirectUris
   );
 }

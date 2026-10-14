@@ -286,6 +286,48 @@ This has a different purpose from `GITLAB_OAUTH_REDIRECT_URI`: callback proxy
 mode turns a client-owned callback into the MCP server callback registered in
 GitLab. Register `{MCP_SERVER_URL}/callback` in GitLab Admin.
 
+In callback proxy mode the server only accepts client callback URLs listed in
+`GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`, and shows a consent page before it sends
+the browser to GitLab. See below.
+
+### `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
+
+Comma-separated list of client callback URLs that callback proxy mode
+(`GITLAB_OAUTH_CALLBACK_PROXY=true`) will send authorization codes to. Dynamic
+Client Registration with any other `redirect_uris` fails with
+`invalid_redirect_uri`, and `/authorize` refuses them with a 400.
+
+Default (when unset or empty):
+
+- `https://claude.ai/api/mcp/auth_callback`
+- `https://claude.com/api/mcp/auth_callback`
+- `https://chatgpt.com/connector_platform_oauth_redirect`
+- `https://chatgpt.com/connector/oauth/*`
+- `cursor://anysphere.cursor-mcp/oauth/callback`
+- `http://localhost/*`, `http://127.0.0.1/*`, `http://[::1]/*`
+
+Entry forms:
+
+- An exact URL, e.g. `https://mcp.example.com/oauth/callback`.
+- A prefix ending in `/*`, e.g. `https://mcp.example.com/oauth/*`. Scheme and
+  host must match exactly; the port must match too, except for loopback hosts
+  (`localhost`, `127.0.0.1`, `[::1]`), where any port is accepted.
+- `defaults` expands to the default list, so
+  `defaults,https://mcp.example.com/cb` keeps the built-in entries and adds one.
+- `*` accepts any callback URL. This restores the old behavior and logs a
+  warning at startup; the consent page is still shown.
+
+An invalid entry (for example a wildcard in the host) stops the server at
+startup with an error naming this variable.
+
+**Consent page.** Before redirecting to GitLab, the server shows a page with the
+client name and where the browser will be sent afterwards, with Approve and Deny
+buttons. Approval is remembered in a signed cookie for 30 days per client and
+callback URL. With `OAUTH_STATELESS_MODE=true` the signing key is derived from
+`OAUTH_STATELESS_SECRET`, so approvals are valid on every pod (rotating the secret
+asks users again). Without stateless mode the key is random per process and users
+are asked again after a restart.
+
 ### `MCP_SERVER_URL`
 
 Public HTTPS MCP server base URL required for MCP OAuth mode.

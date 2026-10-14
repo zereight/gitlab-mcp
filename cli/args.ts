@@ -59,6 +59,7 @@ const GLOBAL_FLAG_NAMES = new Set([
   "oauth-app-id",
   "oauth-scopes",
   "oauth-callback-proxy",
+  "oauth-allowed-redirect-uris",
   "allowed-groups",
   "oauth-allowed-groups",
   "enable-dynamic-api-url",

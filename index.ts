@@ -13,6 +13,7 @@ import {
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
   GITLAB_OAUTH_CALLBACK_PROXY,
+  GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
@@ -166,6 +167,7 @@ import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
+import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -1540,6 +1542,18 @@ function validateConfiguration(): void {
         "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
           "(create an OAuth application in GitLab Admin with the required scopes)"
       );
+    }
+
+    if (getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true") {
+      try {
+        new RedirectUriPolicy(
+          parseAllowedRedirectUris(
+            getConfig("oauth-allowed-redirect-uris", "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS")
+          )
+        );
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
     }
   }
 
@@ -16452,7 +16466,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
-      statelessOptions
+      statelessOptions,
+      parseAllowedRedirectUris(GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW)
     );
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
