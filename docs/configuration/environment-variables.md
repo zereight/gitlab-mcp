@@ -378,6 +378,11 @@ Notes:
   scoped (`execute_graphql`, `create_repository`, `create_group`,
   `fork_repository`, the group variable and dependency proxy tools) are refused,
   and `group:<id-or-path>` targets are refused.
+- The scope is fixed for the session. A later request without the header keeps
+  it; a later request with a different value (wider or narrower) is rejected with
+  `401`. This also holds when the request carries a new token. Re-initialize the
+  session to change the scope. A session started without the header can be
+  narrowed by a later request that sends it.
 - In stateless mode the scope is sealed into the `Mcp-Session-Id` alongside the
   token, so a caller cannot widen it by editing the sid.
 - The scope is only as trustworthy as the caller. This is intended for
