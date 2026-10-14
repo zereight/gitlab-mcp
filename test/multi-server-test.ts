@@ -186,7 +186,10 @@ describe("Dynamic Client Mode (ENABLE_DYNAMIC_API_URL=true)", () => {
     });
     // Header URLs must match GITLAB_API_URL or GITLAB_ALLOWED_HOSTS,
     // so the server refuses the request before creating a session
-    await assert.rejects(client.connect(mcpUrl), /Failed to connect/);
+    await assert.rejects(
+      client.connect(mcpUrl),
+      /Missing Private-Token, JOB-TOKEN, or Authorization header/
+    );
     await client.disconnect();
   });
 });
