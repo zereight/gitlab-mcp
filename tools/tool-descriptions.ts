@@ -132,20 +132,42 @@ function ensureSentence(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
-function getLifecycleGuidance(name: string): string {
+// Candidate get_* names for a list_* resource: list_pipelines -> get_pipeline,
+// list_branches -> get_branch, list_policies -> get_policy, list_diffs -> get_diffs.
+function matchingGetToolNames(resource: string): string[] {
+  const candidates = [`get_${resource}`];
+  if (resource.endsWith("ies")) candidates.push(`get_${resource.slice(0, -3)}y`);
+  if (resource.endsWith("es")) candidates.push(`get_${resource.slice(0, -2)}`);
+  if (resource.endsWith("s")) candidates.push(`get_${resource.slice(0, -1)}`);
+  return candidates;
+}
+
+// Sibling hints are only added when the sibling tool exists, so a description
+// never points at a tool the server does not have.
+function getLifecycleGuidance(name: string, toolNames: ReadonlySet<string>): string {
   const verb = name.split("_")[0] ?? "use";
+  const resource = name.slice(verb.length + 1);
 
   if (verb === "list") {
-    return "For one known resource, use the matching get tool.";
+    return matchingGetToolNames(resource).some(candidate => toolNames.has(candidate))
+      ? "For one known resource, use the matching get tool."
+      : "";
   }
   if (verb === "get") {
     return "To find resources, use the matching list or search tool.";
   }
   if (verb === "create") {
-    return "If the resource already exists, use the update tool.";
+    return toolNames.has(`update_${resource}`) || toolNames.has(`edit_${resource}`)
+      ? "If the resource already exists, use the update tool."
+      : "";
   }
   if (verb === "update" || verb === "edit") {
-    return "Use the create tool for new resources and a note tool for comments.";
+    if (!toolNames.has(`create_${resource}`)) {
+      return "";
+    }
+    return toolNames.has(`create_${resource}_note`)
+      ? "Use the create tool for new resources and a note tool for comments."
+      : "Use the create tool for new resources.";
   }
   if (verb === "delete" || verb === "remove") {
     return "Verify the target first with a get or list tool.";
@@ -175,7 +197,8 @@ export function getToolDescription(
   baseDescription: string,
   readOnly: boolean,
   destructive: boolean,
-  acceptsProjectOrGroupId: boolean
+  acceptsProjectOrGroupId: boolean,
+  toolNames: ReadonlySet<string>
 ): string {
   const explicitGuidance = TOOL_GUIDANCE[name];
   if (explicitGuidance) {
@@ -189,7 +212,7 @@ export function getToolDescription(
 
   return [
     normalizedDescription,
-    getLifecycleGuidance(name),
+    getLifecycleGuidance(name, toolNames),
     getBehaviorGuidance(readOnly, destructive),
     acceptsProjectOrGroupId ? PARAMETER_GUIDANCE : "",
   ]

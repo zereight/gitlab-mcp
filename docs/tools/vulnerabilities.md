@@ -18,7 +18,7 @@ AI-assisted vulnerability triage — list findings, inspect details, dismiss wit
 
 *📖 Read-only*
 
-List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

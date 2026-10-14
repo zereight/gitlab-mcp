@@ -2646,13 +2646,16 @@ function acceptsProjectOrGroupId(inputSchema: unknown): boolean {
   );
 }
 
+const allToolNames: ReadonlySet<string> = new Set(allTools.map(tool => tool.name));
+
 for (const tool of allTools) {
   tool.description = getToolDescription(
     tool.name,
     tool.description,
     readOnlyTools.has(tool.name),
     destructiveTools.has(tool.name),
-    acceptsProjectOrGroupId(tool.inputSchema)
+    acceptsProjectOrGroupId(tool.inputSchema),
+    allToolNames
   );
 }
 

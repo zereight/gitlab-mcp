@@ -69,7 +69,7 @@ Create a wiki page in a project. If the resource already exists, use the update 
 
 *✏️ Writes*
 
-Update a wiki page in a project. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a wiki page in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -143,7 +143,7 @@ Create a wiki page in a group. If the resource already exists, use the update to
 
 *✏️ Writes*
 
-Update a wiki page in a group. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a wiki page in a group. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

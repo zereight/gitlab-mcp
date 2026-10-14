@@ -81,7 +81,7 @@ Create a new milestone. If the resource already exists, use the update tool. Cha
 
 *✏️ Writes*
 
-Edit an existing milestone. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Edit an existing milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -221,7 +221,7 @@ Create a new group milestone. If the resource already exists, use the update too
 
 *✏️ Writes*
 
-Edit an existing group milestone. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Edit an existing group milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

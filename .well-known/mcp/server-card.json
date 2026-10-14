@@ -290,7 +290,7 @@
     },
     {
       "name": "create_repository",
-      "description": "Create a new GitLab project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors.",
+      "description": "Create a new GitLab project. Changes GitLab data; needs permission and returns validation or conflict errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -329,7 +329,7 @@
     },
     {
       "name": "create_group",
-      "description": "Create new group or subgroup. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors.",
+      "description": "Create new group or subgroup. Changes GitLab data; needs permission and returns validation or conflict errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -925,7 +925,7 @@
     },
     {
       "name": "list_merge_request_changed_files",
-      "description": "List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1576,7 +1576,7 @@
     },
     {
       "name": "update_merge_request_discussion_note",
-      "description": "Update a discussion note on a merge request. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update a discussion note on a merge request. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1773,7 +1773,7 @@
     },
     {
       "name": "update_merge_request_note",
-      "description": "Modify an existing merge request note. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Modify an existing merge request note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2082,7 +2082,7 @@
     },
     {
       "name": "update_draft_note",
-      "description": "Update an existing draft note. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing draft note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2402,7 +2402,7 @@
     },
     {
       "name": "list_merge_request_emoji_reactions",
-      "description": "List all emoji reactions on a merge request. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on a merge request. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2423,7 +2423,7 @@
     },
     {
       "name": "list_merge_request_note_emoji_reactions",
-      "description": "List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2453,7 +2453,7 @@
     },
     {
       "name": "create_merge_request_emoji_reaction",
-      "description": "Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2505,7 +2505,7 @@
     },
     {
       "name": "create_merge_request_note_emoji_reaction",
-      "description": "Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2575,7 +2575,7 @@
     },
     {
       "name": "update_issue_note",
-      "description": "Modify an existing issue thread note. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Modify an existing issue thread note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2648,7 +2648,7 @@
     },
     {
       "name": "list_issue_emoji_reactions",
-      "description": "List all emoji reactions on an issue. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on an issue. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2669,7 +2669,7 @@
     },
     {
       "name": "list_issue_note_emoji_reactions",
-      "description": "List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2699,7 +2699,7 @@
     },
     {
       "name": "create_issue_emoji_reaction",
-      "description": "Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2751,7 +2751,7 @@
     },
     {
       "name": "create_issue_note_emoji_reaction",
-      "description": "Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3177,7 +3177,7 @@
     },
     {
       "name": "list_todos",
-      "description": "List GitLab to-do items for the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List GitLab to-do items for the current user. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3345,7 +3345,7 @@
     },
     {
       "name": "create_issue_link",
-      "description": "Create an issue link between two issues. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create an issue link between two issues. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3576,7 +3576,7 @@
     },
     {
       "name": "update_project",
-      "description": "Update project settings such as description, visibility, default branch, and feature access levels. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update project settings such as description, visibility, default branch, and feature access levels. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3750,7 +3750,7 @@
     },
     {
       "name": "list_project_members",
-      "description": "List members of a GitLab project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List members of a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3796,7 +3796,7 @@
     },
     {
       "name": "list_group_members",
-      "description": "List members of a GitLab group with optional name or username search. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List members of a GitLab group with optional name or username search. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3940,7 +3940,7 @@
     },
     {
       "name": "update_label",
-      "description": "Update an existing label in a project. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing label in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4001,7 +4001,7 @@
     },
     {
       "name": "list_group_projects",
-      "description": "List projects in a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List projects in a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4188,7 +4188,7 @@
     },
     {
       "name": "update_wiki_page",
-      "description": "Update a wiki page in a project. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update a wiki page in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4329,7 +4329,7 @@
     },
     {
       "name": "update_group_wiki_page",
-      "description": "Update a wiki page in a group. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update a wiki page in a group. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4647,7 +4647,7 @@
     },
     {
       "name": "update_pipeline_metadata",
-      "description": "Update pipeline metadata. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update pipeline metadata. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4805,7 +4805,7 @@
     },
     {
       "name": "update_deployment",
-      "description": "Update a deployment status. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update a deployment status. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4857,7 +4857,7 @@
     },
     {
       "name": "list_deployment_merge_requests",
-      "description": "List merge requests shipped with a deployment. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List merge requests shipped with a deployment. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4982,7 +4982,7 @@
     },
     {
       "name": "update_environment",
-      "description": "Update an environment. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an environment. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5173,7 +5173,7 @@
     },
     {
       "name": "update_pipeline_trigger",
-      "description": "Update a project pipeline trigger. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update a project pipeline trigger. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5298,7 +5298,7 @@
     },
     {
       "name": "list_pipeline_trigger_jobs",
-      "description": "List trigger jobs (bridges) in a pipeline. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List trigger jobs (bridges) in a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5571,7 +5571,7 @@
     },
     {
       "name": "create_pipeline",
-      "description": "Create a new pipeline for a branch or tag. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create a new pipeline for a branch or tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6391,7 +6391,7 @@
     },
     {
       "name": "list_job_artifacts",
-      "description": "List artifact files in a job's archive. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List artifact files in a job's archive. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6614,7 +6614,7 @@
     },
     {
       "name": "list_group_merge_requests",
-      "description": "List merge requests across all projects of a group and its subgroups. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List merge requests across all projects of a group and its subgroups. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6881,7 +6881,7 @@
     },
     {
       "name": "edit_milestone",
-      "description": "Edit an existing milestone. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Edit an existing milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7172,7 +7172,7 @@
     },
     {
       "name": "edit_group_milestone",
-      "description": "Edit an existing group milestone. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Edit an existing group milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7524,7 +7524,7 @@
     },
     {
       "name": "list_commit_statuses",
-      "description": "List statuses for a commit. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List statuses for a commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7589,7 +7589,7 @@
     },
     {
       "name": "create_commit_status",
-      "description": "Create or update the status of a commit. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create or update the status of a commit. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7656,7 +7656,7 @@
     },
     {
       "name": "list_group_iterations",
-      "description": "List group iterations with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List group iterations with filtering options. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7781,7 +7781,7 @@
     },
     {
       "name": "list_events",
-      "description": "List events for the authenticated user (before/after: YYYY-MM-DD). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.",
+      "description": "List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -8051,7 +8051,7 @@
     },
     {
       "name": "update_release",
-      "description": "Update an existing release. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing release. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -8112,7 +8112,7 @@
     },
     {
       "name": "create_release_evidence",
-      "description": "Create release evidence (Premium/Ultimate). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create release evidence (Premium/Ultimate). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -8225,7 +8225,7 @@
     },
     {
       "name": "create_tag",
-      "description": "Create a new repository tag. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create a new repository tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9076,7 +9076,7 @@
     },
     {
       "name": "list_work_item_statuses",
-      "description": "List available statuses for a work item type (Premium/Ultimate). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List available statuses for a work item type (Premium/Ultimate). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9107,7 +9107,7 @@
     },
     {
       "name": "list_custom_field_definitions",
-      "description": "List custom field definitions for a work item type. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List custom field definitions for a work item type. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9164,7 +9164,7 @@
     },
     {
       "name": "list_work_item_notes",
-      "description": "List notes and discussions on a work item. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List notes and discussions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9203,7 +9203,7 @@
     },
     {
       "name": "create_work_item_note",
-      "description": "Add a note to a work item (supports Markdown, internal notes, threads). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add a note to a work item (supports Markdown, internal notes, threads). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9238,7 +9238,7 @@
     },
     {
       "name": "list_work_item_emoji_reactions",
-      "description": "List all emoji reactions on a work item. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9259,7 +9259,7 @@
     },
     {
       "name": "list_work_item_note_emoji_reactions",
-      "description": "List all emoji reactions on a work item note (comment, thread, or thread reply). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List all emoji reactions on a work item note (comment, thread, or thread reply). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9285,7 +9285,7 @@
     },
     {
       "name": "create_work_item_emoji_reaction",
-      "description": "Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9337,7 +9337,7 @@
     },
     {
       "name": "create_work_item_note_emoji_reaction",
-      "description": "Add an emoji reaction to a work item note (comment, thread, or thread reply). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Add an emoji reaction to a work item note (comment, thread, or thread reply). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9420,7 +9420,7 @@
     },
     {
       "name": "create_timeline_event",
-      "description": "Create a timeline event on an incident. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Create a timeline event on an incident. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9466,7 +9466,7 @@
     },
     {
       "name": "list_webhooks",
-      "description": "List webhooks for a project or group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List webhooks for a project or group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9651,7 +9651,7 @@
     },
     {
       "name": "update_webhook",
-      "description": "Update an existing project or group webhook. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing project or group webhook. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10163,7 +10163,7 @@
     },
     {
       "name": "update_project_variable",
-      "description": "Update an existing CI/CD variable in a project. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing CI/CD variable in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10385,7 +10385,7 @@
     },
     {
       "name": "update_group_variable",
-      "description": "Update an existing CI/CD variable in a group. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update an existing CI/CD variable in a group. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10500,7 +10500,7 @@
     },
     {
       "name": "update_dependency_proxy_settings",
-      "description": "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls). Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10528,7 +10528,7 @@
     },
     {
       "name": "list_dependency_proxy_blobs",
-      "description": "List cached dependency proxy blobs for a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List cached dependency proxy blobs for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10570,7 +10570,7 @@
     },
     {
       "name": "list_project_vulnerabilities",
-      "description": "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {

@@ -181,7 +181,7 @@ Delete an issue. Use this only after confirming the issue and intended permanent
 
 *📖 Read-only*
 
-List GitLab to-do items for the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List GitLab to-do items for the current user. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -238,7 +238,7 @@ Add a note to an issue, optionally replying to a discussion thread. Use this to 
 
 *✏️ Writes*
 
-Modify an existing issue thread note. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Modify an existing issue thread note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Get a specific issue link. To find resources, use the matching list or search to
 
 *✏️ Writes*
 
-Create an issue link between two issues. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create an issue link between two issues. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -342,7 +342,7 @@ Create a new note (comment) to an issue or merge request. Use this for a top-lev
 
 *📖 Read-only*
 
-List all emoji reactions on an issue. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on an issue. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -355,7 +355,7 @@ List all emoji reactions on an issue. For one known resource, use the matching g
 
 *📖 Read-only*
 
-List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -370,7 +370,7 @@ List all emoji reactions on an issue note. Pass discussion_id for discussion thr
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -398,7 +398,7 @@ Remove an emoji reaction from an issue. Verify the target first with a get or li
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

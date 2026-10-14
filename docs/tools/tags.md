@@ -53,7 +53,7 @@ Get a repository tag by name. To find resources, use the matching list or search
 
 *✏️ Writes*
 
-Create a new repository tag. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new repository tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

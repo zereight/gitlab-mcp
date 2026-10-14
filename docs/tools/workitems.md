@@ -140,7 +140,7 @@ Convert a work item to a different type. Changes GitLab data; needs permission a
 
 *📖 Read-only*
 
-List available statuses for a work item type (Premium/Ultimate). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List available statuses for a work item type (Premium/Ultimate). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -153,7 +153,7 @@ List available statuses for a work item type (Premium/Ultimate). For one known r
 
 *📖 Read-only*
 
-List custom field definitions for a work item type. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List custom field definitions for a work item type. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -180,7 +180,7 @@ Move a work item to a different project. Changes GitLab data; needs permission a
 
 *📖 Read-only*
 
-List notes and discussions on a work item. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List notes and discussions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -196,7 +196,7 @@ List notes and discussions on a work item. For one known resource, use the match
 
 *✏️ Writes*
 
-Add a note to a work item (supports Markdown, internal notes, threads). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add a note to a work item (supports Markdown, internal notes, threads). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -212,7 +212,7 @@ Add a note to a work item (supports Markdown, internal notes, threads). If the r
 
 *📖 Read-only*
 
-List all emoji reactions on a work item. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -225,7 +225,7 @@ List all emoji reactions on a work item. For one known resource, use the matchin
 
 *📖 Read-only*
 
-List all emoji reactions on a work item note (comment, thread, or thread reply). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a work item note (comment, thread, or thread reply). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -239,7 +239,7 @@ List all emoji reactions on a work item note (comment, thread, or thread reply).
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -267,7 +267,7 @@ Remove an emoji reaction from a work item. Verify the target first with a get or
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item note (comment, thread, or thread reply). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a work item note (comment, thread, or thread reply). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -310,7 +310,7 @@ List timeline events for an incident. To find resources, use the matching list o
 
 *✏️ Writes*
 
-Create a timeline event on an incident. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a timeline event on an incident. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

@@ -15,7 +15,7 @@ Create new groups and subgroups.
 
 *✏️ Writes*
 
-Create new group or subgroup. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors.
+Create new group or subgroup. Changes GitLab data; needs permission and returns validation or conflict errors.
 
 **Parameters**
 

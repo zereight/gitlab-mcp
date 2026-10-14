@@ -72,7 +72,7 @@ Create a new release. If the resource already exists, use the update tool. Chang
 
 *✏️ Writes*
 
-Update an existing release. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing release. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -102,7 +102,7 @@ Delete a release (does not delete the tag). Verify the target first with a get o
 
 *✏️ Writes*
 
-Create release evidence (Premium/Ultimate). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create release evidence (Premium/Ultimate). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

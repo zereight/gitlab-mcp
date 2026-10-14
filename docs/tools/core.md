@@ -113,7 +113,7 @@ Get merge request approval details including approvers. Use this to inspect appr
 
 *📖 Read-only*
 
-List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -660,7 +660,7 @@ List projects accessible by the current user. For one known resource, use the ma
 
 *📖 Read-only*
 
-List members of a GitLab project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

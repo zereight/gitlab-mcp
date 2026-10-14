@@ -30,7 +30,7 @@ Get dependency proxy settings for a group. To find resources, use the matching l
 
 *✏️ Writes*
 
-Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls). Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -45,7 +45,7 @@ Update dependency proxy settings for a group (enable/disable, credentials for au
 
 *📖 Read-only*
 
-List cached dependency proxy blobs for a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List cached dependency proxy blobs for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

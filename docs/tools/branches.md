@@ -225,7 +225,7 @@ Get git blame for a file at a given ref. Each entry maps a contiguous range of s
 
 *📖 Read-only*
 
-List statuses for a commit. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List statuses for a commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -247,7 +247,7 @@ List statuses for a commit. For one known resource, use the matching get tool. R
 
 *✏️ Writes*
 
-Create or update the status of a commit. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create or update the status of a commit. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

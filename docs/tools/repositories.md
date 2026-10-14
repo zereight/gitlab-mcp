@@ -36,7 +36,7 @@ Search for GitLab projects. If the identifier is known, use a typed get or list 
 
 *✏️ Writes*
 
-Create a new GitLab project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors.
+Create a new GitLab project. Changes GitLab data; needs permission and returns validation or conflict errors.
 
 **Parameters**
 

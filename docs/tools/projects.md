@@ -63,7 +63,7 @@ List projects accessible by the current user. For one known resource, use the ma
 
 *✏️ Writes*
 
-Update project settings such as description, visibility, default branch, and feature access levels. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update project settings such as description, visibility, default branch, and feature access levels. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -97,7 +97,7 @@ Update project settings such as description, visibility, default branch, and fea
 
 *📖 Read-only*
 
-List members of a GitLab project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ List members of a GitLab project. For one known resource, use the matching get t
 
 *📖 Read-only*
 
-List members of a GitLab group with optional name or username search. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab group with optional name or username search. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -173,7 +173,7 @@ Verify if a namespace path exists. Use parent_id to scope the check to a specifi
 
 *📖 Read-only*
 
-List projects in a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List projects in a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -202,7 +202,7 @@ List projects in a group. For one known resource, use the matching get tool. Rea
 
 *📖 Read-only*
 
-List group iterations with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List group iterations with filtering options. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

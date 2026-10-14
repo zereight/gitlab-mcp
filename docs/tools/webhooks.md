@@ -20,7 +20,7 @@ Create, update, and delete project or group webhooks, and inspect recent webhook
 
 *📖 Read-only*
 
-List webhooks for a project or group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List webhooks for a project or group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -77,7 +77,7 @@ Create a webhook on a project or group. If the resource already exists, use the 
 
 *✏️ Writes*
 
-Update an existing project or group webhook. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing project or group webhook. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

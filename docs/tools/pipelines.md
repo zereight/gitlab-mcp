@@ -167,7 +167,7 @@ Delete a pipeline. Requires the project Owner role, cannot be undone, and does n
 
 *✏️ Writes*
 
-Update pipeline metadata. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update pipeline metadata. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -233,7 +233,7 @@ Create a deployment. If the resource already exists, use the update tool. Change
 
 *✏️ Writes*
 
-Update a deployment status. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a deployment status. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -260,7 +260,7 @@ Delete a deployment. Verify the target first with a get or list tool. Changes or
 
 *📖 Read-only*
 
-List merge requests shipped with a deployment. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge requests shipped with a deployment. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -321,7 +321,7 @@ Get details of a specific environment. To find resources, use the matching list 
 
 *✏️ Writes*
 
-Update an environment. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an environment. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -430,7 +430,7 @@ Create a project pipeline trigger. If the resource already exists, use the updat
 
 *✏️ Writes*
 
-Update a project pipeline trigger. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a project pipeline trigger. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -490,7 +490,7 @@ List all jobs in a specific pipeline. For one known resource, use the matching g
 
 *📖 Read-only*
 
-List trigger jobs (bridges) in a pipeline. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List trigger jobs (bridges) in a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -534,7 +534,7 @@ Get the output/trace of a pipeline job with optional pagination. To find resourc
 
 *✏️ Writes*
 
-Create a new pipeline for a branch or tag. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new pipeline for a branch or tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -863,7 +863,7 @@ Wait for a job to reach a terminal status. Read-only; missing resources, denied 
 
 *📖 Read-only*
 
-List artifact files in a job's archive. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List artifact files in a job's archive. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

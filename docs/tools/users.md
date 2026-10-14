@@ -55,7 +55,7 @@ _No parameters._
 
 *📖 Read-only*
 
-List events for the authenticated user (before/after: YYYY-MM-DD). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
+List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
