@@ -1925,7 +1925,7 @@ function buildAuthHeaders(): Record<string, string> {
     const ctx = sessionAuthStore.getStore();
     logger.debug(
       {
-        sessionId: ctx?.sessionId,
+        sidPrefix: redactSessionIdForLog(ctx?.sessionId),
         header: ctx?.header,
         apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
       },
@@ -1985,7 +1985,7 @@ function getEffectiveApiUrl(): string {
     }
     logger.warn(
       {
-        sessionId: ctx?.sessionId,
+        sidPrefix: redactSessionIdForLog(ctx?.sessionId),
         header: ctx?.header,
         apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
       },
@@ -15753,9 +15753,10 @@ async function startSSEServer(): Promise<void> {
       const transport = transports[sessionId];
       delete transports[sessionId];
       sessionLastActivity.delete(sessionId);
+      const sidPrefix = redactSessionIdForLog(sessionId);
       logger.info(
-        { sessionId, event: "sse_session_idle_closed" },
-        `SSE session ${sessionId} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+        { sidPrefix, event: "sse_session_idle_closed" },
+        `SSE session ${sidPrefix} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
       );
       if (transport) {
         void transport.close().catch(error => {
@@ -15800,7 +15801,10 @@ async function startSSEServer(): Promise<void> {
       try {
         await serverInstance.connect(transport);
       } catch (error) {
-        logger.error({ err: error, sessionId }, "SSE connection error");
+        logger.error(
+          { err: error, sidPrefix: redactSessionIdForLog(sessionId) },
+          "SSE connection error"
+        );
         // Release the capacity slot immediately instead of waiting for the
         // client to disconnect or the idle sweep to run.
         delete transports[sessionId];
@@ -15923,6 +15927,9 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // Rate limiting per session
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
+
+  // MCP OAuth mode: the GitLab user each stateful session belongs to
+  const sessionOwners: Record<string, string> = Object.create(null);
 
   /**
    * Validate token format and length
@@ -16051,7 +16058,20 @@ async function startStreamableHTTPServer(): Promise<void> {
     return null;
   };
 
-  const validateAuthDataUpstream = async (authData: AuthData): Promise<boolean> => {
+  /**
+   * Identify the GitLab user behind a credential. When GitLab does not report a
+   * user id, fall back to a digest of the token so only that exact token matches.
+   */
+  const sessionOwnerKey = (apiUrl: string, userId: unknown, token: string): string =>
+    typeof userId === "number" || typeof userId === "string"
+      ? `${apiUrl.replace(/\/$/, "")}#${userId}`
+      : `token:${createHash("sha256").update(token).digest("hex")}`;
+
+  /**
+   * Validate header auth against GitLab. Resolves to the session owner key of
+   * the token, or null when GitLab rejects it.
+   */
+  const resolveAuthOwnerUpstream = async (authData: AuthData): Promise<string | null> => {
     const apiUrl = authData.apiUrl.replace(/\/$/, "");
     const paths = authData.header === "JOB-TOKEN" ? ["user", "job"] : ["user"];
     try {
@@ -16068,17 +16088,26 @@ async function startStreamableHTTPServer(): Promise<void> {
             },
             signal: controller.signal as any,
           });
-          if (response.ok) return true;
+          if (response.ok) {
+            const body = (await response.json().catch(() => undefined)) as
+              | { id?: unknown; user?: { id?: unknown } }
+              | undefined;
+            const userId = path === "job" ? body?.user?.id : body?.id;
+            return sessionOwnerKey(apiUrl, userId, authData.token);
+          }
         } finally {
           clearTimeout(timeout);
         }
       }
-      return false;
+      return null;
     } catch (error) {
       logger.warn({ err: error }, "Remote auth token validation failed");
-      return false;
+      return null;
     }
   };
+
+  const validateAuthDataUpstream = async (authData: AuthData): Promise<boolean> =>
+    (await resolveAuthOwnerUpstream(authData)) !== null;
 
   const sessionAuthTokensMatch = (left: AuthData, right: AuthData): boolean =>
     left.header === right.header && left.token === right.token && left.apiUrl === right.apiUrl;
@@ -16125,8 +16154,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (authData || transport) {
         logger.info(
           authData
-            ? `Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
-            : `Session ${sessionId}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
+            ? `Session ${redactSessionIdForLog(sessionId)}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+            : `Session ${redactSessionIdForLog(sessionId)}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
         );
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
@@ -16134,7 +16163,10 @@ async function startStreamableHTTPServer(): Promise<void> {
         // Close the transport to free the slot; without this, stale sessions accumulate and exhaust MAX_SESSIONS.
         if (transport) {
           transport.close().catch(err => {
-            logger.error(`Error closing transport for expired session ${sessionId}:`, err);
+            logger.error(
+              `Error closing transport for expired session ${redactSessionIdForLog(sessionId)}:`,
+              err
+            );
           });
         }
       }
@@ -16157,6 +16189,7 @@ async function startStreamableHTTPServer(): Promise<void> {
    */
   const cleanupSessionAuth = (sessionId: string) => {
     delete authBySession[sessionId];
+    delete sessionOwners[sessionId];
     clearAuthTimeout(sessionId);
   };
 
@@ -16599,11 +16632,14 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           const sessionId = readMcpSessionIdHeader(req);
           const cached = sessionId ? authBySession[sessionId] : undefined;
-          if (cached && sessionAuthTokensMatch(cached, authData)) {
+          if (sessionId && cached && sessionAuthTokensMatch(cached, authData)) {
+            res.locals.sessionOwner = sessionOwners[sessionId];
             next();
             return;
           }
-          if (await validateAuthDataUpstream(authData)) {
+          const owner = await resolveAuthOwnerUpstream(authData);
+          if (owner !== null) {
+            res.locals.sessionOwner = owner;
             next();
             return;
           }
@@ -16648,12 +16684,46 @@ async function startStreamableHTTPServer(): Promise<void> {
     next();
   };
 
+  // Owner key of the credential mcpBearerAuth accepted for this request
+  const readRequestOwner = (req: Request, res: Response): string | undefined => {
+    if (hasHeaderAuth(req)) {
+      return res.locals.sessionOwner as string | undefined;
+    }
+    const authInfo = req.auth;
+    return authInfo?.token
+      ? sessionOwnerKey(GITLAB_API_URL, authInfo.extra?.resourceOwnerId, authInfo.token)
+      : undefined;
+  };
+
+  const bindSessionOwner = (sessionId: string, req: Request, res: Response) => {
+    const owner = readRequestOwner(req, res);
+    if (owner !== undefined) {
+      sessionOwners[sessionId] = owner;
+    }
+  };
+
+  // In MCP OAuth mode a stateful session belongs to the GitLab user who opened it.
+  // A credential for another user gets the same 404 as an unknown session, so it
+  // can neither use, stream from, nor close the session. A refreshed token for the
+  // same user still matches.
+  const rejectForeignSession = (req: Request, res: Response, next: NextFunction) => {
+    const sessionId = readMcpSessionIdHeader(req);
+    const owner = sessionId ? sessionOwners[sessionId] : undefined;
+    if (owner !== undefined && readRequestOwner(req, res) !== owner) {
+      metrics.authFailures++;
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    next();
+  };
+
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post(
     "/mcp",
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
@@ -16762,7 +16832,9 @@ async function startStreamableHTTPServer(): Promise<void> {
             }
             remoteAuthValidatedForInit = true;
             if (result === "stored") {
-              logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+              logger.info(
+                `Session ${redactSessionIdForLog(sessionId)}: stored ${authData.header} header`
+              );
             }
           } else if (allowUnauthenticatedDiscovery) {
             // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
@@ -16795,7 +16867,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           remoteAuthValidatedForInit = true;
           if (result === "stored") {
-            logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
+            logger.debug(
+              `Session ${redactSessionIdForLog(sessionId)}: updated ${authData.header} header`
+            );
           } else {
             // Same token: keep the stored auth but let an unscoped session narrow.
             authBySession[sessionId].allowedProjectIds = allowedProjectIds;
@@ -16821,8 +16895,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           if (headerAuthData && sessionId) {
             if (!authBySession[sessionId]) {
               authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
+              bindSessionOwner(sessionId, req, res);
               logger.info(
-                `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
+                `Session ${redactSessionIdForLog(sessionId)}: stored ${headerAuthData.header} header (header auth)`
               );
               setAuthTimeout(sessionId);
             } else {
@@ -16854,8 +16929,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                 apiUrl: GITLAB_API_URL,
                 publicBaseUrl,
               };
+              bindSessionOwner(sessionId, req, res);
               logger.info(
-                `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                `Session ${redactSessionIdForLog(sessionId)}: stored OAuth token (client: ${authInfo.clientId})`
               );
               setAuthTimeout(sessionId);
             } else {
@@ -16887,14 +16963,18 @@ async function startStreamableHTTPServer(): Promise<void> {
                 streamableTransports[newSessionId] = transport;
                 metrics.totalSessions++;
                 metrics.activeSessions++;
-                logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+                logger.warn(
+                  `Streamable HTTP session initialized: ${redactSessionIdForLog(newSessionId)}`
+                );
 
                 // Store auth for newly created session in remote mode
                 if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                   const authData = parseAuthHeaders(req);
                   if (authData && remoteAuthValidatedForInit) {
                     authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-                    logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
+                    logger.info(
+                      `Session ${redactSessionIdForLog(newSessionId)}: stored ${authData.header} header`
+                    );
                     setAuthTimeout(newSessionId);
                   } else if (unauthenticatedDiscoveryRequested) {
                     setAuthTimeout(newSessionId);
@@ -16908,8 +16988,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                     const authData = parseAuthHeaders(req);
                     if (authData) {
                       authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+                      bindSessionOwner(newSessionId, req, res);
                       logger.info(
-                        `Session ${newSessionId}: stored ${authData.header} header (header auth)`
+                        `Session ${redactSessionIdForLog(newSessionId)}: stored ${authData.header} header (header auth)`
                       );
                       setAuthTimeout(newSessionId);
                     }
@@ -16923,8 +17004,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                         apiUrl: GITLAB_API_URL,
                         publicBaseUrl,
                       };
+                      bindSessionOwner(newSessionId, req, res);
                       logger.info(
-                        `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                        `Session ${redactSessionIdForLog(newSessionId)}: stored OAuth token (client: ${authInfo.clientId})`
                       );
                       setAuthTimeout(newSessionId);
                     }
@@ -16937,13 +17019,15 @@ async function startStreamableHTTPServer(): Promise<void> {
             transport.onclose = () => {
               const sid = transport.sessionId;
               if (sid && streamableTransports[sid]) {
-                logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+                logger.warn(
+                  `Streamable HTTP transport closed for session ${redactSessionIdForLog(sid)}, cleaning up`
+                );
                 delete streamableTransports[sid];
                 metrics.activeSessions--;
                 if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                   cleanupSessionAuth(sid);
                   delete sessionRequestCounts[sid];
-                  logger.info(`Session ${sid}: cleaned up auth mapping`);
+                  logger.info(`Session ${redactSessionIdForLog(sid)}: cleaned up auth mapping`);
                 }
               }
             };
@@ -16993,6 +17077,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const acceptHeader = readAcceptHeader(req);
@@ -17139,6 +17224,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
 
@@ -17152,15 +17238,19 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (transport) {
         try {
           await transport.close();
-          logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+          logger.info(
+            `Explicitly closed session via DELETE request: ${redactSessionIdForLog(sessionId)}`
+          );
           if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
             cleanupSessionAuth(sessionId);
             delete sessionRequestCounts[sessionId];
-            logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
+            logger.info(
+              `Session ${redactSessionIdForLog(sessionId)}: cleaned up auth mapping on DELETE`
+            );
           }
           res.status(204).send();
         } catch (error) {
-          logger.error({ err: error }, `Error closing session ${sessionId}`);
+          logger.error({ err: error }, `Error closing session ${redactSessionIdForLog(sessionId)}`);
           res.status(500).json({ error: "Failed to close session" });
         }
       } else {
@@ -17208,7 +17298,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
         }
       } catch (error) {
-        logger.error({ err: error }, `Error closing session ${sessionId}`);
+        logger.error({ err: error }, `Error closing session ${redactSessionIdForLog(sessionId)}`);
       }
     });
 

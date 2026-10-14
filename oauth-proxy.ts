@@ -764,6 +764,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         info.expires_in_seconds != null
           ? Math.floor(Date.now() / 1000) + info.expires_in_seconds
           : undefined,
+      // GitLab user id; stateful /mcp sessions are bound to it.
+      extra: { resourceOwnerId: info.resource_owner_id },
     };
   }
 
