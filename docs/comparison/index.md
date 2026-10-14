@@ -8,7 +8,7 @@ servers.
 | | @zereight/mcp-gitlab | GitLab MCP A |
 |---|----------------------|--------------|
 | **Best for** | AI agent workflows (MR review, pipelines, issues) | Enterprise platform teams (multi-instance, CQRS tooling) |
-| **Tool model** | 275 tools: 273 in toolsets + `execute_graphql` + `discover_tools` | CQRS-style grouped tools with action parameters |
+| **Tool model** | 276 tools: 274 in toolsets + `execute_graphql` + `discover_tools` | CQRS-style grouped tools with action parameters |
 | **Token budget** | Start minimal via `discover_tools` / toolsets | Fewer listed tools by default |
 | **Node.js** | >=18 | Typically >=24 |
 | **License** | MIT | Varies (often Apache-2.0) |

@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 275 tools: 273 tools across 24 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 276 tools: 274 tools across 24 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -14,7 +14,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | Toolset | Default | Enable with |
 |---|---|---|
 | core (38 tools) | yes | default lean starter set |
-| merge_requests (45 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
+| merge_requests (46 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
 | issues (24 tools) | no | `GITLAB_TOOLSETS=issues` |
 | repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
 | branches (15 tools) | no | `GITLAB_TOOLSETS=branches` |
@@ -42,9 +42,9 @@ Enable all discoverable toolsets: `GITLAB_TOOLSETS=all` (does **not** enable `ap
 
 `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. `GITLAB_ALLOWED_PROJECT_IDS` is checked only for `/projects/:id` paths; `/search`, `/users`, `/groups/:id`, and `/runners` are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
-The per-toolset counts above sum to 313 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 314 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 273.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 274.
 
 ## Key Workflows
 
@@ -132,7 +132,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 
 ## Destructive Tools (require caution)
 
-`cancel_pipeline`, `cancel_pipeline_job`, `delete_branch`, `delete_deployment`, `approve_deployment`, `delete_draft_note`, `delete_environment`, `erase_pipeline_job`, `delete_group_milestone`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_pipeline`, `delete_pipeline_schedule`, `delete_pipeline_schedule_variable`, `delete_pipeline_trigger`, `delete_project_variable`, `delete_release`, `delete_review_app_environments`, `delete_snippet`, `delete_tag`, `delete_webhook`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `protect_tag`, `purge_dependency_proxy_cache`, `push_files`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, `update_default_branch`, `gitlab_api_request`
+`cancel_pipeline`, `cancel_pipeline_job`, `delete_branch`, `delete_deployment`, `approve_deployment`, `delete_draft_note`, `delete_environment`, `erase_pipeline_job`, `delete_group_milestone`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_pipeline`, `delete_pipeline_schedule`, `delete_pipeline_schedule_variable`, `delete_pipeline_trigger`, `delete_project_variable`, `delete_release`, `delete_review_app_environments`, `delete_snippet`, `delete_tag`, `delete_webhook`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `protect_tag`, `purge_dependency_proxy_cache`, `push_files`, `rebase_merge_request`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, `update_default_branch`, `gitlab_api_request`
 
 ## Advanced
 

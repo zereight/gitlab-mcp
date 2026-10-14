@@ -129,6 +129,7 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
+  "rebase_merge_request",
   "protect_branch",
   "protect_tag",
 ];

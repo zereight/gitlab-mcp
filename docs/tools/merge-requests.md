@@ -8,6 +8,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 ## Tools in this group
 
 - [`merge_merge_request`](#merge_merge_request) — ✏️ Writes
+- [`rebase_merge_request`](#rebase_merge_request) — ✏️ Writes
 - [`approve_merge_request`](#approve_merge_request) — ✏️ Writes
 - [`unapprove_merge_request`](#unapprove_merge_request) — ✏️ Writes
 - [`get_merge_request_approval_state`](#get_merge_request_approval_state) — 📖 Read-only
@@ -74,6 +75,23 @@ Merge a merge request. Use this only after checking the merge request approval, 
 | `should_remove_source_branch` | boolean |  | Remove source branch after merge |
 | `squash_commit_message` | string |  | Custom squash commit message |
 | `squash` | boolean |  | Squash commits into a single commit when merging |
+
+### `rebase_merge_request`
+
+*✏️ Writes*
+
+Rebase the source branch of a merge request onto its target branch. Use this when the source branch is behind its target branch; use `get_merge_request_conflicts` to inspect conflicts and `merge_merge_request` to merge. The operation rewrites the source branch history with a force push and requires permission to push to that branch. With `wait` true (default), it polls until the rebase ends and returns the merge request: GitLab reports a failed rebase in `merge_error`, but that field can also keep a message from an earlier attempt, so compare `sha` with its value before the rebase. If the rebase still runs after `timeout_seconds`, it returns a timeout error while GitLab continues the rebase. With `wait` false, it returns GitLab's enqueue response (`rebase_in_progress` true) at once. Set `skip_ci` to skip the CI pipeline for the rebased branch.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of the merge request to rebase |
+| `skip_ci` | boolean |  | If true, GitLab does not create a CI pipeline for the rebased source branch |
+| `wait` | boolean |  | If true, poll the merge request until the rebase ends or timeout_seconds passes. If false, return GitLab's enqueue response at once. |
+| `timeout_seconds` | integer |  | Maximum seconds to wait for the rebase to end |
+| `poll_interval_seconds` | integer |  | Seconds between status polls while waiting for the rebase |
 
 ### `approve_merge_request`
 
