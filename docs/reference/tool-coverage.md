@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 275 |
-| Invoked | 170 |
-| Coverage | 61.8% |
+| Tools | 276 |
+| Invoked | 171 |
+| Coverage | 62.0% |
 
 ## By toolset
 
@@ -20,7 +20,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 6 | 15 | 40.0% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
-| [Merge Requests](#merge_requests) | 12 | 45 | 26.7% |
+| [Merge Requests](#merge_requests) | 13 | 46 | 28.3% |
 | [Issues](#issues) | 10 | 24 | 41.7% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 3 | 18 | 16.7% |
@@ -100,6 +100,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="merge_requests"></a>
 
 - [ ] [`merge_merge_request`](../tools/merge-requests.md#merge_merge_request)
+- [x] [`rebase_merge_request`](../tools/merge-requests.md#rebase_merge_request) — `test/test-rebase-merge-request.ts`
 - [x] [`approve_merge_request`](../tools/merge-requests.md#approve_merge_request) — `test/test-merge-request-approvals.ts`
 - [x] [`unapprove_merge_request`](../tools/merge-requests.md#unapprove_merge_request) — `test/test-merge-request-approvals.ts`
 - [x] [`get_merge_request_approval_state`](../tools/merge-requests.md#get_merge_request_approval_state) — `test/test-merge-request-approval-state-tools.ts`, `test/test-merge-request-approvals.ts`

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import http from "node:http";
-import type { IncomingHttpHeaders } from "node:http";
 import { after, before, describe, test } from "node:test";
 import { Agent, fetch as undiciFetch, MockAgent } from "undici";
 import {
@@ -20,7 +19,6 @@ let serverPort: number;
 let secondServer: http.Server;
 let secondOrigin: string;
 let secondPort: number;
-let lastSecondHeaders: IncomingHttpHeaders = {};
 
 /** Hosts the trusted-host predicate has been called with. */
 const trustedHostArguments: string[] = [];
@@ -135,7 +133,6 @@ describe("safe redirect fetch", () => {
     });
 
     secondServer = http.createServer((req, res) => {
-      lastSecondHeaders = req.headers;
       res.writeHead(200).end("second");
     });
 

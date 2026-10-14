@@ -242,7 +242,9 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
     },
   ];
   for (const flag of legacyToolsetFlags) {
-    if (flag.rawValue !== undefined) {
+    // An empty value (e.g. `USE_PIPELINE=${USE_PIPELINE}` in docker-compose with the
+    // variable unset) is not a configured flag, matching GITLAB_READ_ONLY_MODE above.
+    if (flag.rawValue !== undefined && flag.rawValue !== "") {
       warnings.push(
         legacyToolsetWarning(
           flag.envName,

@@ -28,7 +28,6 @@ const MOCK_CLIENT_ID = "mock-app-uid-from-dcr";
 const MOCK_PAT_TOKEN = "glpat-mockpat-testtoken-abcdef12"; // ≥20 chars, valid charset
 const MOCK_JOB_TOKEN = "mockjobtoken-testenv-1234567890"; // ≥20 chars, valid charset
 
-const MOCK_GITLAB_PORT_BASE = 9200;
 const MCP_SERVER_PORT_BASE = 3200;
 
 // ---------------------------------------------------------------------------
@@ -105,7 +104,7 @@ function addOAuthEndpoints(
 describe("MCP OAuth — Discovery Endpoints", () => {
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     const mockPort = await findMockServerPort();
@@ -266,7 +265,7 @@ describe("MCP OAuth — /mcp Auth Enforcement", () => {
   let mcpUrl: string;
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     const mockPort = await findMockServerPort();
@@ -783,7 +782,7 @@ describe("MCP OAuth — Header Auth Fallback", () => {
   let mcpUrl: string;
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     const mockPort = await findMockServerPort();

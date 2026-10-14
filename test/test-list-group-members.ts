@@ -64,7 +64,7 @@ async function callListGroupMembers(args: ListGroupMembersOptions, env: NodeJS.P
           if (content) {
             try {
               resolve(JSON.parse(content));
-            } catch (e) {
+            } catch {
               reject(new Error(`Failed to parse tool output JSON: ${content}`));
             }
           } else {

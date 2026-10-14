@@ -606,6 +606,7 @@ import {
   MergeMergeRequestSchema,
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
+  RebaseMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
   GetMergeRequestConflictsSchema,
   GitLabMergeRequestApprovalsResponseSchema,
@@ -638,7 +639,6 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
-  type UpdateIssueDescriptionPatchOptions,
   UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -712,14 +712,7 @@ import {
   HealthCheckSchema,
 } from "./schemas.js";
 
-import {
-  randomUUID,
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-  timingSafeEqual,
-} from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -1223,23 +1216,6 @@ function createServer(): McpServer {
   });
 
   return mcpServer;
-}
-
-/**
- * Validate configuration at startup
- */
-function isLoopbackBindHost(host: string): boolean {
-  const normalized = host
-    .trim()
-    .toLowerCase()
-    .replace(/^\[|\]$/g, "");
-  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
-  return (
-    normalized === "localhost" ||
-    isIpv4Loopback ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:1"
-  );
 }
 
 function formatHostWithPort(host: string, port: number): string | null {
@@ -6457,6 +6433,70 @@ async function unapproveMergeRequest(
 }
 
 /**
+ * Enqueue a rebase of the merge request source branch onto its target branch
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @param {boolean} skipCi - If true, GitLab does not create a pipeline for the rebased branch
+ * @returns {Promise<unknown>} GitLab's enqueue response, `{"rebase_in_progress": true}`
+ */
+async function rebaseMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number,
+  skipCi?: boolean
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/rebase`
+  );
+
+  const body: Record<string, boolean> = {};
+  if (skipCi !== undefined) {
+    body.skip_ci = skipCi;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  return response.json();
+}
+
+/**
+ * Get a merge request with its rebase state, shaped for waitForStatus
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<{status: string, mergeRequest: GitLabMergeRequest}>} `in_progress` or `finished`
+ */
+async function getMergeRequestRebaseStatus(
+  projectId: string,
+  mergeRequestIid: string | number,
+  signal?: AbortSignal
+): Promise<{ status: string; mergeRequest: GitLabMergeRequest }> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
+  );
+  url.searchParams.append("include_rebase_in_progress", "true");
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    signal,
+  });
+
+  await handleGitLabError(response);
+  const mergeRequest = GitLabMergeRequestSchema.parse(await response.json());
+  return {
+    status: mergeRequest.rebase_in_progress === false ? "finished" : "in_progress",
+    mergeRequest,
+  };
+}
+
+/**
  * Get the approval state of a merge request
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -9098,6 +9138,7 @@ async function erasePipelineJob(projectId: string, jobId: number | string): Prom
 
 const TERMINAL_PIPELINE_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
 const TERMINAL_JOB_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+const TERMINAL_REBASE_STATUSES = new Set(["finished"]);
 async function waitForStatus<T extends { status: string }>(
   fetchStatus: (signal: AbortSignal) => Promise<T>,
   terminalStatuses: Set<string>,
@@ -9783,7 +9824,7 @@ async function getCommitDiff(
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}/diff`;
 
-  let allDiffs: GitLabMergeRequestDiff[] = [];
+  const allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
 
   while (true) {
@@ -9977,7 +10018,7 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   }
 
   // Use listIssues with assignee_username filter
-  let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
+  const listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
     state: options.state || "opened", // Default to "opened" if not specified
     labels: options.labels,
     milestone: options.milestone,
@@ -12365,6 +12406,28 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(approvalState) }],
         };
+      }
+
+      case "rebase_merge_request": {
+        const {
+          project_id,
+          merge_request_iid,
+          skip_ci,
+          wait,
+          timeout_seconds,
+          poll_interval_seconds,
+        } = RebaseMergeRequestSchema.parse(params.arguments);
+        const enqueued = await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
+        if (!wait) {
+          return { content: [{ type: "text", text: JSON.stringify(enqueued) }] };
+        }
+        const { mergeRequest } = await waitForStatus(
+          signal => getMergeRequestRebaseStatus(project_id, merge_request_iid, signal),
+          TERMINAL_REBASE_STATUSES,
+          timeout_seconds,
+          poll_interval_seconds
+        );
+        return { content: [{ type: "text", text: JSON.stringify(mergeRequest) }] };
       }
 
       case "get_merge_request_approval_state": {

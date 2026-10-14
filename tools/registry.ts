@@ -241,6 +241,7 @@ import {
   UpdateSnippetSchema,
   DeleteSnippetSchema,
   UnapproveMergeRequestSchema,
+  RebaseMergeRequestSchema,
   UpdateDraftNoteSchema,
   UpdateGroupWikiPageSchema,
   UpdateIssueNoteSchema,
@@ -1709,6 +1710,11 @@ export const allTools = [
     description: "Get one runner by ID",
     inputSchema: toJSONSchema(GetRunnerSchema),
   },
+  {
+    name: "rebase_merge_request",
+    description: "Rebase the source branch of a merge request onto its target branch",
+    inputSchema: toJSONSchema(RebaseMergeRequestSchema),
+  },
   // --- Explicit opt-in raw API. Not in `all` and not activatable via discover_tools. ---
   {
     name: "gitlab_api_request",
@@ -1933,6 +1939,7 @@ export const destructiveTools = new Set([
   "protect_tag",
   "update_default_branch",
   "merge_merge_request",
+  "rebase_merge_request",
   "push_files",
   "delete_project_variable",
   "delete_group_variable",
@@ -2180,6 +2187,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     isDefault: false,
     tools: new Set([
       "merge_merge_request",
+      "rebase_merge_request",
       "approve_merge_request",
       "unapprove_merge_request",
       "get_merge_request_approval_state",

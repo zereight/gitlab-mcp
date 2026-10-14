@@ -28,7 +28,6 @@ import {
 const MOCK_TOKEN = "glpat-toolset-test-token";
 
 // Port bases (offset from other test suites to avoid collisions)
-const MOCK_PORT_BASE = 9200;
 const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)

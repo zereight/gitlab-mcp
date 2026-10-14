@@ -62,11 +62,11 @@
     "test:oauth": "tsx test/oauth-tests.ts && node --import tsx/esm --test --experimental-test-isolation=none test/oauth-device-flow-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "check:runtime-deps": "node scripts/check-runtime-deps.mjs",
     "check:skill-sync": "tsx scripts/check-skill-sync.ts",
     "docs:tools": "tsx scripts/generate-tool-docs.ts && tsx scripts/generate-tool-coverage.ts",
-    "lint:fix": "eslint . --ext .ts --fix",
+    "lint:fix": "eslint . --fix",
     "release": "bash scripts/release.sh",
     "release:mcp-registry": "bash scripts/publish_mcp_registry.sh",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
@@ -90,6 +90,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@eslint/js": "^9.27.0",
     "@types/express": "^5.0.2",
     "@types/jmespath": "^0.15.2",
     "@types/node": "^22.13.10",

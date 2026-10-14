@@ -14,7 +14,6 @@ import {
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_GITLAB_PORT_BASE = 9210;
 const MCP_SERVER_PORT_BASE = 3210;
 const MOCK_CLIENT_ID = "mock-app-uid-from-dcr";
 
@@ -48,7 +47,7 @@ describe("When MCP OAuth runs behind a trusted proxy", () => {
   describe("with X-Forwarded-For containing client ports", () => {
     let mcpBaseUrl: string;
     let mockGitLab: MockGitLabServer;
-    let servers: ServerInstance[] = [];
+    const servers: ServerInstance[] = [];
 
     before(async () => {
       const mockPort = await findMockServerPort();

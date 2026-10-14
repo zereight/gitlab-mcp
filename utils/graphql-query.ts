@@ -131,9 +131,8 @@ function skipInsignificantGraphQL(source: string, index: number): number {
 function extractTopLevelMutationFields(normalized: string): string[] | null {
   const fields: string[] = [];
   const mutationRegex = /(?:^|[;},]\s*)mutation\b[^({]*(?:\([^)]*\))?\s*\{/g;
-  let match: RegExpExecArray | null;
 
-  while ((match = mutationRegex.exec(normalized)) !== null) {
+  while (mutationRegex.exec(normalized) !== null) {
     let i = mutationRegex.lastIndex;
     let braceDepth = 1;
     let parenDepth = 0;

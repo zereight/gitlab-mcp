@@ -126,6 +126,22 @@ describe("When a legacy toolset flag is explicitly false", () => {
   });
 });
 
+describe("When deprecated settings are passed as empty values", () => {
+  describe("with docker-compose interpolating unset variables to empty strings", () => {
+    test("should emit no warnings", () => {
+      assert.deepEqual(
+        warningsFor({
+          readOnlyRaw: "",
+          useWikiRaw: "",
+          useMilestoneRaw: "",
+          usePipelineRaw: "",
+        }),
+        []
+      );
+    });
+  });
+});
+
 describe("When a deprecated setting comes from a CLI flag", () => {
   describe("with --read-only", () => {
     test("should show the flag and the env var", () => {

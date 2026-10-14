@@ -22,7 +22,6 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-permission-mode-test";
 
-const MOCK_PORT_BASE = 9700;
 const MCP_PORT_BASE = 3700;
 
 let mockGitLab: MockGitLabServer;
@@ -129,6 +128,7 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
+  "rebase_merge_request",
   "protect_branch",
   "protect_tag",
 ];
