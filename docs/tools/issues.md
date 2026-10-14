@@ -181,7 +181,7 @@ Delete an issue. Use this only after confirming the issue and intended permanent
 
 *📖 Read-only*
 
-List GitLab to-do items for the current user. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List GitLab to-do items for the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -200,7 +200,7 @@ List GitLab to-do items for the current user. Use this for a collection of resou
 
 *✏️ Writes*
 
-Mark a GitLab to-do item as done. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Mark a GitLab to-do item as done. Changes GitLab data; needs permission and returns validation or conflict errors.
 
 **Parameters**
 
@@ -212,7 +212,7 @@ Mark a GitLab to-do item as done. Use this for the specific operation described;
 
 *✏️ Writes*
 
-Mark all pending GitLab to-do items as done for the current user. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Mark all pending GitLab to-do items as done for the current user. Changes GitLab data; needs permission and returns validation or conflict errors.
 
 **Parameters**
 
@@ -238,7 +238,7 @@ Add a note to an issue, optionally replying to a discussion thread. Use this to 
 
 *✏️ Writes*
 
-Modify an existing issue thread note. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Modify an existing issue thread note. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -255,7 +255,7 @@ Modify an existing issue thread note. Use this for an existing resource; choose 
 
 *📖 Read-only*
 
-List all issue links for a specific issue. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List all issue links for a specific issue. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -283,7 +283,7 @@ List discussions for an issue. Use this to inspect threaded discussions for an i
 
 *📖 Read-only*
 
-Get a specific issue link. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get a specific issue link. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Get a specific issue link. Use this for a known resource or result; choose the c
 
 *✏️ Writes*
 
-Create an issue link between two issues. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Create an issue link between two issues. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -342,7 +342,7 @@ Create a new note (comment) to an issue or merge request. Use this for a top-lev
 
 *📖 Read-only*
 
-List all emoji reactions on an issue. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List all emoji reactions on an issue. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -355,7 +355,7 @@ List all emoji reactions on an issue. Use this for a collection of resources; ch
 
 *📖 Read-only*
 
-List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -370,7 +370,7 @@ List all emoji reactions on an issue note. Pass discussion_id for discussion thr
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -384,7 +384,7 @@ Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Use this for a 
 
 *✏️ Writes*
 
-Remove an emoji reaction from an issue. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Remove an emoji reaction from an issue. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -398,7 +398,7 @@ Remove an emoji reaction from an issue. Use this only after verifying the target
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -414,7 +414,7 @@ Add an emoji reaction to an issue note. Pass discussion_id for discussion thread
 
 *✏️ Writes*
 
-Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

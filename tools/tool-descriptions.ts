@@ -125,8 +125,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
     "Use this to see which MCP tool definitions Orbit itself exposes; use `orbit_query` to run graph queries directly. It is read-only and free of credit charges, and returns the tool definition list or a permission error.",
 };
 
-const PARAMETER_GUIDANCE =
-  "When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.";
+const PARAMETER_GUIDANCE = "`project_id`/`group_id` take a numeric ID or URL-encoded path.";
 
 function ensureSentence(text: string): string {
   const trimmed = text.trim();
@@ -137,45 +136,46 @@ function getLifecycleGuidance(name: string): string {
   const verb = name.split("_")[0] ?? "use";
 
   if (verb === "list") {
-    return "Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect.";
+    return "For one known resource, use the matching get tool.";
   }
   if (verb === "get") {
-    return "Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources.";
+    return "To find resources, use the matching list or search tool.";
   }
   if (verb === "create") {
-    return "Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists.";
+    return "If the resource already exists, use the update tool.";
   }
   if (verb === "update" || verb === "edit") {
-    return "Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text.";
+    return "Use the create tool for new resources and a note tool for comments.";
   }
   if (verb === "delete" || verb === "remove") {
-    return "Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it.";
+    return "Verify the target first with a get or list tool.";
   }
   if (verb === "search") {
-    return "Use this to discover matching content; choose a typed get or list tool when the target identifier is already known.";
+    return "If the identifier is known, use a typed get or list tool.";
   }
   if (verb === "validate") {
-    return "Use this to check configuration without applying it; choose a create or update tool only after validation succeeds.";
+    return "Checks without applying; create or update only after it passes.";
   }
 
-  return "Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action.";
+  return "";
 }
 
 function getBehaviorGuidance(readOnly: boolean, destructive: boolean): string {
   if (readOnly) {
-    return "It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors.";
+    return "Read-only; missing resources, denied access, and rate limits return errors.";
   }
   if (destructive) {
-    return "It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors.";
+    return "Changes or removes GitLab data and may be irreversible; needs permission.";
   }
-  return "It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request.";
+  return "Changes GitLab data; needs permission and returns validation or conflict errors.";
 }
 
 export function getToolDescription(
   name: string,
   baseDescription: string,
   readOnly: boolean,
-  destructive: boolean
+  destructive: boolean,
+  acceptsProjectOrGroupId: boolean
 ): string {
   const explicitGuidance = TOOL_GUIDANCE[name];
   if (explicitGuidance) {
@@ -187,5 +187,12 @@ export function getToolDescription(
     return normalizedDescription;
   }
 
-  return `${normalizedDescription} ${getLifecycleGuidance(name)} ${getBehaviorGuidance(readOnly, destructive)} ${PARAMETER_GUIDANCE}`;
+  return [
+    normalizedDescription,
+    getLifecycleGuidance(name),
+    getBehaviorGuidance(readOnly, destructive),
+    acceptsProjectOrGroupId ? PARAMETER_GUIDANCE : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }

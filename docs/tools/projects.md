@@ -25,7 +25,7 @@ Project/namespace listing, member queries, group iterations, and server health.
 
 *📖 Read-only*
 
-Get details of a specific project. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get details of a specific project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -37,7 +37,7 @@ Get details of a specific project. Use this for a known resource or result; choo
 
 *📖 Read-only*
 
-List projects accessible by the current user. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List projects accessible by the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -63,7 +63,7 @@ List projects accessible by the current user. Use this for a collection of resou
 
 *✏️ Writes*
 
-Update project settings such as description, visibility, default branch, and feature access levels. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Update project settings such as description, visibility, default branch, and feature access levels. Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -97,7 +97,7 @@ Update project settings such as description, visibility, default branch, and fea
 
 *📖 Read-only*
 
-List members of a GitLab project. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List members of a GitLab project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ List members of a GitLab project. Use this for a collection of resources; choose
 
 *📖 Read-only*
 
-List members of a GitLab group with optional name or username search. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List members of a GitLab group with optional name or username search. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -133,7 +133,7 @@ List members of a GitLab group with optional name or username search. Use this f
 
 *📖 Read-only*
 
-List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -148,7 +148,7 @@ List all namespaces (users and groups) available to the current user. Filter by 
 
 *📖 Read-only*
 
-Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -173,7 +173,7 @@ Verify if a namespace path exists. Use parent_id to scope the check to a specifi
 
 *📖 Read-only*
 
-List projects in a group. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List projects in a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -202,7 +202,7 @@ List projects in a group. Use this for a collection of resources; choose the cor
 
 *📖 Read-only*
 
-List group iterations with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List group iterations with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

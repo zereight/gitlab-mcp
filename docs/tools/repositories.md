@@ -21,7 +21,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 *📖 Read-only*
 
-Search for GitLab projects. Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Search for GitLab projects. If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -36,7 +36,7 @@ Search for GitLab projects. Use this to discover matching content; choose a type
 
 *✏️ Writes*
 
-Create a new GitLab project. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Create a new GitLab project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors.
 
 **Parameters**
 
@@ -52,7 +52,7 @@ Create a new GitLab project. Use this for a new resource or action; choose the c
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get contents of a file or directory from a GitLab project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ Fork a project to your account or specified namespace. Use this to create a copy
 
 *📖 Read-only*
 
-List files and directories in a repository. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List files and directories in a repository. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
