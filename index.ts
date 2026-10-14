@@ -3530,6 +3530,64 @@ async function createWorkItemNote(
 
 // --- Emoji Reactions (GraphQL) ---
 
+const NOTE_GID_PATTERN = /^gid:\/\/gitlab\/\w*Note\/\d+$/;
+
+/**
+ * Check that a note's noteable is the given work item. Work item notes may report
+ * the noteable as an Issue, which shares the work item's numeric ID. GitLab.com
+ * returns noteableId as a bare number; a global ID string is accepted too.
+ */
+function isNoteOfWorkItem(
+  note: { noteableId?: string | number | null; noteableType?: string | null },
+  workItemGID: string
+): boolean {
+  const workItemId = workItemGID.match(/\/(\d+)$/)?.[1];
+  const noteable = String(note.noteableId ?? "").match(/^(?:gid:\/\/gitlab\/(\w+)\/)?(\d+)$/);
+  if (workItemId === undefined || noteable?.[2] !== workItemId) {
+    return false;
+  }
+  const types = [noteable[1], note.noteableType]
+    .filter((type): type is string => Boolean(type))
+    .map(type => type.replace(/[^a-z]/gi, "").toLowerCase());
+  return types.length > 0 && types.every(type => type === "issue" || type === "workitem");
+}
+
+/**
+ * Resolve the work item and return the note GID only if the note belongs to it.
+ */
+async function resolveWorkItemNoteGID(
+  projectId: string,
+  iid: number,
+  noteId: string
+): Promise<string> {
+  if (!NOTE_GID_PATTERN.test(noteId)) {
+    throw new ToolInputError(
+      `note_id must be a note global ID such as gid://gitlab/Note/123 (got ${noteId})`
+    );
+  }
+  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, iid);
+
+  const data = await executeGraphQL<{
+    note: { id: string; noteableId: string | number | null; noteableType: string | null } | null;
+  }>(
+    `query($id: NoteID!) {
+      note(id: $id) {
+        id
+        noteableId
+        noteableType
+      }
+    }`,
+    { id: noteId }
+  );
+
+  if (!data.note || !isNoteOfWorkItem(data.note, workItemGID)) {
+    throw new ProjectAccessDeniedError(
+      `Access denied: Note ${noteId} was not found on work item #${iid} in ${projectPath}`
+    );
+  }
+  return data.note.id;
+}
+
 async function addGraphQLAwardEmoji(awardableId: string, name: string): Promise<any> {
   const data = await executeGraphQL<{
     awardEmojiAdd: {
@@ -4821,12 +4879,14 @@ async function createIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
+  // The target project is subject to the same allowlist as the source project.
+  const effectiveTargetProjectId = getEffectiveProjectId(targetProjectId);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
-      target_project_id: targetProjectId,
+      target_project_id: effectiveTargetProjectId,
       target_issue_iid: targetIssueIid,
       link_type: linkType,
     }),
@@ -4882,6 +4942,10 @@ async function createMergeRequest(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests`
   );
+  // A cross-project target is subject to the same allowlist as the source project.
+  const targetProjectId = options.target_project_id
+    ? getEffectiveProjectId(decodeURIComponent(options.target_project_id))
+    : undefined;
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -4891,7 +4955,7 @@ async function createMergeRequest(
       description: options.description,
       source_branch: options.source_branch,
       target_branch: options.target_branch,
-      target_project_id: options.target_project_id,
+      target_project_id: targetProjectId,
       assignee_ids: options.assignee_ids,
       reviewer_ids: options.reviewer_ids,
       labels: options.labels?.join(","),
@@ -12401,7 +12465,7 @@ async function handleToolCall(params: any) {
 
       case "list_namespaces": {
         const args = ListNamespacesSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
         if (args.search) {
           url.searchParams.append("search", args.search);
@@ -12432,7 +12496,7 @@ async function handleToolCall(params: any) {
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
+          `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -12451,7 +12515,7 @@ async function handleToolCall(params: any) {
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
+          `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
         );
         if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
@@ -13051,7 +13115,8 @@ async function handleToolCall(params: any) {
 
       case "list_work_item_note_emoji_reactions": {
         const args = ListWorkItemNoteEmojiReactionsSchema.parse(params.arguments);
-        const result = await listGraphQLAwardEmoji(args.note_id);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await listGraphQLAwardEmoji(noteGID);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
@@ -13080,13 +13145,15 @@ async function handleToolCall(params: any) {
 
       case "create_work_item_note_emoji_reaction": {
         const args = CreateWorkItemNoteEmojiReactionSchema.parse(params.arguments);
-        const result = await addGraphQLAwardEmoji(args.note_id, args.name);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await addGraphQLAwardEmoji(noteGID, args.name);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_work_item_note_emoji_reaction": {
         const args = DeleteWorkItemNoteEmojiReactionSchema.parse(params.arguments);
-        const result = await removeGraphQLAwardEmoji(args.note_id, args.name);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await removeGraphQLAwardEmoji(noteGID, args.name);
         return {
           content: [
             {
