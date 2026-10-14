@@ -13,6 +13,36 @@ cp .env.example .env
 
 ### 2. Override environment variables
 
+Edit `.env` and set at least:
+
+```dotenv
+GITLAB_PERSONAL_ACCESS_TOKEN=glpat-...
+GITLAB_API_URL=https://gitlab.com/api/v4
+STREAMABLE_HTTP=true
+STREAMABLE_HTTP_AUTH_TOKEN=<output of: openssl rand -hex 32>
+HOST=0.0.0.0
+```
+
+Streamable HTTP with a server-side GitLab token refuses to start without
+`STREAMABLE_HTTP_AUTH_TOKEN` (or `REMOTE_AUTHORIZATION=true`). For the legacy SSE
+transport, set `SSE=true` and `SSE_AUTH_TOKEN` instead of the two `STREAMABLE_HTTP*` lines.
+
+Point your MCP client at the server and send the same secret:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "streamable-http",
+      "url": "http://localhost:3002/mcp",
+      "headers": {
+        "Authorization": "Bearer <STREAMABLE_HTTP_AUTH_TOKEN>"
+      }
+    }
+  }
+}
+```
+
 ### Response masking
 
 The `masking-config` directory is mounted read-only at `/app/masking-config`.
