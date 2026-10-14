@@ -10828,6 +10828,47 @@
       }
     },
     {
+      "name": "rebase_merge_request",
+      "description": "Rebase the source branch of a merge request onto its target branch. Use this when the source branch is behind its target branch; use `get_merge_request_conflicts` to inspect conflicts and `merge_merge_request` to merge. The operation rewrites the source branch history with a force push and requires permission to push to that branch. With `wait` true (default), it polls until the rebase ends and returns the merge request: GitLab reports a failed rebase in `merge_error`, but that field can also keep a message from an earlier attempt, so compare `sha` with its value before the rebase. If the rebase still runs after `timeout_seconds`, it returns a timeout error while GitLab continues the rebase. With `wait` false, it returns GitLab's enqueue response (`rebase_in_progress` true) at once. Set `skip_ci` to skip the CI pipeline for the rebased branch.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project ID or complete URL-encoded path to project"
+          },
+          "merge_request_iid": {
+            "type": "string",
+            "description": "The IID of the merge request to rebase"
+          },
+          "skip_ci": {
+            "description": "If true, GitLab does not create a CI pipeline for the rebased source branch",
+            "type": "boolean"
+          },
+          "wait": {
+            "description": "If true, poll the merge request until the rebase ends or timeout_seconds passes. If false, return GitLab's enqueue response at once.",
+            "type": "boolean"
+          },
+          "timeout_seconds": {
+            "description": "Maximum seconds to wait for the rebase to end",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "poll_interval_seconds": {
+            "description": "Seconds between status polls while waiting for the rebase",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          }
+        },
+        "required": [
+          "project_id",
+          "merge_request_iid"
+        ]
+      }
+    },
+    {
       "name": "gitlab_api_request",
       "description": "DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed. Send one GitLab REST call under /api/v4. Readonly mode allows GET only, and modify mode rejects DELETE. Enable it only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. GITLAB_ALLOWED_PROJECT_IDS is enforced only for /projects/:id paths; other endpoints are not constrained.",
       "inputSchema": {

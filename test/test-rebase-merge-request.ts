@@ -1,0 +1,319 @@
+import { after, before, describe, it, test } from "node:test";
+import assert from "node:assert";
+import { spawn } from "child_process";
+import { RebaseMergeRequestSchema } from "../schemas.js";
+import {
+  TOOLSET_DEFINITIONS,
+  deleteTools,
+  destructiveTools,
+  readOnlyTools,
+} from "../tools/registry.js";
+import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+
+const MOCK_TOKEN = "glpat-mock-token-rebase-merge-request";
+const TEST_PROJECT_ID = "123";
+const OLD_SHA = "1111111111111111111111111111111111111111";
+const NEW_SHA = "2222222222222222222222222222222222222222";
+const REBASE_FAILED = "Rebase failed: Rebase locally, resolve all conflicts, then push the branch.";
+
+// One merge request IID per scenario, so the mock handlers stay independent.
+const MR_ENQUEUE_ONLY = "1";
+const MR_SKIP_CI = "2";
+const MR_SUCCESS = "3";
+const MR_FAILED = "4";
+const MR_TIMEOUT = "5";
+const MR_FORBIDDEN = "6";
+
+function buildMergeRequest(iid: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: `100${iid}`,
+    iid,
+    project_id: TEST_PROJECT_ID,
+    title: "Rebase me",
+    description: null,
+    state: "opened",
+    author: {
+      id: "1",
+      username: "octocat",
+      name: "Octo Cat",
+      avatar_url: null,
+      web_url: "https://gitlab.example.com/octocat",
+    },
+    source_branch: "feature/rebase",
+    target_branch: "main",
+    web_url: `https://gitlab.example.com/group/project/-/merge_requests/${iid}`,
+    created_at: "2026-10-14T00:00:00.000Z",
+    updated_at: "2026-10-14T00:00:00.000Z",
+    merged_at: null,
+    closed_at: null,
+    merge_commit_sha: null,
+    sha: OLD_SHA,
+    merge_error: null,
+    rebase_in_progress: false,
+    ...overrides,
+  };
+}
+
+async function callTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  env: NodeJS.ProcessEnv
+): Promise<any> {
+  return new Promise<any>((resolve, reject) => {
+    const proc = spawn("node", ["build/index.js"], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+
+    let output = "";
+    let errorOutput = "";
+    proc.stdout?.on("data", (d: Buffer) => (output += d));
+    proc.stderr?.on("data", (d: Buffer) => (errorOutput += d));
+
+    proc.on("close", code => {
+      if (code !== 0) {
+        reject(new Error(`Process exited with code ${code}: ${errorOutput}`));
+        return;
+      }
+
+      const line = output.split("\n").find(l => l.startsWith("{"));
+      if (!line) {
+        reject(new Error("No JSON output found"));
+        return;
+      }
+
+      const response = JSON.parse(line);
+      if (response.error) {
+        reject(new Error(response.error.message ?? JSON.stringify(response.error)));
+        return;
+      }
+
+      const content = response.result?.content?.[0]?.text;
+      if (!content) {
+        resolve(response.result);
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(content));
+      } catch {
+        resolve(content);
+      }
+    });
+
+    proc.stdin?.end(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: toolName, arguments: args },
+      }) + "\n"
+    );
+  });
+}
+
+describe("When parsing rebase_merge_request arguments", () => {
+  describe("with only the required fields", () => {
+    it("should wait by default and leave skip_ci unset", () => {
+      const parsed = RebaseMergeRequestSchema.parse({
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: 7,
+      });
+
+      assert.strictEqual(parsed.merge_request_iid, "7");
+      assert.strictEqual(parsed.wait, true);
+      assert.strictEqual(parsed.skip_ci, undefined);
+    });
+  });
+
+  describe("with string booleans", () => {
+    it("should read 'false' as false", () => {
+      const parsed = RebaseMergeRequestSchema.parse({
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: "7",
+        skip_ci: "false",
+        wait: "false",
+      });
+
+      assert.strictEqual(parsed.skip_ci, false);
+      assert.strictEqual(parsed.wait, false);
+    });
+  });
+
+  describe("with a timeout above the limit", () => {
+    it("should reject the arguments", () => {
+      assert.throws(() =>
+        RebaseMergeRequestSchema.parse({
+          project_id: TEST_PROJECT_ID,
+          merge_request_iid: "7",
+          timeout_seconds: 601,
+        })
+      );
+    });
+  });
+});
+
+describe("When registering rebase_merge_request", () => {
+  it("should belong to the merge_requests toolset", () => {
+    const toolset = TOOLSET_DEFINITIONS.find(definition => definition.id === "merge_requests");
+
+    assert.ok(toolset?.tools.has("rebase_merge_request"));
+  });
+
+  it("should be destructive but stay available in modify mode", () => {
+    assert.ok(destructiveTools.has("rebase_merge_request"));
+    assert.equal(deleteTools.has("rebase_merge_request"), false);
+    assert.equal(readOnlyTools.has("rebase_merge_request"), false);
+  });
+});
+
+describe("rebase_merge_request tool", () => {
+  let mockGitLab: MockGitLabServer;
+  let mockGitLabUrl: string;
+  const rebaseBodies = new Map<string, Record<string, unknown>>();
+  const statusQueries = new Map<string, Array<Record<string, unknown>>>();
+
+  function addRebaseHandler(iid: string) {
+    mockGitLab.addMockHandler(
+      "put",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${iid}/rebase`,
+      (req, res) => {
+        rebaseBodies.set(iid, req.body);
+        res.status(202).json({ rebase_in_progress: true });
+      }
+    );
+  }
+
+  function addStatusHandler(iid: string, states: Array<Record<string, unknown>>) {
+    const queries: Array<Record<string, unknown>> = [];
+    statusQueries.set(iid, queries);
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${iid}`,
+      (req, res) => {
+        queries.push({ ...req.query });
+        const state = states[Math.min(queries.length - 1, states.length - 1)];
+        res.json(buildMergeRequest(iid, state));
+      }
+    );
+  }
+
+  before(async () => {
+    const mockPort = await findMockServerPort();
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN],
+    });
+
+    for (const iid of [MR_ENQUEUE_ONLY, MR_SKIP_CI, MR_SUCCESS, MR_FAILED, MR_TIMEOUT]) {
+      addRebaseHandler(iid);
+    }
+    addStatusHandler(MR_ENQUEUE_ONLY, [{ rebase_in_progress: true }]);
+    addStatusHandler(MR_SUCCESS, [
+      { rebase_in_progress: true },
+      { rebase_in_progress: false, sha: NEW_SHA },
+    ]);
+    addStatusHandler(MR_FAILED, [{ rebase_in_progress: false, merge_error: REBASE_FAILED }]);
+    addStatusHandler(MR_TIMEOUT, [{ rebase_in_progress: true }]);
+
+    mockGitLab.addMockHandler(
+      "put",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${MR_FORBIDDEN}/rebase`,
+      (_req, res) => {
+        res.status(403).json({ message: "403 Forbidden - Cannot push to source branch" });
+      }
+    );
+
+    await mockGitLab.start();
+    mockGitLabUrl = mockGitLab.getUrl();
+  });
+
+  after(async () => {
+    await mockGitLab.stop();
+  });
+
+  const env = () => ({
+    GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+    GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+    GITLAB_TOOLSETS: "merge_requests",
+  });
+
+  test("rebase_merge_request with wait false returns the enqueue response without polling", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      { project_id: TEST_PROJECT_ID, merge_request_iid: MR_ENQUEUE_ONLY, wait: false },
+      env()
+    );
+
+    assert.deepStrictEqual(result, { rebase_in_progress: true });
+    assert.deepStrictEqual(rebaseBodies.get(MR_ENQUEUE_ONLY), {});
+    assert.strictEqual(statusQueries.get(MR_ENQUEUE_ONLY)?.length, 0);
+  });
+
+  test("rebase_merge_request forwards skip_ci in the request body", async () => {
+    await callTool(
+      "rebase_merge_request",
+      { project_id: TEST_PROJECT_ID, merge_request_iid: MR_SKIP_CI, skip_ci: true, wait: false },
+      env()
+    );
+
+    assert.deepStrictEqual(rebaseBodies.get(MR_SKIP_CI), { skip_ci: true });
+  });
+
+  test("rebase_merge_request polls until the rebase ends and returns the merge request", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      { project_id: TEST_PROJECT_ID, merge_request_iid: MR_SUCCESS, poll_interval_seconds: 1 },
+      env()
+    );
+
+    assert.strictEqual(result.rebase_in_progress, false);
+    assert.strictEqual(result.merge_error, null);
+    assert.strictEqual(result.sha, NEW_SHA);
+    const queries = statusQueries.get(MR_SUCCESS) ?? [];
+    assert.strictEqual(queries.length, 2);
+    assert.ok(queries.every(query => query.include_rebase_in_progress === "true"));
+  });
+
+  test("rebase_merge_request returns merge_error when the rebase fails", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      { project_id: TEST_PROJECT_ID, merge_request_iid: MR_FAILED },
+      env()
+    );
+
+    assert.strictEqual(result.rebase_in_progress, false);
+    assert.strictEqual(result.merge_error, REBASE_FAILED);
+  });
+
+  test("rebase_merge_request reports a timeout while the rebase still runs", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "rebase_merge_request",
+          {
+            project_id: TEST_PROJECT_ID,
+            merge_request_iid: MR_TIMEOUT,
+            timeout_seconds: 1,
+            poll_interval_seconds: 1,
+          },
+          env()
+        ),
+      /Timed out waiting for terminal status/
+    );
+  });
+
+  test("rebase_merge_request returns GitLab's error when the source branch is not pushable", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      { project_id: TEST_PROJECT_ID, merge_request_iid: MR_FORBIDDEN },
+      env()
+    );
+
+    assert.match(String(result), /403/);
+    assert.match(String(result), /Cannot push to source branch/);
+  });
+});
