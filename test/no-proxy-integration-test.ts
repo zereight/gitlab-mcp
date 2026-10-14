@@ -13,7 +13,7 @@ import {
   TransportMode,
   HOST 
 } from './utils/server-launcher.js';
-import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
+import { MockGitLabServer, findMockServerPort, resetMockServerState } from './utils/mock-gitlab-server.js';
 import { CustomHeaderClient } from './clients/custom-header-client.js';
 
 // Test constants
@@ -122,17 +122,18 @@ describe('NO_PROXY Integration Tests', () => {
     const client = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`,
     });
-    await client.connect(mcpUrl);
-    
-    // This should fail because it tries to use the nonexistent proxy
-    try {
+
+    // This should fail because it tries to use the nonexistent proxy.
+    // The token is checked against GitLab when the session starts, so the
+    // proxy error can surface on connect or on the first tool call.
+    // A request that skipped the proxy would reach the mock server.
+    resetMockServerState(mockGitLab);
+    await assert.rejects(async () => {
+      await client.connect(mcpUrl);
       await client.callTool('list_projects', { per_page: 1 });
-      assert.fail('Request should have failed due to proxy connection error');
-    } catch (error: any) {
-      console.log('  ✓ Request failed as expected (proxy error)');
-      // Expected to fail with connection/proxy error
-      assert.ok(error, 'Should throw an error when proxy fails');
-    }
+    }, /Invalid GitLab authentication header|fetch failed|ECONNREFUSED|ENOTFOUND/);
+    assert.strictEqual(mockGitLab.getRequestCount(), 0, 'Request should have gone through the proxy');
+    console.log('  ✓ Request failed as expected (proxy error)');
     
     await client.disconnect();
   });

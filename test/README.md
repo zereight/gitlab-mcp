@@ -38,8 +38,9 @@ Pass 1 matches, under `test/`, and still subject to the exclude list below:
 - `test/nullish-tool-arguments-schema.test.ts`
 - `test/stateless/codec.test.ts`, `client-id.test.ts`, `config-ttl.test.ts`, `session-id.test.ts`, `callback-proxy.test.ts`, `consumed-proxy-code-cache.test.ts`
 - `test/oauth-startup.test.ts`, `test/deprecated-env.test.ts`, `test/oauth-scopes.test.ts`, `test/oauth-device-flow-tests.ts`
+- `test/personal-access-token-file.test.ts`, `test/config-allowed-groups.test.ts`, `test/no-proxy-test.ts`
 
-Pass 3 matches everything else under `test/` named `*.test.ts`, `test-*.ts`, `*-tests.ts`, or `remote-auth-simple-test.ts`, except pass 1 paths and the exclude list.
+Pass 3 matches everything else under `test/` named `*.test.ts`, `test-*.ts`, `*-tests.ts`, or `*-test.ts`, except pass 1 paths and the exclude list.
 
 `test:oauth` overlaps `test:mock` (`oauth-tests.ts` is step 4; `oauth-device-flow-tests.ts` is pass 1). `test:schema`'s `*-schema.test.ts` files are also pass 1. `schema-tests.ts` and `test-json-schema.ts` are only `test:schema`. `test:stateless`, `test:mcp-oauth`, `test:remote-auth`, and `test:list-merge-requests` re-run files that `test:mock` already runs.
 
@@ -79,23 +80,12 @@ No live GitLab token is required for `test:mock`.
 
 It also skips these names. `oauth-tests.ts` is still step 4 of `test:mock` (`tsx test/oauth-tests.ts`). The others are not run by `test:mock`:
 
-| File                                               | How to run it                                                                |
-| -------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `test/schema-tests.ts`, `test/test-json-schema.ts` | `npm run test:schema`                                                        |
-| `test/test-merge-request-approvals.ts`             | `npm run test:approvals`                                                     |
-| `test/callback-proxy-tests.ts`                     | No npm script. Run the file yourself.                                        |
-| `test/client-pool-test.ts`                         | No npm script.                                                               |
-| `test/config-allowed-groups.test.ts`               | No npm script.                                                               |
-| `test/dynamic-api-url-test.ts`                     | No npm script.                                                               |
-| `test/dynamic-routing-tests.ts`                    | No npm script.                                                               |
-| `test/multi-server-test.ts`                        | No npm script.                                                               |
-| `test/no-proxy-test.ts`                            | No npm script.                                                               |
-| `test/no-proxy-integration-test.ts`                | No npm script.                                                               |
-| `test/remote-auth-tests.ts`                        | No npm script. `test:remote-auth` runs `remote-auth-simple-test.ts` instead. |
-| `test/test-all-transport-server.ts`                | No npm script.                                                               |
-| `test/test-mr-diffs-filter.ts`                     | No npm script.                                                               |
-| `test/test-mr-file-diffs.ts`                       | No npm script.                                                               |
-| `test/test-token-optimizations.ts`                 | No npm script.                                                               |
+| File                                               | How to run it                                                                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `test/schema-tests.ts`, `test/test-json-schema.ts` | `npm run test:schema`                                                                                                         |
+| `test/test-merge-request-approvals.ts`             | `npm run test:approvals`                                                                                                      |
+| `test/remote-auth-tests.ts`                        | Needs a live GitLab token and `TEST_PROJECT_ID`. No npm script. `test:remote-auth` runs `remote-auth-simple-test.ts` instead. |
+| `test/test-all-transport-server.ts`                | Needs a live GitLab token and `TEST_PROJECT_ID`. No npm script.                                                               |
 
 `test/validate-api.js` and `test/cli/load-config-snapshot.ts` do not match the `find` globs.
 
@@ -135,6 +125,6 @@ Use a throwaway project.
 
 ## Adding a test
 
-`scripts/run-mock-tests.sh` only runs files its `find` selects. Name the file `*.test.ts`, `test-*.ts`, or `*-tests.ts` under `test/`, and do not use a name in the exclude list above. A new pure unit test stays on the parallel pass if it is `test/utils/*.test.ts`, `test/cli/*.test.ts`, or `*-schema.test.ts`. Any other new match runs in the sequential pass. A name that matches none of those patterns is not run until the script's `find` is updated.
+`scripts/run-mock-tests.sh` only runs files its `find` selects. Name the file `*.test.ts`, `test-*.ts`, `*-tests.ts`, or `*-test.ts` under `test/`, and do not use a name in the exclude list above. A new pure unit test stays on the parallel pass if it is `test/utils/*.test.ts`, `test/cli/*.test.ts`, or `*-schema.test.ts`. Any other new match runs in the sequential pass. A name that matches none of those patterns is not run until the script's `find` is updated.
 
 Tool counts in [tool invocation coverage](../docs/reference/tool-coverage.md) only when the test sends that tool through MCP. `scripts/tool-coverage/coverage.ts` (used by `scripts/generate-tool-coverage.ts`, which `npm run docs:tools` runs) counts a string-literal name in a `callTool*` call (`callTool`, `callToolJson`, `callToolAsync`, `client.callTool`), including `{ name }` only when that object is the first argument. It also counts `params.name` on an object whose `method` is `"tools/call"`, and `{ name }` on the argument right after a `"tools/call"` string. A bare name, a toolset filter, or `callTool(env, toolName)` does not count. `test/tool-description-quality.test.ts` is skipped by that scanner. `test:live` does not count. Regenerate with `npm run docs:tools` (`make tools-docs` runs that) and commit the generated docs.

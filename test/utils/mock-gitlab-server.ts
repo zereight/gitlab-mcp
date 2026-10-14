@@ -673,6 +673,10 @@ export class MockGitLabServer {
   getPort(): number {
     return this.config.port;
   }
+
+  getRequestCount(): number {
+    return this.requestCount;
+  }
 }
 
 /**

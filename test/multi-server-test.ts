@@ -177,32 +177,19 @@ describe("Dynamic Client Mode (ENABLE_DYNAMIC_API_URL=true)", () => {
     await client.disconnect();
   });
 
-  test("should fail tool call when header contains a non-whitelisted URL", async () => {
+  test("should reject a header URL that is not configured", async () => {
     const client = new CustomHeaderClient({
       headers: {
         'authorization': `Bearer ${MOCK_TOKEN}`,
         'X-GitLab-API-URL': 'http://localhost:9999/api/v4',
       }
     });
-    // Connect succeeds (server accepts any valid URL format),
-    // but tool calls fail because the target server doesn't exist
-    await client.connect(mcpUrl);
-    try {
-      const result = await client.callTool('get_project', { project_id: "1" });
-      // If callTool returns (doesn't throw), check for error in response
-      const content = result.content[0];
-      assert.ok('text' in content, 'Should have text content');
-      assert.ok(
-        content.text.includes('Error') || content.text.includes('error') || content.text.includes('ECONNREFUSED') || result.isError,
-        'Should return an error for unreachable server'
-      );
-    } catch (err: any) {
-      // MCP client may throw for server-side errors (-32603)
-      assert.ok(
-        err.message.includes('ECONNREFUSED') || err.message.includes('failed') || err.message.includes('error'),
-        `Should contain connection error info: ${err.message}`
-      );
-    }
+    // Header URLs must match GITLAB_API_URL or GITLAB_ALLOWED_HOSTS,
+    // so the server refuses the request before creating a session
+    await assert.rejects(
+      client.connect(mcpUrl),
+      /Missing Private-Token, JOB-TOKEN, or Authorization header/
+    );
     await client.disconnect();
   });
 });
