@@ -302,7 +302,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL                                                       |
 | `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）                                                          |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可使用服务器（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
 
 当 `STREAMABLE_HTTP=true` 时，服务端 GitLab 凭据（`GITLAB_PERSONAL_ACCESS_TOKEN`、`GITLAB_JOB_TOKEN`、`GITLAB_AUTH_COOKIE_PATH` 或 `GITLAB_USE_OAUTH`）需要 `REMOTE_AUTHORIZATION=true`、`GITLAB_MCP_OAUTH=true` 或 `STREAMABLE_HTTP_AUTH_TOKEN`。
 

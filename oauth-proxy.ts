@@ -45,7 +45,12 @@
  * Activated when GITLAB_MCP_OAUTH=true. All other auth modes are unaffected.
  */
 
-import { InvalidTokenError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import {
+  InsufficientScopeError,
+  InvalidGrantError,
+  InvalidTokenError,
+  ServerError,
+} from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type {
   OAuthClientInformationFull,
@@ -112,6 +117,9 @@ const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 const PENDING_AUTH_MAX_SIZE = 1000;
 const PENDING_AUTH_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CACHE_MAX_SIZE = 1000;
+const GROUP_MEMBERSHIP_CACHE_MAX_SIZE = 1000;
+const GROUP_MEMBERSHIP_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const GROUP_ACCESS_DENIED_MESSAGE = "Access denied: user is not a member of an allowed group";
 
 function singleQueryParam(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -235,8 +243,13 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
   // Group allowlist (optional). When set, tokens are rejected unless the
   // authenticated user is a direct or inherited member of at least one group.
-  // Checked once at token issuance (exchangeAuthorizationCode), not per request.
+  // Checked at token issuance, on refresh and on every verified request; the
+  // result is cached per token (keyed by SHA-256) for GROUP_MEMBERSHIP_CACHE_TTL_MS.
   private readonly _allowedGroups: string[] | null;
+  private readonly _groupMembershipCache = new BoundedLRUMap<{
+    isMember: boolean;
+    expiresAt: number;
+  }>(GROUP_MEMBERSHIP_CACHE_MAX_SIZE);
 
   constructor(
     gitlabBaseUrl: string,
@@ -633,12 +646,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         tokens = OAuthTokensSchema.parse(data);
       }
 
-      if (this._allowedGroups) {
-        const isMember = await this._checkGroupMembership(tokens.access_token);
-        if (!isMember) {
-          logger.warn({ allowedGroups: this._allowedGroups }, "Token issuance denied: user is not a member of any allowed group");
-          throw new ServerError("Access denied: user is not a member of an allowed group");
-        }
+      if (!(await this.isAllowedGroupMember(tokens.access_token))) {
+        logger.warn(
+          { allowedGroups: this._allowedGroups },
+          "Token issuance denied: user is not a member of any allowed group"
+        );
+        throw new ServerError(GROUP_ACCESS_DENIED_MESSAGE);
       }
 
       // All checks passed — permanently consume the proxy code.
@@ -659,12 +672,35 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       throw err;
     }
   }
+
+  /**
+   * Returns true when no allowed groups are configured, or when the token
+   * owner belongs to one of them (see _checkGroupMembership). Results are
+   * cached per token for GROUP_MEMBERSHIP_CACHE_TTL_MS; failed lookups are not.
+   */
+  async isAllowedGroupMember(token: string): Promise<boolean> {
+    if (!this._allowedGroups) return true;
+
+    const key = createHash("sha256").update(token).digest("hex");
+    const cached = this._groupMembershipCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.isMember;
+
+    const isMember = await this._checkGroupMembership(token);
+    this._groupMembershipCache.set(key, {
+      isMember,
+      expiresAt: Date.now() + GROUP_MEMBERSHIP_CACHE_TTL_MS,
+    });
+    return isMember;
+  }
+
   /**
    * Returns true if the token owner belongs to at least one group whose
    * full_path equals or is a sub-path of any configured allowed group.
    *
    * Example: allowedGroups=["my-org"] allows members of "my-org",
    * "my-org/team-a", "my-org/team-a/squad-1", etc.
+   *
+   * Throws when GitLab is unavailable (5xx / 429) so the result is not cached.
    */
   private async _checkGroupMembership(token: string): Promise<boolean> {
     const allowedPaths = this._allowedGroups!.map((g) => g.toLowerCase());
@@ -675,6 +711,10 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         headers: { Authorization: `Bearer ${token}` } 
       });
 
+      if (res.status >= 500 || res.status === 429) {
+        await res.body?.cancel();
+        throw new ServerError(`Group membership lookup failed: ${res.status}`);
+      }
       if (!res.ok) break;
 
       const groups = (await res.json()) as Array<{ full_path: string }>;
@@ -728,7 +768,17 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     }
 
     const data = await response.json();
-    return OAuthTokensSchema.parse(data);
+    const tokens = OAuthTokensSchema.parse(data);
+
+    if (!(await this.isAllowedGroupMember(tokens.access_token))) {
+      logger.warn(
+        { allowedGroups: this._allowedGroups },
+        "Token refresh denied: user is not a member of any allowed group"
+      );
+      throw new InvalidGrantError(GROUP_ACCESS_DENIED_MESSAGE);
+    }
+
+    return tokens;
   }
 
   // ---- Verify access token -----------------------------------------------
@@ -755,6 +805,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     }
 
     const info = (await res.json()) as GitLabTokenInfo;
+
+    // 403 rather than 401: the token itself is valid, so asking the client to
+    // re-authenticate as the same user would not help.
+    if (!(await this.isAllowedGroupMember(token))) {
+      throw new InsufficientScopeError(GROUP_ACCESS_DENIED_MESSAGE);
+    }
 
     return {
       token,

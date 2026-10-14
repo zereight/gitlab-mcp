@@ -16080,6 +16080,51 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
   };
 
+  /**
+   * With GITLAB_OAUTH_ALLOWED_GROUPS set in MCP OAuth mode, credentials that do
+   * not pass through verifyAccessToken (Private-Token / JOB-TOKEN headers and
+   * sealed stateless session ids) get the same group check, using the OAuth
+   * provider's per-token membership cache. CI job tokens cannot list the
+   * user's groups, so they are refused. Returns null when access is allowed.
+   */
+  const checkAllowedGroups = async (
+    header: SessionAuthHeader,
+    token: string
+  ): Promise<{ status: number; body: { error: string; message: string } } | null> => {
+    if (!GITLAB_MCP_OAUTH || !GITLAB_OAUTH_ALLOWED_GROUPS) return null;
+    if (header === "JOB-TOKEN") {
+      return {
+        status: 403,
+        body: {
+          error: "JOB-TOKEN header not accepted",
+          message:
+            "GITLAB_OAUTH_ALLOWED_GROUPS is set and CI job tokens cannot be checked for group " +
+            "membership. Use OAuth or a Private-Token header instead.",
+        },
+      };
+    }
+    const provider = (app as any)._mcpOAuthProvider as ReturnType<typeof createGitLabOAuthProvider>;
+    try {
+      if (await provider.isAllowedGroupMember(token)) return null;
+    } catch (error) {
+      logger.warn({ err: error }, "Group membership lookup failed");
+      return {
+        status: 503,
+        body: {
+          error: "Group membership check unavailable",
+          message: "Could not verify group membership with GitLab. Please retry.",
+        },
+      };
+    }
+    return {
+      status: 403,
+      body: {
+        error: "Access denied",
+        message: "The token owner is not a member of an allowed group.",
+      },
+    };
+  };
+
   const sessionAuthTokensMatch = (left: AuthData, right: AuthData): boolean =>
     left.header === right.header && left.token === right.token && left.apiUrl === right.apiUrl;
 
@@ -16297,6 +16342,16 @@ async function startStreamableHTTPServer(): Promise<void> {
           "Stateless mode: provide Private-Token, JOB-TOKEN, or Authorization " +
           "header, or a valid Mcp-Session-Id from a previous response.",
       });
+      return;
+    }
+
+    // Sid-only requests never reach verifyAccessToken or the header check in
+    // mcpBearerAuth, so the sealed credential is checked here (cached per token).
+    const groupDenial = await checkAllowedGroups(effective.header, effective.token);
+    if (groupDenial) {
+      metrics.authFailures++;
+      metrics.statelessAuthFailures++;
+      res.status(groupDenial.status).json(groupDenial.body);
       return;
     }
 
@@ -16599,18 +16654,24 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           const sessionId = readMcpSessionIdHeader(req);
           const cached = sessionId ? authBySession[sessionId] : undefined;
-          if (cached && sessionAuthTokensMatch(cached, authData)) {
-            next();
+          const isValid =
+            (cached && sessionAuthTokensMatch(cached, authData)) ||
+            (await validateAuthDataUpstream(authData));
+          if (!isValid) {
+            res.status(401).json({
+              error: "Invalid Private-Token or JOB-TOKEN header",
+              message: "The provided token failed validation. Check the token value and format.",
+            });
             return;
           }
-          if (await validateAuthDataUpstream(authData)) {
-            next();
+          // Also runs for existing sessions so group removals take effect
+          // once the cached membership result expires.
+          const denial = await checkAllowedGroups(authData.header, authData.token);
+          if (denial) {
+            res.status(denial.status).json(denial.body);
             return;
           }
-          res.status(401).json({
-            error: "Invalid Private-Token or JOB-TOKEN header",
-            message: "The provided token failed validation. Check the token value and format.",
-          });
+          next();
           return;
         }
 
