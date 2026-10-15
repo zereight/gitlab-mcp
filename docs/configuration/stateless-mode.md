@@ -209,6 +209,11 @@ headline multi-pod behaviour of stateless mode: pod A initializes
 the session with `Authorization: Bearer …`, and any other pod B can
 serve a subsequent `POST /mcp` carrying only the sid.
 
+When `GITLAB_OAUTH_ALLOWED_GROUPS` is set, the sealed token is checked
+against the allowed groups on every sid-only request as well (cached
+per token for 5 minutes in each pod), and a sid carrying a `JOB-TOKEN`
+is rejected with `403`.
+
 The bearer middleware detects this case by checking for an
 `Mcp-Session-Id` header in the absence of an `Authorization` header
 and lets the stateless handler open the sid. If an `Authorization`

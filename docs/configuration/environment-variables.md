@@ -358,8 +358,17 @@ Examples:
 
 Comma-separated list of GitLab group full paths. When set, only users who
 belong to at least one of these groups (or any of their subgroups) are allowed
-to use the server. Users who authenticate successfully via OAuth but are not
-members of any matching group receive a `401 Access Denied` response.
+to use the server. This applies to every credential the server accepts: OAuth
+access tokens (including tokens issued by other GitLab OAuth applications),
+`Private-Token` headers, and stateless session ids.
+
+Requests from users who are not members of any matching group are denied:
+
+- Authorization code exchange (`POST /token`): fails with an `Access denied` error.
+- Token refresh: fails with `invalid_grant`; no new tokens are returned.
+- `/mcp` with an OAuth Bearer token: `403` with
+  `WWW-Authenticate: Bearer error="insufficient_scope"`.
+- `/mcp` with a `Private-Token` header or a stateless session id: `403`.
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
@@ -379,13 +388,17 @@ Notes:
   possible.
 - Matching is case-insensitive and checks the group's `full_path` (e.g.
   `my-org/team-a`), not its display name.
-- The check is performed once at token issuance (when the MCP client exchanges
-  the authorization code for tokens), not on every subsequent request. Existing
-  sessions are not retroactively revoked when this value changes; users are
-  re-checked when they complete a new OAuth flow or refresh through token issuance.
-- The groups lookup uses the user's OAuth token. If GitLab rejects that lookup
-  (for example because the token lacks a usable scope), login fails closed with
-  access denied.
+- Membership is checked at token issuance, on token refresh, and on every
+  `/mcp` request. Results (member or not) are cached in memory per token for
+  5 minutes in each server process, so removing a user from the allowed groups
+  takes effect within 5 minutes, including for existing sessions.
+- The groups lookup uses the caller's token. If GitLab rejects that lookup
+  (for example because the token lacks a usable scope), access is denied. If
+  GitLab is unavailable (`5xx` or `429`), the request fails (`500` for OAuth
+  tokens, `503` for header auth) and the result is not cached.
+- `JOB-TOKEN` header authentication is rejected with `403` while this is set,
+  because a CI job token cannot list the user's groups. Use OAuth or a
+  `Private-Token` header from CI jobs instead.
 - No additional service account credentials are needed.
 - Leave unset to allow any authenticated GitLab user (default behaviour).
 
@@ -760,7 +773,7 @@ Special values:
 
     `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which are checked at login) are not enforced by this tool.
+    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
     When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
