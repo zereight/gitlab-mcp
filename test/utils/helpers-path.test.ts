@@ -145,7 +145,8 @@ describe("openSafeOutputWriteStream options", () => {
     try {
       fs.writeFileSync(path.join(base, "keep.txt"), "original");
       assert.throws(
-        () => openSafeOutputWriteStream("keep.txt", undefined, "local_path", base, { exclusive: true }),
+        () =>
+          openSafeOutputWriteStream("keep.txt", undefined, "local_path", base, { exclusive: true }),
         /already exists/
       );
       assert.strictEqual(fs.readFileSync(path.join(base, "keep.txt"), "utf8"), "original");
@@ -160,7 +161,8 @@ describe("openSafeOutputWriteStream options", () => {
     try {
       fs.symlinkSync(path.join(outside, "target.txt"), path.join(base, "link.txt"));
       assert.throws(
-        () => openSafeOutputWriteStream("link.txt", undefined, "local_path", base, { exclusive: true }),
+        () =>
+          openSafeOutputWriteStream("link.txt", undefined, "local_path", base, { exclusive: true }),
         /already exists/
       );
       assert.ok(!fs.existsSync(path.join(outside, "target.txt")));
@@ -185,7 +187,13 @@ describe("openSafeOutputWriteStream options", () => {
         /starting with a dot/
       );
       assert.deepStrictEqual(fs.readdirSync(base), []);
-      const { stream, path: dest } = openSafeOutputWriteStream("ok.txt", ".", "local_path", base, options);
+      const { stream, path: dest } = openSafeOutputWriteStream(
+        "ok.txt",
+        ".",
+        "local_path",
+        base,
+        options
+      );
       stream.end();
       assert.strictEqual(dest, path.join(fs.realpathSync(base), "ok.txt"));
     } finally {

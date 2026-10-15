@@ -58,13 +58,22 @@ async function register(
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-async function registerOk(baseUrl: string, redirectUri: string, clientName?: string): Promise<string> {
+async function registerOk(
+  baseUrl: string,
+  redirectUri: string,
+  clientName?: string
+): Promise<string> {
   const result = await register(baseUrl, redirectUri, clientName);
   assert.strictEqual(result.status, 201, `DCR failed: ${JSON.stringify(result.body)}`);
   return result.body.client_id as string;
 }
 
-function authorizeQuery(clientId: string, redirectUri: string, challenge: string, state: string): string {
+function authorizeQuery(
+  clientId: string,
+  redirectUri: string,
+  challenge: string,
+  state: string
+): string {
   return new URLSearchParams({
     response_type: "code",
     client_id: clientId,
@@ -130,7 +139,11 @@ async function postConsent(
   });
 }
 
-async function simulateGitLabCallback(baseUrl: string, code: string, state: string): Promise<Response> {
+async function simulateGitLabCallback(
+  baseUrl: string,
+  code: string,
+  state: string
+): Promise<Response> {
   return fetch(
     `${baseUrl}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
     { redirect: "manual" }

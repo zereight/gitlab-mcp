@@ -53,9 +53,7 @@ function parseRule(entry: string): RedirectRule {
   const isPrefix = entry.endsWith("*");
   const raw = isPrefix ? entry.slice(0, -1) : entry;
   if (raw.includes("*")) {
-    throw new Error(
-      `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS: "${entry}" may only use * at the end`
-    );
+    throw new Error(`GITLAB_OAUTH_ALLOWED_REDIRECT_URIS: "${entry}" may only use * at the end`);
   }
   let url: URL;
   try {
@@ -222,7 +220,11 @@ export class ConsentGate {
    * Decide whether /authorize may continue to GitLab. Shows the consent page
    * on first use, checks the submitted form, and honours a remembered approval.
    */
-  check(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): ConsentOutcome {
+  check(
+    client: OAuthClientInformationFull,
+    params: AuthorizationParams,
+    res: Response
+  ): ConsentOutcome {
     const req = res.req as Request | undefined;
     const cookies = parseCookies(req?.headers?.cookie);
     const action = req?.method === "POST" ? bodyField(req.body, "consent_action") : undefined;
@@ -277,7 +279,11 @@ export class ConsentGate {
       .digest("base64url");
   }
 
-  private _isRemembered(cookies: Map<string, string>, clientId: string, redirectUri: string): boolean {
+  private _isRemembered(
+    cookies: Map<string, string>,
+    clientId: string,
+    redirectUri: string
+  ): boolean {
     const value = cookies.get(this._approvalCookieName(clientId, redirectUri));
     if (!value) return false;
     const [expiresRaw, signature] = value.split(".");
@@ -306,7 +312,9 @@ export class ConsentGate {
     // Reuse a live token so two open sign-in tabs do not invalidate each other.
     const existing = cookies.get(this._cookieName(CSRF_COOKIE));
     const csrf =
-      existing && CSRF_TOKEN_PATTERN.test(existing) ? existing : randomBytes(32).toString("base64url");
+      existing && CSRF_TOKEN_PATTERN.test(existing)
+        ? existing
+        : randomBytes(32).toString("base64url");
     res.setHeader(
       "Set-Cookie",
       `${this._cookieName(CSRF_COOKIE)}=${csrf}; ${this._cookieAttributes(CSRF_TTL_SECONDS)}`
@@ -314,7 +322,9 @@ export class ConsentGate {
 
     const rawName = client.client_name?.trim() || "Unnamed client";
     const clientName =
-      rawName.length > MAX_CLIENT_NAME_LENGTH ? `${rawName.slice(0, MAX_CLIENT_NAME_LENGTH)}…` : rawName;
+      rawName.length > MAX_CLIENT_NAME_LENGTH
+        ? `${rawName.slice(0, MAX_CLIENT_NAME_LENGTH)}…`
+        : rawName;
     const fields: Record<string, string | undefined> = {
       client_id: client.client_id,
       redirect_uri: params.redirectUri,

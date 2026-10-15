@@ -116,7 +116,12 @@ function makeProvider(
     callbackProxy,
     callbackProxy ? callbackUrl : "",
     stateless
-      ? { material: stateless, clientTtlSeconds: 86400, pendingTtlSeconds: 600, storedTtlSeconds: 600 }
+      ? {
+          material: stateless,
+          clientTtlSeconds: 86400,
+          pendingTtlSeconds: 600,
+          storedTtlSeconds: 600,
+        }
       : null,
     allowed
   );
@@ -244,7 +249,11 @@ describe("parseAllowedRedirectUris / custom rules", () => {
       "https://user@a.example/cb",
       "not a url",
     ]) {
-      assert.throws(() => new RedirectUriPolicy([entry]), /GITLAB_OAUTH_ALLOWED_REDIRECT_URIS/, entry);
+      assert.throws(
+        () => new RedirectUriPolicy([entry]),
+        /GITLAB_OAUTH_ALLOWED_REDIRECT_URIS/,
+        entry
+      );
     }
   });
 });
@@ -273,7 +282,11 @@ describe("callback proxy provider: registration and authorize", () => {
       token_endpoint_auth_method: "none",
     });
     const res = fakeRes({});
-    await provider.authorize(client, authParams("https://attacker.example/cb"), res as unknown as ExpressResponse);
+    await provider.authorize(
+      client,
+      authParams("https://attacker.example/cb"),
+      res as unknown as ExpressResponse
+    );
     const gitlab = new URL(res.redirectedTo!);
     assert.strictEqual(gitlab.origin, GITLAB_BASE);
     assert.strictEqual(gitlab.searchParams.get("redirect_uri"), "https://attacker.example/cb");
@@ -306,11 +319,16 @@ describe("callback proxy provider: registration and authorize", () => {
     const page = fakeRes({});
     await provider.authorize(client, authParams(), page as unknown as ExpressResponse);
     const [csrf] = setCookies(page);
-    assert.match(csrf, /^__Host-gitlab_mcp_oauth_csrf=[A-Za-z0-9_-]{43}; Path=\/; Max-Age=600; HttpOnly; SameSite=Lax; Secure$/);
+    assert.match(
+      csrf,
+      /^__Host-gitlab_mcp_oauth_csrf=[A-Za-z0-9_-]{43}; Path=\/; Max-Age=600; HttpOnly; SameSite=Lax; Secure$/
+    );
 
     const approved = await approve(provider, client, authParams());
     assert.strictEqual(new URL(approved.redirectedTo!).origin, GITLAB_BASE);
-    const remember = setCookies(approved).find(c => c.startsWith("__Host-gitlab_mcp_oauth_consent_"));
+    const remember = setCookies(approved).find(c =>
+      c.startsWith("__Host-gitlab_mcp_oauth_consent_")
+    );
     assert.ok(remember);
     assert.match(remember!, /; Secure$/);
   });
