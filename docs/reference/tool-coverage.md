@@ -93,7 +93,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="groups"></a>
 
-- [x] [`create_group`](../tools/groups.md#create_group) — `test/test-geteffectiveprojectid.ts`
+- [x] [`create_group`](../tools/groups.md#create_group) — `test/test-geteffectiveprojectid.ts`, `test/test-permission-mode.ts`
 
 ## Merge Requests
 
@@ -306,7 +306,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="wiki"></a>
 
-- [x] [`list_wiki_pages`](../tools/wiki.md#list_wiki_pages) — `test/test-empty-toolsets.ts`
+- [x] [`list_wiki_pages`](../tools/wiki.md#list_wiki_pages) — `test/test-empty-toolsets.ts`, `test/test-permission-mode.ts`
 - [x] [`get_wiki_page`](../tools/wiki.md#get_wiki_page) — `test/test-empty-toolsets.ts`
 - [x] [`create_wiki_page`](../tools/wiki.md#create_wiki_page) — `test/test-empty-toolsets.ts`
 - [x] [`update_wiki_page`](../tools/wiki.md#update_wiki_page) — `test/test-empty-toolsets.ts`

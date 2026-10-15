@@ -72,3 +72,22 @@ export function selectExposedTools<T extends { readonly name: string }>(
     tool => !isExcludedBySlimProfile(tool.name, true, input.individuallyEnabledTools)
   );
 }
+
+/**
+ * Hidden tools that would be listed if the hidden policy were ignored.
+ * Hiding a tool keeps it callable only while toolsets, `GITLAB_TOOLS`, legacy
+ * flags, permission mode, and the regex denylist still expose it.
+ */
+export function selectCallableHiddenToolNames<T extends { readonly name: string }>(
+  input: ExposedToolSelection<T>
+): Set<string> {
+  if (input.hiddenToolNames.size === 0) {
+    return new Set();
+  }
+  const exposedIgnoringHidden = selectExposedTools({ ...input, hiddenToolNames: new Set() });
+  return new Set(
+    exposedIgnoringHidden
+      .map(tool => tool.name)
+      .filter(toolName => input.hiddenToolNames.has(toolName))
+  );
+}
