@@ -40,6 +40,7 @@ const GLOBAL_FLAG_NAMES = new Set([
   "masking-config",
   "masking-policy-file",
   "masking-workspace-dir",
+  "download-dir",
   "permission-mode",
   "use-wiki",
   "use-milestone",

@@ -172,6 +172,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
 - `--masking-policy-file` - 보호된 관리형 정책 파일 경로 (`GITLAB_MASKING_POLICY_FILE` 대체)
 - `--masking-workspace-dir` - 마스킹 파일 경로를 해석하는 기준 디렉터리 (`GITLAB_MASKING_WORKSPACE_DIR` 대체)
+- `--download-dir` - `download_attachment`가 파일을 저장하는 디렉터리 (`GITLAB_DOWNLOAD_DIR` 대체, 기본값 `.gitlab-mcp-downloads`)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)

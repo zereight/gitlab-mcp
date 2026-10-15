@@ -490,7 +490,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "| Marker | Meaning |",
     "|---|---|",
     "| 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |",
-    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. |",
+    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. `download_attachment` and `download_job_artifacts` only read GitLab but save files to the local disk in stdio mode; readonly mode lists them and rejects any call that would write a file. |",
     "| ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |",
     "",
     "## Browse by group",

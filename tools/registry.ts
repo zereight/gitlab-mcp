@@ -1310,7 +1310,7 @@ export const allTools = [
     name: "download_attachment",
     description: IS_REMOTE
       ? "Download an uploaded file from a project (images returned inline as base64, other files returned as download URL)"
-      : "Download an uploaded file from a project (images returned as base64; use local_path to save to disk)",
+      : "Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)",
     inputSchema: IS_REMOTE
       ? toJSONSchema(DownloadAttachmentRemoteSchema)
       : toJSONSchema(DownloadAttachmentSchema),
@@ -1894,8 +1894,19 @@ export const readOnlyTools = new Set([
 // are allowed in other permission modes and rejected only at call time.
 const MIXED_ACCESS_TOOLS = new Set(["execute_graphql", "gitlab_api_request"]);
 
+// Read-only on GitLab, but in stdio mode they save files to the local disk. They stay
+// listed in readonly mode, where the handlers refuse anything that would write a file
+// (only inline images are returned), and never advertise readOnlyHint.
+const LOCAL_FILE_WRITE_TOOLS = new Set(
+  IS_REMOTE ? [] : ["download_attachment", "download_job_artifacts"]
+);
+
 export function advertisesReadOnly(toolName: string): boolean {
-  return readOnlyTools.has(toolName) && !MIXED_ACCESS_TOOLS.has(toolName);
+  return (
+    readOnlyTools.has(toolName) &&
+    !MIXED_ACCESS_TOOLS.has(toolName) &&
+    !LOCAL_FILE_WRITE_TOOLS.has(toolName)
+  );
 }
 
 // Define which tools are destructive (data loss potential)

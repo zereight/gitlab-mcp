@@ -98,9 +98,13 @@ export function resolveSafeExistingPath(
 export function resolveSafeOutputDir(
   inputDir: string,
   label = "local_path",
-  baseDir?: string
+  baseDir?: string,
+  options: SafeOutputWriteOptions = {}
 ): string {
   const relative = assertSafeRelativePath(inputDir, label);
+  if (options.rejectDotNames && relative.split(path.sep).some(isDotName)) {
+    throw new Error(`Invalid ${label}: names starting with a dot are not allowed.`);
+  }
   const baseReal = resolveTrustedBaseDir(baseDir);
   assertNoSymlinkComponents(baseReal, relative, label);
 
@@ -168,6 +172,20 @@ const WRITE_OPEN_FLAGS =
   fs.constants.O_CREAT |
   fs.constants.O_TRUNC |
   (fs.constants.O_NOFOLLOW ?? 0);
+// O_EXCL also refuses a symlink in the final component.
+const EXCLUSIVE_WRITE_OPEN_FLAGS =
+  fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL;
+
+export interface SafeOutputWriteOptions {
+  /** Fail instead of replacing an existing file. */
+  exclusive?: boolean;
+  /** Reject path components and filenames that start with "." (.git, .vscode, .envrc). */
+  rejectDotNames?: boolean;
+}
+
+function isDotName(part: string): boolean {
+  return part.startsWith(".") && part !== ".";
+}
 
 /**
  * Validate and read a file in one step so callers never reuse a path string
@@ -214,7 +232,8 @@ export function openSafeOutputWriteStream(
   filename: string,
   inputDir?: string,
   label = "local_path",
-  baseDir?: string
+  baseDir?: string,
+  options: SafeOutputWriteOptions = {}
 ): { stream: fs.WriteStream; path: string } {
   if (
     !filename ||
@@ -226,11 +245,28 @@ export function openSafeOutputWriteStream(
   ) {
     throw new Error(`Invalid ${label}: directory separators are not allowed in filename.`);
   }
+  if (options.rejectDotNames && isDotName(filename)) {
+    throw new Error("Invalid filename: names starting with a dot are not allowed.");
+  }
 
   const dirReal = inputDir
-    ? resolveSafeOutputDir(inputDir, label, baseDir)
+    ? resolveSafeOutputDir(inputDir, label, baseDir, options)
     : resolveTrustedBaseDir(baseDir);
   const dest = path.join(dirReal, filename);
+
+  if (options.exclusive) {
+    let fd: number;
+    try {
+      fd = fs.openSync(dest, EXCLUSIVE_WRITE_OPEN_FLAGS, 0o666);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new Error(`${dest} already exists. Choose another ${label} or remove the file first.`);
+      }
+      throw err;
+    }
+    const stream = fs.createWriteStream(null as unknown as fs.PathLike, { fd, autoClose: true });
+    return { stream, path: dest };
+  }
 
   try {
     const st = fs.lstatSync(dest);
@@ -250,6 +286,42 @@ export function openSafeOutputWriteStream(
     autoClose: true,
   });
   return { stream, path: dest };
+}
+
+export const DEFAULT_DOWNLOAD_DIR = ".gitlab-mcp-downloads";
+
+/**
+ * Resolve (and create on first use) the directory that downloads are saved under.
+ * The default sits in the working directory, which may be a cloned repository, so it
+ * must be a real directory rather than a symlink planted there. A directory the
+ * server creates gets a `.gitignore` so its contents are never committed by accident.
+ */
+export function resolveDownloadRoot(configured?: string): string {
+  const root = path.resolve(configured || DEFAULT_DOWNLOAD_DIR);
+  let st: fs.Stats | undefined;
+  try {
+    st = fs.lstatSync(root);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err;
+    }
+  }
+  if (st?.isSymbolicLink() && !configured) {
+    throw new Error(
+      `Invalid download directory: ${root} is a symbolic link. Remove it or set GITLAB_DOWNLOAD_DIR.`
+    );
+  }
+  if (!st) {
+    fs.mkdirSync(root, { recursive: true });
+    try {
+      fs.writeFileSync(path.join(root, ".gitignore"), "*\n", { flag: "wx" });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw err;
+      }
+    }
+  }
+  return fs.realpathSync(root);
 }
 
 /**

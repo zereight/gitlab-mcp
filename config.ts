@@ -65,6 +65,8 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
   "masking-workspace-dir",
   "GITLAB_MASKING_WORKSPACE_DIR"
 );
+/** Directory that download_attachment saves files under (default .gitlab-mcp-downloads). */
+export const GITLAB_DOWNLOAD_DIR = getConfig("download-dir", "GITLAB_DOWNLOAD_DIR");
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];

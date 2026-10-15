@@ -686,6 +686,9 @@ Behavior:
   `disable`, `deactivate`, `drop`, `unschedule`)
 - `gitlab_api_request`, when the `api` toolset is explicitly enabled, stays listed in `readonly`
   and `modify`. The handler allows only `GET` in `readonly` and rejects `DELETE` in `modify`
+- `download_attachment` and `download_job_artifacts` stay listed in `readonly`, but in stdio
+  mode they never write to disk there: `download_attachment` returns images inline and rejects
+  other files and any `local_path`, and `download_job_artifacts` is rejected
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
@@ -700,6 +703,32 @@ than the standard HTTP request to `registry.npmjs.org` is sent.
 
 Set this in offline or air-gapped environments, or when you do not want the
 server to make any outbound request beyond your GitLab instance.
+
+### `GITLAB_DOWNLOAD_DIR`
+
+Directory that `download_attachment` saves files under in stdio mode. Relative
+values resolve against the server's working directory. `local_path` is a
+subdirectory of this directory, not of the working directory.
+
+Default:
+
+- `.gitlab-mcp-downloads` (created on first use with a `.gitignore` that
+  ignores everything in it)
+
+`download_attachment` only creates new files here: it refuses to replace an
+existing file, and rejects `local_path` segments and filenames that start with
+a dot (`.git`, `.vscode`, `.envrc`). Point this outside your checkout (for
+example `~/Downloads/gitlab-mcp`) if you do not want downloaded files inside
+the project tree at all.
+
+`download_job_artifacts` does not use this directory. It saves
+`artifacts_job_<id>.zip` to `local_path` under the working directory, rejects
+`local_path` segments that start with a dot, and replaces an earlier archive
+of the same job.
+
+In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
+`GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`
+only returns images inline, and `download_job_artifacts` is rejected.
 
 ## Tool Exposure and Filtering
 
