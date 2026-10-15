@@ -87,7 +87,7 @@ When adding a new tool:
 2. Register it in [`tools/registry.ts`](tools/registry.ts) — add to `allTools` with a `name`, `description`, and `inputSchema`, then add the name to the appropriate `TOOLSET_DEFINITIONS` entry.
 3. Implement the dispatch case in [`index.ts`](index.ts) under the relevant `switch` block.
 4. Add a test under `test/` that actually calls the tool (`callTool("name")` or equivalent).
-5. Regenerate the tool docs and coverage page (`make tools-docs`, see below).
+5. Fork PRs can skip regenerating the tool docs and coverage page (`make tools-docs`); a bot syncs them after merge (see below).
 
 ## Testing
 
@@ -181,18 +181,25 @@ make tools-docs    # regenerate tool pages + docs/reference/tool-coverage.md
 
 **When changing tools, schemas, or toolsets:**
 
-The per-group tool pages under `docs/tools/` are **generated** from
-`tools/registry.ts` and the Zod schemas. After adding/renaming a tool, run:
+The per-group tool pages under `docs/tools/` and
+`docs/reference/tool-coverage.md` are **generated** from `tools/registry.ts`,
+the Zod schemas, and the tests under `test/`. If your PR comes from a fork,
+you don't need to regenerate them:
 
-```bash
-make tools-docs
-```
+- On a PR from a fork, a generated-docs diff in the `docs-build` job is only a
+  notice. It does not fail the job.
+- After merge,
+  [`.github/workflows/tool-docs-sync.yml`](.github/workflows/tool-docs-sync.yml)
+  runs `npm run docs:tools` on `main` and, if the output changed, opens an
+  `automation/tool-docs` PR as `github-actions[bot]`.
 
-and commit the regenerated files alongside your code change. The docs CI
-workflow ([`.github/workflows/docs.yml`](.github/workflows/docs.yml))
-rebuilds and deploys the site on every push to `main` that touches `docs/`,
-`mkdocs.yml`, `requirements-docs.txt`, `tools/registry.ts`, `schemas.ts`,
-`scripts/generate-tool-docs.ts`, or `scripts/generate-tool-coverage.ts`.
+To preview the pages locally, run `make tools-docs`. For a PR from a branch
+in this repository, `docs-build` still fails on drift, so commit the result.
+
+The docs CI workflow ([`.github/workflows/docs.yml`](.github/workflows/docs.yml))
+regenerates the tool pages, then rebuilds and deploys the site on every push
+to `main` that touches `docs/`, `mkdocs.yml`, `requirements-docs.txt`, a `.ts`
+file, `test/`, or `package.json` / `package-lock.json`.
 
 **Hosted site (maintainers, one-time):** GitHub Pages must use
 **Build and deployment → Source: GitHub Actions**, not deploy from `main`.

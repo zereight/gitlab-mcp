@@ -131,11 +131,20 @@ jobs:
     - name: Regenerate generated docs
       run: npm run docs:tools
 
+    # Blocking for same-repo PRs and manual runs. Informational for fork PRs:
+    # tool-docs-sync.yml regenerates these files on main after merge, so
+    # outside contributors do not need to run `make tools-docs`.
     - name: Check for generated-docs drift
+      env:
+        IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
       run: |
         if ! git diff --exit-code -- docs/tools/ docs/reference/tool-coverage.md || [ -n "$(git ls-files --others --exclude-standard -- docs/tools/ docs/reference/tool-coverage.md)" ]; then
-          echo "::error::Generated docs are out of sync. Run 'make tools-docs' and commit the result."
           git status --porcelain -- docs/tools/ docs/reference/tool-coverage.md
+          if [ "$IS_FORK_PR" = "true" ]; then
+            echo "::notice::Generated docs differ from this PR. No action needed: a bot PR syncs them on main after merge."
+            exit 0
+          fi
+          echo "::error::Generated docs are out of sync. Run 'make tools-docs' and commit the result."
           exit 1
         fi
 

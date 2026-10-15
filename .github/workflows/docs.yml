@@ -7,10 +7,11 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - "requirements-docs.txt"
-      - "tools/registry.ts"
-      - "schemas.ts"
-      - "scripts/generate-tool-docs.ts"
-      - "scripts/generate-tool-coverage.ts"
+      # Generated-docs inputs (same list as tool-docs-sync.yml).
+      - "**.ts"
+      - "test/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -35,6 +36,22 @@ jobs:
           # Drop the GITHUB_TOKEN credential after checkout; nothing in the
           # build job needs to push or call the API.
           persist-credentials: false
+
+      - name: Set up Node.js
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.21.1"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts
+
+      # Build the site from freshly generated tool pages so the deploy does
+      # not depend on the tool-docs-sync bot PR being merged (an auto-merge
+      # made with GITHUB_TOKEN fires no push workflows).
+      - name: Regenerate generated docs
+        run: npm run docs:tools
 
       - name: Set up Python
         # actions/setup-python@v5

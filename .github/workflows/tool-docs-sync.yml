@@ -1,0 +1,169 @@
+name: Sync Generated Tool Docs
+
+# Regenerates docs/tools/ and docs/reference/tool-coverage.md on main (same
+# command as the PR docs-build check) and opens a bot PR when they drift, so
+# contributors do not have to run `make tools-docs` themselves.
+#
+# Security model:
+# - Runs on push to main / manual dispatch only. Never pull_request_target, so
+#   fork code is never executed with a write token.
+# - `generate` runs repo code and npm dependencies with a read-only token and
+#   no persisted git credentials.
+# - `open-pr` holds the write token but runs no repo code: it applies the
+#   generated patch (generated-docs paths only) and calls create-pull-request.
+# - main is PR-protected, so the bot opens a PR (like the Homebrew sync)
+#   instead of pushing to main.
+#
+# Loop guard: pushes and PRs made with GITHUB_TOKEN do not trigger workflows,
+# and generation is idempotent, so merging the bot PR re-runs to a no-op.
+# The commit message deliberately has no [skip ci]: docs.yml must still run.
+
+on:
+  push:
+    branches: [main]
+    # Generator inputs: tools/registry.ts and everything it imports, test/**
+    # for the coverage page, and the generated outputs themselves.
+    paths:
+      - "**.ts"
+      - "test/**"
+      - "package.json"
+      - "package-lock.json"
+      - "docs/tools/**"
+      - "docs/reference/tool-coverage.md"
+      - ".github/workflows/tool-docs-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tool-docs-sync
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+
+    steps:
+      - name: Checkout code
+        # actions/checkout@v4 — pin to commit SHA for supply-chain safety
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.21.1"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Regenerate generated docs
+        run: npm run docs:tools
+
+      - name: Collect generated-docs diff
+        id: diff
+        run: |
+          git add -A -- docs/tools/ docs/reference/tool-coverage.md
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Generated docs are in sync with main."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --cached --stat
+            git diff --cached --binary > "$RUNNER_TEMP/tool-docs.patch"
+          fi
+
+      - name: Upload generated-docs patch
+        if: steps.diff.outputs.changed == 'true'
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tool-docs-patch
+          path: ${{ runner.temp }}/tool-docs.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  open-pr:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          # create-pull-request configures its own credential from `token`.
+          persist-credentials: false
+
+      - name: Download generated-docs patch
+        if: needs.generate.outputs.changed == 'true'
+        # actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: tool-docs-patch
+          path: ${{ runner.temp }}/tool-docs
+
+      - name: Apply generated-docs patch
+        if: needs.generate.outputs.changed == 'true'
+        run: |
+          git apply --index "$RUNNER_TEMP/tool-docs/tool-docs.patch"
+          unexpected="$(git diff --cached --name-only --no-renames | grep -Ev '^(docs/tools/|docs/reference/tool-coverage\.md$)' || true)"
+          if git diff --cached --summary --no-renames | grep -qE 'mode 120000|mode change'; then
+            echo "::error::Generated-docs patch adds a symlink or changes a file mode"
+            exit 1
+          fi
+          if [ -n "$unexpected" ]; then
+            echo "::error::Generated-docs patch touches paths outside docs/tools/ and docs/reference/tool-coverage.md:"
+            echo "$unexpected"
+            exit 1
+          fi
+          git diff --cached --stat
+
+      # With no changes this closes a stale bot PR (and deletes its branch)
+      # once main is back in sync.
+      - name: Open or update generated-docs PR
+        id: cpr
+        # peter-evans/create-pull-request@v8.1.1
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
+        with:
+          base: main
+          branch: automation/tool-docs
+          delete-branch: true
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          title: "docs(tools): sync generated tool docs"
+          commit-message: "docs(tools): sync generated tool docs"
+          body: |
+            Automated `npm run docs:tools` (`make tools-docs`) for ${{ github.sha }}.
+
+            Updates `docs/tools/` and `docs/reference/tool-coverage.md` only. Created by `.github/workflows/tool-docs-sync.yml`.
+          add-paths: |
+            docs/tools
+            docs/reference/tool-coverage.md
+
+      # Needs the repo "Allow auto-merge" setting, and still waits for the
+      # required review. A merge made this way is a GITHUB_TOKEN event, so it
+      # fires no push workflows; docs.yml regenerates these pages itself.
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          if gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash; then
+            echo "Auto-merge enabled on #$PR_NUMBER."
+          else
+            echo "::notice::Could not enable auto-merge on #$PR_NUMBER (is 'Allow auto-merge' enabled?). A maintainer needs to approve and merge it."
+          fi
