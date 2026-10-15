@@ -13,6 +13,33 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-dynamic-url-token";
+const NAMESPACE_TOOLS = "list_namespaces,get_namespace,verify_namespace";
+
+const mockNamespace = {
+  id: 7,
+  name: "Team",
+  path: "team",
+  kind: "group",
+  full_path: "team",
+  parent_id: null,
+  avatar_url: null,
+  web_url: "https://gitlab.mock/groups/team",
+};
+
+function addNamespaceHandlers(gitlab: MockGitLabServer, hits: string[]): void {
+  gitlab.addMockHandler("get", "/namespaces", (req, res) => {
+    hits.push(req.path);
+    res.json([mockNamespace]);
+  });
+  gitlab.addMockHandler("get", "/namespaces/team", (req, res) => {
+    hits.push(req.path);
+    res.json(mockNamespace);
+  });
+  gitlab.addMockHandler("get", "/namespaces/team/exists", (req, res) => {
+    hits.push(req.path);
+    res.json({ exists: true });
+  });
+}
 
 async function startAttackerServer(
   port: number
@@ -43,11 +70,14 @@ describe("Dynamic API URL allowlist", () => {
   let mcpPort: number;
   let mcpUrl: string;
   let secondaryHit = false;
+  const primaryNamespaceHits: string[] = [];
+  const secondaryNamespaceHits: string[] = [];
   let getAttackerHits = () => 0;
 
   before(async () => {
     const primaryPort = await findMockServerPort();
     primaryGitLab = new MockGitLabServer({ port: primaryPort, validTokens: [MOCK_TOKEN] });
+    addNamespaceHandlers(primaryGitLab, primaryNamespaceHits);
     await primaryGitLab.start();
 
     const secondaryPort = await findMockServerPort();
@@ -56,6 +86,7 @@ describe("Dynamic API URL allowlist", () => {
       secondaryHit = true;
       res.json([]);
     });
+    addNamespaceHandlers(secondaryGitLab, secondaryNamespaceHits);
     await secondaryGitLab.start();
 
     const attackerPort = await findAvailablePort(9300);
@@ -74,6 +105,7 @@ describe("Dynamic API URL allowlist", () => {
         ENABLE_DYNAMIC_API_URL: "true",
         GITLAB_API_URL: `${primaryGitLab.getUrl()}/api/v4`,
         GITLAB_ALLOWED_HOSTS: `${secondaryGitLab.getUrl()}/api/v4`,
+        GITLAB_TOOLS: NAMESPACE_TOOLS,
       },
     });
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
@@ -98,6 +130,29 @@ describe("Dynamic API URL allowlist", () => {
     await client.disconnect();
 
     assert.strictEqual(secondaryHit, true, "allowed dynamic host should receive GitLab calls");
+  });
+
+  test("sends namespace tool requests to the dynamic API URL", async () => {
+    const client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+      "x-gitlab-api-url": `${secondaryGitLab.getUrl()}/api/v4`,
+    });
+
+    await client.connect(mcpUrl);
+    try {
+      await client.callTool("list_namespaces", {});
+      await client.callTool("get_namespace", { namespace_id: "team" });
+      await client.callTool("verify_namespace", { path: "team" });
+    } finally {
+      await client.disconnect();
+    }
+
+    assert.deepStrictEqual(secondaryNamespaceHits, [
+      "/namespaces",
+      "/namespaces/team",
+      "/namespaces/team/exists",
+    ]);
+    assert.deepStrictEqual(primaryNamespaceHits, [], "default API URL must not receive the calls");
   });
 
   test("rejects dynamic API URLs on unconfigured hosts before forwarding tokens", async () => {
