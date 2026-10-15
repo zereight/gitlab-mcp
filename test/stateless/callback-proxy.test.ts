@@ -72,7 +72,8 @@ function makeProvider(
           pendingTtlSeconds: 600,
           storedTtlSeconds: 600,
         }
-      : null
+      : null,
+    [CLIENT_REDIRECT]
   );
 }
 
@@ -161,18 +162,29 @@ function fakeReq(query: Record<string, unknown>): ExpressRequest {
   return { query } as unknown as ExpressRequest;
 }
 
-// A response wrapper that captures authorize redirects.
+// A response wrapper that captures authorize redirects. Its request is the
+// consent form being approved (consent itself is covered in
+// test/oauth-consent.test.ts), so authorize continues to GitLab.
 interface AuthorizeRes {
+  req: unknown;
   redirect: (url: string) => void;
+  setHeader: (name: string, value: unknown) => void;
   redirectedTo: string | null;
 }
 
 function makeAuthorizeRes(): AuthorizeRes {
+  const csrf = randomBytes(32).toString("base64url");
   const r: AuthorizeRes = {
+    req: {
+      method: "POST",
+      headers: { cookie: `__Host-gitlab_mcp_oauth_csrf=${csrf}` },
+      body: { consent_action: "approve", consent_csrf: csrf },
+    },
     redirectedTo: null,
     redirect(url) {
       r.redirectedTo = url;
     },
+    setHeader() {},
   };
   return r;
 }

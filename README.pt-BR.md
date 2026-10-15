@@ -302,6 +302,7 @@ Use `GITLAB_OAUTH_REDIRECT_URI` somente quando o próprio servidor MCP receber o
 | `MCP_SERVER_URL`              | sim         | URL HTTPS pública deste servidor MCP                                                                                                                                     |
 | `STREAMABLE_HTTP`             | sim         | Deve ser `true`                                                                                                                                                          |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | opcional    | Defina como `true` para usar a URL `/callback` fixa do servidor MCP                                                                                                      |
+| `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | opcional | URLs de callback de cliente para as quais o modo de proxy de callback redireciona (padrão: callbacks do Claude, ChatGPT, Cursor e loopback; use `defaults,<url>` para adicionar) |
 | `GITLAB_OAUTH_SCOPES`         | opcional    | Scopes separados por vírgula (padrão: `api,read_api,read_user`)                                                                                                          |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | opcional    | Caminhos completos de grupos GitLab separados por vírgula — apenas membros desses grupos e subgrupos podem obter um token (substitui o obsoleto `GITLAB_ALLOWED_GROUPS`) |
 
@@ -406,6 +407,7 @@ Variáveis usadas com frequência:
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
