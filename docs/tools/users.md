@@ -21,7 +21,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 *📖 Read-only*
 
-Get GitLab user details by usernames. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get GitLab user details by usernames. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ Get GitLab user details by usernames. Use this for a known resource or result; c
 
 *📖 Read-only*
 
-Get user details by ID. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get user details by ID. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -55,7 +55,7 @@ _No parameters._
 
 *📖 Read-only*
 
-List events for the authenticated user (before/after: YYYY-MM-DD). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -74,7 +74,7 @@ List events for the authenticated user (before/after: YYYY-MM-DD). Use this for 
 
 *📖 Read-only*
 
-List events for a project (before/after: YYYY-MM-DD). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List events for a project (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -93,7 +93,7 @@ List events for a project (before/after: YYYY-MM-DD). Use this for a known resou
 
 *✏️ Writes*
 
-Upload a file for use in markdown content. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Upload a file for use in markdown content. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
