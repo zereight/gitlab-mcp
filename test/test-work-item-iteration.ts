@@ -59,6 +59,7 @@ async function callTool(
 describe("update_work_item iteration widget", () => {
   let mockServer: MockGitLabServer;
   let mutationInput: Record<string, unknown> | undefined;
+  let mutationQuery: string | undefined;
 
   before(async () => {
     const port = await findMockServerPort();
@@ -80,6 +81,7 @@ describe("update_work_item iteration widget", () => {
 
       if (typeof query === "string" && query.includes("workItemUpdate")) {
         mutationInput = variables;
+        mutationQuery = query;
         res.json({
           data: {
             workItemUpdate: {
@@ -114,6 +116,7 @@ describe("update_work_item iteration widget", () => {
 
   beforeEach(() => {
     mutationInput = undefined;
+    mutationQuery = undefined;
   });
 
   after(async () => {
@@ -136,6 +139,7 @@ describe("update_work_item iteration widget", () => {
     );
 
     assert.equal(mutationInput?.iterationId, "gid://gitlab/Iteration/53");
+    assert.match(mutationQuery ?? "", /iterationWidget:\s*\{\s*iterationId:\s*\$iterationId\s*\}/);
     assert.deepEqual(result.iteration, {
       id: "gid://gitlab/Iteration/53",
       iid: "13",
@@ -151,6 +155,7 @@ describe("update_work_item iteration widget", () => {
     );
 
     assert.equal(mutationInput?.iterationId, undefined);
+    assert.match(mutationQuery ?? "", /iterationWidget:\s*\{\s*iterationId:\s*null\s*\}/);
     assert.equal(result.iteration, null);
   });
 
