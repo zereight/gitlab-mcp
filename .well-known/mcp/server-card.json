@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "io.github.zereight/gitlab-mcp",
-    "version": "2.3.0"
+    "version": "2.3.1"
   },
   "authentication": {
     "required": true,
@@ -30,8 +30,8 @@
             "type": "string"
           },
           "auto_merge": {
-            "default": false,
             "description": "If true, the merge request merges when the pipeline succeeds.",
+            "default": false,
             "type": "boolean"
           },
           "merge_commit_message": {
@@ -39,13 +39,13 @@
             "type": "string"
           },
           "merge_when_pipeline_succeeds": {
-            "default": false,
             "description": "If true, the merge request merges when the pipeline succeeds. Deprecated in GitLab 17.11. Use `auto_merge` instead.",
+            "default": false,
             "type": "boolean"
           },
           "should_remove_source_branch": {
-            "default": false,
             "description": "Remove source branch after merge",
+            "default": false,
             "type": "boolean"
           },
           "squash_commit_message": {
@@ -53,8 +53,8 @@
             "type": "string"
           },
           "squash": {
-            "default": false,
             "description": "Squash commits into a single commit when merging",
+            "default": false,
             "type": "boolean"
           }
         },
@@ -1476,8 +1476,8 @@
             "description": "The ID of a thread"
           },
           "resolved": {
-            "type": "boolean",
-            "description": "Whether to resolve the thread"
+            "description": "Whether to resolve the thread",
+            "type": "boolean"
           }
         },
         "required": [
@@ -9220,8 +9220,8 @@
             "description": "Note body (Markdown supported)"
           },
           "internal": {
-            "default": false,
             "description": "Create as internal/confidential note (only visible to project members)",
+            "default": false,
             "type": "boolean"
           },
           "discussion_id": {
