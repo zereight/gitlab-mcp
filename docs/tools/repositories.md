@@ -52,7 +52,7 @@ Create a new GitLab project. Changes GitLab data; needs permission and returns v
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get contents of a file or directory from a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ Fork a project to your account or specified namespace. Use this to create a copy
 
 *📖 Read-only*
 
-List files and directories in a repository. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List files and directories in a repository. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

@@ -195,7 +195,7 @@ Get details of a specific commit. To find resources, use the matching list or se
 
 *📖 Read-only*
 
-Get changes/diffs of a specific commit. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get changes/diffs of a specific commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

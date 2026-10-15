@@ -35,7 +35,7 @@ List vulnerabilities for a project with optional state, severity, and report typ
 
 *📖 Read-only*
 
-Get full details of a specific vulnerability. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
+Get full details of a specific vulnerability. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 

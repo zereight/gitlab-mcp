@@ -144,6 +144,14 @@ function matchingGetToolNames(resource: string): string[] {
   return candidates;
 }
 
+// Candidate list_*/search_* names for a get_* resource: get_pipeline -> list_pipelines,
+// get_branch -> list_branches, get_policy -> list_policies, get_diffs -> list_diffs.
+function matchingDiscoveryToolNames(resource: string): string[] {
+  const plurals = [resource, `${resource}s`, `${resource}es`];
+  if (resource.endsWith("y")) plurals.push(`${resource.slice(0, -1)}ies`);
+  return plurals.flatMap(plural => [`list_${plural}`, `search_${plural}`]);
+}
+
 // Sibling hints are only added when the sibling tool exists, so a description
 // never points at a tool the server does not have.
 function getLifecycleGuidance(name: string, toolNames: ReadonlySet<string>): string {
@@ -156,7 +164,9 @@ function getLifecycleGuidance(name: string, toolNames: ReadonlySet<string>): str
       : "";
   }
   if (verb === "get") {
-    return "To find resources, use the matching list or search tool.";
+    return matchingDiscoveryToolNames(resource).some(candidate => toolNames.has(candidate))
+      ? "To find resources, use the matching list or search tool."
+      : "";
   }
   if (verb === "create") {
     return toolNames.has(`update_${resource}`) || toolNames.has(`edit_${resource}`)

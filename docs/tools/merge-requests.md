@@ -257,7 +257,7 @@ List merge request diffs with pagination (merge_request_iid or source_branch req
 
 *📖 Read-only*
 
-Get diffs for specific files from a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs for specific files from a merge request (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -424,7 +424,7 @@ List merge requests across all projects of a group and its subgroups. Read-only;
 
 *📖 Read-only*
 
-Get diffs between two branches or commits. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs between two branches or commits. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

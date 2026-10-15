@@ -18,7 +18,7 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 
 *📖 Read-only*
 
-Get dependency proxy settings for a group. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get dependency proxy settings for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

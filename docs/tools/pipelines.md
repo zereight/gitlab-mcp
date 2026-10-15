@@ -109,7 +109,7 @@ Get details of a specific pipeline. To find resources, use the matching list or 
 
 *📖 Read-only*
 
-Get variables configured for a pipeline. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get variables configured for a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -124,7 +124,7 @@ Get variables configured for a pipeline. To find resources, use the matching lis
 
 *📖 Read-only*
 
-Get pipeline test report. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get pipeline test report. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -139,7 +139,7 @@ Get pipeline test report. To find resources, use the matching list or search too
 
 *📖 Read-only*
 
-Get pipeline test report summary. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get pipeline test report summary. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -519,7 +519,7 @@ Get details of a GitLab pipeline job number. To find resources, use the matching
 
 *📖 Read-only*
 
-Get the output/trace of a pipeline job with optional pagination. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get the output/trace of a pipeline job with optional pagination. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -892,7 +892,7 @@ Download job artifact archive (zip) and save to a local path. Use this to retrie
 
 *📖 Read-only*
 
-Get content of a single file from a job's artifacts. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get content of a single file from a job's artifacts. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

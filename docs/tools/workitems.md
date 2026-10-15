@@ -297,7 +297,7 @@ Remove an emoji reaction from a work item note (comment, thread, or thread reply
 
 *📖 Read-only*
 
-List timeline events for an incident. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List timeline events for an incident. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

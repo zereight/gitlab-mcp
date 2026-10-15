@@ -21,7 +21,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 *📖 Read-only*
 
-Get GitLab user details by usernames. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
+Get GitLab user details by usernames. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ Get GitLab user details by usernames. To find resources, use the matching list o
 
 *📖 Read-only*
 
-Get user details by ID. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
+Get user details by ID. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -74,7 +74,7 @@ List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; mi
 
 *📖 Read-only*
 
-List events for a project (before/after: YYYY-MM-DD). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List events for a project (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

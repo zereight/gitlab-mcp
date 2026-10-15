@@ -128,7 +128,7 @@ List changed file paths in a merge request without diff content (merge_request_i
 
 *📖 Read-only*
 
-Get diffs for specific files from a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs for specific files from a merge request (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -478,7 +478,7 @@ Apply a patch (search/replace or unified diff) to an issue description. Reduces 
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get contents of a file or directory from a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -493,7 +493,7 @@ Get contents of a file or directory from a GitLab project. To find resources, us
 
 *📖 Read-only*
 
-List files and directories in a repository. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List files and directories in a repository. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -592,7 +592,7 @@ Get details of a specific commit. To find resources, use the matching list or se
 
 *📖 Read-only*
 
-Get changes/diffs of a specific commit. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get changes/diffs of a specific commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

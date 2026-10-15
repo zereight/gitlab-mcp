@@ -367,7 +367,7 @@
     },
     {
       "name": "get_file_contents",
-      "description": "Get contents of a file or directory from a GitLab project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get contents of a file or directory from a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -992,7 +992,7 @@
     },
     {
       "name": "get_merge_request_file_diff",
-      "description": "Get diffs for specific files from a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get diffs for specific files from a merge request (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1079,7 +1079,7 @@
     },
     {
       "name": "get_branch_diffs",
-      "description": "Get diffs between two branches or commits. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get diffs between two branches or commits. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4383,7 +4383,7 @@
     },
     {
       "name": "get_repository_tree",
-      "description": "List files and directories in a repository. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List files and directories in a repository. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4539,7 +4539,7 @@
     },
     {
       "name": "get_pipeline_variables",
-      "description": "Get variables configured for a pipeline. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get variables configured for a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4568,7 +4568,7 @@
     },
     {
       "name": "get_pipeline_test_report",
-      "description": "Get pipeline test report. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get pipeline test report. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4597,7 +4597,7 @@
     },
     {
       "name": "get_pipeline_test_report_summary",
-      "description": "Get pipeline test report summary. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get pipeline test report summary. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5366,7 +5366,7 @@
     },
     {
       "name": "get_pipeline_job_output",
-      "description": "Get the output/trace of a pipeline job with optional pagination. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get the output/trace of a pipeline job with optional pagination. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6445,7 +6445,7 @@
     },
     {
       "name": "get_job_artifact_file",
-      "description": "Get content of a single file from a job's artifacts. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get content of a single file from a job's artifacts. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6947,7 +6947,7 @@
     },
     {
       "name": "get_milestone_issue",
-      "description": "Get issues associated with a specific milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get issues associated with a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -6976,7 +6976,7 @@
     },
     {
       "name": "get_milestone_merge_requests",
-      "description": "Get merge requests associated with a specific milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get merge requests associated with a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7026,7 +7026,7 @@
     },
     {
       "name": "get_milestone_burndown_events",
-      "description": "Get burndown events for a specific milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get burndown events for a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7238,7 +7238,7 @@
     },
     {
       "name": "get_group_milestone_issue",
-      "description": "Get issues associated with a specific group milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get issues associated with a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7267,7 +7267,7 @@
     },
     {
       "name": "get_group_milestone_merge_requests",
-      "description": "Get merge requests associated with a specific group milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get merge requests associated with a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7296,7 +7296,7 @@
     },
     {
       "name": "get_group_milestone_burndown_events",
-      "description": "Get burndown events for a specific group milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get burndown events for a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7325,7 +7325,7 @@
     },
     {
       "name": "get_users",
-      "description": "Get GitLab user details by usernames. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.",
+      "description": "Get GitLab user details by usernames. Read-only; missing resources, denied access, and rate limits return errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7344,7 +7344,7 @@
     },
     {
       "name": "get_user",
-      "description": "Get user details by ID. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.",
+      "description": "Get user details by ID. Read-only; missing resources, denied access, and rate limits return errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7461,7 +7461,7 @@
     },
     {
       "name": "get_commit_diff",
-      "description": "Get changes/diffs of a specific commit. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get changes/diffs of a specific commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -7836,7 +7836,7 @@
     },
     {
       "name": "get_project_events",
-      "description": "List events for a project (before/after: YYYY-MM-DD). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List events for a project (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -8276,7 +8276,7 @@
     },
     {
       "name": "get_tag_signature",
-      "description": "Get the X.509 signature of a signed tag (404 if unsigned). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get the X.509 signature of a signed tag (404 if unsigned). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -9399,7 +9399,7 @@
     },
     {
       "name": "get_timeline_events",
-      "description": "List timeline events for an incident. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "List timeline events for an incident. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10484,7 +10484,7 @@
     },
     {
       "name": "get_dependency_proxy_settings",
-      "description": "Get dependency proxy settings for a group. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
+      "description": "Get dependency proxy settings for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -10633,7 +10633,7 @@
     },
     {
       "name": "get_vulnerability",
-      "description": "Get full details of a specific vulnerability. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.",
+      "description": "Get full details of a specific vulnerability. Read-only; missing resources, denied access, and rate limits return errors.",
       "inputSchema": {
         "type": "object",
         "properties": {
