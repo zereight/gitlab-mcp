@@ -6,13 +6,9 @@ EXCLUDE_OPTS=(
   ! -path 'test/clients/*'
   ! -name 'mock-gitlab-server.ts' ! -name 'server-launcher.ts'
   ! -name 'oauth-tests.ts' ! -name 'schema-tests.ts' ! -name 'test-json-schema.ts'
-  ! -name 'dynamic-api-url-test.ts' ! -name 'dynamic-routing-tests.ts'
-  ! -name 'callback-proxy-tests.ts' ! -name 'test-all-transport-server.ts'
-  ! -name 'multi-server-test.ts' ! -name 'client-pool-test.ts'
-  ! -name 'no-proxy-test.ts' ! -name 'no-proxy-integration-test.ts'
-  ! -name 'remote-auth-tests.ts' ! -name 'test-mr-diffs-filter.ts'
-  ! -name 'test-mr-file-diffs.ts' ! -name 'test-token-optimizations.ts'
-  ! -name 'test-merge-request-approvals.ts' ! -name 'config-allowed-groups.test.ts'
+  ! -name 'test-merge-request-approvals.ts'
+  # Need a live GitLab token (GITLAB_TOKEN_TEST / TEST_PROJECT_ID)
+  ! -name 'remote-auth-tests.ts' ! -name 'test-all-transport-server.ts'
 )
 
 run_mock_tests() {
@@ -40,6 +36,8 @@ run_mock_tests 4 \
   -o -path 'test/oauth-scopes.test.ts' \
   -o -path 'test/oauth-device-flow-tests.ts' \
   -o -path 'test/personal-access-token-file.test.ts' \
+  -o -path 'test/config-allowed-groups.test.ts' \
+  -o -path 'test/no-proxy-test.ts' \
   -o -path 'test/cli/*.test.ts' \)
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
@@ -47,7 +45,7 @@ node --import tsx/esm --test --experimental-test-isolation=none scripts/tool-cov
 
 # Server-spawning suites — sequential to avoid port races and node:test IPC flakes
 run_mock_tests 1 \
-  \( -name '*.test.ts' -o -name 'test-*.ts' -o -name '*-tests.ts' -o -name 'remote-auth-simple-test.ts' \) \
+  \( -name '*.test.ts' -o -name 'test-*.ts' -o -name '*-tests.ts' -o -name '*-test.ts' \) \
   ! -path 'test/utils/*' \
   ! -path 'test/path-segment-encoding.test.ts' \
   ! -path 'test/nullish-tool-arguments-schema.test.ts' \
@@ -63,6 +61,8 @@ run_mock_tests 1 \
   ! -path 'test/oauth-scopes.test.ts' \
   ! -path 'test/oauth-device-flow-tests.ts' \
   ! -path 'test/personal-access-token-file.test.ts' \
+  ! -path 'test/config-allowed-groups.test.ts' \
+  ! -path 'test/no-proxy-test.ts' \
   ! -path 'test/cli/*'
 
 tsx test/oauth-tests.ts

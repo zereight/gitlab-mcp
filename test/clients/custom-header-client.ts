@@ -72,7 +72,7 @@ export class CustomHeaderClient {
     if (this.transport) {
       try {
         await this.transport.close();
-      } catch (error) {
+      } catch {
         // Silently ignore disconnect errors in tests
         // In production, you'd want proper logging
       } finally {

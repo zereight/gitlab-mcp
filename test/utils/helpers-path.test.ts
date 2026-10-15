@@ -5,7 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import {
   assertSafeRelativePath,
+  DEFAULT_DOWNLOAD_DIR,
   openSafeOutputWriteStream,
+  resolveDownloadRoot,
   readSafeExistingFile,
   resolveSafeExistingPath,
   resolveSafeOutputDir,
@@ -134,5 +136,109 @@ describe("resolveSafeExistingPath / resolveSafeOutputDir", () => {
 
   test("cleanup base dir", () => {
     fs.rmSync(base, { recursive: true, force: true });
+  });
+});
+
+describe("openSafeOutputWriteStream options", () => {
+  test("exclusive refuses an existing file and leaves it untouched", () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "safe-excl-"));
+    try {
+      fs.writeFileSync(path.join(base, "keep.txt"), "original");
+      assert.throws(
+        () =>
+          openSafeOutputWriteStream("keep.txt", undefined, "local_path", base, { exclusive: true }),
+        /already exists/
+      );
+      assert.strictEqual(fs.readFileSync(path.join(base, "keep.txt"), "utf8"), "original");
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  test("exclusive refuses a symlink in the final component", () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "safe-excl-link-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "safe-excl-outside-"));
+    try {
+      fs.symlinkSync(path.join(outside, "target.txt"), path.join(base, "link.txt"));
+      assert.throws(
+        () =>
+          openSafeOutputWriteStream("link.txt", undefined, "local_path", base, { exclusive: true }),
+        /already exists/
+      );
+      assert.ok(!fs.existsSync(path.join(outside, "target.txt")));
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test("rejectDotNames refuses dot directories and dot filenames", () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "safe-dot-"));
+    const options = { rejectDotNames: true };
+    try {
+      for (const dir of [".git", "a/.vscode", ".github/workflows"]) {
+        assert.throws(
+          () => openSafeOutputWriteStream("x.txt", dir, "local_path", base, options),
+          /starting with a dot/
+        );
+      }
+      assert.throws(
+        () => openSafeOutputWriteStream(".envrc", undefined, "local_path", base, options),
+        /starting with a dot/
+      );
+      assert.deepStrictEqual(fs.readdirSync(base), []);
+      const { stream, path: dest } = openSafeOutputWriteStream(
+        "ok.txt",
+        ".",
+        "local_path",
+        base,
+        options
+      );
+      stream.end();
+      assert.strictEqual(dest, path.join(fs.realpathSync(base), "ok.txt"));
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("resolveDownloadRoot", () => {
+  test("creates the default directory with a .gitignore", () => {
+    const cwd = process.cwd();
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), "download-root-"));
+    process.chdir(ws);
+    try {
+      const root = resolveDownloadRoot(undefined);
+      assert.strictEqual(root, path.join(fs.realpathSync(ws), DEFAULT_DOWNLOAD_DIR));
+      assert.strictEqual(fs.readFileSync(path.join(root, ".gitignore"), "utf8"), "*\n");
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  test("refuses a default directory that is a symbolic link", () => {
+    const cwd = process.cwd();
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), "download-root-link-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "download-root-outside-"));
+    fs.symlinkSync(outside, path.join(ws, DEFAULT_DOWNLOAD_DIR));
+    process.chdir(ws);
+    try {
+      assert.throws(() => resolveDownloadRoot(undefined), /symbolic link/);
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(ws, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test("follows a configured directory and leaves an existing one as is", () => {
+    const configured = fs.mkdtempSync(path.join(os.tmpdir(), "download-root-configured-"));
+    try {
+      assert.strictEqual(resolveDownloadRoot(configured), fs.realpathSync(configured));
+      assert.ok(!fs.existsSync(path.join(configured, ".gitignore")));
+    } finally {
+      fs.rmSync(configured, { recursive: true, force: true });
+    }
   });
 });

@@ -13,7 +13,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 - [`list_events`](#list_events) — 📖 Read-only
 - [`get_project_events`](#get_project_events) — 📖 Read-only
 - [`upload_markdown`](#upload_markdown) — ✏️ Writes
-- [`download_attachment`](#download_attachment) — 📖 Read-only
+- [`download_attachment`](#download_attachment) — 📖✏️ Reads and writes
 
 ---
 
@@ -21,7 +21,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 *📖 Read-only*
 
-Get GitLab user details by usernames. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get GitLab user details by usernames. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ Get GitLab user details by usernames. Use this for a known resource or result; c
 
 *📖 Read-only*
 
-Get user details by ID. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get user details by ID. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -55,7 +55,7 @@ _No parameters._
 
 *📖 Read-only*
 
-List events for the authenticated user (before/after: YYYY-MM-DD). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -74,7 +74,7 @@ List events for the authenticated user (before/after: YYYY-MM-DD). Use this for 
 
 *📖 Read-only*
 
-List events for a project (before/after: YYYY-MM-DD). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List events for a project (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -93,7 +93,7 @@ List events for a project (before/after: YYYY-MM-DD). Use this for a known resou
 
 *✏️ Writes*
 
-Upload a file for use in markdown content. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Upload a file for use in markdown content. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -104,9 +104,9 @@ Upload a file for use in markdown content. Use this for the specific operation d
 
 ### `download_attachment`
 
-*📖 Read-only*
+*📖✏️ Reads and writes*
 
-Download an uploaded file from a project (images returned as base64; use local_path to save to disk). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode can save to a path. It is read-only with respect to GitLab, requires project access, and returns the file content or an attachment/permission error.
+Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode saves the file as a new file under the download directory (GITLAB_DOWNLOAD_DIR, default .gitlab-mcp-downloads). It is read-only with respect to GitLab but creates a local file in stdio mode (readonly mode returns images inline and rejects everything else), never replaces an existing file, requires project access, and returns the file content or an attachment/permission error.
 
 **Parameters**
 
@@ -115,4 +115,4 @@ Download an uploaded file from a project (images returned as base64; use local_p
 | `project_id` | string | ✓ | Project ID or URL-encoded path of the project |
 | `secret` | string | ✓ | The 32-character secret of the upload |
 | `filename` | string | ✓ | The filename of the upload |
-| `local_path` | string |  | Local path to save the file (optional, defaults to current directory) |
+| `local_path` | string |  | Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected |

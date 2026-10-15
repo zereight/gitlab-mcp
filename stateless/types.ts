@@ -17,6 +17,8 @@ export const STATELESS_PURPOSES = {
   STORED_TOKENS: "pc",
   /** Sealed Mcp-Session-Id, carries session auth across pod hops. */
   SESSION_ID: "sid",
+  /** HMAC key for remembered callback-proxy consent cookies. */
+  OAUTH_CONSENT: "oc",
 } as const;
 
 export type StatelessPurpose =

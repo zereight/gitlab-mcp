@@ -259,6 +259,9 @@ When you start a new Claude session while an OAuth server is already running:
 - The first session that starts becomes the OAuth server
 - Subsequent sessions connect to it as clients
 - All sessions can authenticate independently
+- Sessions must run as the same OS user with the same home directory: the first session writes a per-process key to `~/.gitlab-mcp-oauth-<port>.key` (readable only by that user), and other sessions send it with each request
+- A session that cannot read the key fails with "cannot connect to existing OAuth server"; give it a different port. Releases that predate the key cannot share a callback server with newer ones either
+- The callback server only answers requests addressed to `127.0.0.1`, `localhost`, `[::1]`, or the host in `GITLAB_OAUTH_REDIRECT_URI`
 
 **If you still want to use a different port**:
 

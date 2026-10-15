@@ -36,7 +36,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **275 ferramentas: 273 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
+- **276 ferramentas: 274 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -50,7 +50,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
-| **Modelo de ferramentas** | 275 ferramentas: 273 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Modelo de ferramentas** | 276 ferramentas: 274 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
 | **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
 | **Node.js**               | >=18.17                                                                 | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
@@ -138,7 +138,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.2.5`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.2.6`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Usando argumentos de CLI (para clientes com problemas com variáveis de ambiente)
 
@@ -172,6 +172,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
 - `--masking-policy-file` - caminho para um arquivo protegido de política gerenciada (substitui `GITLAB_MASKING_POLICY_FILE`)
 - `--masking-workspace-dir` - diretório usado para resolver arquivos de mascaramento (substitui `GITLAB_MASKING_WORKSPACE_DIR`)
+- `--download-dir` - diretório onde `download_attachment` salva arquivos (substitui `GITLAB_DOWNLOAD_DIR`; padrão `.gitlab-mcp-downloads`)
 - `--compact-results=true` - trunca respostas muito grandes de ferramentas MCP e anexa um comando CLI para a carga completa (substitui `GITLAB_MCP_COMPACT_RESULTS`; desativado por padrão)
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
@@ -302,8 +303,9 @@ Use `GITLAB_OAUTH_REDIRECT_URI` somente quando o próprio servidor MCP receber o
 | `MCP_SERVER_URL`              | sim         | URL HTTPS pública deste servidor MCP                                                                                                                                     |
 | `STREAMABLE_HTTP`             | sim         | Deve ser `true`                                                                                                                                                          |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | opcional    | Defina como `true` para usar a URL `/callback` fixa do servidor MCP                                                                                                      |
+| `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | opcional | URLs de callback de cliente para as quais o modo de proxy de callback redireciona (padrão: callbacks do Claude, ChatGPT, Cursor e loopback; use `defaults,<url>` para adicionar) |
 | `GITLAB_OAUTH_SCOPES`         | opcional    | Scopes separados por vírgula (padrão: `api,read_api,read_user`)                                                                                                          |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | opcional    | Caminhos completos de grupos GitLab separados por vírgula — apenas membros desses grupos e subgrupos podem obter um token (substitui o obsoleto `GITLAB_ALLOWED_GROUPS`) |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | opcional    | Caminhos completos de grupos GitLab separados por vírgula — apenas membros desses grupos e subgrupos podem usar o servidor (substitui o obsoleto `GITLAB_ALLOWED_GROUPS`) |
 
 Quando `STREAMABLE_HTTP=true`, credenciais GitLab do lado do servidor (`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH` ou `GITLAB_USE_OAUTH`) exigem `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true` ou `STREAMABLE_HTTP_AUTH_TOKEN`.
 
@@ -406,6 +408,7 @@ Variáveis usadas com frequência:
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`

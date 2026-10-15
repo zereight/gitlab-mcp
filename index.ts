@@ -13,6 +13,7 @@ import {
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
   GITLAB_OAUTH_CALLBACK_PROXY,
+  GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
@@ -52,6 +53,7 @@ import {
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
   GITLAB_TOOL_PROFILE,
+  GITLAB_DOWNLOAD_DIR,
   buildDeprecatedEnvInput,
 } from "./config.js";
 import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
@@ -166,6 +168,7 @@ import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
+import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -196,6 +199,7 @@ import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
   openSafeOutputWriteStream,
+  resolveDownloadRoot,
   readSafeExistingFile,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
@@ -283,7 +287,7 @@ import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
 } from "./tools/discover-activation.js";
-import { selectExposedTools } from "./tools/exposed-tools.js";
+import { selectCallableHiddenToolNames, selectExposedTools } from "./tools/exposed-tools.js";
 import {
   createListedToolsCache,
   decorateToolsForList,
@@ -606,6 +610,7 @@ import {
   MergeMergeRequestSchema,
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
+  RebaseMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
   GetMergeRequestConflictsSchema,
   GitLabMergeRequestApprovalsResponseSchema,
@@ -638,7 +643,6 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
-  type UpdateIssueDescriptionPatchOptions,
   UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -712,14 +716,7 @@ import {
   HealthCheckSchema,
 } from "./schemas.js";
 
-import {
-  randomUUID,
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -815,17 +812,20 @@ function buildToolUnavailableMessage(toolName: string): string {
  */
 /** Builds an MCP server with the tool list filtered by toolsets, permission mode, and policy. */
 function createServer(): McpServer {
-  const filteredTools = selectExposedTools({
+  const exposedToolSelection = {
     tools: allTools,
-    isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
+    isInEnabledToolset: (toolName: string) => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools,
     featureFlagOverrides,
     isAllowedByPermissionMode: isToolAllowedByPermissionMode,
     deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
     hiddenToolNames: hiddenToolSet,
     applySlimProfile,
-    isAdditiveEnablementAllowed: toolName => !isExplicitToolsetOnlyTool(toolName),
-  });
+    isAdditiveEnablementAllowed: (toolName: string) => !isExplicitToolsetOnlyTool(toolName),
+  };
+  const filteredTools = selectExposedTools(exposedToolSelection);
+  // Unlisted but callable; extended by discover_tools alongside filteredTools.
+  const callableHiddenToolNames = selectCallableHiddenToolNames(exposedToolSelection);
   const listedToolDecoration: ListedToolDecorationContext = {
     readOnlyToolNames: new Set([...readOnlyTools].filter(toolName => advertisesReadOnly(toolName))),
     destructiveToolNames: destructiveTools,
@@ -1010,14 +1010,12 @@ function createServer(): McpServer {
       }
 
       // Enforce list-time filtering on direct calls: clients can call names that tools/list omits.
-      // filteredTools is extended by discover_tools; hidden-policy tools stay callable by design,
-      // but GITLAB_DENIED_TOOLS_REGEX always wins over the hidden exemption.
+      // filteredTools is extended by discover_tools; hidden-policy tools stay callable only while
+      // the other list filters still expose them, so hiding a tool never enables it.
       // Permission-mode denials fall through so handleToolCall reports its mode-specific error.
-      const hiddenAndNotDenied =
-        hiddenToolSet.has(toolName) && !GITLAB_DENIED_TOOLS_REGEX?.test(toolName);
       if (
         isToolAllowedByPermissionMode(toolName) &&
-        !hiddenAndNotDenied &&
+        !callableHiddenToolNames.has(toolName) &&
         !filteredTools.some(t => t.name === toolName)
       ) {
         throw new Error(buildToolUnavailableMessage(toolName));
@@ -1027,13 +1025,15 @@ function createServer(): McpServer {
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
         const currentToolNames = new Set(filteredTools.map(t => t.name));
-        const isNotActivatable = (name: string): boolean =>
+        const isActivationSkipped = (name: string, hidden: boolean): boolean =>
           isSkippedByDiscoverActivation({
             allowedByPermissionMode: isToolAllowedByPermissionMode(name),
             deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(name) === true,
-            hidden: hiddenToolSet.has(name),
+            hidden,
             excludedBySlimProfile: isExcludedFromToolsetListing(name),
           });
+        const isNotActivatable = (name: string): boolean =>
+          isActivationSkipped(name, hiddenToolSet.has(name));
 
         if (!category) {
           // Fully listed only. Partial overlap with `core` must stay inactive so
@@ -1090,6 +1090,14 @@ function createServer(): McpServer {
             content: [{ type: "text", text: `Category "${category}" not found.` }],
             isError: true,
           });
+        }
+
+        // Hidden tools in this toolset stay unlisted but become callable like the rest of it.
+        // Runs before the `active` check because hidden tools never keep a toolset inactive.
+        for (const name of toolsetDef.tools) {
+          if (hiddenToolSet.has(name) && !isActivationSkipped(name, false)) {
+            callableHiddenToolNames.add(name);
+          }
         }
 
         // Same predicate as the category listing `active` flag.
@@ -1223,23 +1231,6 @@ function createServer(): McpServer {
   });
 
   return mcpServer;
-}
-
-/**
- * Validate configuration at startup
- */
-function isLoopbackBindHost(host: string): boolean {
-  const normalized = host
-    .trim()
-    .toLowerCase()
-    .replace(/^\[|\]$/g, "");
-  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
-  return (
-    normalized === "localhost" ||
-    isIpv4Loopback ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:1"
-  );
 }
 
 function formatHostWithPort(host: string, port: number): string | null {
@@ -1540,6 +1531,18 @@ function validateConfiguration(): void {
         "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
           "(create an OAuth application in GitLab Admin with the required scopes)"
       );
+    }
+
+    if (getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true") {
+      try {
+        new RedirectUriPolicy(
+          parseAllowedRedirectUris(
+            getConfig("oauth-allowed-redirect-uris", "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS")
+          )
+        );
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
     }
   }
 
@@ -1925,7 +1928,7 @@ function buildAuthHeaders(): Record<string, string> {
     const ctx = sessionAuthStore.getStore();
     logger.debug(
       {
-        sessionId: ctx?.sessionId,
+        sidPrefix: redactSessionIdForLog(ctx?.sessionId),
         header: ctx?.header,
         apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
       },
@@ -1985,7 +1988,7 @@ function getEffectiveApiUrl(): string {
     }
     logger.warn(
       {
-        sessionId: ctx?.sessionId,
+        sidPrefix: redactSessionIdForLog(ctx?.sessionId),
         header: ctx?.header,
         apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
       },
@@ -3530,6 +3533,64 @@ async function createWorkItemNote(
 
 // --- Emoji Reactions (GraphQL) ---
 
+const NOTE_GID_PATTERN = /^gid:\/\/gitlab\/\w*Note\/\d+$/;
+
+/**
+ * Check that a note's noteable is the given work item. Work item notes may report
+ * the noteable as an Issue, which shares the work item's numeric ID. GitLab.com
+ * returns noteableId as a bare number; a global ID string is accepted too.
+ */
+function isNoteOfWorkItem(
+  note: { noteableId?: string | number | null; noteableType?: string | null },
+  workItemGID: string
+): boolean {
+  const workItemId = workItemGID.match(/\/(\d+)$/)?.[1];
+  const noteable = String(note.noteableId ?? "").match(/^(?:gid:\/\/gitlab\/(\w+)\/)?(\d+)$/);
+  if (workItemId === undefined || noteable?.[2] !== workItemId) {
+    return false;
+  }
+  const types = [noteable[1], note.noteableType]
+    .filter((type): type is string => Boolean(type))
+    .map(type => type.replace(/[^a-z]/gi, "").toLowerCase());
+  return types.length > 0 && types.every(type => type === "issue" || type === "workitem");
+}
+
+/**
+ * Resolve the work item and return the note GID only if the note belongs to it.
+ */
+async function resolveWorkItemNoteGID(
+  projectId: string,
+  iid: number,
+  noteId: string
+): Promise<string> {
+  if (!NOTE_GID_PATTERN.test(noteId)) {
+    throw new ToolInputError(
+      `note_id must be a note global ID such as gid://gitlab/Note/123 (got ${noteId})`
+    );
+  }
+  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, iid);
+
+  const data = await executeGraphQL<{
+    note: { id: string; noteableId: string | number | null; noteableType: string | null } | null;
+  }>(
+    `query($id: NoteID!) {
+      note(id: $id) {
+        id
+        noteableId
+        noteableType
+      }
+    }`,
+    { id: noteId }
+  );
+
+  if (!data.note || !isNoteOfWorkItem(data.note, workItemGID)) {
+    throw new ProjectAccessDeniedError(
+      `Access denied: Note ${noteId} was not found on work item #${iid} in ${projectPath}`
+    );
+  }
+  return data.note.id;
+}
+
 async function addGraphQLAwardEmoji(awardableId: string, name: string): Promise<any> {
   const data = await executeGraphQL<{
     awardEmojiAdd: {
@@ -4821,12 +4882,14 @@ async function createIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
+  // The target project is subject to the same allowlist as the source project.
+  const effectiveTargetProjectId = getEffectiveProjectId(targetProjectId);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
-      target_project_id: targetProjectId,
+      target_project_id: effectiveTargetProjectId,
       target_issue_iid: targetIssueIid,
       link_type: linkType,
     }),
@@ -4882,6 +4945,10 @@ async function createMergeRequest(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests`
   );
+  // A cross-project target is subject to the same allowlist as the source project.
+  const targetProjectId = options.target_project_id
+    ? getEffectiveProjectId(decodeURIComponent(options.target_project_id))
+    : undefined;
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -4891,7 +4958,7 @@ async function createMergeRequest(
       description: options.description,
       source_branch: options.source_branch,
       target_branch: options.target_branch,
-      target_project_id: options.target_project_id,
+      target_project_id: targetProjectId,
       assignee_ids: options.assignee_ids,
       reviewer_ids: options.reviewer_ids,
       labels: options.labels?.join(","),
@@ -6454,6 +6521,70 @@ async function unapproveMergeRequest(
 
   await handleGitLabError(response);
   return parseApprovalsResponse(await response.json());
+}
+
+/**
+ * Enqueue a rebase of the merge request source branch onto its target branch
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @param {boolean} skipCi - If true, GitLab does not create a pipeline for the rebased branch
+ * @returns {Promise<unknown>} GitLab's enqueue response, `{"rebase_in_progress": true}`
+ */
+async function rebaseMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number,
+  skipCi?: boolean
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/rebase`
+  );
+
+  const body: Record<string, boolean> = {};
+  if (skipCi !== undefined) {
+    body.skip_ci = skipCi;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  return response.json();
+}
+
+/**
+ * Get a merge request with its rebase state, shaped for waitForStatus
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<{status: string, mergeRequest: GitLabMergeRequest}>} `in_progress` or `finished`
+ */
+async function getMergeRequestRebaseStatus(
+  projectId: string,
+  mergeRequestIid: string | number,
+  signal?: AbortSignal
+): Promise<{ status: string; mergeRequest: GitLabMergeRequest }> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
+  );
+  url.searchParams.append("include_rebase_in_progress", "true");
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    signal,
+  });
+
+  await handleGitLabError(response);
+  const mergeRequest = GitLabMergeRequestSchema.parse(await response.json());
+  return {
+    status: mergeRequest.rebase_in_progress === false ? "finished" : "in_progress",
+    mergeRequest,
+  };
 }
 
 /**
@@ -8533,10 +8664,13 @@ async function downloadJobArtifacts(
   if (!response.body) {
     throw new Error("No response body from GitLab");
   }
+  // The archive name is fixed, but local_path still comes from the model.
   const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
     filename,
     localPath,
-    "local_path"
+    "local_path",
+    undefined,
+    { rejectDotNames: true }
   );
   await streamPipeline(response.body, saveStream);
 
@@ -9098,6 +9232,7 @@ async function erasePipelineJob(projectId: string, jobId: number | string): Prom
 
 const TERMINAL_PIPELINE_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
 const TERMINAL_JOB_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+const TERMINAL_REBASE_STATUSES = new Set(["finished"]);
 async function waitForStatus<T extends { status: string }>(
   fetchStatus: (signal: AbortSignal) => Promise<T>,
   terminalStatuses: Set<string>,
@@ -9783,7 +9918,7 @@ async function getCommitDiff(
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}/diff`;
 
-  let allDiffs: GitLabMergeRequestDiff[] = [];
+  const allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
 
   while (true) {
@@ -9977,7 +10112,7 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   }
 
   // Use listIssues with assignee_username filter
-  let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
+  const listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
     state: options.state || "opened", // Default to "opened" if not specified
     labels: options.labels,
     milestone: options.milestone,
@@ -10930,8 +11065,9 @@ async function downloadAttachment(
 
   const mimeType = getImageMimeType(safeFilename);
 
-  // For non-image files, always save to disk.
-  // For image files, only save to disk if local_path is explicitly provided.
+  // Non-image files, and images with local_path, are saved as new files under the
+  // download directory. Upload names and local_path come from untrusted content, so
+  // dot names (.git, .vscode, .envrc) are refused and existing files are never replaced.
   if (!mimeType || localPath) {
     if (!response.body) {
       throw new Error("No response body from GitLab");
@@ -10939,11 +11075,19 @@ async function downloadAttachment(
     const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
       safeFilename,
       localPath,
-      "local_path"
+      "local_path",
+      resolveDownloadRoot(GITLAB_DOWNLOAD_DIR),
+      { exclusive: true, rejectDotNames: true }
     );
 
     // Stream directly to disk instead of buffering in memory
-    await streamPipeline(response.body, saveStream);
+    try {
+      await streamPipeline(response.body, saveStream);
+    } catch (error) {
+      // The file was created by this call; drop the partial copy so a retry can succeed.
+      fs.rmSync(savePath, { force: true });
+      throw error;
+    }
     return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
 
@@ -12367,6 +12511,28 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "rebase_merge_request": {
+        const {
+          project_id,
+          merge_request_iid,
+          skip_ci,
+          wait,
+          timeout_seconds,
+          poll_interval_seconds,
+        } = RebaseMergeRequestSchema.parse(params.arguments);
+        const enqueued = await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
+        if (!wait) {
+          return { content: [{ type: "text", text: JSON.stringify(enqueued) }] };
+        }
+        const { mergeRequest } = await waitForStatus(
+          signal => getMergeRequestRebaseStatus(project_id, merge_request_iid, signal),
+          TERMINAL_REBASE_STATUSES,
+          timeout_seconds,
+          poll_interval_seconds
+        );
+        return { content: [{ type: "text", text: JSON.stringify(mergeRequest) }] };
+      }
+
       case "get_merge_request_approval_state": {
         const args = GetMergeRequestApprovalStateSchema.parse(params.arguments);
         const approvalState = await getMergeRequestApprovalState(
@@ -12401,7 +12567,7 @@ async function handleToolCall(params: any) {
 
       case "list_namespaces": {
         const args = ListNamespacesSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
         if (args.search) {
           url.searchParams.append("search", args.search);
@@ -12432,7 +12598,7 @@ async function handleToolCall(params: any) {
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
+          `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -12451,7 +12617,7 @@ async function handleToolCall(params: any) {
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
+          `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
         );
         if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
@@ -13051,7 +13217,8 @@ async function handleToolCall(params: any) {
 
       case "list_work_item_note_emoji_reactions": {
         const args = ListWorkItemNoteEmojiReactionsSchema.parse(params.arguments);
-        const result = await listGraphQLAwardEmoji(args.note_id);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await listGraphQLAwardEmoji(noteGID);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
@@ -13080,13 +13247,15 @@ async function handleToolCall(params: any) {
 
       case "create_work_item_note_emoji_reaction": {
         const args = CreateWorkItemNoteEmojiReactionSchema.parse(params.arguments);
-        const result = await addGraphQLAwardEmoji(args.note_id, args.name);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await addGraphQLAwardEmoji(noteGID, args.name);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_work_item_note_emoji_reaction": {
         const args = DeleteWorkItemNoteEmojiReactionSchema.parse(params.arguments);
-        const result = await removeGraphQLAwardEmoji(args.note_id, args.name);
+        const noteGID = await resolveWorkItemNoteGID(args.project_id, args.iid, args.note_id);
+        const result = await removeGraphQLAwardEmoji(noteGID, args.name);
         return {
           content: [
             {
@@ -14275,6 +14444,11 @@ async function handleToolCall(params: any) {
             ],
           };
         }
+        if (GITLAB_PERMISSION_MODE === "readonly") {
+          throw new Error(
+            "download_job_artifacts saves files to disk, which readonly mode does not allow. Use list_job_artifacts and get_job_artifact_file instead."
+          );
+        }
         const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
         return {
           content: [
@@ -14890,6 +15064,13 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+        }
+
+        // Readonly mode never writes to disk: images still come back inline.
+        if (GITLAB_PERMISSION_MODE === "readonly" && (!mimeType || args.local_path)) {
+          throw new Error(
+            "download_attachment saves this file to disk, which readonly mode does not allow. Only images without local_path can be downloaded in readonly mode."
+          );
         }
 
         const result = await downloadAttachment(
@@ -15753,9 +15934,10 @@ async function startSSEServer(): Promise<void> {
       const transport = transports[sessionId];
       delete transports[sessionId];
       sessionLastActivity.delete(sessionId);
+      const sidPrefix = redactSessionIdForLog(sessionId);
       logger.info(
-        { sessionId, event: "sse_session_idle_closed" },
-        `SSE session ${sessionId} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+        { sidPrefix, event: "sse_session_idle_closed" },
+        `SSE session ${sidPrefix} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
       );
       if (transport) {
         void transport.close().catch(error => {
@@ -15800,7 +15982,10 @@ async function startSSEServer(): Promise<void> {
       try {
         await serverInstance.connect(transport);
       } catch (error) {
-        logger.error({ err: error, sessionId }, "SSE connection error");
+        logger.error(
+          { err: error, sidPrefix: redactSessionIdForLog(sessionId) },
+          "SSE connection error"
+        );
         // Release the capacity slot immediately instead of waiting for the
         // client to disconnect or the idle sweep to run.
         delete transports[sessionId];
@@ -15923,6 +16108,9 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // Rate limiting per session
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
+
+  // MCP OAuth mode: the GitLab user each stateful session belongs to
+  const sessionOwners: Record<string, string> = Object.create(null);
 
   /**
    * Validate token format and length
@@ -16051,7 +16239,20 @@ async function startStreamableHTTPServer(): Promise<void> {
     return null;
   };
 
-  const validateAuthDataUpstream = async (authData: AuthData): Promise<boolean> => {
+  /**
+   * Identify the GitLab user behind a credential. When GitLab does not report a
+   * user id, fall back to a digest of the token so only that exact token matches.
+   */
+  const sessionOwnerKey = (apiUrl: string, userId: unknown, token: string): string =>
+    typeof userId === "number" || typeof userId === "string"
+      ? `${apiUrl.replace(/\/$/, "")}#${userId}`
+      : `token:${createHash("sha256").update(token).digest("hex")}`;
+
+  /**
+   * Validate header auth against GitLab. Resolves to the session owner key of
+   * the token, or null when GitLab rejects it.
+   */
+  const resolveAuthOwnerUpstream = async (authData: AuthData): Promise<string | null> => {
     const apiUrl = authData.apiUrl.replace(/\/$/, "");
     const paths = authData.header === "JOB-TOKEN" ? ["user", "job"] : ["user"];
     try {
@@ -16068,16 +16269,70 @@ async function startStreamableHTTPServer(): Promise<void> {
             },
             signal: controller.signal as any,
           });
-          if (response.ok) return true;
+          if (response.ok) {
+            const body = (await response.json().catch(() => undefined)) as
+              | { id?: unknown; user?: { id?: unknown } }
+              | undefined;
+            const userId = path === "job" ? body?.user?.id : body?.id;
+            return sessionOwnerKey(apiUrl, userId, authData.token);
+          }
         } finally {
           clearTimeout(timeout);
         }
       }
-      return false;
+      return null;
     } catch (error) {
       logger.warn({ err: error }, "Remote auth token validation failed");
-      return false;
+      return null;
     }
+  };
+
+  const validateAuthDataUpstream = async (authData: AuthData): Promise<boolean> =>
+    (await resolveAuthOwnerUpstream(authData)) !== null;
+
+  /**
+   * With GITLAB_OAUTH_ALLOWED_GROUPS set in MCP OAuth mode, credentials that do
+   * not pass through verifyAccessToken (Private-Token / JOB-TOKEN headers and
+   * sealed stateless session ids) get the same group check, using the OAuth
+   * provider's per-token membership cache. CI job tokens cannot list the
+   * user's groups, so they are refused. Returns null when access is allowed.
+   */
+  const checkAllowedGroups = async (
+    header: SessionAuthHeader,
+    token: string
+  ): Promise<{ status: number; body: { error: string; message: string } } | null> => {
+    if (!GITLAB_MCP_OAUTH || !GITLAB_OAUTH_ALLOWED_GROUPS) return null;
+    if (header === "JOB-TOKEN") {
+      return {
+        status: 403,
+        body: {
+          error: "JOB-TOKEN header not accepted",
+          message:
+            "GITLAB_OAUTH_ALLOWED_GROUPS is set and CI job tokens cannot be checked for group " +
+            "membership. Use OAuth or a Private-Token header instead.",
+        },
+      };
+    }
+    const provider = (app as any)._mcpOAuthProvider as ReturnType<typeof createGitLabOAuthProvider>;
+    try {
+      if (await provider.isAllowedGroupMember(token)) return null;
+    } catch (error) {
+      logger.warn({ err: error }, "Group membership lookup failed");
+      return {
+        status: 503,
+        body: {
+          error: "Group membership check unavailable",
+          message: "Could not verify group membership with GitLab. Please retry.",
+        },
+      };
+    }
+    return {
+      status: 403,
+      body: {
+        error: "Access denied",
+        message: "The token owner is not a member of an allowed group.",
+      },
+    };
   };
 
   const sessionAuthTokensMatch = (left: AuthData, right: AuthData): boolean =>
@@ -16125,8 +16380,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (authData || transport) {
         logger.info(
           authData
-            ? `Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
-            : `Session ${sessionId}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
+            ? `Session ${redactSessionIdForLog(sessionId)}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+            : `Session ${redactSessionIdForLog(sessionId)}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
         );
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
@@ -16134,7 +16389,10 @@ async function startStreamableHTTPServer(): Promise<void> {
         // Close the transport to free the slot; without this, stale sessions accumulate and exhaust MAX_SESSIONS.
         if (transport) {
           transport.close().catch(err => {
-            logger.error(`Error closing transport for expired session ${sessionId}:`, err);
+            logger.error(
+              `Error closing transport for expired session ${redactSessionIdForLog(sessionId)}:`,
+              err
+            );
           });
         }
       }
@@ -16157,6 +16415,7 @@ async function startStreamableHTTPServer(): Promise<void> {
    */
   const cleanupSessionAuth = (sessionId: string) => {
     delete authBySession[sessionId];
+    delete sessionOwners[sessionId];
     clearAuthTimeout(sessionId);
   };
 
@@ -16297,6 +16556,16 @@ async function startStreamableHTTPServer(): Promise<void> {
           "Stateless mode: provide Private-Token, JOB-TOKEN, or Authorization " +
           "header, or a valid Mcp-Session-Id from a previous response.",
       });
+      return;
+    }
+
+    // Sid-only requests never reach verifyAccessToken or the header check in
+    // mcpBearerAuth, so the sealed credential is checked here (cached per token).
+    const groupDenial = await checkAllowedGroups(effective.header, effective.token);
+    if (groupDenial) {
+      metrics.authFailures++;
+      metrics.statelessAuthFailures++;
+      res.status(groupDenial.status).json(groupDenial.body);
       return;
     }
 
@@ -16452,7 +16721,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
-      statelessOptions
+      statelessOptions,
+      parseAllowedRedirectUris(GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW)
     );
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
@@ -16599,18 +16869,26 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           const sessionId = readMcpSessionIdHeader(req);
           const cached = sessionId ? authBySession[sessionId] : undefined;
-          if (cached && sessionAuthTokensMatch(cached, authData)) {
-            next();
+          const owner =
+            sessionId && cached && sessionAuthTokensMatch(cached, authData)
+              ? sessionOwners[sessionId]
+              : await resolveAuthOwnerUpstream(authData);
+          if (owner === null) {
+            res.status(401).json({
+              error: "Invalid Private-Token or JOB-TOKEN header",
+              message: "The provided token failed validation. Check the token value and format.",
+            });
             return;
           }
-          if (await validateAuthDataUpstream(authData)) {
-            next();
+          // Also runs for existing sessions so group removals take effect
+          // once the cached membership result expires.
+          const denial = await checkAllowedGroups(authData.header, authData.token);
+          if (denial) {
+            res.status(denial.status).json(denial.body);
             return;
           }
-          res.status(401).json({
-            error: "Invalid Private-Token or JOB-TOKEN header",
-            message: "The provided token failed validation. Check the token value and format.",
-          });
+          res.locals.sessionOwner = owner;
+          next();
           return;
         }
 
@@ -16648,12 +16926,46 @@ async function startStreamableHTTPServer(): Promise<void> {
     next();
   };
 
+  // Owner key of the credential mcpBearerAuth accepted for this request
+  const readRequestOwner = (req: Request, res: Response): string | undefined => {
+    if (hasHeaderAuth(req)) {
+      return res.locals.sessionOwner as string | undefined;
+    }
+    const authInfo = req.auth;
+    return authInfo?.token
+      ? sessionOwnerKey(GITLAB_API_URL, authInfo.extra?.resourceOwnerId, authInfo.token)
+      : undefined;
+  };
+
+  const bindSessionOwner = (sessionId: string, req: Request, res: Response) => {
+    const owner = readRequestOwner(req, res);
+    if (owner !== undefined) {
+      sessionOwners[sessionId] = owner;
+    }
+  };
+
+  // In MCP OAuth mode a stateful session belongs to the GitLab user who opened it.
+  // A credential for another user gets the same 404 as an unknown session, so it
+  // can neither use, stream from, nor close the session. A refreshed token for the
+  // same user still matches.
+  const rejectForeignSession = (req: Request, res: Response, next: NextFunction) => {
+    const sessionId = readMcpSessionIdHeader(req);
+    const owner = sessionId ? sessionOwners[sessionId] : undefined;
+    if (owner !== undefined && readRequestOwner(req, res) !== owner) {
+      metrics.authFailures++;
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    next();
+  };
+
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post(
     "/mcp",
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
@@ -16762,7 +17074,9 @@ async function startStreamableHTTPServer(): Promise<void> {
             }
             remoteAuthValidatedForInit = true;
             if (result === "stored") {
-              logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+              logger.info(
+                `Session ${redactSessionIdForLog(sessionId)}: stored ${authData.header} header`
+              );
             }
           } else if (allowUnauthenticatedDiscovery) {
             // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
@@ -16795,7 +17109,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           remoteAuthValidatedForInit = true;
           if (result === "stored") {
-            logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
+            logger.debug(
+              `Session ${redactSessionIdForLog(sessionId)}: updated ${authData.header} header`
+            );
           } else {
             // Same token: keep the stored auth but let an unscoped session narrow.
             authBySession[sessionId].allowedProjectIds = allowedProjectIds;
@@ -16821,8 +17137,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           if (headerAuthData && sessionId) {
             if (!authBySession[sessionId]) {
               authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
+              bindSessionOwner(sessionId, req, res);
               logger.info(
-                `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
+                `Session ${redactSessionIdForLog(sessionId)}: stored ${headerAuthData.header} header (header auth)`
               );
               setAuthTimeout(sessionId);
             } else {
@@ -16854,8 +17171,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                 apiUrl: GITLAB_API_URL,
                 publicBaseUrl,
               };
+              bindSessionOwner(sessionId, req, res);
               logger.info(
-                `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                `Session ${redactSessionIdForLog(sessionId)}: stored OAuth token (client: ${authInfo.clientId})`
               );
               setAuthTimeout(sessionId);
             } else {
@@ -16887,14 +17205,18 @@ async function startStreamableHTTPServer(): Promise<void> {
                 streamableTransports[newSessionId] = transport;
                 metrics.totalSessions++;
                 metrics.activeSessions++;
-                logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+                logger.warn(
+                  `Streamable HTTP session initialized: ${redactSessionIdForLog(newSessionId)}`
+                );
 
                 // Store auth for newly created session in remote mode
                 if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                   const authData = parseAuthHeaders(req);
                   if (authData && remoteAuthValidatedForInit) {
                     authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-                    logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
+                    logger.info(
+                      `Session ${redactSessionIdForLog(newSessionId)}: stored ${authData.header} header`
+                    );
                     setAuthTimeout(newSessionId);
                   } else if (unauthenticatedDiscoveryRequested) {
                     setAuthTimeout(newSessionId);
@@ -16908,8 +17230,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                     const authData = parseAuthHeaders(req);
                     if (authData) {
                       authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+                      bindSessionOwner(newSessionId, req, res);
                       logger.info(
-                        `Session ${newSessionId}: stored ${authData.header} header (header auth)`
+                        `Session ${redactSessionIdForLog(newSessionId)}: stored ${authData.header} header (header auth)`
                       );
                       setAuthTimeout(newSessionId);
                     }
@@ -16923,8 +17246,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                         apiUrl: GITLAB_API_URL,
                         publicBaseUrl,
                       };
+                      bindSessionOwner(newSessionId, req, res);
                       logger.info(
-                        `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                        `Session ${redactSessionIdForLog(newSessionId)}: stored OAuth token (client: ${authInfo.clientId})`
                       );
                       setAuthTimeout(newSessionId);
                     }
@@ -16937,13 +17261,15 @@ async function startStreamableHTTPServer(): Promise<void> {
             transport.onclose = () => {
               const sid = transport.sessionId;
               if (sid && streamableTransports[sid]) {
-                logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+                logger.warn(
+                  `Streamable HTTP transport closed for session ${redactSessionIdForLog(sid)}, cleaning up`
+                );
                 delete streamableTransports[sid];
                 metrics.activeSessions--;
                 if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                   cleanupSessionAuth(sid);
                   delete sessionRequestCounts[sid];
-                  logger.info(`Session ${sid}: cleaned up auth mapping`);
+                  logger.info(`Session ${redactSessionIdForLog(sid)}: cleaned up auth mapping`);
                 }
               }
             };
@@ -16993,6 +17319,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const acceptHeader = readAcceptHeader(req);
@@ -17139,6 +17466,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectUnknownStatefulSession,
     mcpRequestRateLimit,
     mcpBearerAuth,
+    rejectForeignSession,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
 
@@ -17152,15 +17480,19 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (transport) {
         try {
           await transport.close();
-          logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+          logger.info(
+            `Explicitly closed session via DELETE request: ${redactSessionIdForLog(sessionId)}`
+          );
           if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
             cleanupSessionAuth(sessionId);
             delete sessionRequestCounts[sessionId];
-            logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
+            logger.info(
+              `Session ${redactSessionIdForLog(sessionId)}: cleaned up auth mapping on DELETE`
+            );
           }
           res.status(204).send();
         } catch (error) {
-          logger.error({ err: error }, `Error closing session ${sessionId}`);
+          logger.error({ err: error }, `Error closing session ${redactSessionIdForLog(sessionId)}`);
           res.status(500).json({ error: "Failed to close session" });
         }
       } else {
@@ -17208,7 +17540,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
         }
       } catch (error) {
-        logger.error({ err: error }, `Error closing session ${sessionId}`);
+        logger.error({ err: error }, `Error closing session ${redactSessionIdForLog(sessionId)}`);
       }
     });
 

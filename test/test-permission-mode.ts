@@ -22,7 +22,6 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-permission-mode-test";
 
-const MOCK_PORT_BASE = 9700;
 const MCP_PORT_BASE = 3700;
 
 let mockGitLab: MockGitLabServer;
@@ -68,6 +67,22 @@ async function getToolNames(server: ServerInstance): Promise<string[]> {
   const result = await client.listTools();
   await client.disconnect();
   return result.tools.map((t: { name: string }) => t.name);
+}
+
+/** Calls a tool on a fresh client and returns the serialized result, or the error message. */
+async function callOutcome(
+  server: ServerInstance,
+  name: string,
+  args: Record<string, unknown>
+): Promise<string> {
+  const client = await connectClient(server);
+  try {
+    return JSON.stringify(await client.callTool(name, args));
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  } finally {
+    await client.disconnect();
+  }
 }
 
 /**
@@ -129,6 +144,7 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
+  "rebase_merge_request",
   "protect_branch",
   "protect_tag",
 ];
@@ -403,22 +419,6 @@ describe("Permission Mode", { concurrency: 1 }, () => {
 
     after(() => cleanupServers(servers));
 
-    /** Calls a tool on a fresh client and returns the serialized result, or the error message. */
-    async function callOutcome(
-      server: ServerInstance,
-      name: string,
-      args: Record<string, unknown>
-    ): Promise<string> {
-      const client = await connectClient(server);
-      try {
-        return JSON.stringify(await client.callTool(name, args));
-      } catch (error) {
-        return error instanceof Error ? error.message : String(error);
-      } finally {
-        await client.disconnect();
-      }
-    }
-
     test("rejects a regex-denied tool and an execute_graphql with no GITLAB_TOOLS entry", async () => {
       const server = await launchMcpServer({
         GITLAB_PERMISSION_MODE: "modify",
@@ -513,6 +513,114 @@ describe("Permission Mode", { concurrency: 1 }, () => {
         await client.callTool("discover_tools", { category: "pipelines" });
         const after = await client
           .callTool("list_pipelines", { project_id: "1" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(!after.includes("not available"), `after activation: ${after}`);
+      } finally {
+        await client.disconnect();
+      }
+    });
+  });
+
+  describe("call-time enforcement of hidden-policy tools (full mode)", () => {
+    const servers: ServerInstance[] = [];
+
+    after(() => cleanupServers(servers));
+
+    test("policy-hidden tools outside the default toolsets are rejected", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "full",
+        GITLAB_TOOLSETS: "",
+        GITLAB_TOOLS: "",
+        GITLAB_TOOL_POLICY_HIDDEN: "delete_issue,delete_wiki_page",
+      });
+      servers.push(server);
+
+      const names = await getToolNames(server);
+      assert.ok(!names.includes("delete_wiki_page"), "hidden tool must be unlisted");
+      const wiki = await callOutcome(server, "delete_wiki_page", { project_id: "1", slug: "home" });
+      assert.ok(wiki.includes("not available"), `delete_wiki_page: ${wiki}`);
+      const issue = await callOutcome(server, "delete_issue", { project_id: "1", issue_iid: 1 });
+      assert.ok(issue.includes("not available"), `delete_issue: ${issue}`);
+    });
+
+    test("policy-hidden gitlab_api_request is rejected without the api toolset", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "full",
+        GITLAB_TOOLS: "gitlab_api_request",
+        GITLAB_TOOL_POLICY_HIDDEN: "gitlab_api_request",
+      });
+      servers.push(server);
+
+      const outcome = await callOutcome(server, "gitlab_api_request", { path: "/user" });
+      assert.ok(outcome.includes("not available"), `gitlab_api_request: ${outcome}`);
+    });
+
+    test("policy-hidden execute_graphql is rejected without a GITLAB_TOOLS entry", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "full",
+        GITLAB_TOOLS: "",
+        GITLAB_TOOL_POLICY_HIDDEN: "execute_graphql",
+      });
+      servers.push(server);
+
+      const outcome = await callOutcome(server, "execute_graphql", {
+        query: "query { currentUser { id } }",
+      });
+      assert.ok(outcome.includes("not available"), `execute_graphql: ${outcome}`);
+    });
+
+    test("policy-hidden tool becomes callable once discover_tools activates its toolset", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "full",
+        GITLAB_TOOLSETS: "issues",
+        GITLAB_TOOL_POLICY_HIDDEN: "list_wiki_pages",
+      });
+      servers.push(server);
+
+      const client = await connectClient(server);
+      try {
+        const before = await client
+          .callTool("list_wiki_pages", { project_id: "1" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(before.includes("not available"), `before activation: ${before}`);
+
+        await client.callTool("discover_tools", { category: "wiki" });
+        const after = await client
+          .callTool("list_wiki_pages", { project_id: "1" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(!after.includes("not available"), `after activation: ${after}`);
+
+        const listed = await client.listTools();
+        const names = listed.tools.map((t: { name: string }) => t.name);
+        assert.ok(!names.includes("list_wiki_pages"), "hidden tool must stay unlisted");
+        assert.ok(names.includes("get_wiki_page"), "activated toolset must be listed");
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("discover_tools makes hidden tools callable when every tool in the toolset is hidden", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "full",
+        GITLAB_TOOLSETS: "issues",
+        GITLAB_TOOL_POLICY_HIDDEN: "create_group",
+      });
+      servers.push(server);
+
+      const client = await connectClient(server);
+      try {
+        const before = await client
+          .callTool("create_group", { name: "g", path: "g" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(before.includes("not available"), `before activation: ${before}`);
+
+        await client.callTool("discover_tools", { category: "groups" });
+        const after = await client
+          .callTool("create_group", { name: "g", path: "g" })
           .then(r => JSON.stringify(r))
           .catch((e: Error) => e.message);
         assert.ok(!after.includes("not available"), `after activation: ${after}`);

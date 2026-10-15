@@ -93,6 +93,8 @@ sequenceDiagram
 
     Client->>Server: GET /authorize<br/>{redirect_uri=client.com/cb,<br/>code_challenge=CLIENT_CC, state=CLIENT_STATE}
 
+    Note over Server: redirect_uri must be on the allowlist.<br/>User approves on the consent page<br/>(once per client and callback URL).
+
     Note over Server: Stores client's redirect_uri,<br/>state, and code_challenge.<br/>Generates proxy PKCE pair.
 
     Server->>GitLab: 302 → /oauth/authorize<br/>{client_id=REAL_APP_ID,<br/>redirect_uri=mcp-server.com/callback,<br/>code_challenge=PROXY_CC,<br/>state=PROXY_STATE}
@@ -133,6 +135,37 @@ sequenceDiagram
 | Error responses are sanitized | Generic messages to clients, details in server logs only |
 | Bounded memory | In-memory LRU cache, max 1000 entries |
 | DCR rate limit | `POST /register` limited per client IP (`OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`, default 20/hour) |
+| Client callbacks are allowlisted | `redirect_uris` outside `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` are refused at `/register` and `/authorize` |
+| User consent | `/authorize` shows a consent page (CSRF-protected form) before redirecting to GitLab |
+
+## Client callback allowlist and consent page
+
+Because GitLab only ever sees the server's own `/callback`, GitLab cannot tell
+which MCP client will receive the code. Without a check on the client side, a
+link to `/authorize` with an attacker's `redirect_uri` would send a signed-in
+user's authorization to the attacker. Two checks close this:
+
+1. **Allowlist.** `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` lists the client callback
+   URLs this server will redirect to. The default covers Claude, ChatGPT, Cursor
+   and loopback callbacks (`http://localhost/*`, `http://127.0.0.1/*`,
+   `http://[::1]/*`, any port). Add your own with
+   `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS=defaults,https://mcp.example.com/oauth/callback`.
+   See [environment variables](../configuration/environment-variables.md#gitlab_oauth_allowed_redirect_uris)
+   for the entry syntax.
+2. **Consent page.** The first time a client signs in, the user sees the client
+   name and where the browser will go next, and must click Approve. Approval is
+   remembered for 30 days per client and callback URL. Deny sends
+   `error=access_denied` back to the client.
+
+The default list includes shared platform callbacks (for example
+`https://claude.ai/api/mcp/auth_callback`). Anyone with an account on that
+platform can register a client that uses it, so the consent page is the check
+that stops a link someone else started. Remove those entries if your users do
+not use those platforms.
+
+If a client fails to register with `invalid_redirect_uri`, the server log lists
+the refused URL; add it to the allowlist. `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS=*`
+turns the allowlist off (not recommended).
 
 ## Configuration
 
@@ -144,6 +177,8 @@ MCP_SERVER_URL=https://mcp-server.example.com
 GITLAB_OAUTH_APP_ID=<app-id>
 # Optional: raise when many MCP clients register at once (e.g. multiple IDE windows)
 # OAUTH_REGISTER_RATE_LIMIT_PER_HOUR=50
+# Optional: client callback URLs to accept in addition to the built-in list
+# GITLAB_OAUTH_ALLOWED_REDIRECT_URIS=defaults,https://mcp.example.com/oauth/callback
 ```
 
 In GitLab Admin → Applications:

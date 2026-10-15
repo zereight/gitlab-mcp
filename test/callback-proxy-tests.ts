@@ -19,7 +19,6 @@ import {
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_GITLAB_PORT_BASE = 9400;
 const MCP_SERVER_PORT_BASE = 3400;
 const MOCK_ACCESS_TOKEN = "ya29.mock-callback-proxy-token-123456";
 const MOCK_REFRESH_TOKEN = "mock-refresh-token-abcdef";
@@ -53,7 +52,10 @@ async function registerClient(
   return data.client_id;
 }
 
-/** Hit /authorize and return the redirect Location without following it. */
+/**
+ * Hit /authorize, approve the consent page, and return the GitLab redirect
+ * Location without following it.
+ */
 async function authorize(
   mcpBaseUrl: string,
   clientId: string,
@@ -70,8 +72,25 @@ async function authorize(
     state,
     scope: "api",
   });
-  const res = await fetch(`${mcpBaseUrl}/authorize?${params}`, {
+  const page = await fetch(`${mcpBaseUrl}/authorize?${params}`, {
     redirect: "manual",
+  });
+  assert.strictEqual(page.status, 200, `Expected consent page, got ${page.status}`);
+  const csrf = /name="consent_csrf" value="([^"]+)"/.exec(await page.text())?.[1];
+  assert.ok(csrf, "consent form is missing its CSRF token");
+  params.set("consent_csrf", csrf);
+  params.set("consent_action", "approve");
+  const res = await fetch(`${mcpBaseUrl}/authorize`, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: page.headers
+        .getSetCookie()
+        .map(cookie => cookie.split(";")[0])
+        .join("; "),
+    },
+    body: params.toString(),
   });
   assert.strictEqual(res.status, 302, `Expected 302, got ${res.status}`);
   const location = res.headers.get("location");
@@ -129,7 +148,7 @@ describe("Callback Proxy Mode", () => {
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
   let mockGitLabUrl: string;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
   const clientRedirectUri = "http://localhost:19999/oauth/callback";
 
   // Track the last code+verifier GitLab received so we can verify the proxy PKCE

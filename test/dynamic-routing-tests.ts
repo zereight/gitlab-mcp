@@ -13,6 +13,7 @@ import { Request, Response } from "express";
 
 const MOCK_TOKEN_DEFAULT = 'glpat-mock-token-default';
 const MOCK_TOKEN_HEADER = 'glpat-mock-token-header';
+const MCP_AUTH_TOKEN = 'mcp-static-auth-token';
 
 describe('Dynamic Routing and Authentication Scenarios', () => {
   const originalToken = process.env.GITLAB_TOKEN_TEST;
@@ -55,6 +56,7 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
           REMOTE_AUTHORIZATION: "false",
           ENABLE_DYNAMIC_API_URL: "false",
           GITLAB_TOKEN_TEST: MOCK_TOKEN_DEFAULT,
+          STREAMABLE_HTTP_AUTH_TOKEN: MCP_AUTH_TOKEN,
         },
       });
       mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
@@ -79,7 +81,8 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
 
       const client = new CustomHeaderClient({
         headers: {
-          'authorization': `Bearer ${MOCK_TOKEN_HEADER}`, // This should be ignored
+          'authorization': `Bearer ${MCP_AUTH_TOKEN}`, // MCP auth only, not sent to GitLab
+          'private-token': MOCK_TOKEN_HEADER, // This should be ignored
           'X-GitLab-API-URL': 'http://localhost:9999/api/v4', // This should be ignored
         }
       });
@@ -149,6 +152,7 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
             REMOTE_AUTHORIZATION: "false",
             ENABLE_DYNAMIC_API_URL: "true",
             GITLAB_TOKEN_TEST: "mock-token", // Required to bypass launcher check
+            STREAMABLE_HTTP_AUTH_TOKEN: MCP_AUTH_TOKEN,
           },
         }),
         (err: Error) => {
@@ -186,6 +190,8 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN_DEFAULT,
           REMOTE_AUTHORIZATION: "true",
           ENABLE_DYNAMIC_API_URL: "true",
+          GITLAB_ALLOWED_HOSTS: `${headerMockServer.getUrl()}/api/v4`,
+          GITLAB_TOOLSETS: "all",
         },
       });
       mcpUrl = `http://${HOST}:${mcpPort}/mcp`;

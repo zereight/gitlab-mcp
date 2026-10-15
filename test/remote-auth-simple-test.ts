@@ -21,8 +21,6 @@ const MOCK_TOKEN = 'glpat-mock-token-12345';
 const MOCK_JOB_TOKEN = 'glcbt-mock-job-token-9876';
 
 // Port ranges to avoid collisions
-const MOCK_GITLAB_PORT_BASE = 9000;
-const MOCK_GITLAB_PORT_OFFSET = 500; // Offset for timeout test suite
 const MCP_SERVER_PORT_BASE = 3000;
 const MCP_SERVER_PORT_OFFSET = 500; // Offset for timeout test suite
 
@@ -76,7 +74,7 @@ describe('Remote Authorization', { concurrency: 1 }, () => {
 describe('Remote Authorization - Basic Functionality', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     // Start mock GitLab server
@@ -235,7 +233,7 @@ describe('Remote Authorization - Basic Functionality', () => {
 describe('Remote Authorization - Session Timeout', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
-  let servers: ServerInstance[] = [];
+  const servers: ServerInstance[] = [];
 
   before(async () => {
     // Use different port ranges to avoid collisions with basic tests

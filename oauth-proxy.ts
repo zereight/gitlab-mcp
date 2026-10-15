@@ -45,7 +45,13 @@
  * Activated when GITLAB_MCP_OAUTH=true. All other auth modes are unaffected.
  */
 
-import { InvalidTokenError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import {
+  CustomOAuthError,
+  InsufficientScopeError,
+  InvalidGrantError,
+  InvalidTokenError,
+  ServerError,
+} from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type {
   OAuthClientInformationFull,
@@ -77,6 +83,7 @@ import {
   PROXY_CODE_CACHE_FULL,
 } from "./stateless/index.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
+import { ConsentGate, DEFAULT_ALLOWED_REDIRECT_URIS, RedirectUriPolicy } from "./oauth-consent.js";
 import { createLogger } from "./utils/logger.js";
 import { redactUrlSecretsInText } from "./utils/redact-url.js";
 
@@ -112,6 +119,9 @@ const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 const PENDING_AUTH_MAX_SIZE = 1000;
 const PENDING_AUTH_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CACHE_MAX_SIZE = 1000;
+const GROUP_MEMBERSHIP_CACHE_MAX_SIZE = 1000;
+const GROUP_MEMBERSHIP_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const GROUP_ACCESS_DENIED_MESSAGE = "Access denied: user is not a member of an allowed group";
 
 function singleQueryParam(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -235,8 +245,18 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
   // Group allowlist (optional). When set, tokens are rejected unless the
   // authenticated user is a direct or inherited member of at least one group.
-  // Checked once at token issuance (exchangeAuthorizationCode), not per request.
+  // Checked at token issuance, on refresh and on every verified request; the
+  // result is cached per token (keyed by SHA-256) for GROUP_MEMBERSHIP_CACHE_TTL_MS.
   private readonly _allowedGroups: string[] | null;
+  private readonly _groupMembershipCache = new BoundedLRUMap<{
+    isMember: boolean;
+    expiresAt: number;
+  }>(GROUP_MEMBERSHIP_CACHE_MAX_SIZE);
+
+  // Callback proxy safeguards (see oauth-consent.ts). Null in passthrough
+  // mode, where GitLab checks redirect_uri against the app registration.
+  private readonly _redirectPolicy: RedirectUriPolicy | null = null;
+  private readonly _consent: ConsentGate | null = null;
 
   constructor(
     gitlabBaseUrl: string,
@@ -247,7 +267,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     allowedGroups?: string[],
     callbackProxyEnabled = false,
     callbackUrl = "",
-    stateless: StatelessOAuthOptions | null = null
+    stateless: StatelessOAuthOptions | null = null,
+    allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -267,9 +288,21 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
     }
     if (callbackProxyEnabled) {
+      this._redirectPolicy = new RedirectUriPolicy(allowedRedirectUris);
+      this._consent = new ConsentGate({
+        resourceName,
+        secureCookies: callbackUrl.startsWith("https:"),
+        stateless: stateless?.material ?? null,
+      });
       logger.info(
         `Callback proxy mode enabled — fixed callback URL: ${redactUrlSecretsInText(callbackUrl)}`
       );
+      if (this._redirectPolicy.allowsAny) {
+        logger.warn(
+          "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS contains \"*\": any registered client may receive " +
+            "authorization codes; only the consent page stands between a phishing link and a user's GitLab token"
+        );
+      }
     }
     if (stateless) {
       logger.info(
@@ -286,6 +319,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     const cache = this._clientCache;
     const resourceName = this._resourceName;
     const stateless = this._stateless;
+    const redirectPolicy = this._redirectPolicy;
 
     return {
       getClient: async (clientId: string) => {
@@ -331,6 +365,24 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       ) => {
         const grantTypes = client.grant_types ?? ["authorization_code"];
         const redirectUris = client.redirect_uris ?? [];
+
+        // Callback proxy mode: GitLab never sees the client's redirect_uri, so
+        // this server is the only place it can be checked.
+        const rejected = redirectPolicy
+          ? redirectUris.filter((uri) => !redirectPolicy.allows(uri))
+          : [];
+        if (rejected.length > 0) {
+          logger.warn(
+            `DCR: rejected redirect_uris not allowed by GITLAB_OAUTH_ALLOWED_REDIRECT_URIS: ${rejected
+              .map((uri) => JSON.stringify(redactUrlSecretsInText(uri)))
+              .join(", ")}`
+          );
+          throw new CustomOAuthError(
+            "invalid_redirect_uri",
+            `redirect_uri ${rejected[0]} is not allowed by this server. ` +
+              "The server operator can add it to GITLAB_OAUTH_ALLOWED_REDIRECT_URIS."
+          );
+        }
         const clientName = client.client_name
           ? `${client.client_name} via ${resourceName}`
           : resourceName;
@@ -397,6 +449,29 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
     if (this._callbackProxyEnabled) {
       // --- Callback proxy mode ---
+      // Re-check the policy here too: signed client_ids minted before an
+      // upgrade or allowlist change still carry their old redirect_uris.
+      // Answer directly; redirecting the error would send the browser to
+      // the URI we just refused.
+      if (this._redirectPolicy && !this._redirectPolicy.allows(params.redirectUri)) {
+        logger.warn(
+          `authorize (callback proxy): refused redirect_uri ${JSON.stringify(
+            redactUrlSecretsInText(params.redirectUri)
+          )} (not in GITLAB_OAUTH_ALLOWED_REDIRECT_URIS)`
+        );
+        res.status(400).json({
+          error: "invalid_request",
+          error_description: "redirect_uri is not allowed by this server",
+        });
+        return;
+      }
+      // Ask the user before sending them to GitLab. Without this, any link
+      // to /authorize gets the operator's GitLab app consent screen and the
+      // resulting code goes to whichever client registered the link.
+      if (this._consent && this._consent.check(client, params, res) === "handled") {
+        return;
+      }
+
       // Generate a proxy PKCE pair (MCP server ↔ GitLab)
       const proxyCodeVerifier = randomBytes(32).toString("base64url");
       const proxyCodeChallenge = createHash("sha256")
@@ -633,12 +708,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         tokens = OAuthTokensSchema.parse(data);
       }
 
-      if (this._allowedGroups) {
-        const isMember = await this._checkGroupMembership(tokens.access_token);
-        if (!isMember) {
-          logger.warn({ allowedGroups: this._allowedGroups }, "Token issuance denied: user is not a member of any allowed group");
-          throw new ServerError("Access denied: user is not a member of an allowed group");
-        }
+      if (!(await this.isAllowedGroupMember(tokens.access_token))) {
+        logger.warn(
+          { allowedGroups: this._allowedGroups },
+          "Token issuance denied: user is not a member of any allowed group"
+        );
+        throw new ServerError(GROUP_ACCESS_DENIED_MESSAGE);
       }
 
       // All checks passed — permanently consume the proxy code.
@@ -659,12 +734,35 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       throw err;
     }
   }
+
+  /**
+   * Returns true when no allowed groups are configured, or when the token
+   * owner belongs to one of them (see _checkGroupMembership). Results are
+   * cached per token for GROUP_MEMBERSHIP_CACHE_TTL_MS; failed lookups are not.
+   */
+  async isAllowedGroupMember(token: string): Promise<boolean> {
+    if (!this._allowedGroups) return true;
+
+    const key = createHash("sha256").update(token).digest("hex");
+    const cached = this._groupMembershipCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.isMember;
+
+    const isMember = await this._checkGroupMembership(token);
+    this._groupMembershipCache.set(key, {
+      isMember,
+      expiresAt: Date.now() + GROUP_MEMBERSHIP_CACHE_TTL_MS,
+    });
+    return isMember;
+  }
+
   /**
    * Returns true if the token owner belongs to at least one group whose
    * full_path equals or is a sub-path of any configured allowed group.
    *
    * Example: allowedGroups=["my-org"] allows members of "my-org",
    * "my-org/team-a", "my-org/team-a/squad-1", etc.
+   *
+   * Throws when GitLab is unavailable (5xx / 429) so the result is not cached.
    */
   private async _checkGroupMembership(token: string): Promise<boolean> {
     const allowedPaths = this._allowedGroups!.map((g) => g.toLowerCase());
@@ -675,6 +773,10 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         headers: { Authorization: `Bearer ${token}` } 
       });
 
+      if (res.status >= 500 || res.status === 429) {
+        await res.body?.cancel();
+        throw new ServerError(`Group membership lookup failed: ${res.status}`);
+      }
       if (!res.ok) break;
 
       const groups = (await res.json()) as Array<{ full_path: string }>;
@@ -728,7 +830,17 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     }
 
     const data = await response.json();
-    return OAuthTokensSchema.parse(data);
+    const tokens = OAuthTokensSchema.parse(data);
+
+    if (!(await this.isAllowedGroupMember(tokens.access_token))) {
+      logger.warn(
+        { allowedGroups: this._allowedGroups },
+        "Token refresh denied: user is not a member of any allowed group"
+      );
+      throw new InvalidGrantError(GROUP_ACCESS_DENIED_MESSAGE);
+    }
+
+    return tokens;
   }
 
   // ---- Verify access token -----------------------------------------------
@@ -756,6 +868,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
     const info = (await res.json()) as GitLabTokenInfo;
 
+    // 403 rather than 401: the token itself is valid, so asking the client to
+    // re-authenticate as the same user would not help.
+    if (!(await this.isAllowedGroupMember(token))) {
+      throw new InsufficientScopeError(GROUP_ACCESS_DENIED_MESSAGE);
+    }
+
     return {
       token,
       clientId: info.application?.uid ?? "dynamic",
@@ -764,6 +882,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         info.expires_in_seconds != null
           ? Math.floor(Date.now() / 1000) + info.expires_in_seconds
           : undefined,
+      // GitLab user id; stateful /mcp sessions are bound to it.
+      extra: { resourceOwnerId: info.resource_owner_id },
     };
   }
 
@@ -967,6 +1087,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  * @param stateless      Optional stateless-mode options. When set, DCR and later
  *                        callback-proxy state is encoded into opaque OAuth values
  *                        instead of an in-memory cache, enabling multi-pod deploys.
+ * @param allowedRedirectUris  Callback proxy mode only: client redirect URIs that
+ *                        may register and receive codes (see oauth-consent.ts).
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
@@ -977,7 +1099,8 @@ export function createGitLabOAuthProvider(
   allowedGroups?: string[],
   callbackProxyEnabled = false,
   callbackUrl = "",
-  stateless: StatelessOAuthOptions | null = null
+  stateless: StatelessOAuthOptions | null = null,
+  allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
 ): GitLabOAuthServerProvider {
   return new GitLabOAuthServerProvider(
     gitlabBaseUrl,
@@ -988,6 +1111,7 @@ export function createGitLabOAuthProvider(
     allowedGroups,
     callbackProxyEnabled,
     callbackUrl,
-    stateless
+    stateless,
+    allowedRedirectUris
   );
 }

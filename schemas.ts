@@ -2526,6 +2526,33 @@ export const UnapproveMergeRequestSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of the merge request to unapprove"),
 });
 
+export const RebaseMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request to rebase"),
+  skip_ci: coerceBooleanString
+    .optional()
+    .describe("If true, GitLab does not create a CI pipeline for the rebased source branch"),
+  wait: coerceBooleanString
+    .optional()
+    .default(true)
+    .describe(
+      "If true, poll the merge request until the rebase ends or timeout_seconds passes. If false, return GitLab's enqueue response at once."
+    ),
+  timeout_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(600)
+    .optional()
+    .describe("Maximum seconds to wait for the rebase to end"),
+  poll_interval_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(30)
+    .optional()
+    .describe("Seconds between status polls while waiting for the rebase"),
+});
+
 // Merge Request Approval State response schema
 export const GitLabApprovalUserSchema = z.object({
   id: z.coerce.string(),
@@ -3935,7 +3962,9 @@ export const DownloadAttachmentSchema = z.object({
   local_path: z
     .string()
     .optional()
-    .describe("Local path to save the file (optional, defaults to current directory)"),
+    .describe(
+      "Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected"
+    ),
 });
 
 export const DownloadAttachmentRemoteSchema = z.object({

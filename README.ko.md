@@ -36,7 +36,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **275개 도구: toolset 273개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **276개 도구: toolset 274개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -50,7 +50,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 275개 도구: toolset 273개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 276개 도구: toolset 274개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
@@ -138,7 +138,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.2.5`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.2.6`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
@@ -172,6 +172,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
 - `--masking-policy-file` - 보호된 관리형 정책 파일 경로 (`GITLAB_MASKING_POLICY_FILE` 대체)
 - `--masking-workspace-dir` - 마스킹 파일 경로를 해석하는 기준 디렉터리 (`GITLAB_MASKING_WORKSPACE_DIR` 대체)
+- `--download-dir` - `download_attachment`가 파일을 저장하는 디렉터리 (`GITLAB_DOWNLOAD_DIR` 대체, 기본값 `.gitlab-mcp-downloads`)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
@@ -302,8 +303,9 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
 | `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`                                                                             |
+| `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | 선택 | 콜백 프록시 모드가 리다이렉트할 클라이언트 callback URL 목록 (기본값: Claude, ChatGPT, Cursor, 루프백 callback. 추가하려면 `defaults,<url>`) |
 | `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`)                                                                      |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 서버를 사용할 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
 
 `STREAMABLE_HTTP=true`일 때 서버 측 GitLab 자격 증명(`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, 또는 `GITLAB_USE_OAUTH`)은 `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`, 또는 `STREAMABLE_HTTP_AUTH_TOKEN`이 필요합니다.
 
@@ -406,6 +408,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`

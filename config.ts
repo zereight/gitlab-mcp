@@ -65,6 +65,8 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
   "masking-workspace-dir",
   "GITLAB_MASKING_WORKSPACE_DIR"
 );
+/** Directory that download_attachment saves files under (default .gitlab-mcp-downloads). */
+export const GITLAB_DOWNLOAD_DIR = getConfig("download-dir", "GITLAB_DOWNLOAD_DIR");
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
@@ -141,6 +143,11 @@ export const GITLAB_OAUTH_SCOPES = GITLAB_OAUTH_SCOPES_RAW
   : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
+/** Callback proxy mode: client redirect URIs allowed to register (comma-separated). */
+export const GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW = getConfig(
+  "oauth-allowed-redirect-uris",
+  "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS"
+);
 /** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in v3.0.0. */
 export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(

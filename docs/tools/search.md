@@ -17,7 +17,7 @@ Code search across all visible projects, a specific project, or a specific group
 
 *📖 Read-only*
 
-Search for code across all projects (requires advanced search or Zoekt). Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Search for code across all projects (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors.
 
 **Parameters**
 
@@ -34,7 +34,7 @@ Search for code across all projects (requires advanced search or Zoekt). Use thi
 
 *📖 Read-only*
 
-Search for code within a specific project (requires advanced search or Zoekt). Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Search for code within a specific project (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Search for code within a specific project (requires advanced search or Zoekt). U
 
 *📖 Read-only*
 
-Search for code within a specific group (requires advanced search or Zoekt). Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Search for code within a specific group (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
 
 **Parameters**
 

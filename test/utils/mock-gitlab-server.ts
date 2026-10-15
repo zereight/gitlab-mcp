@@ -590,7 +590,6 @@ export class MockGitLabServer {
 
     // GET /api/v4/projects/:projectId/merge_requests/:mr_iid/diffs - Get paginated diffs
     this.app.get('/api/v4/projects/:projectId/merge_requests/:mr_iid/diffs', (req: AuthenticatedRequest, res: Response) => {
-      const mrIid = parseInt(req.params.mr_iid);
       
       // Paginate results for testing pagination logic
       const allDiffs = [
@@ -673,6 +672,10 @@ export class MockGitLabServer {
 
   getPort(): number {
     return this.config.port;
+  }
+
+  getRequestCount(): number {
+    return this.requestCount;
   }
 }
 

@@ -286,6 +286,48 @@ This has a different purpose from `GITLAB_OAUTH_REDIRECT_URI`: callback proxy
 mode turns a client-owned callback into the MCP server callback registered in
 GitLab. Register `{MCP_SERVER_URL}/callback` in GitLab Admin.
 
+In callback proxy mode the server only accepts client callback URLs listed in
+`GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`, and shows a consent page before it sends
+the browser to GitLab. See below.
+
+### `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
+
+Comma-separated list of client callback URLs that callback proxy mode
+(`GITLAB_OAUTH_CALLBACK_PROXY=true`) will send authorization codes to. Dynamic
+Client Registration with any other `redirect_uris` fails with
+`invalid_redirect_uri`, and `/authorize` refuses them with a 400.
+
+Default (when unset or empty):
+
+- `https://claude.ai/api/mcp/auth_callback`
+- `https://claude.com/api/mcp/auth_callback`
+- `https://chatgpt.com/connector_platform_oauth_redirect`
+- `https://chatgpt.com/connector/oauth/*`
+- `cursor://anysphere.cursor-mcp/oauth/callback`
+- `http://localhost/*`, `http://127.0.0.1/*`, `http://[::1]/*`
+
+Entry forms:
+
+- An exact URL, e.g. `https://mcp.example.com/oauth/callback`.
+- A prefix ending in `/*`, e.g. `https://mcp.example.com/oauth/*`. Scheme and
+  host must match exactly; the port must match too, except for loopback hosts
+  (`localhost`, `127.0.0.1`, `[::1]`), where any port is accepted.
+- `defaults` expands to the default list, so
+  `defaults,https://mcp.example.com/cb` keeps the built-in entries and adds one.
+- `*` accepts any callback URL. This restores the old behavior and logs a
+  warning at startup; the consent page is still shown.
+
+An invalid entry (for example a wildcard in the host) stops the server at
+startup with an error naming this variable.
+
+**Consent page.** Before redirecting to GitLab, the server shows a page with the
+client name and where the browser will be sent afterwards, with Approve and Deny
+buttons. Approval is remembered in a signed cookie for 30 days per client and
+callback URL. With `OAUTH_STATELESS_MODE=true` the signing key is derived from
+`OAUTH_STATELESS_SECRET`, so approvals are valid on every pod (rotating the secret
+asks users again). Without stateless mode the key is random per process and users
+are asked again after a restart.
+
 ### `MCP_SERVER_URL`
 
 Public HTTPS MCP server base URL required for MCP OAuth mode.
@@ -316,8 +358,17 @@ Examples:
 
 Comma-separated list of GitLab group full paths. When set, only users who
 belong to at least one of these groups (or any of their subgroups) are allowed
-to use the server. Users who authenticate successfully via OAuth but are not
-members of any matching group receive a `401 Access Denied` response.
+to use the server. This applies to every credential the server accepts: OAuth
+access tokens (including tokens issued by other GitLab OAuth applications),
+`Private-Token` headers, and stateless session ids.
+
+Requests from users who are not members of any matching group are denied:
+
+- Authorization code exchange (`POST /token`): fails with an `Access denied` error.
+- Token refresh: fails with `invalid_grant`; no new tokens are returned.
+- `/mcp` with an OAuth Bearer token: `403` with
+  `WWW-Authenticate: Bearer error="insufficient_scope"`.
+- `/mcp` with a `Private-Token` header or a stateless session id: `403`.
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
@@ -337,13 +388,17 @@ Notes:
   possible.
 - Matching is case-insensitive and checks the group's `full_path` (e.g.
   `my-org/team-a`), not its display name.
-- The check is performed once at token issuance (when the MCP client exchanges
-  the authorization code for tokens), not on every subsequent request. Existing
-  sessions are not retroactively revoked when this value changes; users are
-  re-checked when they complete a new OAuth flow or refresh through token issuance.
-- The groups lookup uses the user's OAuth token. If GitLab rejects that lookup
-  (for example because the token lacks a usable scope), login fails closed with
-  access denied.
+- Membership is checked at token issuance, on token refresh, and on every
+  `/mcp` request. Results (member or not) are cached in memory per token for
+  5 minutes in each server process, so removing a user from the allowed groups
+  takes effect within 5 minutes, including for existing sessions.
+- The groups lookup uses the caller's token. If GitLab rejects that lookup
+  (for example because the token lacks a usable scope), access is denied. If
+  GitLab is unavailable (`5xx` or `429`), the request fails (`500` for OAuth
+  tokens, `503` for header auth) and the result is not cached.
+- `JOB-TOKEN` header authentication is rejected with `403` while this is set,
+  because a CI job token cannot list the user's groups. Use OAuth or a
+  `Private-Token` header from CI jobs instead.
 - No additional service account credentials are needed.
 - Leave unset to allow any authenticated GitLab user (default behaviour).
 
@@ -644,6 +699,9 @@ Behavior:
   `disable`, `deactivate`, `drop`, `unschedule`)
 - `gitlab_api_request`, when the `api` toolset is explicitly enabled, stays listed in `readonly`
   and `modify`. The handler allows only `GET` in `readonly` and rejects `DELETE` in `modify`
+- `download_attachment` and `download_job_artifacts` stay listed in `readonly`, but in stdio
+  mode they never write to disk there: `download_attachment` returns images inline and rejects
+  other files and any `local_path`, and `download_job_artifacts` is rejected
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
@@ -658,6 +716,32 @@ than the standard HTTP request to `registry.npmjs.org` is sent.
 
 Set this in offline or air-gapped environments, or when you do not want the
 server to make any outbound request beyond your GitLab instance.
+
+### `GITLAB_DOWNLOAD_DIR`
+
+Directory that `download_attachment` saves files under in stdio mode. Relative
+values resolve against the server's working directory. `local_path` is a
+subdirectory of this directory, not of the working directory.
+
+Default:
+
+- `.gitlab-mcp-downloads` (created on first use with a `.gitignore` that
+  ignores everything in it)
+
+`download_attachment` only creates new files here: it refuses to replace an
+existing file, and rejects `local_path` segments and filenames that start with
+a dot (`.git`, `.vscode`, `.envrc`). Point this outside your checkout (for
+example `~/Downloads/gitlab-mcp`) if you do not want downloaded files inside
+the project tree at all.
+
+`download_job_artifacts` does not use this directory. It saves
+`artifacts_job_<id>.zip` to `local_path` under the working directory, rejects
+`local_path` segments that start with a dot, and replaces an earlier archive
+of the same job.
+
+In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
+`GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`
+only returns images inline, and `download_job_artifacts` is rejected.
 
 ## Tool Exposure and Filtering
 
@@ -689,7 +773,7 @@ Special values:
 
     `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which are checked at login) are not enforced by this tool.
+    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
     When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
@@ -718,7 +802,7 @@ Examples:
 
 ### `GITLAB_TOOL_POLICY_HIDDEN`
 
-Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
+Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS` or a legacy flag, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
 
 CLI: `--tool-policy-hidden`
 

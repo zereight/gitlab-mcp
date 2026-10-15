@@ -36,7 +36,7 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 
 ### 为什么使用这个 GitLab MCP？
 
-- **275 个工具：toolset 中 273 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **276 个工具：toolset 中 274 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -50,7 +50,7 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 275 个工具：toolset 中 273 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 276 个工具：toolset 中 274 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
@@ -138,7 +138,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.2.5`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.2.6`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -172,6 +172,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
 - `--masking-policy-file` - 受保护的托管策略文件路径（替代 `GITLAB_MASKING_POLICY_FILE`）
 - `--masking-workspace-dir` - 用于解析掩码文件的目录（替代 `GITLAB_MASKING_WORKSPACE_DIR`）
+- `--download-dir` - `download_attachment` 保存文件的目录（替代 `GITLAB_DOWNLOAD_DIR`，默认 `.gitlab-mcp-downloads`）
 - `--compact-results=true` - 将过大的 MCP 工具回复截断为预览并附带 CLI 命令（替代 `GITLAB_MCP_COMPACT_RESULTS`，默认关闭）
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
@@ -301,8 +302,9 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                                                                               |
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL                                                       |
+| `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | 可选 | 回调代理模式允许重定向的客户端 callback URL 列表（默认：Claude、ChatGPT、Cursor 和环回地址 callback；用 `defaults,<url>` 追加） |
 | `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）                                                          |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可使用服务器（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
 
 当 `STREAMABLE_HTTP=true` 时，服务端 GitLab 凭据（`GITLAB_PERSONAL_ACCESS_TOKEN`、`GITLAB_JOB_TOKEN`、`GITLAB_AUTH_COOKIE_PATH` 或 `GITLAB_USE_OAUTH`）需要 `REMOTE_AUTHORIZATION=true`、`GITLAB_MCP_OAUTH=true` 或 `STREAMABLE_HTTP_AUTH_TOKEN`。
 
@@ -405,6 +407,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`

@@ -25,8 +25,10 @@ async function callTool(
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
+        // Saving archives is refused in readonly mode, so tests opt into it explicitly.
+        GITLAB_READ_ONLY_MODE: 'false',
+        GITLAB_PERMISSION_MODE: 'full',
         ...env,
-        GITLAB_READ_ONLY_MODE: 'true',
         USE_PIPELINE: 'true',
       },
     });
@@ -309,6 +311,54 @@ describe('job artifacts tools', () => {
         );
       }
     );
+  });
+
+  test('download_job_artifacts rejects a local_path segment that starts with a dot', async () => {
+    const dotPath = path.join(tmpDir, '.git', 'hooks');
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: dotPath },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => /dot/i.test(String(err.message || err))
+    );
+    assert.ok(!fs.existsSync(path.join(tmpDir, '.git')), 'no dot directory should be created');
+  });
+
+  test('download_job_artifacts does not write in readonly mode', async () => {
+    const readonlyPath = path.join(tmpDir, 'readonly');
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: readonlyPath },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_READ_ONLY_MODE: 'true',
+          }
+        ),
+      (err: Error) => /readonly/i.test(String(err.message || err))
+    );
+    assert.ok(!fs.existsSync(readonlyPath), 'readonly mode must not create the directory');
+  });
+
+  test('get_job_artifact_file still works in readonly mode', async () => {
+    const result = await callTool(
+      'get_job_artifact_file',
+      { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, artifact_path: 'report.xml' },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_PERMISSION_MODE: 'readonly',
+      }
+    );
+    assert.ok(String(result).includes('<testsuites>'), `unexpected result: ${JSON.stringify(result)}`);
   });
 
   test('get_job_artifact_file returns file content', async () => {

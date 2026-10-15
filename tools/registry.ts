@@ -241,6 +241,7 @@ import {
   UpdateSnippetSchema,
   DeleteSnippetSchema,
   UnapproveMergeRequestSchema,
+  RebaseMergeRequestSchema,
   UpdateDraftNoteSchema,
   UpdateGroupWikiPageSchema,
   UpdateIssueNoteSchema,
@@ -1309,7 +1310,7 @@ export const allTools = [
     name: "download_attachment",
     description: IS_REMOTE
       ? "Download an uploaded file from a project (images returned inline as base64, other files returned as download URL)"
-      : "Download an uploaded file from a project (images returned as base64; use local_path to save to disk)",
+      : "Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)",
     inputSchema: IS_REMOTE
       ? toJSONSchema(DownloadAttachmentRemoteSchema)
       : toJSONSchema(DownloadAttachmentSchema),
@@ -1709,6 +1710,11 @@ export const allTools = [
     description: "Get one runner by ID",
     inputSchema: toJSONSchema(GetRunnerSchema),
   },
+  {
+    name: "rebase_merge_request",
+    description: "Rebase the source branch of a merge request onto its target branch",
+    inputSchema: toJSONSchema(RebaseMergeRequestSchema),
+  },
   // --- Explicit opt-in raw API. Not in `all` and not activatable via discover_tools. ---
   {
     name: "gitlab_api_request",
@@ -1888,8 +1894,19 @@ export const readOnlyTools = new Set([
 // are allowed in other permission modes and rejected only at call time.
 const MIXED_ACCESS_TOOLS = new Set(["execute_graphql", "gitlab_api_request"]);
 
+// Read-only on GitLab, but in stdio mode they save files to the local disk. They stay
+// listed in readonly mode, where the handlers refuse anything that would write a file
+// (only inline images are returned), and never advertise readOnlyHint.
+const LOCAL_FILE_WRITE_TOOLS = new Set(
+  IS_REMOTE ? [] : ["download_attachment", "download_job_artifacts"]
+);
+
 export function advertisesReadOnly(toolName: string): boolean {
-  return readOnlyTools.has(toolName) && !MIXED_ACCESS_TOOLS.has(toolName);
+  return (
+    readOnlyTools.has(toolName) &&
+    !MIXED_ACCESS_TOOLS.has(toolName) &&
+    !LOCAL_FILE_WRITE_TOOLS.has(toolName)
+  );
 }
 
 // Define which tools are destructive (data loss potential)
@@ -1933,6 +1950,7 @@ export const destructiveTools = new Set([
   "protect_tag",
   "update_default_branch",
   "merge_merge_request",
+  "rebase_merge_request",
   "push_files",
   "delete_project_variable",
   "delete_group_variable",
@@ -2180,6 +2198,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     isDefault: false,
     tools: new Set([
       "merge_merge_request",
+      "rebase_merge_request",
       "approve_merge_request",
       "unapprove_merge_request",
       "get_merge_request_approval_state",
@@ -2637,12 +2656,25 @@ if (discoverTool) {
   discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.`;
 }
 
+function acceptsProjectOrGroupId(inputSchema: unknown): boolean {
+  const properties = (inputSchema as { properties?: unknown } | undefined)?.properties;
+  return (
+    typeof properties === "object" &&
+    properties !== null &&
+    ("project_id" in properties || "group_id" in properties)
+  );
+}
+
+const allToolNames: ReadonlySet<string> = new Set(allTools.map(tool => tool.name));
+
 for (const tool of allTools) {
   tool.description = getToolDescription(
     tool.name,
     tool.description,
     readOnlyTools.has(tool.name),
-    destructiveTools.has(tool.name)
+    destructiveTools.has(tool.name),
+    acceptsProjectOrGroupId(tool.inputSchema),
+    allToolNames
   );
 }
 

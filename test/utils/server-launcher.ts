@@ -37,7 +37,6 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
 
   // Prepare environment variables based on transport mode
   // Use same configuration pattern as existing validate-api.js
-  const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
   const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
   const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
 

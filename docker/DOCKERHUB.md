@@ -4,7 +4,7 @@ Agent-workflow-optimized [GitLab MCP](https://github.com/zereight/gitlab-mcp) se
 projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more from
 AI clients such as Claude Code, VS Code, Cursor, and Copilot.
 
-- 275 tools: 273 in toolsets + `execute_graphql` + `discover_tools` for on-demand activation
+- 276 tools: 274 in toolsets + `execute_graphql` + `discover_tools` for on-demand activation
 - Personal Access Token, OAuth2, read-only mode, and remote authorization
 - stdio, SSE, and Streamable HTTP transports
 - Works with gitlab.com and self-hosted instances
@@ -14,19 +14,42 @@ AI clients such as Claude Code, VS Code, Cursor, and Copilot.
 ```bash
 docker pull zereight050/gitlab-mcp:latest
 
+# Secret your MCP client must send as a Bearer token
+export MCP_AUTH_TOKEN="$(openssl rand -hex 32)"
+
 docker run -d --name gitlab-mcp -p 127.0.0.1:3002:3002 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN="<your-token>" \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e STREAMABLE_HTTP=true \
+  -e STREAMABLE_HTTP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
   -e HOST=0.0.0.0 \
   zereight050/gitlab-mcp:latest
 ```
 
-With Docker Compose, copy the compose file from the
+Streamable HTTP with a server-side `GITLAB_PERSONAL_ACCESS_TOKEN` refuses to start without
+`STREAMABLE_HTTP_AUTH_TOKEN` (or `REMOTE_AUTHORIZATION=true`). Point your MCP client at the
+server and send the same secret:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "streamable-http",
+      "url": "http://localhost:3002/mcp",
+      "headers": {
+        "Authorization": "Bearer <value of MCP_AUTH_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+With Docker Compose, copy the compose file and `.env.example` from the
 [repository](https://github.com/zereight/gitlab-mcp/tree/main/docker), set at least
-`GITLAB_PERSONAL_ACCESS_TOKEN`, `STREAMABLE_HTTP=true`, and `HOST=0.0.0.0` in your `.env`
-(or environment), and run `docker compose up -d`. Without `HOST=0.0.0.0` the server binds
-to container loopback and the published port stays unreachable.
+`GITLAB_PERSONAL_ACCESS_TOKEN`, `STREAMABLE_HTTP=true`, `STREAMABLE_HTTP_AUTH_TOKEN`, and
+`HOST=0.0.0.0` in your `.env` (or environment), and run `docker compose up -d`. Without
+`HOST=0.0.0.0` the server binds to container loopback and the published port stays
+unreachable.
 
 ## Environment variables
 
@@ -35,7 +58,8 @@ to container loopback and the published port stays unreachable.
 | `GITLAB_PERSONAL_ACCESS_TOKEN`   | —                            | GitLab personal access token (required for PAT)    |
 | `GITLAB_API_URL`                 | `https://gitlab.com/api/v4`  | GitLab API endpoint, self-hosted supported         |
 | `STREAMABLE_HTTP`                | `false`                      | Set `true` for Streamable HTTP transport (port 3002) |
-| `SSE`                            | `false`                      | Set `true` for legacy SSE transport                |
+| `STREAMABLE_HTTP_AUTH_TOKEN`     | —                            | Bearer token clients send on `/mcp`; required with a server-side token unless `REMOTE_AUTHORIZATION=true` |
+| `SSE`                            | `false`                      | Set `true` for legacy SSE transport (requires `SSE_AUTH_TOKEN`) |
 | `HOST`                           | `127.0.0.1`                  | Set `0.0.0.0` inside containers                    |
 | `PORT`                           | `3002`                       | HTTP port for SSE / Streamable HTTP                |
 | `GITLAB_PERMISSION_MODE`         | `full`                       | `readonly`, `modify`, or `full`                    |

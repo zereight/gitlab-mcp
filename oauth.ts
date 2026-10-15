@@ -83,6 +83,133 @@ interface OAuthConfig {
   scopes: string[];
   tokenStoragePath?: string;
   tokenScript?: string;
+  /** Opens the authorization URL. Defaults to the system browser. */
+  openBrowser?: (url: string) => Promise<unknown>;
+}
+
+// Shared OAuth callback servers started by this process
+const sharedOAuthServers = new Set<http.Server>();
+
+/**
+ * Stop the shared OAuth callback servers started by this process.
+ */
+export async function closeSharedOAuthServersAsync(): Promise<void> {
+  const servers = [...sharedOAuthServers];
+  sharedOAuthServers.clear();
+  await Promise.all(
+    servers.map(
+      server =>
+        new Promise<void>(resolve => {
+          server.close(() => resolve());
+          server.closeAllConnections();
+        })
+    )
+  );
+}
+
+const SHARED_OAUTH_KEY_HEADER = "x-gitlab-mcp-oauth-key";
+
+/**
+ * Key file for the shared OAuth callback server on `port`. Sibling processes
+ * compute the same path, so they need the same OS user and home directory.
+ */
+function sharedOAuthKeyPath(port: number): string {
+  return path.join(os.homedir(), `.gitlab-mcp-oauth-${port}.key`);
+}
+
+/**
+ * Write the key to an owner-only file without following symlinks. The caller
+ * holds the port, so an existing regular file of ours is left from an earlier run.
+ */
+function writeSharedOAuthKey(keyPath: string, key: string): void {
+  const flags =
+    fs.constants.O_WRONLY |
+    fs.constants.O_CREAT |
+    fs.constants.O_EXCL |
+    (fs.constants.O_NOFOLLOW ?? 0);
+  let fd: number;
+  try {
+    fd = fs.openSync(keyPath, flags, 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+      throw error;
+    }
+    const stat = fs.lstatSync(keyPath);
+    const uid = process.getuid?.();
+    if (!stat.isFile() || (uid !== undefined && stat.uid !== uid)) {
+      throw new Error(
+        `Refusing to replace ${keyPath}: not a regular file owned by the current user`
+      );
+    }
+    fs.unlinkSync(keyPath);
+    fd = fs.openSync(keyPath, flags, 0o600);
+  }
+  try {
+    fs.writeSync(fd, key);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function removeSharedOAuthKey(keyPath: string, key: string): void {
+  try {
+    if (fs.readFileSync(keyPath, "utf8").trim() === key) {
+      fs.unlinkSync(keyPath);
+    }
+  } catch {
+    // Best effort
+  }
+}
+
+async function readSharedOAuthKeyAsync(port: number): Promise<string> {
+  const keyPath = sharedOAuthKeyPath(port);
+  let problem = "ENOENT";
+  // The other process writes its key right after it binds the port.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    try {
+      const key = fs.readFileSync(keyPath, "utf8").trim();
+      if (/^[0-9a-f]{64}$/.test(key)) {
+        return key;
+      }
+      problem = "unexpected content";
+    } catch (error) {
+      problem = (error as NodeJS.ErrnoException).code ?? String(error);
+      if (problem !== "ENOENT") {
+        break;
+      }
+    }
+  }
+  throw new Error(
+    `cannot read OAuth server key ${keyPath} (${problem}); the process holding port ${port} ` +
+      "must run as the same OS user with the same home directory"
+  );
+}
+
+/**
+ * Host headers the shared OAuth callback server answers: loopback names with
+ * its port, plus the configured redirect URI host. The listener is bound to
+ * 127.0.0.1, so any other Host comes from a name that merely resolves there
+ * (DNS rebinding).
+ */
+function sharedOAuthAllowedHosts(port: number, redirectUri: string): Set<string> {
+  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
+  try {
+    hosts.add(new URL(redirectUri).host.toLowerCase());
+  } catch {
+    // Malformed redirectUri: loopback names only
+  }
+  return hosts;
+}
+
+function sharedOAuthKeyMatches(provided: string | string[] | undefined, expected: string): boolean {
+  if (typeof provided !== "string") {
+    return false;
+  }
+  const digest = (value: string) => crypto.createHash("sha256").update(value).digest();
+  return crypto.timingSafeEqual(digest(provided), digest(expected));
 }
 
 /**
@@ -113,12 +240,14 @@ async function isPortInUse(port: number): Promise<boolean> {
  * Request authentication from an existing OAuth server
  */
 async function requestAuthFromExistingServer(port: number, requestId: string): Promise<TokenData> {
+  const key = await readSharedOAuthKeyAsync(port);
   return new Promise((resolve, reject) => {
     const options = {
       hostname: "127.0.0.1",
       port: port,
       path: `/auth-request?requestId=${requestId}`,
       method: "GET",
+      headers: { [SHARED_OAUTH_KEY_HEADER]: key },
     };
 
     const req = http.request(options, res => {
@@ -136,6 +265,12 @@ async function requestAuthFromExistingServer(port: number, requestId: string): P
           } catch (error) {
             reject(new Error(`Failed to parse token data: ${error}`));
           }
+        } else if (res.statusCode === 403) {
+          reject(
+            new Error(
+              `OAuth server on port ${port} rejected the request key; it may run as a different OS user or an older version`
+            )
+          );
         } else {
           reject(new Error(`Auth request failed with status ${res.statusCode}: ${data}`));
         }
@@ -363,8 +498,9 @@ export class GitLabOAuth {
         return await requestAuthFromExistingServer(callbackPort, requestId);
       } catch (error) {
         logger.error({ err: error }, "Failed to connect to existing OAuth server");
+        const reason = error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Port ${callbackPort} is in use but cannot connect to existing OAuth server. Please close other instances or use a different port.`
+          `Port ${callbackPort} is in use but cannot connect to existing OAuth server: ${reason}. Please close other instances or use a different port.`
         );
       }
     }
@@ -382,6 +518,9 @@ export class GitLabOAuth {
   ): Promise<TokenData> {
     const stateToRequestId = new Map<string, string>();
     const requestIdToOAuthInstance = new Map<string, GitLabOAuth>();
+    const allowedHosts = sharedOAuthAllowedHosts(callbackPort, this.config.redirectUri);
+    const keyPath = sharedOAuthKeyPath(callbackPort);
+    const key = crypto.randomBytes(32).toString("hex");
 
     return new Promise((resolve, reject) => {
       // Create initial request
@@ -401,10 +540,23 @@ export class GitLabOAuth {
 
       const server = http.createServer(async (req, res) => {
         try {
+          // Only answer requests addressed to this listener by an expected name
+          if (!allowedHosts.has((req.headers.host || "").toLowerCase())) {
+            res.writeHead(403, { "Content-Type": "text/plain" });
+            res.end("Forbidden");
+            return;
+          }
+
           const parsedUrl = url.parse(req.url || "", true);
 
           // Handle auth requests from other MCP instances
           if (parsedUrl.pathname === "/auth-request") {
+            if (!sharedOAuthKeyMatches(req.headers[SHARED_OAUTH_KEY_HEADER], key)) {
+              res.writeHead(403, { "Content-Type": "text/plain" });
+              res.end("Forbidden");
+              return;
+            }
+
             const newRequestId = parsedUrl.query.requestId as string;
             if (!newRequestId) {
               res.writeHead(400, { "Content-Type": "text/plain" });
@@ -425,7 +577,7 @@ export class GitLabOAuth {
             const authUrl = await this.getAuthorizationUrl(newState);
             logger.info("Opening browser for new authentication request...");
             logger.info(`If browser doesn't open, visit: ${redactUrlSecretsInText(authUrl)}`);
-            open(authUrl).catch(err => {
+            (this.config.openBrowser ?? open)(authUrl).catch(err => {
               logger.error({ err }, "Failed to open browser");
               logger.info(`Please manually open: ${redactUrlSecretsInText(authUrl)}`);
             });
@@ -589,11 +741,26 @@ export class GitLabOAuth {
       });
 
       server.listen(callbackPort, "127.0.0.1", async () => {
+        sharedOAuthServers.add(server);
+        try {
+          writeSharedOAuthKey(keyPath, key);
+          const removeKey = () => removeSharedOAuthKey(keyPath, key);
+          process.once("exit", removeKey);
+          server.once("close", () => {
+            process.removeListener("exit", removeKey);
+            removeKey();
+          });
+        } catch (error) {
+          logger.warn(
+            { err: error },
+            `Failed to write ${keyPath}; other MCP instances cannot use this OAuth callback server`
+          );
+        }
         logger.info(`Shared OAuth callback server listening on port ${callbackPort}`);
         const authUrl = await this.getAuthorizationUrl(state);
         logger.info("Opening browser for authentication...");
         logger.info(`If browser doesn't open, visit: ${redactUrlSecretsInText(authUrl)}`);
-        open(authUrl).catch(err => {
+        (this.config.openBrowser ?? open)(authUrl).catch(err => {
           logger.error({ err }, "Failed to open browser");
           logger.info(`Please manually open: ${redactUrlSecretsInText(authUrl)}`);
         });

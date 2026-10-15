@@ -65,6 +65,16 @@ describe("When MCP tool descriptions are exposed", () => {
     });
   });
 
+  describe("with get_* tools", () => {
+    it("should point to a list or search tool only when one exists", () => {
+      assert.match(getExposedTool("get_branch").description, /matching list or search tool/);
+      assert.doesNotMatch(
+        getExposedTool("get_dependency_proxy_settings").description,
+        /matching list or search tool/
+      );
+    });
+  });
+
   describe("with get_merge_request", () => {
     it("should name the merge request lookup fields exactly as exposed by the schema", () => {
       const tool = getExposedTool("get_merge_request");

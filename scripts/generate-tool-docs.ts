@@ -87,7 +87,7 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
   if ((id as string) === "meta") {
-    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable unless they match `GITLAB_DENIED_TOOLS_REGEX`.";
+    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
@@ -490,7 +490,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "| Marker | Meaning |",
     "|---|---|",
     "| 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |",
-    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. |",
+    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. `download_attachment` and `download_job_artifacts` only read GitLab but save files to the local disk in stdio mode; readonly mode lists them and rejects any call that would write a file. |",
     "| ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |",
     "",
     "## Browse by group",
