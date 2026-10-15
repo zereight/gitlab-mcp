@@ -119,7 +119,11 @@ jobs:
         if: needs.generate.outputs.changed == 'true'
         run: |
           git apply --index "$RUNNER_TEMP/tool-docs/tool-docs.patch"
-          unexpected="$(git diff --cached --name-only | grep -Ev '^(docs/tools/|docs/reference/tool-coverage\.md$)' || true)"
+          unexpected="$(git diff --cached --name-only --no-renames | grep -Ev '^(docs/tools/|docs/reference/tool-coverage\.md$)' || true)"
+          if git diff --cached --summary --no-renames | grep -qE 'mode 120000|mode change'; then
+            echo "::error::Generated-docs patch adds a symlink or changes a file mode"
+            exit 1
+          fi
           if [ -n "$unexpected" ]; then
             echo "::error::Generated-docs patch touches paths outside docs/tools/ and docs/reference/tool-coverage.md:"
             echo "$unexpected"
