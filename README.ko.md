@@ -140,6 +140,12 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.0`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
+#### Claude Desktop 원클릭 설치(MCP Bundle)
+
+v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)이 첨부됩니다. [최신 번들](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb)을 내려받아 Claude Desktop으로 열거나 **Settings → Extensions**에 끌어다 놓으세요. Claude Desktop이 Personal Access Token을 입력받아 민감 정보로 저장하고, `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS`, `GITLAB_MASKING_ENABLED`를 설정할 수 있게 합니다. Node.js나 npm을 따로 설치할 필요가 없습니다.
+
+소스에서 번들을 만들려면 `npm run pack:mcpb`를 실행하세요(`gitlab-mcp.mcpb` 생성).
+
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
 일부 MCP 클라이언트(예: GitHub Copilot CLI)는 환경 변수 처리에 문제가 있을 수 있습니다. 이 경우 CLI 인자를 사용하세요.

@@ -69,6 +69,7 @@
     "lint:fix": "eslint . --fix",
     "release": "bash scripts/release.sh",
     "release:mcp-registry": "bash scripts/publish_mcp_registry.sh",
+    "pack:mcpb": "npm run build && bash scripts/pack-mcpb.sh",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },

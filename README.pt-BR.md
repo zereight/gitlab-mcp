@@ -140,6 +140,12 @@ Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito qu
 
 Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.0`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
+#### Instalação com um clique no Claude Desktop (MCP Bundle)
+
+Cada release no GitHub posterior à v2.3.1 inclui um [MCP Bundle](https://github.com/modelcontextprotocol/mcpb) `gitlab-mcp.mcpb`. Baixe o [bundle mais recente](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb) e abra-o com o Claude Desktop (ou arraste-o para **Settings → Extensions**). O Claude Desktop pede seu Personal Access Token (armazenado como valor sensível) e permite definir `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS` e `GITLAB_MASKING_ENABLED`. Não é preciso instalar Node.js ou npm separadamente.
+
+Para gerar o bundle a partir do código-fonte, execute `npm run pack:mcpb` (gera `gitlab-mcp.mcpb`).
+
 #### Usando argumentos de CLI (para clientes com problemas com variáveis de ambiente)
 
 Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de ambiente. Nesse caso, use argumentos de CLI:
