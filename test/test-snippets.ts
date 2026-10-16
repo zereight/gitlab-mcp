@@ -2,6 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-snippets";
 const TEST_PROJECT_ID = "456";
@@ -80,6 +81,10 @@ async function callTool(
         const response = JSON.parse(line);
         if (response.error) {
           reject(response.error);
+          return;
+        }
+        if (response.result?.isError === true) {
+          resolve(response.result);
           return;
         }
 
@@ -797,36 +802,34 @@ describe("snippet tools", () => {
   });
 
   test("update_snippet rejects files[] move action without previous_path at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            files: [{ action: "move", file_path: "new.md" }],
-          },
-          env()
-        ),
-      (err: any) => /previous_path.*required.*move/i.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          files: [{ action: "move", file_path: "new.md" }],
+        },
+        env()
+      ),
+      /previous_path.*required.*move/i
     );
   });
 
   test("update_snippet rejects mixing files[] with file_name/content", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            file_name: "a.txt",
-            content: "x",
-            files: [{ action: "update", file_path: "a.txt", content: "y" }],
-          },
-          env()
-        ),
-      (err: any) => /Cannot mix files\[\] with file_name\/content/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          file_name: "a.txt",
+          content: "x",
+          files: [{ action: "update", file_path: "a.txt", content: "y" }],
+        },
+        env()
+      ),
+      /Cannot mix files\[\] with file_name\/content/
     );
   });
 
@@ -986,132 +989,123 @@ describe("snippet tools", () => {
   });
 
   test("create_snippet rejects mixing files[] with file_name/content", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "create_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            title: "Bad mix",
-            file_name: "a.txt",
-            content: "x",
-            files: [{ file_path: "b.txt", content: "y" }],
-          },
-          env()
-        ),
-      (err: any) => /Cannot mix files\[\] with file_name\/content/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "create_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          title: "Bad mix",
+          file_name: "a.txt",
+          content: "x",
+          files: [{ file_path: "b.txt", content: "y" }],
+        },
+        env()
+      ),
+      /Cannot mix files\[\] with file_name\/content/
     );
   });
 
   test("create_snippet rejects when neither files[] nor file_name+content provided", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "create_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            title: "Empty",
-          },
-          env()
-        ),
-      (err: any) =>
-        /Provide either files\[\] .* or both file_name and content/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "create_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          title: "Empty",
+        },
+        env()
+      ),
+      /Provide either files\[\] .* or both file_name and content/
     );
   });
 
   test("update_snippet rejects files[] create action without content at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            files: [{ action: "create", file_path: "a.md" }],
-          },
-          env()
-        ),
-      (err: any) => /content is required for action: 'create'/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          files: [{ action: "create", file_path: "a.md" }],
+        },
+        env()
+      ),
+      /content is required for action: 'create'/
     );
   });
 
   test("update_snippet rejects files[] update action without content at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            files: [{ action: "update", file_path: "a.md" }],
-          },
-          env()
-        ),
-      (err: any) => /content is required for action: 'update'/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          files: [{ action: "update", file_path: "a.md" }],
+        },
+        env()
+      ),
+      /content is required for action: 'update'/
     );
   });
 
   test("update_snippet rejects files[] action without file_path at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            files: [{ action: "delete" }],
-          },
-          env()
-        ),
-      (err: any) => /file_path is required/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          files: [{ action: "delete" }],
+        },
+        env()
+      ),
+      /file_path is required/
     );
   });
 
   test("update_snippet rejects empty files[] array at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            files: [],
-          },
-          env()
-        ),
-      (err: any) => /files\[\] must be non-empty/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          files: [],
+        },
+        env()
+      ),
+      /files\[\] must be non-empty/
     );
   });
 
   test("update_snippet rejects file_name without content at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            file_name: "new-name.txt",
-          },
-          env()
-        ),
-      (err: any) => /file_name requires content/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          file_name: "new-name.txt",
+        },
+        env()
+      ),
+      /file_name requires content/
     );
   });
 
   test("update_snippet rejects content without file_name at parse time", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_snippet",
-          {
-            project_id: TEST_PROJECT_ID,
-            snippet_id: TEST_PROJECT_SNIPPET_ID,
-            content: "orphan content",
-          },
-          env()
-        ),
-      (err: any) => /content requires file_name/.test(JSON.stringify(err))
+    await expectToolError(
+      callTool(
+        "update_snippet",
+        {
+          project_id: TEST_PROJECT_ID,
+          snippet_id: TEST_PROJECT_SNIPPET_ID,
+          content: "orphan content",
+        },
+        env()
+      ),
+      /content requires file_name/
     );
   });
 

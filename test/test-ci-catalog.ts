@@ -2,6 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "mock-ci-catalog-token";
 
@@ -42,6 +43,10 @@ async function callTool(
         const response = JSON.parse(line);
         if (response.error) {
           reject(new Error(response.error.message ?? JSON.stringify(response.error)));
+          return;
+        }
+        if (response.result?.isError === true) {
+          resolve(response.result);
           return;
         }
 
@@ -195,20 +200,19 @@ describe("CI/CD Catalog tools", () => {
   });
 
   test("get_ci_catalog_resource rejects empty identity values", async () => {
-    await assert.rejects(
-      () => callTool("get_ci_catalog_resource", { full_path: "" }, env()),
+    await expectToolError(
+      callTool("get_ci_catalog_resource", { full_path: "" }, env()),
       /full_path|Too small|minLength|invalid/i
     );
   });
 
   test("get_ci_catalog_resource rejects multiple identity values", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "get_ci_catalog_resource",
-          { id: "gid://gitlab/Ci::Catalog::Resource/1", full_path: "components/docker" },
-          env()
-        ),
+    await expectToolError(
+      callTool(
+        "get_ci_catalog_resource",
+        { id: "gid://gitlab/Ci::Catalog::Resource/1", full_path: "components/docker" },
+        env()
+      ),
       /exactly one|id|full_path/i
     );
   });

@@ -154,4 +154,23 @@ describe("GitLab API tool errors", () => {
     assert.notEqual(recovery.isError, true);
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
   });
+
+  test("returns argument validation failures as a tool error", async t => {
+    const client = await startServer(t);
+
+    const invalidArguments = await client.callTool({
+      name: "verify_namespace",
+      arguments: { parent_id: "abc" },
+    });
+    assert.equal(invalidArguments.isError, true);
+    const text = resultText(invalidArguments);
+    assert.match(text, /^Invalid arguments for verify_namespace: path: .+; parent_id: .+$/);
+
+    const recovery = await client.callTool({
+      name: "verify_namespace",
+      arguments: { path: "core" },
+    });
+    assert.notEqual(recovery.isError, true);
+    assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
+  });
 });

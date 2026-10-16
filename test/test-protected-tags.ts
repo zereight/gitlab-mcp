@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import { ProtectTagSchema } from "../schemas.js";
 import { toJSONSchema } from "../utils/schema.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-protected-tags";
 const TEST_PROJECT_ID = "123";
@@ -60,6 +61,10 @@ async function callTool(
       const response = JSON.parse(line);
       if (response.error) {
         reject(new Error(response.error.message ?? JSON.stringify(response.error)));
+        return;
+      }
+      if (response.result?.isError === true) {
+        resolve(response.result);
         return;
       }
 
@@ -232,17 +237,16 @@ describe("protected tag tools", () => {
   });
 
   test("protect_tag rejects access levels outside the protected tag API", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "protect_tag",
-          {
-            project_id: TEST_PROJECT_ID,
-            tag_name: TEST_TAG,
-            create_access_level: 60,
-          },
-          env()
-        ),
+    await expectToolError(
+      callTool(
+        "protect_tag",
+        {
+          project_id: TEST_PROJECT_ID,
+          tag_name: TEST_TAG,
+          create_access_level: 60,
+        },
+        env()
+      ),
       /Access level must be one of 0 \(No access\), 30 \(Developer\), or 40 \(Maintainer\)/
     );
   });

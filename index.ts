@@ -15769,10 +15769,11 @@ async function handleToolCall(params: any) {
     // Sensitive fields are also covered by REDACT_PATHS if arguments are logged elsewhere.
     logger.debug({ tool: params.name }, "Tool call failed");
     if (error instanceof z.ZodError) {
-      throw new Error(
-        `Invalid arguments: ${error.issues
-          .map(e => `${e.path.join(".")}: ${e.message}`)
-          .join(", ")}`
+      // ToolInputError is returned as an isError tool result, so the model can fix and retry.
+      throw new ToolInputError(
+        `Invalid arguments for ${params.name}: ${error.issues
+          .map(e => (e.path.length > 0 ? `${e.path.join(".")}: ${e.message}` : e.message))
+          .join("; ")}`
       );
     }
     throw error;

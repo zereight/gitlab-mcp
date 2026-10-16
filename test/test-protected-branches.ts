@@ -2,6 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-protected-branches";
 const TEST_PROJECT_ID = "123";
@@ -75,6 +76,10 @@ async function callTool(
       const response = JSON.parse(line);
       if (response.error) {
         reject(new Error(response.error.message ?? JSON.stringify(response.error)));
+        return;
+      }
+      if (response.result?.isError === true) {
+        resolve(response.result);
         return;
       }
 
@@ -216,17 +221,16 @@ describe("protected branch tools", () => {
   });
 
   test("protect_branch rejects invalid access levels before calling GitLab", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "protect_branch",
-          {
-            project_id: TEST_PROJECT_ID,
-            branch_name: TEST_BRANCH,
-            push_access_level: 99,
-          },
-          env()
-        ),
+    await expectToolError(
+      callTool(
+        "protect_branch",
+        {
+          project_id: TEST_PROJECT_ID,
+          branch_name: TEST_BRANCH,
+          push_access_level: 99,
+        },
+        env()
+      ),
       /Access level must be one of/
     );
   });

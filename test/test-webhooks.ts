@@ -2,6 +2,7 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-webhooks";
 const TEST_PROJECT_ID = "123";
@@ -59,6 +60,8 @@ async function callTool(
         const response = JSON.parse(line);
         if (response.error) {
           reject(new Error(response.error?.message ?? String(response.error)));
+        } else if (response.result?.isError === true) {
+          resolve(response.result);
         } else {
           const content = response.result?.content?.[0]?.text;
           resolve(content ? JSON.parse(content) : response.result);
@@ -281,17 +284,16 @@ describe("When managing webhooks", () => {
 
   describe("with invalid scope", () => {
     test("should reject when both project_id and group_id are provided", async () => {
-      await assert.rejects(
-        () =>
-          callTool(
-            "create_webhook",
-            {
-              project_id: TEST_PROJECT_ID,
-              group_id: TEST_GROUP_ID,
-              url: "https://example.com/hook",
-            },
-            baseEnv
-          ),
+      await expectToolError(
+        callTool(
+          "create_webhook",
+          {
+            project_id: TEST_PROJECT_ID,
+            group_id: TEST_GROUP_ID,
+            url: "https://example.com/hook",
+          },
+          baseEnv
+        ),
         /project_id or group_id/
       );
     });
