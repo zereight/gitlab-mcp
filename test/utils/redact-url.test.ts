@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { redactGitLabUrlCredentials, redactUrlSecretsInText } from "../../utils/redact-url.js";
+import {
+  redactGitLabUrlCredentials,
+  redactUrlSecretsInText,
+  splitCommaSeparatedUrls,
+} from "../../utils/redact-url.js";
 
 describe("When redactUrlSecretsInText runs", () => {
   describe("with userinfo", () => {
@@ -173,9 +177,50 @@ describe("When redactUrlSecretsInText runs", () => {
 
   describe("with a special scheme, no slashes, and a path", () => {
     it("should redact the userinfo and keep the path", () => {
+      assert.equal(redactUrlSecretsInText("http:u:p@host/path"), "http:[REDACTED]@host/path");
+    });
+  });
+
+  describe("with a single slash after the scheme", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(redactUrlSecretsInText("https:/user:pass@host"), "https:/[REDACTED]@host");
+    });
+  });
+
+  describe("with a sensitive fragment", () => {
+    it("should redact private_token and access_token", () => {
       assert.equal(
-        redactUrlSecretsInText("http:u:p@host/path"),
-        "http:[REDACTED]@host/path"
+        redactUrlSecretsInText("https://host/path#private_token=sekrit&access_token=other"),
+        "https://host/path#private_token=[REDACTED]&access_token=[REDACTED]"
+      );
+    });
+  });
+
+  describe("with a non-sensitive fragment", () => {
+    it("should leave the fragment unchanged", () => {
+      assert.equal(redactUrlSecretsInText("https://host/path#page=1"), "https://host/path#page=1");
+    });
+  });
+
+  describe("with a URL in surrounding prose", () => {
+    it("should redact standard userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("see https://user:pass@host later"),
+        "see https://[REDACTED]@host later"
+      );
+    });
+
+    it("should redact a slashless scheme", () => {
+      assert.equal(
+        redactUrlSecretsInText("see https:user:pass@host later"),
+        "see https:[REDACTED]@host later"
+      );
+    });
+
+    it("should redact a single-slash scheme", () => {
+      assert.equal(
+        redactUrlSecretsInText("see https:/user:pass@host later"),
+        "see https:/[REDACTED]@host later"
       );
     });
   });
@@ -211,9 +256,93 @@ describe("When redactGitLabUrlCredentials runs", () => {
 
   describe("with a special scheme, no slashes, and a path", () => {
     it("should strip the userinfo and keep the path", () => {
+      assert.equal(redactGitLabUrlCredentials("http:u:p@host/path"), "http://host/path");
+    });
+  });
+
+  describe("with a single slash after the scheme", () => {
+    it("should strip the userinfo", () => {
+      assert.equal(redactGitLabUrlCredentials("https:/user:pass@host"), "https://host/");
+    });
+  });
+
+  describe("with a sensitive fragment", () => {
+    it("should redact private_token", () => {
       assert.equal(
-        redactGitLabUrlCredentials("http:u:p@host/path"),
-        "http://host/path"
+        redactGitLabUrlCredentials("https://gitlab.example/api/v4#private_token=sekrit"),
+        "https://gitlab.example/api/v4#private_token=[REDACTED]"
+      );
+    });
+  });
+});
+
+describe("When splitCommaSeparatedUrls runs", () => {
+  describe("with a comma inside the password", () => {
+    it("should keep the URL in one piece", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://user:pass,word@host"), [
+        "https://user:pass,word@host",
+      ]);
+    });
+  });
+
+  describe("with a comma inside the password and a later URL", () => {
+    it("should split only between URLs", () => {
+      assert.deepEqual(
+        splitCommaSeparatedUrls("https://user:pass,word@host,https://b.example/api/v4"),
+        ["https://user:pass,word@host", "https://b.example/api/v4"]
+      );
+    });
+  });
+
+  describe("with several commas inside the password", () => {
+    it("should split only between URLs", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://user:p,a,ss@host,https://b.example"), [
+        "https://user:p,a,ss@host",
+        "https://b.example",
+      ]);
+    });
+  });
+
+  describe("with a comma-separated list and no userinfo", () => {
+    it("should split on the comma", () => {
+      assert.deepEqual(
+        splitCommaSeparatedUrls("https://a.example/api/v4, https://b.example/api/v4"),
+        ["https://a.example/api/v4", "https://b.example/api/v4"]
+      );
+    });
+  });
+
+  describe("with a port and a later URL", () => {
+    it("should split on the comma", () => {
+      assert.deepEqual(
+        splitCommaSeparatedUrls("https://gitlab.example:443,https://other.example"),
+        ["https://gitlab.example:443", "https://other.example"]
+      );
+    });
+  });
+
+  describe("with a slashless scheme and a comma inside the password", () => {
+    it("should keep the URL in one piece", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https:user:pass,word@host"), [
+        "https:user:pass,word@host",
+      ]);
+    });
+  });
+
+  describe("with a single-slash scheme and a comma inside the password", () => {
+    it("should split only between URLs", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https:/user:pass,word@host,https://b.example"), [
+        "https:/user:pass,word@host",
+        "https://b.example",
+      ]);
+    });
+  });
+
+  describe("with a comma inside the password", () => {
+    it("should redact the intact URL", () => {
+      assert.deepEqual(
+        splitCommaSeparatedUrls("https://user:pass,word@host").map(redactUrlSecretsInText),
+        ["https://[REDACTED]@host"]
       );
     });
   });
