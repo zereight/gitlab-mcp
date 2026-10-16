@@ -217,6 +217,7 @@ import {
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
   classifyHealthCheckTransportError,
+  describeFetchTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
 import { redactUrlSecretsInText } from "./utils/redact-url.js";
@@ -15774,6 +15775,11 @@ async function handleToolCall(params: any) {
           .map(e => `${e.path.join(".")}: ${e.message}`)
           .join(", ")}`
       );
+    }
+    // undici says only "fetch failed"; name the reason (TLS, DNS, refused, ...).
+    const transportMessage = describeFetchTransportError(error);
+    if (transportMessage !== null) {
+      throw new Error(transportMessage, { cause: error });
     }
     throw error;
   }

@@ -3,6 +3,8 @@
  * health_check must report these as a normal tool result: the caller is
  * already asking whether the connection works, so a JSON-RPC -32603 hides the
  * only signal they came for.
+ * Other tools keep the JSON-RPC error, but describeFetchTransportError puts the
+ * reason in its message.
  *
  * node-fetch puts the OS code on `code` / `errno`. undici leaves `code` empty
  * on the TypeError and stores it on `cause.code` (errno there is numeric).
@@ -42,6 +44,17 @@ const TLS_CA_HINT =
 
 const FALLBACK_MESSAGE = "GitLab request failed before an HTTP response";
 
+// undici rejects with exactly this TypeError message and keeps the reason on `cause`.
+const UNDICI_FETCH_FAILED_MESSAGE = "fetch failed";
+
+const TRANSPORT_HINTS: Readonly<Record<HealthCheckTransportErrorKind, string>> = {
+  tls: TLS_CA_HINT,
+  dns: "Check the host in the GitLab API URL and the DNS or proxy settings.",
+  timeout: "Check that GitLab is reachable from this host and the proxy settings.",
+  network:
+    "Check the GitLab API URL, that GitLab is reachable from this host, and the proxy settings.",
+};
+
 export function classifyHealthCheckTransportError(error: unknown): HealthCheckTransportError {
   const code = readTransportCode(error);
   const kind = classifyKind(error, code);
@@ -54,6 +67,21 @@ export function classifyHealthCheckTransportError(error: unknown): HealthCheckTr
     failure.hint = TLS_CA_HINT;
   }
   return failure;
+}
+
+/**
+ * Message for a tool call whose fetch never got an HTTP response, e.g.
+ * "GitLab request failed before an HTTP response (ENOTFOUND): fetch failed:
+ * getaddrinfo ENOTFOUND gitlab.example.com. Check the host ...".
+ * Returns null for anything that is not undici's "fetch failed" TypeError.
+ */
+export function describeFetchTransportError(error: unknown): string | null {
+  if (!(error instanceof TypeError) || error.message !== UNDICI_FETCH_FAILED_MESSAGE) {
+    return null;
+  }
+  const failure = classifyHealthCheckTransportError(error);
+  const reason = failure.code ?? failure.kind;
+  return `${FALLBACK_MESSAGE} (${reason}): ${failure.message}. ${TRANSPORT_HINTS[failure.kind]}`;
 }
 
 function classifyKind(error: unknown, code: string | null): HealthCheckTransportErrorKind {
