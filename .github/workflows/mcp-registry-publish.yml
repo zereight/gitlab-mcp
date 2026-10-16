@@ -111,7 +111,7 @@ jobs:
           TAG_URL="https://hub.docker.com/v2/repositories/${REF%:*}/tags/${REF##*:}"
 
           for attempt in {1..90}; do
-            STATUS="$(curl -s -o /dev/null -w '%{http_code}' "$TAG_URL" || true)"
+            STATUS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$TAG_URL" || true)"
             if [ "$STATUS" = "200" ]; then
               exit 0
             fi
