@@ -46,7 +46,16 @@ async function callTool(
         }
 
         const content = response.result?.content?.[0]?.text;
-        resolve(content ? JSON.parse(content) : response.result);
+        if (!content) {
+          resolve(response.result);
+          return;
+        }
+        const parsed = JSON.parse(content);
+        if (content !== JSON.stringify(parsed)) {
+          reject(new Error(`${toolName} returned pretty-printed JSON`));
+          return;
+        }
+        resolve(parsed);
       } catch (error) {
         reject(error);
       }
