@@ -37,6 +37,11 @@ async function startServer(t: TestContext) {
       return;
     }
 
+    if (req.url === "/api/v4/namespaces/malformed/exists") {
+      res.end(JSON.stringify({ exists: true, suggests: "nope" }));
+      return;
+    }
+
     res.statusCode = 404;
     res.end(JSON.stringify({ message: "Not found" }));
   });
@@ -165,6 +170,26 @@ describe("GitLab API tool errors", () => {
     assert.equal(invalidArguments.isError, true);
     const text = resultText(invalidArguments);
     assert.match(text, /^Invalid arguments for verify_namespace: path: .+; parent_id: .+$/);
+
+    const recovery = await client.callTool({
+      name: "verify_namespace",
+      arguments: { path: "core" },
+    });
+    assert.notEqual(recovery.isError, true);
+    assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
+  });
+
+  test("does not report a malformed GitLab response as invalid arguments", async t => {
+    const client = await startServer(t);
+
+    await assert.rejects(
+      client.callTool({ name: "verify_namespace", arguments: { path: "malformed" } }),
+      (error: Error) => {
+        assert.match(error.message, /Unexpected GitLab response for verify_namespace: suggests: /);
+        assert.doesNotMatch(error.message, /Invalid arguments/);
+        return true;
+      }
+    );
 
     const recovery = await client.callTool({
       name: "verify_namespace",

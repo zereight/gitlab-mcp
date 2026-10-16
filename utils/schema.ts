@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+// JSON Schema produced by toJSONSchema -> the Zod schema it came from.
+const zodSchemaByJsonSchema = new WeakMap<object, z.ZodTypeAny>();
+
+/**
+ * Returns the Zod schema a toJSONSchema() result was built from, if any.
+ */
+export const zodSchemaFor = (jsonSchema: unknown): z.ZodTypeAny | undefined =>
+  jsonSchema && typeof jsonSchema === "object" ? zodSchemaByJsonSchema.get(jsonSchema) : undefined;
+
 /**
  * Convert a Zod schema to JSON Schema, fixing nullable/optional fields
  * so they are not marked as required, and extracting required fields from the Zod schema.
@@ -183,5 +192,6 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
     }
   }
 
+  zodSchemaByJsonSchema.set(fixedSchema, schema);
   return fixedSchema;
 };

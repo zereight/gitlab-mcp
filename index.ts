@@ -259,6 +259,7 @@ import {
   applySearchReplace,
   applyUnifiedDiff,
 } from "./utils/patch-helper.js";
+import { zodSchemaFor } from "./utils/schema.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
   advertisesReadOnly,
@@ -15769,12 +15770,19 @@ async function handleToolCall(params: any) {
     // Sensitive fields are also covered by REDACT_PATHS if arguments are logged elsewhere.
     logger.debug({ tool: params.name }, "Tool call failed");
     if (error instanceof z.ZodError) {
-      // ToolInputError is returned as an isError tool result, so the model can fix and retry.
-      throw new ToolInputError(
-        `Invalid arguments for ${params.name}: ${error.issues
-          .map(e => (e.path.length > 0 ? `${e.path.join(".")}: ${e.message}` : e.message))
-          .join("; ")}`
+      const detail = error.issues
+        .map(e => (e.path.length > 0 ? `${e.path.join(".")}: ${e.message}` : e.message))
+        .join("; ");
+      // Response schemas throw ZodError too. If the arguments pass the tool's own
+      // schema, the failure came from parsing a GitLab response.
+      const argsSchema = zodSchemaFor(
+        allTools.find(tool => tool.name === params.name)?.inputSchema
       );
+      if (argsSchema?.safeParse(params.arguments).success) {
+        throw new Error(`Unexpected GitLab response for ${params.name}: ${detail}`);
+      }
+      // ToolInputError is returned as an isError tool result, so the model can fix and retry.
+      throw new ToolInputError(`Invalid arguments for ${params.name}: ${detail}`);
     }
     throw error;
   }
