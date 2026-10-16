@@ -1,7 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.zereight/gitlab-mcp",
+  "title": "GitLab MCP Server",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more.",
+  "websiteUrl": "https://zereight.github.io/gitlab-mcp/",
   "repository": {
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
