@@ -125,6 +125,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - **MR lookup**: provide `merge_request_iid` or `source_branch`
 - **list_issues**: default scope = created by current user. Use `scope: "all"` for all issues
 - **list_merge_requests**: without project_id returns user's MRs across all projects
+- **rebase_merge_request**: with `wait` true (default) returns the merge request plus `previous_sha` and `head_changed`
 - **CI catalog resource lookup**: provide exactly one of `id` or `full_path`
 - **emoji reactions**: merge request, issue, and work item reaction tools use GitLab emoji names like `thumbsup`, `rocket`, or `eyes`
 - **work items**: status and custom fields require GitLab Premium/Ultimate features

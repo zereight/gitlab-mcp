@@ -175,6 +175,7 @@ describe("rebase_merge_request tool", () => {
   let mockGitLabUrl: string;
   const rebaseBodies = new Map<string, Record<string, unknown>>();
   const statusQueries = new Map<string, Array<Record<string, unknown>>>();
+  const statusQueriesBeforeRebase = new Map<string, number>();
 
   function addRebaseHandler(iid: string) {
     mockGitLab.addMockHandler(
@@ -182,6 +183,7 @@ describe("rebase_merge_request tool", () => {
       `/projects/${TEST_PROJECT_ID}/merge_requests/${iid}/rebase`,
       (req, res) => {
         rebaseBodies.set(iid, req.body);
+        statusQueriesBeforeRebase.set(iid, statusQueries.get(iid)?.length ?? 0);
         res.status(202).json({ rebase_in_progress: true });
       }
     );
@@ -212,12 +214,18 @@ describe("rebase_merge_request tool", () => {
       addRebaseHandler(iid);
     }
     addStatusHandler(MR_ENQUEUE_ONLY, [{ rebase_in_progress: true }]);
+    // The first GET of a waiting call reads the head before the rebase.
     addStatusHandler(MR_SUCCESS, [
+      { rebase_in_progress: false },
       { rebase_in_progress: true },
       { rebase_in_progress: false, sha: NEW_SHA },
     ]);
-    addStatusHandler(MR_FAILED, [{ rebase_in_progress: false, merge_error: REBASE_FAILED }]);
+    addStatusHandler(MR_FAILED, [
+      { rebase_in_progress: false },
+      { rebase_in_progress: false, merge_error: REBASE_FAILED },
+    ]);
     addStatusHandler(MR_TIMEOUT, [{ rebase_in_progress: true }]);
+    addStatusHandler(MR_FORBIDDEN, [{ rebase_in_progress: false }]);
 
     mockGitLab.addMockHandler(
       "put",
@@ -263,7 +271,7 @@ describe("rebase_merge_request tool", () => {
     assert.deepStrictEqual(rebaseBodies.get(MR_SKIP_CI), { skip_ci: true });
   });
 
-  test("rebase_merge_request polls until the rebase ends and returns the merge request", async () => {
+  test("rebase_merge_request polls until the rebase ends and reports that the head moved", async () => {
     const result = await callTool(
       "rebase_merge_request",
       { project_id: TEST_PROJECT_ID, merge_request_iid: MR_SUCCESS, poll_interval_seconds: 1 },
@@ -273,12 +281,15 @@ describe("rebase_merge_request tool", () => {
     assert.strictEqual(result.rebase_in_progress, false);
     assert.strictEqual(result.merge_error, null);
     assert.strictEqual(result.sha, NEW_SHA);
+    assert.strictEqual(result.previous_sha, OLD_SHA);
+    assert.strictEqual(result.head_changed, true);
     const queries = statusQueries.get(MR_SUCCESS) ?? [];
-    assert.strictEqual(queries.length, 2);
+    assert.strictEqual(queries.length, 3);
+    assert.strictEqual(statusQueriesBeforeRebase.get(MR_SUCCESS), 1);
     assert.ok(queries.every(query => query.include_rebase_in_progress === "true"));
   });
 
-  test("rebase_merge_request returns merge_error when the rebase fails", async () => {
+  test("rebase_merge_request returns merge_error and an unmoved head when the rebase fails", async () => {
     const result = await callTool(
       "rebase_merge_request",
       { project_id: TEST_PROJECT_ID, merge_request_iid: MR_FAILED },
@@ -287,6 +298,9 @@ describe("rebase_merge_request tool", () => {
 
     assert.strictEqual(result.rebase_in_progress, false);
     assert.strictEqual(result.merge_error, REBASE_FAILED);
+    assert.strictEqual(result.previous_sha, OLD_SHA);
+    assert.strictEqual(result.head_changed, false);
+    assert.strictEqual(statusQueries.get(MR_FAILED)?.length, 2);
   });
 
   test("rebase_merge_request reports a timeout while the rebase still runs", async () => {

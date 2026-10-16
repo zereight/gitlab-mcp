@@ -12520,17 +12520,27 @@ async function handleToolCall(params: any) {
           timeout_seconds,
           poll_interval_seconds,
         } = RebaseMergeRequestSchema.parse(params.arguments);
-        const enqueued = await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
         if (!wait) {
+          const enqueued = await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
           return { content: [{ type: "text", text: JSON.stringify(enqueued) }] };
         }
+        const { mergeRequest: previous } = await getMergeRequestRebaseStatus(
+          project_id,
+          merge_request_iid
+        );
+        await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
         const { mergeRequest } = await waitForStatus(
           signal => getMergeRequestRebaseStatus(project_id, merge_request_iid, signal),
           TERMINAL_REBASE_STATUSES,
           timeout_seconds,
           poll_interval_seconds
         );
-        return { content: [{ type: "text", text: JSON.stringify(mergeRequest) }] };
+        const rebaseResult = {
+          ...mergeRequest,
+          previous_sha: previous.sha,
+          head_changed: mergeRequest.sha !== previous.sha,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(rebaseResult) }] };
       }
 
       case "get_merge_request_approval_state": {

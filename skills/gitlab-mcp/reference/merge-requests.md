@@ -69,7 +69,7 @@ rebase_merge_request
   project_id: "my-group/my-project"
   merge_request_iid: 42
   skip_ci: true          # optional, no pipeline for the rebased branch
-  wait: true             # default; polls until the rebase ends
+  wait: true             # default; polls until the rebase ends and returns previous_sha and head_changed
 ```
 
 **Warning**: `rebase_merge_request` is destructive - it force-pushes the rebased source branch.
