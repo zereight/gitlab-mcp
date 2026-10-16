@@ -27,11 +27,13 @@ SERVER_NAME=$(read_json server.json "name")
 SERVER_VERSION=$(read_json server.json "version")
 SERVER_PACKAGE_IDENTIFIER=$(read_json server.json "packages.0.identifier")
 SERVER_PACKAGE_VERSION=$(read_json server.json "packages.0.version")
+SERVER_OCI_IDENTIFIER=$(node -p "(JSON.parse(require('fs').readFileSync('server.json', 'utf8')).packages || []).find((pkg) => pkg.registryType === 'oci')?.identifier ?? ''")
 
 echo "MCP Registry publish preflight"
 echo "  server name        : $SERVER_NAME"
 echo "  package name       : $PACKAGE_NAME"
 echo "  package version    : $PACKAGE_VERSION"
+echo "  oci image          : ${SERVER_OCI_IDENTIFIER:-<none>}"
 
 if [ "$PACKAGE_MCP_NAME" != "$SERVER_NAME" ]; then
   echo "Error: package.json mcpName ($PACKAGE_MCP_NAME) must match server.json name ($SERVER_NAME)."
@@ -46,6 +48,21 @@ fi
 if [ "$PACKAGE_VERSION" != "$SERVER_VERSION" ] || [ "$PACKAGE_VERSION" != "$SERVER_PACKAGE_VERSION" ]; then
   echo "Error: package.json version ($PACKAGE_VERSION), server.json version ($SERVER_VERSION), and server package version ($SERVER_PACKAGE_VERSION) must match."
   exit 1
+fi
+
+if [ -n "$SERVER_OCI_IDENTIFIER" ]; then
+  SERVER_OCI_TAG="${SERVER_OCI_IDENTIFIER##*:}"
+  if [ "$SERVER_OCI_TAG" != "$PACKAGE_VERSION" ]; then
+    echo "Error: server.json OCI image tag ($SERVER_OCI_TAG) must match package.json version ($PACKAGE_VERSION)."
+    exit 1
+  fi
+
+  # The registry rejects OCI images whose label does not match the server name.
+  DOCKERFILE_SERVER_NAME=$(sed -n 's/^LABEL io\.modelcontextprotocol\.server\.name="\([^"]*\)".*/\1/p' Dockerfile)
+  if [ "$DOCKERFILE_SERVER_NAME" != "$SERVER_NAME" ]; then
+    echo "Error: Dockerfile label io.modelcontextprotocol.server.name (${DOCKERFILE_SERVER_NAME:-<missing>}) must match server.json name ($SERVER_NAME)."
+    exit 1
+  fi
 fi
 
 if [ "$CHECK_ONLY" = true ]; then

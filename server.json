@@ -171,6 +171,169 @@
           "format": "filepath"
         }
       ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GITLAB_PERSONAL_ACCESS_TOKEN",
+          "description": "GitLab personal access token for local stdio use. A non-empty value overrides GITLAB_PERSONAL_ACCESS_TOKEN_FILE. One of this token, GITLAB_PERSONAL_ACCESS_TOKEN_FILE, GITLAB_JOB_TOKEN, GITLAB_AUTH_COOKIE_PATH, or GITLAB_USE_OAUTH=true must be set. Create a token with the GitLab scopes the tools need, such as api or read_api.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_PERSONAL_ACCESS_TOKEN_FILE",
+          "description": "Path to a file that contains the personal access token. Read once at startup and trimmed. Ignored when GITLAB_PERSONAL_ACCESS_TOKEN or --token is non-empty. A missing, unreadable, or empty file stops startup. Does not replace job token, OAuth, cookie, or remote authorization.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_JOB_TOKEN",
+          "description": "Optional GitLab CI job token to use instead of a personal access token when running inside GitLab CI.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_AUTH_COOKIE_PATH",
+          "description": "Optional path to a GitLab authentication cookie file for cookie-based authentication.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_USE_OAUTH",
+          "description": "Set to true to start with GitLab OAuth instead of a personal access token, job token, or cookie file.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "boolean"
+        },
+        {
+          "name": "GITLAB_OAUTH_CLIENT_ID",
+          "description": "GitLab OAuth application ID. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_TOKEN_SCRIPT.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_OAUTH_TOKEN_SCRIPT",
+          "description": "Command that prints an OAuth access token. When GITLAB_USE_OAUTH=true, set this or GITLAB_OAUTH_CLIENT_ID.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_API_URL",
+          "description": "GitLab API base URL. Use https://gitlab.com/api/v4 for GitLab.com or your self-managed GitLab API URL.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "https://gitlab.com/api/v4"
+        },
+        {
+          "name": "GITLAB_ALLOWED_PROJECT_IDS",
+          "description": "Optional comma-separated list of GitLab project IDs that this server is allowed to access.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_PERMISSION_MODE",
+          "description": "Tool exposure. Allowed values are readonly, modify, and full. Unset uses full. readonly keeps read-only tools. modify blocks delete and teardown tools.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "choices": [
+            "readonly",
+            "modify",
+            "full"
+          ]
+        },
+        {
+          "name": "GITLAB_TOOLSETS",
+          "description": "Optional comma-separated list of toolsets to enable, such as projects, issues, merge_requests, pipelines, releases, users, groups, wiki, or search.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_TOOLS",
+          "description": "Optional comma-separated list of individual tool names to add on top of enabled toolsets.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_DENIED_TOOLS_REGEX",
+          "description": "Optional regular expression used to hide matching tools from the server.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_TOOL_POLICY_APPROVE",
+          "description": "Optional comma-separated list of tool names that require explicit approval before execution.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_TOOL_POLICY_HIDDEN",
+          "description": "Optional comma-separated list of tool names to hide from tools/list.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "NODE_TLS_REJECT_UNAUTHORIZED",
+          "description": "Set to 0 only when you intentionally need to connect to a GitLab instance with invalid or self-signed TLS certificates.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "GITLAB_CA_CERT_PATH",
+          "description": "Optional path to a custom CA certificate file for self-managed GitLab instances.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_ENABLED",
+          "description": "Set to true to mask text tool results and returned errors using built-in or configured rules.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "false"
+        },
+        {
+          "name": "GITLAB_MASKING_CONFIG",
+          "description": "Optional path to a response-masking JSON configuration file.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_POLICY_FILE",
+          "description": "Optional protected server-owned JSON file containing managed masking policies.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_WORKSPACE_DIR",
+          "description": "Directory used to resolve response-masking configuration paths.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        }
+      ]
     }
   ]
 }

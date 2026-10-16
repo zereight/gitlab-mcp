@@ -66,6 +66,8 @@ jobs:
         docker build -t mcp-gitlab-test .
         echo "Verifying Docker image contains built files..."
         docker run --rm --entrypoint "" mcp-gitlab-test ls -la build/index.js
+        echo "Verifying MCP Registry label matches server.json name..."
+        test "$(docker inspect --format '{{ index .Config.Labels "io.modelcontextprotocol.server.name" }}' mcp-gitlab-test)" = "$(jq -r .name server.json)"
         echo "Docker build verification passed"
 
   code-quality:
