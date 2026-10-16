@@ -10,6 +10,7 @@ build
 !docker/masking-config/.gitlab-mcp-mask.json
 coverage/
 *.log
+*.mcpb
 # ai
 .opencode*
 .aider*

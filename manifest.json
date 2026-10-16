@@ -1,0 +1,81 @@
+{
+  "manifest_version": "0.3",
+  "name": "gitlab-mcp",
+  "display_name": "GitLab MCP",
+  "version": "2.3.1",
+  "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
+  "long_description": "Connects Claude to GitLab.com or a self-managed GitLab instance with a Personal Access Token. Covers projects, repositories, merge requests, issues, pipelines, wiki, releases, and more. Use the permission mode and toolset settings to limit which tools are exposed.",
+  "author": {
+    "name": "zereight",
+    "url": "https://github.com/zereight"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zereight/gitlab-mcp.git"
+  },
+  "homepage": "https://github.com/zereight/gitlab-mcp",
+  "documentation": "https://zereight.github.io/gitlab-mcp/",
+  "support": "https://github.com/zereight/gitlab-mcp/issues",
+  "server": {
+    "type": "node",
+    "entry_point": "build/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/build/index.js"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${user_config.gitlab_personal_access_token}",
+        "GITLAB_API_URL": "${user_config.gitlab_api_url}",
+        "GITLAB_PERMISSION_MODE": "${user_config.gitlab_permission_mode}",
+        "GITLAB_TOOLSETS": "${user_config.gitlab_toolsets}",
+        "GITLAB_MASKING_ENABLED": "${user_config.gitlab_masking_enabled}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["gitlab", "merge-requests", "issues", "pipelines", "ci", "wiki"],
+  "license": "MIT",
+  "privacy_policies": ["https://about.gitlab.com/privacy/"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.17.0"
+    }
+  },
+  "user_config": {
+    "gitlab_personal_access_token": {
+      "type": "string",
+      "title": "GitLab Personal Access Token",
+      "description": "Personal Access Token with the api scope (read_api is enough with Permission Mode readonly).",
+      "sensitive": true,
+      "required": true
+    },
+    "gitlab_api_url": {
+      "type": "string",
+      "title": "GitLab API URL",
+      "description": "GitLab API base URL. Change this for self-managed GitLab (e.g. https://gitlab.example.com/api/v4).",
+      "default": "https://gitlab.com/api/v4",
+      "required": false
+    },
+    "gitlab_permission_mode": {
+      "type": "string",
+      "title": "Permission Mode",
+      "description": "Which tools are exposed: readonly (read-only tools only), modify (no delete/teardown tools), or full (all tools).",
+      "default": "full",
+      "required": false
+    },
+    "gitlab_toolsets": {
+      "type": "string",
+      "title": "Toolsets",
+      "description": "Optional comma-separated toolsets to enable (e.g. merge_requests,issues,pipelines, or all). Leave empty for the lean core toolset plus discover_tools.",
+      "default": "",
+      "required": false
+    },
+    "gitlab_masking_enabled": {
+      "type": "boolean",
+      "title": "Mask Sensitive Values",
+      "description": "Mask GitLab tokens and IP addresses in tool responses.",
+      "default": false,
+      "required": false
+    }
+  }
+}
