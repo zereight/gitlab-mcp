@@ -142,7 +142,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
-每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)。下载[最新的 bundle](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb)，用 Claude Desktop 打开（或拖到 **Settings → Extensions** 中）。Claude Desktop 会要求输入 Personal Access Token（作为敏感值保存），并可设置 `GITLAB_API_URL`、`GITLAB_PERMISSION_MODE`、`GITLAB_TOOLSETS` 和 `GITLAB_MASKING_ENABLED`。无需另外安装 Node.js 或 npm。
+v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)。下载[最新的 bundle](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb)，用 Claude Desktop 打开（或拖到 **Settings → Extensions** 中）。Claude Desktop 会要求输入 Personal Access Token（作为敏感值保存），并可设置 `GITLAB_API_URL`、`GITLAB_PERMISSION_MODE`、`GITLAB_TOOLSETS` 和 `GITLAB_MASKING_ENABLED`。无需另外安装 Node.js 或 npm。
 
 如需从源码构建 bundle，运行 `npm run pack:mcpb`（生成 `gitlab-mcp.mcpb`）。
 

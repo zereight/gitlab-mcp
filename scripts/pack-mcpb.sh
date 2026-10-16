@@ -5,8 +5,11 @@ set -euo pipefail
 
 MCPB_CLI="@anthropic-ai/mcpb@2.1.2"
 
-cd "$(dirname "$0")/.."
-OUTPUT="${1:-gitlab-mcp.mcpb}"
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+# Optional output path, relative to the caller's directory. Default: <repo>/gitlab-mcp.mcpb.
+OUTPUT="${1:-$repo_root/gitlab-mcp.mcpb}"
+case "$OUTPUT" in /*) ;; *) OUTPUT="$PWD/$OUTPUT" ;; esac
+cd "$repo_root"
 
 if [ ! -f build/index.js ]; then
   echo "❌ build/index.js not found. Run: npm run build"

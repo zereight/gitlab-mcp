@@ -147,7 +147,7 @@ No global install? Pin `npx` to the previous stable release (the version these d
 
 #### Claude Desktop one-click install (MCP Bundle)
 
-Each GitHub release ships a `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb). Download the [latest bundle](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb) and open it with Claude Desktop (or drag it into **Settings → Extensions**). Claude Desktop asks for your Personal Access Token (stored as a sensitive value) and lets you set `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS`, and `GITLAB_MASKING_ENABLED`. No separate Node.js or npm install is needed.
+Every GitHub release after v2.3.1 ships a `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb). Download the [latest bundle](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb) and open it with Claude Desktop (or drag it into **Settings → Extensions**). Claude Desktop asks for your Personal Access Token (stored as a sensitive value) and lets you set `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS`, and `GITLAB_MASKING_ENABLED`. No separate Node.js or npm install is needed.
 
 To build the bundle from source, run `npm run pack:mcpb` (writes `gitlab-mcp.mcpb`).
 

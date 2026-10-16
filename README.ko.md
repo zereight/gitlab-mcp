@@ -142,7 +142,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
-GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)이 첨부됩니다. [최신 번들](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb)을 내려받아 Claude Desktop으로 열거나 **Settings → Extensions**에 끌어다 놓으세요. Claude Desktop이 Personal Access Token을 입력받아 민감 정보로 저장하고, `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS`, `GITLAB_MASKING_ENABLED`를 설정할 수 있게 합니다. Node.js나 npm을 따로 설치할 필요가 없습니다.
+v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)이 첨부됩니다. [최신 번들](https://github.com/zereight/gitlab-mcp/releases/latest/download/gitlab-mcp.mcpb)을 내려받아 Claude Desktop으로 열거나 **Settings → Extensions**에 끌어다 놓으세요. Claude Desktop이 Personal Access Token을 입력받아 민감 정보로 저장하고, `GITLAB_API_URL`, `GITLAB_PERMISSION_MODE`, `GITLAB_TOOLSETS`, `GITLAB_MASKING_ENABLED`를 설정할 수 있게 합니다. Node.js나 npm을 따로 설치할 필요가 없습니다.
 
 소스에서 번들을 만들려면 `npm run pack:mcpb`를 실행하세요(`gitlab-mcp.mcpb` 생성).
 
