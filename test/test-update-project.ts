@@ -45,7 +45,16 @@ async function callUpdateProject(
       }
 
       const content = response.result?.content?.[0]?.text;
-      resolve(content ? JSON.parse(content) : response.result);
+      if (!content) {
+        resolve(response.result);
+        return;
+      }
+      const parsed = JSON.parse(content);
+      if (content !== JSON.stringify(parsed)) {
+        reject(new Error("update_project returned pretty-printed JSON"));
+        return;
+      }
+      resolve(parsed);
     });
 
     proc.stdin?.end(

@@ -12437,14 +12437,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "All pending to-do items marked as done",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "All pending to-do items marked as done",
+              }),
             },
           ],
         };
@@ -12811,9 +12807,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [
-            { type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data), null, 2) },
-          ],
+          content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data)) }],
         };
       }
 
@@ -13107,17 +13101,13 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(
-                  {
-                    status: "preview",
-                    dry_run: true,
-                    changes: result.changes,
-                    summary: result.summary,
-                    preview: result.preview,
-                  },
-                  null,
-                  2
-                ),
+                text: JSON.stringify({
+                  status: "preview",
+                  dry_run: true,
+                  changes: result.changes,
+                  summary: result.summary,
+                  preview: result.preview,
+                }),
               },
             ],
           };
@@ -13147,22 +13137,18 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  changes: result.changes,
-                  summary: result.summary,
-                  note: noteResult,
-                  issue: {
-                    iid: updatedIssue.iid,
-                    title: updatedIssue.title,
-                    web_url: updatedIssue.web_url,
-                    updated_at: updatedIssue.updated_at,
-                  },
+              text: JSON.stringify({
+                status: "success",
+                changes: result.changes,
+                summary: result.summary,
+                note: noteResult,
+                issue: {
+                  iid: updatedIssue.iid,
+                  title: updatedIssue.title,
+                  web_url: updatedIssue.web_url,
+                  updated_at: updatedIssue.updated_at,
                 },
-                null,
-                2
-              ),
+              }),
             },
           ],
         };
@@ -13175,11 +13161,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: "Issue deleted successfully" },
-                null,
-                2
-              ),
+              text: JSON.stringify({ status: "success", message: "Issue deleted successfully" }),
             },
           ],
         };
@@ -13232,14 +13214,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "Issue link deleted successfully",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Issue link deleted successfully",
+              }),
             },
           ],
         };
@@ -13450,11 +13428,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: "Label deleted successfully" },
-                null,
-                2
-              ),
+              text: JSON.stringify({ status: "success", message: "Label deleted successfully" }),
             },
           ],
         };
@@ -13516,14 +13490,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "Wiki page deleted successfully",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Wiki page deleted successfully",
+              }),
             },
           ],
         };
@@ -13583,14 +13553,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "Group wiki page deleted successfully",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Group wiki page deleted successfully",
+              }),
             },
           ],
         };
@@ -14149,7 +14115,7 @@ async function handleToolCall(params: any) {
             verificationLevel: args.verification_level,
           }
         );
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "get_ci_catalog_resource": {
@@ -14229,7 +14195,7 @@ async function handleToolCall(params: any) {
           }
         }
 
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "create_pipeline": {
@@ -14276,7 +14242,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const schedules = await listPipelineSchedules(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(schedules, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(schedules) }],
         };
       }
 
@@ -14286,7 +14252,7 @@ async function handleToolCall(params: any) {
         );
         const schedule = await getPipelineSchedule(project_id, pipeline_schedule_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(schedule, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(schedule) }],
         };
       }
 
@@ -14299,7 +14265,7 @@ async function handleToolCall(params: any) {
           options
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(pipelines) }],
         };
       }
 
@@ -14382,7 +14348,7 @@ async function handleToolCall(params: any) {
         );
         const variable = await getPipelineScheduleVariable(project_id, pipeline_schedule_id, key);
         return {
-          content: [{ type: "text", text: JSON.stringify(variable, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(variable) }],
         };
       }
 
@@ -14683,14 +14649,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "Milestone deleted successfully",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Milestone deleted successfully",
+              }),
             },
           ],
         };
@@ -14820,14 +14782,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: "Group milestone deleted successfully",
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Group milestone deleted successfully",
+              }),
             },
           ],
         };
@@ -14977,11 +14935,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: `Variable '${args.key}' deleted from project` },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: `Variable '${args.key}' deleted from project`,
+              }),
             },
           ],
         };
@@ -15026,11 +14983,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: `Variable '${args.key}' deleted from group` },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: `Variable '${args.key}' deleted from group`,
+              }),
             },
           ],
         };
@@ -15073,11 +15029,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: "Dependency proxy cache purge scheduled" },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Dependency proxy cache purge scheduled",
+              }),
             },
           ],
         };
@@ -15288,11 +15243,11 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: "Release deleted successfully", release },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Release deleted successfully",
+                release,
+              }),
             },
           ],
         };
@@ -15305,11 +15260,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: "Release evidence created successfully" },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: "Release evidence created successfully",
+              }),
             },
           ],
         };
@@ -15378,11 +15332,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                { status: "success", message: `Tag '${args.tag_name}' deleted successfully` },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: `Tag '${args.tag_name}' deleted successfully`,
+              }),
             },
           ],
         };
@@ -15491,7 +15444,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const snippets = await listSnippets(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(snippets, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(snippets) }],
         };
       }
 
@@ -15538,7 +15491,7 @@ async function handleToolCall(params: any) {
           }
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -15547,7 +15500,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const snippet = await createSnippet(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(snippet, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(snippet) }],
         };
       }
 
@@ -15556,7 +15509,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const snippet = await updateSnippet(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(snippet, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(snippet) }],
         };
       }
 
@@ -15567,14 +15520,10 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                {
-                  status: "success",
-                  message: `Snippet ${args.snippet_id} deleted successfully`,
-                },
-                null,
-                2
-              ),
+              text: JSON.stringify({
+                status: "success",
+                message: `Snippet ${args.snippet_id} deleted successfully`,
+              }),
             },
           ],
         };
@@ -15629,11 +15578,9 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(
-                  { error: `Webhook event ${args.event_id} not found ${searchScope}` },
-                  null,
-                  2
-                ),
+                text: JSON.stringify({
+                  error: `Webhook event ${args.event_id} not found ${searchScope}`,
+                }),
               },
             ],
           };
