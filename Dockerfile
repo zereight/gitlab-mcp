@@ -14,6 +14,9 @@ RUN --mount=type=cache,target=/root/.npm-production npm ci --ignore-scripts --om
 
 FROM node:22.21.1-alpine AS release
 
+# MCP Registry OCI ownership check; must match "name" in server.json.
+LABEL io.modelcontextprotocol.server.name="io.github.zereight/gitlab-mcp"
+
 WORKDIR /app
 
 COPY --from=builder /app/build /app/build

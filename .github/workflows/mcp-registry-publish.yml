@@ -88,6 +88,41 @@ jobs:
           echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} was not visible on npm after waiting."
           exit 1
 
+      # Docker Publish runs on the same release event and can take up to its
+      # 40-minute timeout; the registry fetches the image label at publish time.
+      - name: Wait for Docker image
+        run: |
+          IMAGE="$(node -p "require('./server.json').packages.find((pkg) => pkg.registryType === 'oci')?.identifier ?? ''")"
+          if [ -z "$IMAGE" ]; then
+            echo "No OCI package in server.json. Skipping."
+            exit 0
+          fi
+
+          case "$IMAGE" in
+            docker.io/*) ;;
+            *)
+              echo "Unsupported OCI registry for ${IMAGE}; only docker.io is polled."
+              exit 1
+              ;;
+          esac
+
+          # Docker Hub tags API: 200/404 without spending anonymous pull quota.
+          REF="${IMAGE#docker.io/}"
+          TAG_URL="https://hub.docker.com/v2/repositories/${REF%:*}/tags/${REF##*:}"
+
+          for attempt in {1..90}; do
+            STATUS="$(curl -s -o /dev/null -w '%{http_code}' "$TAG_URL" || true)"
+            if [ "$STATUS" = "200" ]; then
+              exit 0
+            fi
+
+            echo "Image ${IMAGE} is not visible yet (HTTP ${STATUS}). Retry ${attempt}/90..."
+            sleep 30
+          done
+
+          echo "Image ${IMAGE} was not visible after waiting."
+          exit 1
+
       - name: Authenticate to MCP Registry
         run: mcp-publisher login github-oidc
 

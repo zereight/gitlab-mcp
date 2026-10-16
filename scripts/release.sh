@@ -75,7 +75,10 @@ const serverJson = JSON.parse(fs.readFileSync("server.json", "utf8"));
 
 serverJson.version = version;
 for (const pkg of serverJson.packages || []) {
-  if (!pkg.identifier || pkg.identifier === packageJson.name) {
+  if (pkg.registryType === "oci") {
+    // OCI packages carry the version as the image tag, not a version field.
+    pkg.identifier = pkg.identifier.replace(/:[^:@/]+$/, `:${version}`);
+  } else if (!pkg.identifier || pkg.identifier === packageJson.name) {
     pkg.version = version;
   }
 }
