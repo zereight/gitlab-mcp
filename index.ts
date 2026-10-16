@@ -737,6 +737,10 @@ const maskingPolicyResolver = createMaskingPolicyResolver({
 });
 
 const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
+// No `title`: clients would show it instead of `name`, hiding MCP_SERVER_NAME.
+const SERVER_DESCRIPTION =
+  "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more.";
+const SERVER_WEBSITE_URL = "https://zereight.github.io/gitlab-mcp/";
 
 /**
  * Static MCP prompt catalog. These wrap the multi-step tool workflows documented in
@@ -843,6 +847,8 @@ function createServer(): McpServer {
     {
       name: SERVER_NAME,
       version: SERVER_VERSION,
+      description: SERVER_DESCRIPTION,
+      websiteUrl: SERVER_WEBSITE_URL,
     },
     {
       capabilities: {

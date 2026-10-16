@@ -91,6 +91,11 @@ describe("MCP_SERVER_NAME", { timeout: 20_000 }, () => {
 
     assert.strictEqual(response.status, 200, response.text);
     assert.strictEqual(response.data?.result?.serverInfo?.name, "zereight-gitlab-mcp-server");
+    assert.strictEqual(
+      response.data?.result?.serverInfo?.websiteUrl,
+      "https://zereight.github.io/gitlab-mcp/"
+    );
+    assert.match(response.data?.result?.serverInfo?.description ?? "", /^GitLab MCP server/);
   });
 
   test("reports the overridden name when MCP_SERVER_NAME is set", async () => {
@@ -101,6 +106,8 @@ describe("MCP_SERVER_NAME", { timeout: 20_000 }, () => {
 
     assert.strictEqual(response.status, 200, response.text);
     assert.strictEqual(response.data?.result?.serverInfo?.name, "gitlab-selfhosted-readonly");
+    // A title would be shown instead of the overridden name.
+    assert.strictEqual(response.data?.result?.serverInfo?.title, undefined);
   });
 
   test("treats a whitespace-only MCP_SERVER_NAME as unset", async () => {

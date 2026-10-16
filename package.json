@@ -32,6 +32,7 @@
   "files": [
     "build"
   ],
+  "homepage": "https://zereight.github.io/gitlab-mcp/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zereight/gitlab-mcp.git"
