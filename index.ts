@@ -11888,7 +11888,8 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
+          const message =
+            describeFetchTransportError(err) ?? (err instanceof Error ? err.message : String(err));
           return {
             content: [
               {
@@ -11936,7 +11937,8 @@ async function handleToolCall(params: any) {
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
-            forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
+            const reason = describeFetchTransportError(forkError) ?? forkError.message;
+            forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
           return {
             content: [
