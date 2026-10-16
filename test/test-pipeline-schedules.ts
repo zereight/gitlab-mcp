@@ -115,7 +115,7 @@ async function callTool(
   });
 }
 
-/** Tools that return JSON return it as the first content block's text. */
+/** Tools that return JSON return it, compact, as the first content block's text. */
 async function callToolJson(
   toolName: string,
   args: Record<string, unknown>,
@@ -123,7 +123,10 @@ async function callToolJson(
 ): Promise<any> {
   const result = await callTool(toolName, args, env);
   const content = result?.content?.[0]?.text;
-  return content ? JSON.parse(content) : result;
+  if (!content) return result;
+  const parsed = JSON.parse(content);
+  assert.strictEqual(content, JSON.stringify(parsed), `${toolName} returned pretty-printed JSON`);
+  return parsed;
 }
 
 /** Tools that return a human summary return it as the first content block's text. */
