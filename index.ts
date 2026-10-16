@@ -217,6 +217,7 @@ import {
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
   classifyHealthCheckTransportError,
+  describeFetchTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
 import { redactUrlSecretsInText } from "./utils/redact-url.js";
@@ -15902,6 +15903,11 @@ async function handleToolCall(params: any) {
       }
       // ToolInputError is returned as an isError tool result, so the model can fix and retry.
       throw new ToolInputError(`Invalid arguments for ${params.name}: ${detail}`);
+    }
+    // undici says only "fetch failed"; name the reason (TLS, DNS, refused, ...).
+    const transportMessage = describeFetchTransportError(error);
+    if (transportMessage !== null) {
+      throw new Error(transportMessage, { cause: error });
     }
     throw error;
   }

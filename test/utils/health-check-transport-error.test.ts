@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   classifyHealthCheckTransportError,
+  describeFetchTransportError,
   redactGitLabUrlCredentials,
 } from "../../utils/health-check-transport-error.js";
 
@@ -323,6 +324,82 @@ describe("When redactGitLabUrlCredentials runs", () => {
         ),
         "https://gitlab.example/api/v4?access_token=[REDACTED]"
       );
+    });
+  });
+});
+
+function undiciFetchFailure(cause: unknown): TypeError {
+  return new TypeError("fetch failed", { cause });
+}
+
+describe("When describeFetchTransportError runs", () => {
+  describe("with undici's fetch failed TypeError and a DNS cause", () => {
+    test("should name the code, keep the cause, and point at the API URL host", () => {
+      const message = describeFetchTransportError(
+        undiciFetchFailure(
+          Object.assign(new Error("getaddrinfo ENOTFOUND gitlab.example"), { code: "ENOTFOUND" })
+        )
+      );
+
+      assert.equal(
+        message,
+        "GitLab request failed before an HTTP response (ENOTFOUND): fetch failed: getaddrinfo ENOTFOUND gitlab.example. Check the host in the GitLab API URL and the DNS or proxy settings."
+      );
+    });
+  });
+
+  describe("with a TLS cause", () => {
+    test("should add the CA chain hint", () => {
+      const message = describeFetchTransportError(
+        undiciFetchFailure(
+          Object.assign(new Error("unable to verify the first certificate"), {
+            code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+          })
+        )
+      );
+
+      assert.match(message ?? "", /\(UNABLE_TO_VERIFY_LEAF_SIGNATURE\)/);
+      assert.match(message ?? "", /unable to verify the first certificate/);
+      assert.match(message ?? "", /NODE_EXTRA_CA_CERTS or GITLAB_CA_CERT_PATH/);
+    });
+  });
+
+  describe("with a cause that has no code", () => {
+    test("should fall back to the kind", () => {
+      const message = describeFetchTransportError(undiciFetchFailure(new Error("bad port")));
+
+      assert.match(
+        message ?? "",
+        /^GitLab request failed before an HTTP response \(network\): fetch failed: bad port\./
+      );
+    });
+  });
+
+  describe("with a token in the cause message", () => {
+    test("should redact it", () => {
+      const message = describeFetchTransportError(
+        undiciFetchFailure(
+          Object.assign(
+            new Error("connect ECONNREFUSED https://u:glpat-supersecret@gitlab.example"),
+            {
+              code: "ECONNREFUSED",
+            }
+          )
+        )
+      );
+
+      assert.ok(message);
+      assert.equal(message.includes("glpat-supersecret"), false);
+    });
+  });
+
+  describe("with errors that are not a failed fetch", () => {
+    test("should return null", () => {
+      assert.equal(describeFetchTransportError(new Error("fetch failed")), null);
+      assert.equal(describeFetchTransportError(new TypeError("x is not a function")), null);
+      assert.equal(describeFetchTransportError(new Error("GitLab API error: 404 Not Found")), null);
+      assert.equal(describeFetchTransportError("fetch failed"), null);
+      assert.equal(describeFetchTransportError(undefined), null);
     });
   });
 });
