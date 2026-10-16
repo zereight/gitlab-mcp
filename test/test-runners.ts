@@ -297,7 +297,8 @@ describe("When listing project runners", { concurrency: false }, () => {
         typeof result.payload === "string" ? result.payload : JSON.stringify(result.payload);
 
       assert.equal(result.isError, true);
-      assert.match(errorText, /status/);
+      // Anchored: a JSON-RPC error payload would be stringified as {"code":...}.
+      assert.match(errorText, /^Invalid arguments for list_project_runners: status: /);
       assert.doesNotMatch(errorText, /ECONNREFUSED|fetch failed/i);
       assert.equal(captured.listUrl, "");
     });

@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "mock-update-project-token";
 const TEST_PROJECT_ID = "123";
@@ -36,6 +37,10 @@ async function callUpdateProject(
       const response = JSON.parse(line);
       if (response.error) {
         reject(new Error(response.error?.message ?? String(response.error)));
+        return;
+      }
+      if (response.result?.isError === true) {
+        resolve(response.result);
         return;
       }
 
@@ -128,31 +133,29 @@ describe("update_project", () => {
   });
 
   test("rejects public access level for non-pages features", async () => {
-    await assert.rejects(
-      () =>
-        callUpdateProject(
-          { project_id: TEST_PROJECT_ID, issues_access_level: "public" },
-          {
-            GITLAB_API_URL: "https://gitlab.example.com/api/v4",
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-            GITLAB_TOOLSETS: "projects",
-          }
-        ),
+    await expectToolError(
+      callUpdateProject(
+        { project_id: TEST_PROJECT_ID, issues_access_level: "public" },
+        {
+          GITLAB_API_URL: "https://gitlab.example.com/api/v4",
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          GITLAB_TOOLSETS: "projects",
+        }
+      ),
       /(Invalid enum value|Invalid option)/
     );
   });
 
   test("rejects empty updates before calling GitLab", async () => {
-    await assert.rejects(
-      () =>
-        callUpdateProject(
-          { project_id: TEST_PROJECT_ID },
-          {
-            GITLAB_API_URL: "https://gitlab.example.com/api/v4",
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-            GITLAB_TOOLSETS: "projects",
-          }
-        ),
+    await expectToolError(
+      callUpdateProject(
+        { project_id: TEST_PROJECT_ID },
+        {
+          GITLAB_API_URL: "https://gitlab.example.com/api/v4",
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          GITLAB_TOOLSETS: "projects",
+        }
+      ),
       /Provide at least one project setting/
     );
   });

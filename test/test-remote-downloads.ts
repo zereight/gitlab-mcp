@@ -53,7 +53,10 @@ const MOCK_UPLOAD_RESPONSE = {
 
 interface JsonRpcResult {
   id?: number;
-  result?: { content?: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };
+  result?: {
+    content?: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+    isError?: boolean;
+  };
   error?: { code: number; message: string };
 }
 
@@ -648,16 +651,14 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
 
     // In remote mode the server uses MarkdownUploadRemoteSchema which
     // requires content+filename and does not accept file_path. This should
-    // result in a validation error.
-    const hasError =
-      !!result.error ||
-      (result.result?.content?.some(c =>
-        c.type === 'text' && c.text && (
-          c.text.toLowerCase().includes('error') ||
-          c.text.toLowerCase().includes('required') ||
-          c.text.toLowerCase().includes('invalid')
-        )
-      ));
-    assert.ok(hasError, 'Should reject file_path in remote mode (needs content+filename)');
+    // result in a validation error returned as an isError tool result.
+    assert.strictEqual(result.error, undefined, 'Should not be a JSON-RPC error');
+    assert.strictEqual(
+      result.result?.isError,
+      true,
+      'Should reject file_path in remote mode (needs content+filename)'
+    );
+    const text = result.result?.content?.find(c => c.type === 'text')?.text ?? '';
+    assert.match(text, /^Invalid arguments for upload_markdown: /);
   });
 });

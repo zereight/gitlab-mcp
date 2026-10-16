@@ -2,6 +2,7 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-pipeline-schedules";
 const TEST_PROJECT_ID = "123";
@@ -430,36 +431,34 @@ describe("Pipeline schedule tools", () => {
   });
 
   test("create_pipeline_schedule rejects a map as a top-level input value", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "create_pipeline_schedule",
-          {
-            project_id: TEST_PROJECT_ID,
-            description: "Nightly build",
-            ref: "main",
-            cron: "0 1 * * *",
-            inputs: [{ name: "matrix", value: { os: "linux" } }],
-          },
-          baseEnv
-        ),
+    await expectToolError(
+      callTool(
+        "create_pipeline_schedule",
+        {
+          project_id: TEST_PROJECT_ID,
+          description: "Nightly build",
+          ref: "main",
+          cron: "0 1 * * *",
+          inputs: [{ name: "matrix", value: { os: "linux" } }],
+        },
+        baseEnv
+      ),
       /invalid|expected|value/i
     );
   });
 
   test("create_pipeline_schedule_variable rejects an invalid key", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "create_pipeline_schedule_variable",
-          {
-            project_id: TEST_PROJECT_ID,
-            pipeline_schedule_id: TEST_SCHEDULE_ID,
-            key: "not-a-valid-key",
-            value: "x",
-          },
-          baseEnv
-        ),
+    await expectToolError(
+      callTool(
+        "create_pipeline_schedule_variable",
+        {
+          project_id: TEST_PROJECT_ID,
+          pipeline_schedule_id: TEST_SCHEDULE_ID,
+          key: "not-a-valid-key",
+          value: "x",
+        },
+        baseEnv
+      ),
       /invalid|regex|pattern|key/i
     );
   });

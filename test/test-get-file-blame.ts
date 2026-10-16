@@ -2,6 +2,7 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
 const TEST_PROJECT_ID = "123";
@@ -56,6 +57,7 @@ async function callGetFileBlame(
       try {
         const response = JSON.parse(line);
         if (response.error) return reject(response.error);
+        if (response.result?.isError === true) return resolve(response.result);
         const content = response.result?.content?.[0]?.text;
         if (content) return resolve(JSON.parse(content));
         resolve(response.result);
@@ -150,45 +152,39 @@ describe("get_file_blame", () => {
   });
 
   test("rejects partial range (range_start only) at schema layer", async () => {
-    await assert.rejects(
-      () =>
-        callGetFileBlame(
-          {
-            project_id: TEST_PROJECT_ID,
-            file_path: "src/example.txt",
-            ref: "main",
-            range_start: 10,
-          },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
-      (e: any) =>
-        typeof e?.message === "string" &&
-        e.message.includes("range_start and range_end must be provided together")
+    await expectToolError(
+      callGetFileBlame(
+        {
+          project_id: TEST_PROJECT_ID,
+          file_path: "src/example.txt",
+          ref: "main",
+          range_start: 10,
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      ),
+      /range_start and range_end must be provided together/
     );
   });
 
   test("rejects inverted range (start > end) at schema layer", async () => {
-    await assert.rejects(
-      () =>
-        callGetFileBlame(
-          {
-            project_id: TEST_PROJECT_ID,
-            file_path: "src/example.txt",
-            ref: "main",
-            range_start: 20,
-            range_end: 10,
-          },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
-      (e: any) =>
-        typeof e?.message === "string" &&
-        e.message.includes("range_start must be less than or equal to range_end")
+    await expectToolError(
+      callGetFileBlame(
+        {
+          project_id: TEST_PROJECT_ID,
+          file_path: "src/example.txt",
+          ref: "main",
+          range_start: 20,
+          range_end: 10,
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      ),
+      /range_start must be less than or equal to range_end/
     );
   });
 });
