@@ -9234,6 +9234,114 @@ async function erasePipelineJob(projectId: string, jobId: number | string): Prom
 const TERMINAL_PIPELINE_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
 const TERMINAL_JOB_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
 const TERMINAL_REBASE_STATUSES = new Set(["finished"]);
+// GitLab accepts PUT .../rebase before Sidekiq starts the job. Until then, GET
+// with include_rebase_in_progress can still say rebase_in_progress=false and return
+// the pre-rebase sha (gitlab-org/gitlab-foss#57481). Recheck that snapshot a few
+// times, capped so the default 5s poll interval cannot stretch this into 15s.
+const REBASE_UNCHANGED_HEAD_RECHECK_LIMIT = 3;
+const REBASE_UNCHANGED_HEAD_RECHECK_INTERVAL_CAP_MS = 1000;
+
+function rebaseHeadMoved(previous: GitLabMergeRequest, current: GitLabMergeRequest): boolean {
+  return current.sha !== previous.sha;
+}
+
+function rebaseFailureExplained(
+  previous: GitLabMergeRequest,
+  current: GitLabMergeRequest
+): boolean {
+  const mergeError = current.merge_error;
+  if (typeof mergeError !== "string" || mergeError.length === 0) {
+    return false;
+  }
+  return mergeError !== previous.merge_error;
+}
+
+function delayForRebasePoll(delayMs: number): Promise<void> {
+  return new Promise(resolve => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+async function getMergeRequestRebaseStatusBeforeDeadline(
+  projectId: string,
+  mergeRequestIid: string | number,
+  deadline: number
+): Promise<{ status: string; mergeRequest: GitLabMergeRequest }> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw new Error("Timed out waiting for terminal status");
+  }
+  return getMergeRequestRebaseStatus(projectId, mergeRequestIid, AbortSignal.timeout(remaining));
+}
+
+/**
+ * Poll until a rebase finishes, without trusting a finished snapshot that still
+ * has the pre-rebase sha and no new merge_error. A later rebase_in_progress true
+ * means the job did start, so wait for that terminal status as usual. Rechecks
+ * share the caller's timeout and never add time beyond it.
+ */
+async function waitForMergeRequestRebase(
+  projectId: string,
+  mergeRequestIid: string | number,
+  previous: GitLabMergeRequest,
+  timeoutSeconds = 300,
+  pollIntervalSeconds = 5
+): Promise<GitLabMergeRequest> {
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  let snapshot = await getMergeRequestRebaseStatusBeforeDeadline(
+    projectId,
+    mergeRequestIid,
+    deadline
+  );
+  let rechecksRemaining = REBASE_UNCHANGED_HEAD_RECHECK_LIMIT;
+
+  while (true) {
+    if (!TERMINAL_REBASE_STATUSES.has(snapshot.status)) {
+      rechecksRemaining = 0;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        break;
+      }
+      await delayForRebasePoll(Math.min(pollIntervalSeconds * 1000, remaining));
+      snapshot = await getMergeRequestRebaseStatusBeforeDeadline(
+        projectId,
+        mergeRequestIid,
+        deadline
+      );
+      continue;
+    }
+
+    const mergeRequest = snapshot.mergeRequest;
+    if (rebaseHeadMoved(previous, mergeRequest) || rebaseFailureExplained(previous, mergeRequest)) {
+      return mergeRequest;
+    }
+    if (rechecksRemaining <= 0) {
+      return mergeRequest;
+    }
+
+    const remaining = deadline - Date.now();
+    const delay = Math.min(
+      pollIntervalSeconds * 1000,
+      REBASE_UNCHANGED_HEAD_RECHECK_INTERVAL_CAP_MS,
+      remaining
+    );
+    // The next poll has to land inside the timeout. If one full backoff does not fit, stop.
+    if (remaining <= 0 || delay >= remaining) {
+      return mergeRequest;
+    }
+
+    rechecksRemaining -= 1;
+    await delayForRebasePoll(delay);
+    snapshot = await getMergeRequestRebaseStatusBeforeDeadline(
+      projectId,
+      mergeRequestIid,
+      deadline
+    );
+  }
+
+  throw new Error(`Timed out waiting for terminal status; last status: ${snapshot.status}`);
+}
+
 async function waitForStatus<T extends { status: string }>(
   fetchStatus: (signal: AbortSignal) => Promise<T>,
   terminalStatuses: Set<string>,
@@ -12530,16 +12638,17 @@ async function handleToolCall(params: any) {
           merge_request_iid
         );
         await rebaseMergeRequest(project_id, merge_request_iid, skip_ci);
-        const { mergeRequest } = await waitForStatus(
-          signal => getMergeRequestRebaseStatus(project_id, merge_request_iid, signal),
-          TERMINAL_REBASE_STATUSES,
+        const mergeRequest = await waitForMergeRequestRebase(
+          project_id,
+          merge_request_iid,
+          previous,
           timeout_seconds,
           poll_interval_seconds
         );
         const rebaseResult = {
           ...mergeRequest,
           previous_sha: previous.sha,
-          head_changed: mergeRequest.sha !== previous.sha,
+          head_changed: rebaseHeadMoved(previous, mergeRequest),
         };
         return { content: [{ type: "text", text: JSON.stringify(rebaseResult) }] };
       }
