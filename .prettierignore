@@ -46,11 +46,9 @@ site/
 /docs/reference/cli-usage-design.md
 /docs/reference/dependency-proxy-design.md
 /docs/reference/github-pages-setup.md
-/event.json
 /oauth-device-flow.ts
 /oauth-proxy.ts
 /oauth.ts
-/PR_SUMMARY.md
 /README.ko.md
 /README.md
 /README.pt-BR.md
@@ -70,9 +68,6 @@ site/
 /stateless/secret.ts
 /stateless/session-id.ts
 /stateless/types.ts
-/test-cli.js
-/test-note.ts
-/test-resolve-issue-note.ts
 /test/callback-proxy-tests.ts
 /test/cli/compact-mcp-result.test.ts
 /test/cli/credentials.test.ts
