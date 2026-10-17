@@ -23,6 +23,9 @@ const MR_SUCCESS = "3";
 const MR_FAILED = "4";
 const MR_TIMEOUT = "5";
 const MR_FORBIDDEN = "6";
+const MR_STALE_THEN_MOVED = "7";
+const MR_NOOP = "8";
+const MR_RECHECK_TIMEOUT = "9";
 
 function buildMergeRequest(iid: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -175,7 +178,18 @@ describe("rebase_merge_request tool", () => {
   let mockGitLabUrl: string;
   const rebaseBodies = new Map<string, Record<string, unknown>>();
   const statusQueries = new Map<string, Array<Record<string, unknown>>>();
+  const statusObservedAt = new Map<string, number[]>();
   const statusQueriesBeforeRebase = new Map<string, number>();
+
+  function statusObservationSpanMs(iid: string): number {
+    const observedAt = statusObservedAt.get(iid) ?? [];
+    const startedAt = observedAt[0];
+    const finishedAt = observedAt[observedAt.length - 1];
+    if (startedAt === undefined || finishedAt === undefined) {
+      return 0;
+    }
+    return finishedAt - startedAt;
+  }
 
   function addRebaseHandler(iid: string) {
     mockGitLab.addMockHandler(
@@ -191,12 +205,15 @@ describe("rebase_merge_request tool", () => {
 
   function addStatusHandler(iid: string, states: Array<Record<string, unknown>>) {
     const queries: Array<Record<string, unknown>> = [];
+    const observedAt: number[] = [];
     statusQueries.set(iid, queries);
+    statusObservedAt.set(iid, observedAt);
     mockGitLab.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/merge_requests/${iid}`,
       (req, res) => {
         queries.push({ ...req.query });
+        observedAt.push(Date.now());
         const state = states[Math.min(queries.length - 1, states.length - 1)];
         res.json(buildMergeRequest(iid, state));
       }
@@ -210,7 +227,16 @@ describe("rebase_merge_request tool", () => {
       validTokens: [MOCK_TOKEN],
     });
 
-    for (const iid of [MR_ENQUEUE_ONLY, MR_SKIP_CI, MR_SUCCESS, MR_FAILED, MR_TIMEOUT]) {
+    for (const iid of [
+      MR_ENQUEUE_ONLY,
+      MR_SKIP_CI,
+      MR_SUCCESS,
+      MR_FAILED,
+      MR_TIMEOUT,
+      MR_STALE_THEN_MOVED,
+      MR_NOOP,
+      MR_RECHECK_TIMEOUT,
+    ]) {
       addRebaseHandler(iid);
     }
     addStatusHandler(MR_ENQUEUE_ONLY, [{ rebase_in_progress: true }]);
@@ -226,6 +252,25 @@ describe("rebase_merge_request tool", () => {
     ]);
     addStatusHandler(MR_TIMEOUT, [{ rebase_in_progress: true }]);
     addStatusHandler(MR_FORBIDDEN, [{ rebase_in_progress: false }]);
+    // First post-rebase poll is the pre-job "finished" snapshot. in_progress then
+    // resumes the normal wait, past the 3-recheck cap, until the head moves.
+    addStatusHandler(MR_STALE_THEN_MOVED, [
+      { rebase_in_progress: false },
+      { rebase_in_progress: false },
+      { rebase_in_progress: true },
+      { rebase_in_progress: true },
+      { rebase_in_progress: true },
+      { rebase_in_progress: false, sha: NEW_SHA },
+    ]);
+    addStatusHandler(MR_NOOP, [{ rebase_in_progress: false }]);
+    // The new sha is only on the third extra poll, which a 1s timeout cannot reach.
+    addStatusHandler(MR_RECHECK_TIMEOUT, [
+      { rebase_in_progress: false },
+      { rebase_in_progress: false },
+      { rebase_in_progress: false },
+      { rebase_in_progress: false },
+      { rebase_in_progress: false, sha: NEW_SHA },
+    ]);
 
     mockGitLab.addMockHandler(
       "put",
@@ -318,6 +363,62 @@ describe("rebase_merge_request tool", () => {
         ),
       /Timed out waiting for terminal status/
     );
+  });
+
+  test("rebase_merge_request keeps waiting when the first finished poll still has the old sha", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: MR_STALE_THEN_MOVED,
+        poll_interval_seconds: 1,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.sha, NEW_SHA);
+    assert.strictEqual(result.previous_sha, OLD_SHA);
+    assert.strictEqual(result.head_changed, true);
+    assert.strictEqual(statusQueries.get(MR_STALE_THEN_MOVED)?.length, 6);
+  });
+
+  test("rebase_merge_request reports an unchanged head after bounded rechecks when nothing moved", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: MR_NOOP,
+        poll_interval_seconds: 1,
+        timeout_seconds: 30,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.sha, OLD_SHA);
+    assert.strictEqual(result.previous_sha, OLD_SHA);
+    assert.strictEqual(result.head_changed, false);
+    assert.strictEqual(result.merge_error, null);
+    assert.strictEqual(statusQueries.get(MR_NOOP)?.length, 5);
+    const spanMs = statusObservationSpanMs(MR_NOOP);
+    assert.ok(spanMs >= 2000 && spanMs < 12000);
+  });
+
+  test("rebase_merge_request does not spend extra rechecks past timeout_seconds", async () => {
+    const result = await callTool(
+      "rebase_merge_request",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: MR_RECHECK_TIMEOUT,
+        poll_interval_seconds: 1,
+        timeout_seconds: 1,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.sha, OLD_SHA);
+    assert.strictEqual(result.head_changed, false);
+    assert.ok((statusQueries.get(MR_RECHECK_TIMEOUT)?.length ?? 0) <= 3);
+    assert.ok(statusObservationSpanMs(MR_RECHECK_TIMEOUT) < 2200);
   });
 
   test("rebase_merge_request returns GitLab's error when the source branch is not pushable", async () => {
