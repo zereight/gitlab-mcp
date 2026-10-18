@@ -82,8 +82,13 @@ describe("When fetchStatusBeforeDeadline runs", () => {
           const response = await fetch(`http://127.0.0.1:${port}/`, { signal });
           await waitForAbort(signal);
           return response.json();
-        }, Date.now() + 500),
-        { message: POLL_TIMEOUT_MESSAGE }
+        }, Date.now() + 1000),
+        (error: Error) => {
+          assert.equal(error.message, POLL_TIMEOUT_MESSAGE);
+          // An abort of the request itself would leave the TimeoutError reason here.
+          assert.equal((error.cause as Error).name, "AbortError");
+          return true;
+        }
       );
     } finally {
       server.closeAllConnections();
