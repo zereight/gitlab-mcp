@@ -10,6 +10,7 @@ import {
   GITLAB_CA_CERT_PATH,
   GITLAB_JOB_TOKEN,
   GITLAB_MCP_OAUTH,
+  GITLAB_MCP_REQUEST_BODY_LIMIT,
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
   GITLAB_OAUTH_CALLBACK_PROXY,
@@ -16803,7 +16804,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   }
 
   app.use("/mcp", requireMcpHostAndOrigin);
-  app.use(express.json());
+  app.use(express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT }));
 
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
