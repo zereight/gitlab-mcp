@@ -1,0 +1,45 @@
+# Code owners for zereight/gitlab-mcp.
+#
+# Every path is owned by @zereight today. The explicit entries below mark
+# release, supply-chain, and auth-sensitive paths so that more owners can be
+# added per area later without changing the catch-all.
+#
+# The last matching pattern wins, so keep the catch-all first. A leading "/"
+# anchors a pattern to the repository root. Owner review is enforced only when
+# branch protection on main requires review from Code Owners.
+# See RELEASING.md for what needs maintainer approval before a release.
+
+*                                   @zereight
+
+# Ownership and release policy
+/.github/CODEOWNERS                 @zereight
+/RELEASING.md                       @zereight
+/SECURITY.md                        @zereight
+
+# CI and publish workflows
+/.github/workflows/                 @zereight
+
+# Release and publish scripts
+/scripts/release.sh                 @zereight
+/scripts/publish_mcp_registry.sh    @zereight
+/scripts/image_push.sh              @zereight
+/scripts/pack-mcpb.sh               @zereight
+/scripts/sync-homebrew-formula.sh   @zereight
+
+# Package, image, and registry metadata
+/package.json                       @zereight
+/package-lock.json                  @zereight
+/.npmrc                             @zereight
+/Dockerfile                         @zereight
+/server.json                        @zereight
+/manifest.json                      @zereight
+/.well-known/mcp/server-card.json   @zereight
+/Formula/                           @zereight
+
+# Authentication, OAuth, and token handling
+/auth-cli.ts                        @zereight
+/auth-retry.ts                      @zereight
+/oauth*.ts                          @zereight
+/personal-access-token.ts           @zereight
+/stateless/                         @zereight
+/utils/download-token.ts            @zereight

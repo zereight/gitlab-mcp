@@ -17,6 +17,8 @@ Security fixes are provided for the latest 2.x release.
 | Latest 2.x     | Yes       |
 | Older releases | No        |
 
+The support policy, including security-only support for 2.x after v3.0 is released, is in [RELEASING.md](RELEASING.md#supported-versions).
+
 ## Security controls
 
 The controls below are implemented in this repository and described in the linked docs.
