@@ -16132,10 +16132,20 @@ async function startSSEServer(): Promise<void> {
     }
   );
 
+  const requireSseSession = (req: Request, res: Response, next: NextFunction) => {
+    const sessionId = req.query.sessionId;
+    if (typeof sessionId !== "string" || !transports[sessionId]) {
+      res.status(400).send("No transport found for sessionId");
+      return;
+    }
+    next();
+  };
+
   app.post(
     "/messages",
     rejectDnsRebinding,
     requireSseAuth,
+    requireSseSession,
     sseJsonBodyParser,
     async (req: Request, res: Response) => {
       const sessionId = req.query.sessionId as string;

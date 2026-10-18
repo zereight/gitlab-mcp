@@ -224,6 +224,10 @@ describe("SSE session limits", { concurrency: 1 }, () => {
     const sessionId = await readSessionId(connection);
 
     assert.equal(
+      await postRawSseMessage(port, "missing", sseMessageWithEncodedLength(20 * 1024 + 1)),
+      400
+    );
+    assert.equal(
       await postRawSseMessage(port, sessionId, sseMessageWithEncodedLength(20 * 1024)),
       202
     );
