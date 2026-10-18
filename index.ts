@@ -228,6 +228,7 @@ import {
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
+import { fetchStatusBeforeDeadline } from "./utils/poll-deadline.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -9260,29 +9261,6 @@ function delayForRebasePoll(delayMs: number): Promise<void> {
   return new Promise(resolve => {
     setTimeout(resolve, delayMs);
   });
-}
-
-/**
- * Fetch one poll result inside the deadline. When the deadline signal aborts the
- * request, the wait has timed out, so report that instead of the abort.
- */
-async function fetchStatusBeforeDeadline<T>(
-  fetchStatus: (signal: AbortSignal) => Promise<T>,
-  deadline: number
-): Promise<T> {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) {
-    throw new Error("Timed out waiting for terminal status");
-  }
-  const signal = AbortSignal.timeout(remaining);
-  try {
-    return await fetchStatus(signal);
-  } catch (error) {
-    if (signal.aborted) {
-      throw new Error("Timed out waiting for terminal status", { cause: error });
-    }
-    throw error;
-  }
 }
 
 async function getMergeRequestRebaseStatusBeforeDeadline(
