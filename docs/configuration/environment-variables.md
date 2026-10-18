@@ -885,7 +885,8 @@ The default accommodates GitLab's 1,000,000-character note limit even when JSON
 escaping or UTF-8 encoding makes the request several times larger than its
 character count. Lower the value only when clients do not need large note, file,
 or CI configuration payloads. Reverse proxies can impose a separate request-size
-limit and must be configured independently.
+limit and must be configured independently. The larger parser is mounted only on
+MCP message routes, after their transport-level request controls.
 
 ### `STREAMABLE_HTTP`
 

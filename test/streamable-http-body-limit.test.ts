@@ -87,5 +87,24 @@ describe("Streamable HTTP request body limit", () => {
 
     const rejected = await postNoteRequest(mcpUrl, noteRequestWithEncodedLength(TWENTY_KIB + 1));
     assert.equal(rejected.status, 413);
+
+    const unrelatedRoute = await postNoteRequest(
+      mcpUrl.replace(/\/mcp$/, "/health"),
+      noteRequestWithEncodedLength(TWENTY_KIB + 1)
+    );
+    assert.equal(unrelatedRoute.status, 404);
+  });
+
+  test("rate-limits an oversized request before parsing it", async () => {
+    const mcpUrl = await startServer(4610, {
+      GITLAB_MCP_REQUEST_BODY_LIMIT: "20kb",
+      MAX_REQUESTS_PER_MINUTE: "1",
+    });
+
+    const first = await postNoteRequest(mcpUrl, noteRequest(1));
+    assert.equal(first.status, 401);
+
+    const rateLimited = await postNoteRequest(mcpUrl, noteRequestWithEncodedLength(TWENTY_KIB + 1));
+    assert.equal(rateLimited.status, 429);
   });
 });

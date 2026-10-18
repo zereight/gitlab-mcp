@@ -15949,6 +15949,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
 async function startSSEServer(): Promise<void> {
   const { express, rateLimit, ipKeyGenerator, SSEServerTransport } = await loadRemoteHttpStack();
   const app = express();
+  const sseJsonBodyParser = express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT });
   const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
   if (MCP_TRUST_PROXY) {
@@ -16131,16 +16132,22 @@ async function startSSEServer(): Promise<void> {
     }
   );
 
-  app.post("/messages", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
-    const sessionId = req.query.sessionId as string;
-    const transport = transports[sessionId];
-    if (transport) {
-      sessionLastActivity.set(sessionId, Date.now());
-      await transport.handlePostMessage(req, res);
-    } else {
-      res.status(400).send("No transport found for sessionId");
+  app.post(
+    "/messages",
+    rejectDnsRebinding,
+    requireSseAuth,
+    sseJsonBodyParser,
+    async (req: Request, res: Response) => {
+      const sessionId = req.query.sessionId as string;
+      const transport = transports[sessionId];
+      if (transport) {
+        sessionLastActivity.set(sessionId, Date.now());
+        await transport.handlePostMessage(req, res, req.body);
+      } else {
+        res.status(400).send("No transport found for sessionId");
+      }
     }
-  });
+  );
 
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
@@ -16804,7 +16811,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   }
 
   app.use("/mcp", requireMcpHostAndOrigin);
-  app.use(express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT }));
+  const mcpJsonBodyParser = express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT });
 
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
@@ -17095,6 +17102,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     mcpRequestRateLimit,
     mcpBearerAuth,
     rejectForeignSession,
+    mcpJsonBodyParser,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);

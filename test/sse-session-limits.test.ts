@@ -142,6 +142,22 @@ async function postSseMessage(port: number, sessionId: string, body: unknown): P
   return response.status;
 }
 
+async function postRawSseMessage(port: number, sessionId: string, body: string): Promise<number> {
+  const response = await fetch(`http://${LOOPBACK}:${port}/messages?sessionId=${sessionId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${SSE_TOKEN}`, "Content-Type": "application/json" },
+    body,
+  });
+  await response.arrayBuffer();
+  return response.status;
+}
+
+function sseMessageWithEncodedLength(encodedLength: number): string {
+  const message = JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" });
+  assert.ok(encodedLength >= Buffer.byteLength(message));
+  return message + " ".repeat(encodedLength - Buffer.byteLength(message));
+}
+
 async function getSseStatus(port: number): Promise<number> {
   const response = await fetch(`http://${LOOPBACK}:${port}/sse`, {
     headers: { Authorization: `Bearer ${SSE_TOKEN}`, Accept: "text/event-stream" },
@@ -178,6 +194,46 @@ afterEach(() => {
 });
 
 describe("SSE session limits", { concurrency: 1 }, () => {
+  test("accepts messages above the SDK's fallback 4 MiB limit", async () => {
+    const port = await findAvailablePort(4490);
+    startSseServer({ MAX_REQUESTS_PER_MINUTE: UNTHROTTLED }, port);
+    await waitForHealth(port);
+
+    const connection = openSseConnection(port);
+    const sessionId = await readSessionId(connection);
+
+    assert.equal(
+      await postRawSseMessage(port, sessionId, sseMessageWithEncodedLength(5 * 1024 * 1024)),
+      202
+    );
+    connection.close();
+  });
+
+  test("honors the configured request body limit for messages", async () => {
+    const port = await findAvailablePort(4495);
+    startSseServer(
+      {
+        GITLAB_MCP_REQUEST_BODY_LIMIT: "20kb",
+        MAX_REQUESTS_PER_MINUTE: UNTHROTTLED,
+      },
+      port
+    );
+    await waitForHealth(port);
+
+    const connection = openSseConnection(port);
+    const sessionId = await readSessionId(connection);
+
+    assert.equal(
+      await postRawSseMessage(port, sessionId, sseMessageWithEncodedLength(20 * 1024)),
+      202
+    );
+    assert.equal(
+      await postRawSseMessage(port, sessionId, sseMessageWithEncodedLength(20 * 1024 + 1)),
+      413
+    );
+    connection.close();
+  });
+
   test("rejects new SSE connections once MAX_SESSIONS is reached", async () => {
     const port = await findAvailablePort(4500);
     startSseServer({ MAX_SESSIONS: "2", MAX_REQUESTS_PER_MINUTE: UNTHROTTLED }, port);
