@@ -1,20 +1,31 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, test } from "node:test";
 import { fetchStatusBeforeDeadline, POLL_TIMEOUT_MESSAGE } from "../../utils/poll-deadline.js";
 
 // AbortSignal.timeout does not keep the process alive, so hold it open until the abort.
-function rejectAfterAbort(signal: AbortSignal, error: () => unknown): Promise<never> {
-  return new Promise((_resolve, reject) => {
+function waitForAbort(signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
     const keepAlive = setInterval(() => {}, 1000);
     signal.addEventListener(
       "abort",
       () => {
         clearInterval(keepAlive);
-        reject(error());
+        resolve();
       },
       { once: true }
     );
   });
+}
+
+async function rejectAfterAbort(signal: AbortSignal, error: () => unknown): Promise<never> {
+  await waitForAbort(signal);
+  throw error();
 }
 
 describe("When fetchStatusBeforeDeadline runs", () => {
@@ -55,6 +66,29 @@ describe("When fetchStatusBeforeDeadline runs", () => {
         return true;
       }
     );
+  });
+
+  test("should report a body read that starts after the deadline as a timeout", async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end('{"status":"running"}');
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      await assert.rejects(
+        fetchStatusBeforeDeadline(async signal => {
+          const response = await fetch(`http://127.0.0.1:${port}/`, { signal });
+          await waitForAbort(signal);
+          return response.json();
+        }, Date.now() + 500),
+        { message: POLL_TIMEOUT_MESSAGE }
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise(resolve => server.close(resolve));
+    }
   });
 
   test("should keep another error that lands after the deadline", async () => {
