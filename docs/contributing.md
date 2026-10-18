@@ -206,10 +206,17 @@ keep cross-references accurate.
 
 ## Release process
 
+Stable releases ship weekly, every Tuesday at 18:55 US Eastern, when something
+user-facing has merged since the last release. Security fixes and fixes for
+outages or severe regressions ship as out-of-band hotfixes. A PR merged to
+`main` ships in the next weekly release.
+
 Releases are cut by maintainers via `scripts/release.sh` and published to
-npm via the `npm-publish.yml` workflow. External contributors don't need to
-do anything for release — the maintainer will handle versioning and the
-changelog.
+npm via the `npm-publish.yml` workflow, plus Docker Hub, the MCP Registry, and
+the MCP Bundle. External contributors don't need to do anything for release —
+the maintainer will handle versioning and the changelog. See
+[`RELEASING.md`](https://github.com/zereight/gitlab-mcp/blob/main/RELEASING.md)
+for the full process, approval rules, and supported versions.
 
 ## Getting help
 
