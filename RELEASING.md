@@ -15,7 +15,8 @@ do anything for a release.
 - **Hotfix:** out of band, as soon as the fix is merged. See
   [Hotfixes](#hotfixes).
 
-A PR merged after the Tuesday cut ships the following week.
+A PR merged after the Tuesday cut ships in the next release that is actually
+cut (normally the following Tuesday).
 
 ## What goes into a stable release
 
