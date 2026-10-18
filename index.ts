@@ -9262,16 +9262,38 @@ function delayForRebasePoll(delayMs: number): Promise<void> {
   });
 }
 
+/**
+ * Fetch one poll result inside the deadline. When the deadline signal aborts the
+ * request, the wait has timed out, so report that instead of the abort.
+ */
+async function fetchStatusBeforeDeadline<T>(
+  fetchStatus: (signal: AbortSignal) => Promise<T>,
+  deadline: number
+): Promise<T> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw new Error("Timed out waiting for terminal status");
+  }
+  const signal = AbortSignal.timeout(remaining);
+  try {
+    return await fetchStatus(signal);
+  } catch (error) {
+    if (signal.aborted) {
+      throw new Error("Timed out waiting for terminal status", { cause: error });
+    }
+    throw error;
+  }
+}
+
 async function getMergeRequestRebaseStatusBeforeDeadline(
   projectId: string,
   mergeRequestIid: string | number,
   deadline: number
 ): Promise<{ status: string; mergeRequest: GitLabMergeRequest }> {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) {
-    throw new Error("Timed out waiting for terminal status");
-  }
-  return getMergeRequestRebaseStatus(projectId, mergeRequestIid, AbortSignal.timeout(remaining));
+  return fetchStatusBeforeDeadline(
+    signal => getMergeRequestRebaseStatus(projectId, mergeRequestIid, signal),
+    deadline
+  );
 }
 
 /**
@@ -9349,11 +9371,7 @@ async function waitForStatus<T extends { status: string }>(
   pollIntervalSeconds = 5
 ): Promise<T> {
   const deadline = Date.now() + timeoutSeconds * 1000;
-  const fetchBeforeDeadline = async (): Promise<T> => {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) throw new Error("Timed out waiting for terminal status");
-    return fetchStatus(AbortSignal.timeout(remaining));
-  };
+  const fetchBeforeDeadline = (): Promise<T> => fetchStatusBeforeDeadline(fetchStatus, deadline);
   let value = await fetchBeforeDeadline();
   while (!terminalStatuses.has(value.status)) {
     const remaining = deadline - Date.now();

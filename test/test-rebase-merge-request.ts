@@ -26,6 +26,7 @@ const MR_FORBIDDEN = "6";
 const MR_STALE_THEN_MOVED = "7";
 const MR_NOOP = "8";
 const MR_RECHECK_TIMEOUT = "9";
+const MR_SLOW_POLL = "10";
 
 function buildMergeRequest(iid: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -236,6 +237,7 @@ describe("rebase_merge_request tool", () => {
       MR_STALE_THEN_MOVED,
       MR_NOOP,
       MR_RECHECK_TIMEOUT,
+      MR_SLOW_POLL,
     ]) {
       addRebaseHandler(iid);
     }
@@ -271,6 +273,24 @@ describe("rebase_merge_request tool", () => {
       { rebase_in_progress: false },
       { rebase_in_progress: false, sha: NEW_SHA },
     ]);
+
+    // The head read answers at once; the poll after the rebase answers after the 1s timeout.
+    const slowPollQueries: Array<Record<string, unknown>> = [];
+    statusQueries.set(MR_SLOW_POLL, slowPollQueries);
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${MR_SLOW_POLL}`,
+      (req, res) => {
+        slowPollQueries.push({ ...req.query });
+        if (slowPollQueries.length === 1) {
+          res.json(buildMergeRequest(MR_SLOW_POLL, { rebase_in_progress: false }));
+          return;
+        }
+        setTimeout(() => {
+          res.json(buildMergeRequest(MR_SLOW_POLL, { rebase_in_progress: true }));
+        }, 1500);
+      }
+    );
 
     mockGitLab.addMockHandler(
       "put",
@@ -363,6 +383,24 @@ describe("rebase_merge_request tool", () => {
         ),
       /Timed out waiting for terminal status/
     );
+  });
+
+  test("rebase_merge_request reports a timeout when a poll is still in flight at the deadline", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "rebase_merge_request",
+          {
+            project_id: TEST_PROJECT_ID,
+            merge_request_iid: MR_SLOW_POLL,
+            timeout_seconds: 1,
+            poll_interval_seconds: 1,
+          },
+          env()
+        ),
+      /Timed out waiting for terminal status/
+    );
+    assert.strictEqual(statusQueries.get(MR_SLOW_POLL)?.length, 2);
   });
 
   test("rebase_merge_request keeps waiting when the first finished poll still has the old sha", async () => {
