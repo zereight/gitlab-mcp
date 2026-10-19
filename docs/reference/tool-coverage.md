@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 276 |
-| Invoked | 174 |
-| Coverage | 63.0% |
+| Invoked | 175 |
+| Coverage | 63.4% |
 
 ## By toolset
 
@@ -20,7 +20,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 6 | 15 | 40.0% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
-| [Merge Requests](#merge_requests) | 13 | 46 | 28.3% |
+| [Merge Requests](#merge_requests) | 14 | 46 | 30.4% |
 | [Issues](#issues) | 11 | 24 | 45.8% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 4 | 18 | 22.2% |
@@ -122,7 +122,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`get_branch_diffs`](../tools/merge-requests.md#get_branch_diffs)
 - [ ] [`mr_discussions`](../tools/merge-requests.md#mr_discussions)
 - [ ] [`get_merge_request_discussion`](../tools/merge-requests.md#get_merge_request_discussion)
-- [ ] [`create_merge_request_note`](../tools/merge-requests.md#create_merge_request_note)
+- [x] [`create_merge_request_note`](../tools/merge-requests.md#create_merge_request_note) — `test/streamable-http-body-limit.test.ts`
 - [ ] [`update_merge_request_note`](../tools/merge-requests.md#update_merge_request_note)
 - [ ] [`delete_merge_request_note`](../tools/merge-requests.md#delete_merge_request_note)
 - [ ] [`get_merge_request_note`](../tools/merge-requests.md#get_merge_request_note)
