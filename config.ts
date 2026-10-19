@@ -122,6 +122,8 @@ export const SSE = getConfig("sse", "SSE") === "true";
 export const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 export const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
 export const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+export const GITLAB_MCP_REQUEST_BODY_LIMIT =
+  process.env.GITLAB_MCP_REQUEST_BODY_LIMIT?.trim() || "10mb";
 export const GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY =
   getConfig(
     "allow-unauthenticated-tool-discovery",

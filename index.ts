@@ -10,6 +10,7 @@ import {
   GITLAB_CA_CERT_PATH,
   GITLAB_JOB_TOKEN,
   GITLAB_MCP_OAUTH,
+  GITLAB_MCP_REQUEST_BODY_LIMIT,
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
   GITLAB_OAUTH_CALLBACK_PROXY,
@@ -15905,6 +15906,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
 async function startSSEServer(): Promise<void> {
   const { express, rateLimit, ipKeyGenerator, SSEServerTransport } = await loadRemoteHttpStack();
   const app = express();
+  const sseJsonBodyParser = express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT });
   const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
   if (MCP_TRUST_PROXY) {
@@ -16087,16 +16089,32 @@ async function startSSEServer(): Promise<void> {
     }
   );
 
-  app.post("/messages", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
-    const sessionId = req.query.sessionId as string;
-    const transport = transports[sessionId];
-    if (transport) {
-      sessionLastActivity.set(sessionId, Date.now());
-      await transport.handlePostMessage(req, res);
-    } else {
+  const requireSseSession = (req: Request, res: Response, next: NextFunction) => {
+    const sessionId = req.query.sessionId;
+    if (typeof sessionId !== "string" || !transports[sessionId]) {
       res.status(400).send("No transport found for sessionId");
+      return;
     }
-  });
+    next();
+  };
+
+  app.post(
+    "/messages",
+    rejectDnsRebinding,
+    requireSseAuth,
+    requireSseSession,
+    sseJsonBodyParser,
+    async (req: Request, res: Response) => {
+      const sessionId = req.query.sessionId as string;
+      const transport = transports[sessionId];
+      if (transport) {
+        sessionLastActivity.set(sessionId, Date.now());
+        await transport.handlePostMessage(req, res, req.body);
+      } else {
+        res.status(400).send("No transport found for sessionId");
+      }
+    }
+  );
 
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
@@ -16760,7 +16778,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   }
 
   app.use("/mcp", requireMcpHostAndOrigin);
-  app.use(express.json());
+  const mcpJsonBodyParser = express.json({ limit: GITLAB_MCP_REQUEST_BODY_LIMIT });
 
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
@@ -17051,6 +17069,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     mcpRequestRateLimit,
     mcpBearerAuth,
     rejectForeignSession,
+    mcpJsonBodyParser,
     async (req: Request, res: Response) => {
       const sessionId = readMcpSessionIdHeader(req);
       const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);

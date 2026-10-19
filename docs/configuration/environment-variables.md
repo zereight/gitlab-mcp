@@ -870,6 +870,24 @@ LOG_FORMAT=json LOG_LEVEL=warn npm start
 
 ## Transport and Server Runtime
 
+### `GITLAB_MCP_REQUEST_BODY_LIMIT`
+
+Maximum encoded JSON request size accepted by Streamable HTTP and SSE transports.
+The limit applies to the complete JSON-RPC request, including its envelope and all
+arguments, rather than only to note text. Values use the syntax accepted by
+Express, such as `512kb`, `10mb`, or a byte count.
+
+Default:
+
+- `10mb`
+
+The default accommodates GitLab's 1,000,000-character note limit even when JSON
+escaping or UTF-8 encoding makes the request several times larger than its
+character count. Lower the value only when clients do not need large note, file,
+or CI configuration payloads. Reverse proxies can impose a separate request-size
+limit and must be configured independently. The larger parser is mounted only on
+MCP message routes, after their transport-level request controls.
+
 ### `STREAMABLE_HTTP`
 
 Set to `true` to run the Streamable HTTP transport.
