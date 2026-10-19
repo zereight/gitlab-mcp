@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "io.github.zereight/gitlab-mcp",
-    "version": "2.3.3"
+    "version": "2.3.4"
   },
   "authentication": {
     "required": true,
