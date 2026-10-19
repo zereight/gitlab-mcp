@@ -228,6 +228,7 @@ import {
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
+import { fetchStatusBeforeDeadline } from "./utils/poll-deadline.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -9273,11 +9274,10 @@ async function getMergeRequestRebaseStatusBeforeDeadline(
   mergeRequestIid: string | number,
   deadline: number
 ): Promise<{ status: string; mergeRequest: GitLabMergeRequest }> {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) {
-    throw new Error("Timed out waiting for terminal status");
-  }
-  return getMergeRequestRebaseStatus(projectId, mergeRequestIid, AbortSignal.timeout(remaining));
+  return fetchStatusBeforeDeadline(
+    signal => getMergeRequestRebaseStatus(projectId, mergeRequestIid, signal),
+    deadline
+  );
 }
 
 /**
@@ -9355,11 +9355,7 @@ async function waitForStatus<T extends { status: string }>(
   pollIntervalSeconds = 5
 ): Promise<T> {
   const deadline = Date.now() + timeoutSeconds * 1000;
-  const fetchBeforeDeadline = async (): Promise<T> => {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) throw new Error("Timed out waiting for terminal status");
-    return fetchStatus(AbortSignal.timeout(remaining));
-  };
+  const fetchBeforeDeadline = (): Promise<T> => fetchStatusBeforeDeadline(fetchStatus, deadline);
   let value = await fetchBeforeDeadline();
   while (!terminalStatuses.has(value.status)) {
     const remaining = deadline - Date.now();
