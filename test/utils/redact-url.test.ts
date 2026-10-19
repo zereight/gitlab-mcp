@@ -338,6 +338,14 @@ describe("When splitCommaSeparatedUrls runs", () => {
     });
   });
 
+  describe("with a comma and an http-looking tail inside the password", () => {
+    it("should keep the URL in one piece", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://alice:supersecret,https:word@host"), [
+        "https://alice:supersecret,https:word@host",
+      ]);
+    });
+  });
+
   describe("with a single-slash scheme and a comma inside the password", () => {
     it("should split only between URLs", () => {
       assert.deepEqual(splitCommaSeparatedUrls("https:/user:pass,word@host,https://b.example"), [
