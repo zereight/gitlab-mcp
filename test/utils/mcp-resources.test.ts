@@ -41,6 +41,13 @@ describe("When reading an MCP resource", () => {
       assert.equal(readText(AUTH_SETUP_URI).includes("GITLAB_USE_OAUTH"), true);
     });
 
+    it("should name GITLAB_OAUTH_CLIENT_ID for browser OAuth", () => {
+      assert.equal(
+        readText(AUTH_SETUP_URI).includes("GITLAB_USE_OAUTH and set GITLAB_OAUTH_CLIENT_ID"),
+        true
+      );
+    });
+
     it("should echo the requested uri", () => {
       const content = readMcpResource(AUTH_SETUP_URI).contents[0];
       assert.ok(content);
