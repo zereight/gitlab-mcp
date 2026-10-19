@@ -169,12 +169,17 @@ export function splitCommaSeparatedUrls(value: string): readonly string[] {
   return parts;
 }
 
+// "https://a.example,https:user:pass@b.example" is two URLs; the "@" after the
+// comma belongs to the next one. Only http(s) counts, so "pass,abc:def@host" stays.
+const NEXT_HTTP_URL_PATTERN = /^https?:/i;
+
 function commaIsInsideUserinfo(value: string, start: number, commaIndex: number): boolean {
   const prefix = readSchemePrefix(value.slice(start, commaIndex).trimStart());
   if (prefix === null || authorityAlreadyClosed(prefix.rest)) {
     return false;
   }
-  return userinfoAtFollows(value.slice(commaIndex + 1));
+  const afterComma = value.slice(commaIndex + 1);
+  return !NEXT_HTTP_URL_PATTERN.test(afterComma) && userinfoAtFollows(afterComma);
 }
 
 function authorityAlreadyClosed(rest: string): boolean {

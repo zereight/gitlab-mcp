@@ -329,6 +329,15 @@ describe("When splitCommaSeparatedUrls runs", () => {
     });
   });
 
+  describe("with a root URL and a later slashless URL with userinfo", () => {
+    it("should split on the comma", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://a.example,https:user:pass@b.example"), [
+        "https://a.example",
+        "https:user:pass@b.example",
+      ]);
+    });
+  });
+
   describe("with a single-slash scheme and a comma inside the password", () => {
     it("should split only between URLs", () => {
       assert.deepEqual(splitCommaSeparatedUrls("https:/user:pass,word@host,https://b.example"), [
