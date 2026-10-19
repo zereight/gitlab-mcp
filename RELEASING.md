@@ -127,7 +127,7 @@ by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are left
 out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
 [#815](https://github.com/zereight/gitlab-mcp/issues/815) deprecation notice.
 
-Publishing the GitHub release starts these workflows:
+Publishing the GitHub release starts these workflows, directly or in turn:
 
 - **`npm-publish.yml`** builds the tag and publishes `@zereight/mcp-gitlab` to
   npm with trusted publishing (OIDC) and provenance. The workflow uses no npm
