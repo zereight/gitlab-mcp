@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { listMcpResources, readMcpResource } from "../../server/mcp-resources.js";
+import {
+  listMcpResources,
+  listMcpResourceTemplates,
+  readMcpResource,
+} from "../../server/mcp-resources.js";
 
 const AUTH_SETUP_URI = "gitlab-mcp://docs/auth-setup";
 const TOOLSETS_URI = "gitlab-mcp://docs/toolsets";
@@ -27,6 +31,14 @@ describe("When listing MCP resources", () => {
         listMcpResources().resources.map(resource => resource.mimeType),
         ["text/markdown", "text/markdown", "text/markdown"]
       );
+    });
+  });
+});
+
+describe("When listing MCP resource templates", () => {
+  describe("with the inlined catalog", () => {
+    it("should return an empty list", () => {
+      assert.deepEqual(listMcpResourceTemplates().resourceTemplates, []);
     });
   });
 });

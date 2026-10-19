@@ -143,6 +143,7 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -184,7 +185,11 @@ import { loadRemoteHttpStack } from "./server/remote-http-stack.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
 import { SERVER_VERSION } from "./server/version.js";
-import { listMcpResources, readMcpResource } from "./server/mcp-resources.js";
+import {
+  listMcpResources,
+  listMcpResourceTemplates,
+  readMcpResource,
+} from "./server/mcp-resources.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
@@ -896,6 +901,9 @@ function createServer(): McpServer {
   });
 
   mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => listMcpResources());
+  mcpServer.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () =>
+    listMcpResourceTemplates()
+  );
   mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async request =>
     readMcpResource(request.params.uri)
   );

@@ -132,6 +132,22 @@ export class StdioTestClient implements MCPClientInterface {
     }
   }
 
+  async listResourceTemplates() {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return await this.client.listResourceTemplates();
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to list resource templates: ${error instanceof Error ? error.message : String(error)}`,
+        'listResourceTemplates',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
   async readResource(uri: string) {
     if (!this.transport) {
       throw new MCPConnectionError('Client is not connected');

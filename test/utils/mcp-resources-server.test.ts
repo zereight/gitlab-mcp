@@ -66,6 +66,14 @@ describe("When the stdio server exposes docs resources", () => {
       });
     });
 
+    it("should return an empty resource templates list", async () => {
+      await withServer(async client => {
+        const listed = await client.listResourceTemplates();
+
+        assert.deepEqual(listed.resourceTemplates, []);
+      });
+    });
+
     it("should return toolsets text that includes GITLAB_TOOLSETS", async () => {
       await withServer(async client => {
         const result = await client.readResource("gitlab-mcp://docs/toolsets");

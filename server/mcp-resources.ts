@@ -43,6 +43,10 @@ export function listMcpResources(): {
   };
 }
 
+export function listMcpResourceTemplates(): { resourceTemplates: readonly never[] } {
+  return { resourceTemplates: [] };
+}
+
 export function readMcpResource(uri: string): {
   contents: readonly {
     uri: string;
