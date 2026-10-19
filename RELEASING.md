@@ -127,7 +127,7 @@ by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are left
 out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
 [#815](https://github.com/zereight/gitlab-mcp/issues/815) deprecation notice.
 
-Publishing the GitHub release starts these workflows:
+Publishing the GitHub release starts these workflows, directly or in turn:
 
 - **`npm-publish.yml`** builds the tag and publishes `@zereight/mcp-gitlab` to
   npm with trusted publishing (OIDC) and provenance. The workflow uses no npm
@@ -137,21 +137,28 @@ Publishing the GitHub release starts these workflows:
 - **`docker-publish.yml`** builds `linux/amd64` and `linux/arm64` images, pushes
   `zereight050/gitlab-mcp:<version>` and `latest` to Docker Hub with the
   `DOCKERHUB_*` secrets, and updates the Docker Hub README.
-- **`mcp-registry-publish.yml`** waits until the npm version and the Docker tag
-  are visible, then publishes `server.json` to the MCP Registry as
-  `io.github.zereight/gitlab-mcp`, authenticated with GitHub OIDC.
+- **`mcp-registry-publish.yml`** starts when the release's Docker Publish run
+  succeeds (`workflow_run`), not on the release itself. It checks out the
+  release commit, waits until the npm version and the Docker tag are visible,
+  then publishes `server.json` to the MCP Registry as
+  `io.github.zereight/gitlab-mcp`, authenticated with GitHub OIDC. If Docker
+  Publish fails, the registry publish is skipped.
 - **`mcpb-release.yml`** packs the Claude Desktop bundle and uploads
   `gitlab-mcp.mcpb` to the GitHub release.
 
 To retry a failed step, re-run the failed workflow run, or dispatch
 `docker-publish.yml`, `mcp-registry-publish.yml`, `mcpb-release.yml`, or
-`homebrew-formula.yml` by hand. Don't use `manual-release.yml`: it skips the
-version sync in `scripts/release.sh`, and a release it creates with
-`GITHUB_TOKEN` doesn't start the publish workflows.
+`homebrew-formula.yml` by hand. Re-running a release's Docker Publish run
+starts the registry publish again once it passes. To dispatch
+`mcp-registry-publish.yml`, set `ref` to the release tag. Don't use
+`manual-release.yml`: it skips the version sync in `scripts/release.sh`, and a
+release it creates with `GITHUB_TOKEN` doesn't start the publish workflows.
 
 After a release:
 
-- Check that the release workflows passed (`gh run list --event release`).
+- Check that the release workflows passed (`gh run list --event release`), and
+  the MCP Registry publish
+  (`gh run list --workflow mcp-registry-publish.yml --event workflow_run`).
 - Merge the `automation/homebrew-formula` PR.
 - Comment on linked issues with the published version. Close them after the
   reporter confirms.
