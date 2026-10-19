@@ -56,6 +56,10 @@ function isContentBlock(value: unknown): value is { type?: unknown; text?: unkno
   return Boolean(value && typeof value === "object");
 }
 
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function prepareDataForJmespath(data: unknown, maskValue?: (value: unknown) => unknown): unknown {
   return maskValue ? maskValue(data) : data;
 }
@@ -102,9 +106,13 @@ export function applyJmespathToToolResult<T extends ToolResultLike>(
           return parsed.ok ? { ...block, text: JSON.stringify(filter(parsed.value)) } : block;
         })
       : result.content;
-    return result.structuredContent === undefined
-      ? { ...result, content }
-      : { ...result, content, structuredContent: filter(result.structuredContent) };
+    if (result.structuredContent === undefined) return { ...result, content };
+    // MCP structuredContent must be a JSON object, and the SDK rejects the whole tools/call
+    // result otherwise. "items[].title" or a missing path is not one, so drop it; the text keeps it.
+    const structuredContent = filter(result.structuredContent);
+    if (isJsonObject(structuredContent)) return { ...result, content, structuredContent };
+    const { structuredContent: _dropped, ...rest } = result;
+    return { ...rest, content } as T;
   } catch {
     return result;
   }
