@@ -217,6 +217,7 @@ import {
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
   classifyHealthCheckTransportError,
+  describeFetchTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
 import { redactUrlSecretsInText } from "./utils/redact-url.js";
@@ -11889,7 +11890,8 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
+          const message =
+            describeFetchTransportError(err) ?? (err instanceof Error ? err.message : String(err));
           return {
             content: [
               {
@@ -11937,7 +11939,8 @@ async function handleToolCall(params: any) {
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
-            forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
+            const reason = describeFetchTransportError(forkError) ?? forkError.message;
+            forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
           return {
             content: [
@@ -15904,6 +15907,11 @@ async function handleToolCall(params: any) {
       }
       // ToolInputError is returned as an isError tool result, so the model can fix and retry.
       throw new ToolInputError(`Invalid arguments for ${params.name}: ${detail}`);
+    }
+    // undici says only "fetch failed"; name the reason (TLS, DNS, refused, ...).
+    const transportMessage = describeFetchTransportError(error);
+    if (transportMessage !== null) {
+      throw new Error(transportMessage, { cause: error });
     }
     throw error;
   }

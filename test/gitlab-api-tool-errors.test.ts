@@ -10,6 +10,38 @@ import {
 
 const MASKED_IP = "10.20.30.40";
 
+function createTransport(apiUrl: string): StdioClientTransport {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ["build/index.js"],
+    stderr: "pipe",
+    env: {
+      ...getDefaultEnvironment(),
+      GITLAB_PERSONAL_ACCESS_TOKEN: "test-token",
+      GITLAB_API_URL: apiUrl,
+      GITLAB_PERMISSION_MODE: "modify",
+      GITLAB_TOOLSETS: "projects,merge_requests",
+      GITLAB_TOOLS: "execute_graphql,fork_repository",
+      GITLAB_MASKING_ENABLED: "true",
+      GITLAB_DISABLE_VERSION_CHECK: "true",
+      LOG_LEVEL: "error",
+    },
+  });
+  transport.stderr?.on("data", () => undefined);
+  return transport;
+}
+
+async function reserveClosedPort(): Promise<number> {
+  const probe = http.createServer();
+  await new Promise<void>((resolve, reject) => {
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>(resolve => probe.close(() => resolve()));
+  return port;
+}
+
 async function startServer(t: TestContext) {
   const api = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
@@ -53,22 +85,7 @@ async function startServer(t: TestContext) {
 
   const apiUrl = `http://127.0.0.1:${(api.address() as AddressInfo).port}/api/v4`;
   const client = new Client({ name: "gitlab-api-tool-error-test", version: "1.0.0" });
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: ["build/index.js"],
-    stderr: "pipe",
-    env: {
-      ...getDefaultEnvironment(),
-      GITLAB_PERSONAL_ACCESS_TOKEN: "test-token",
-      GITLAB_API_URL: apiUrl,
-      GITLAB_PERMISSION_MODE: "modify",
-      GITLAB_TOOLSETS: "projects,merge_requests",
-      GITLAB_MASKING_ENABLED: "true",
-      GITLAB_DISABLE_VERSION_CHECK: "true",
-      LOG_LEVEL: "error",
-    },
-  });
-  transport.stderr?.on("data", () => undefined);
+  const transport = createTransport(apiUrl);
 
   t.after(async () => {
     try {
@@ -197,5 +214,49 @@ describe("GitLab API tool errors", () => {
     });
     assert.notEqual(recovery.isError, true);
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
+  });
+
+  test("names the reason when GitLab gives no HTTP response", async t => {
+    const port = await reserveClosedPort();
+    const client = new Client({ name: "gitlab-api-tool-error-test", version: "1.0.0" });
+    t.after(() => client.close());
+    await client.connect(createTransport(`http://127.0.0.1:${port}/api/v4`));
+
+    await assert.rejects(
+      client.callTool({ name: "verify_namespace", arguments: { path: "core" } }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(
+          error.message,
+          /GitLab request failed before an HTTP response \(ECONNREFUSED\)/
+        );
+        assert.match(error.message, /Check the GitLab API URL/);
+        assert.doesNotMatch(error.message, /127\.0\.0\.1/);
+        assert.doesNotMatch(error.message, /test-token/);
+        return true;
+      }
+    );
+  });
+
+  test("names the reason in tools that return their own fetch error text", async t => {
+    const port = await reserveClosedPort();
+    const client = new Client({ name: "gitlab-api-tool-error-test", version: "1.0.0" });
+    t.after(() => client.close());
+    await client.connect(createTransport(`http://127.0.0.1:${port}/api/v4`));
+
+    const calls = [
+      { name: "execute_graphql", arguments: { query: "query { currentUser { id } }" } },
+      { name: "fork_repository", arguments: { project_id: "123" } },
+    ];
+    for (const call of calls) {
+      const result = await client.callTool(call);
+      const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? "";
+      assert.match(
+        text,
+        /GitLab request failed before an HTTP response \(ECONNREFUSED\)/,
+        `${call.name}: ${text}`
+      );
+      assert.doesNotMatch(text, /127\.0\.0\.1/);
+    }
   });
 });
