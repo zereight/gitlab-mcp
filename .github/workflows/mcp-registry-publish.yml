@@ -1,8 +1,15 @@
 name: MCP Registry Publish
+run-name: MCP Registry Publish ${{ github.event.workflow_run.head_branch || inputs.ref || github.ref_name }}
 
+# Runs after Docker Publish finishes, so the image tag listed in server.json
+# already exists when the registry checks it. workflow_run matches Docker
+# Publish by its `name:` and always runs this file from the default branch;
+# the job checks out the release commit itself. Use workflow_dispatch to
+# retry by hand.
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Docker Publish"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       ref:
@@ -16,16 +23,25 @@ permissions:
 
 jobs:
   publish:
+    # Only a successful Docker Publish run for a release in this repository.
+    # Docker Publish's own workflow_dispatch runs and failed runs skip.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'release' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     permissions:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
 
     steps:
+      # On workflow_run, github.sha is the default branch head; head_sha is the
+      # commit Docker Publish built, which is the release tag's commit.
       - name: Checkout release commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || github.sha }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -88,9 +104,13 @@ jobs:
           echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} was not visible on npm after waiting."
           exit 1
 
-      # Docker Publish runs on the same release event and can take up to its
-      # 40-minute timeout; the registry fetches the image label at publish time.
+      # The registry fetches the image label at publish time. After Docker
+      # Publish the tag is already pushed, so a short wait covers Docker Hub
+      # lag. A manual dispatch may run before or alongside Docker Publish, so
+      # it waits through Docker Publish's 40-minute timeout.
       - name: Wait for Docker image
+        env:
+          ATTEMPTS: ${{ github.event_name == 'workflow_run' && '10' || '90' }}
         run: |
           IMAGE="$(node -p "require('./server.json').packages.find((pkg) => pkg.registryType === 'oci')?.identifier ?? ''")"
           if [ -z "$IMAGE" ]; then
@@ -110,13 +130,13 @@ jobs:
           REF="${IMAGE#docker.io/}"
           TAG_URL="https://hub.docker.com/v2/repositories/${REF%:*}/tags/${REF##*:}"
 
-          for attempt in {1..90}; do
+          for attempt in $(seq 1 "$ATTEMPTS"); do
             STATUS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$TAG_URL" || true)"
             if [ "$STATUS" = "200" ]; then
               exit 0
             fi
 
-            echo "Image ${IMAGE} is not visible yet (HTTP ${STATUS}). Retry ${attempt}/90..."
+            echo "Image ${IMAGE} is not visible yet (HTTP ${STATUS}). Retry ${attempt}/${ATTEMPTS}..."
             sleep 30
           done
 
