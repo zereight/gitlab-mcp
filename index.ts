@@ -896,7 +896,7 @@ function createServer(): McpServer {
   });
 
   mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => listMcpResources());
-  mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async (request) =>
+  mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async request =>
     readMcpResource(request.params.uri)
   );
 
