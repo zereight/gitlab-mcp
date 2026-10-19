@@ -94,11 +94,18 @@ async function callTool(
           return;
         }
 
+        let parsed: unknown;
         try {
-          resolve(JSON.parse(content));
+          parsed = JSON.parse(content);
         } catch {
           resolve(content);
+          return;
         }
+        if (content !== JSON.stringify(parsed)) {
+          reject(new Error(`${toolName} returned pretty-printed JSON`));
+          return;
+        }
+        resolve(parsed);
       } catch (error) {
         reject(error);
       }
