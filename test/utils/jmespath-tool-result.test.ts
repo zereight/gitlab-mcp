@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   applyJmespathFilter,
   applyJmespathToToolResult,
@@ -121,6 +122,42 @@ describe("jmespath tool result helpers", () => {
   test("applyJmespathToToolResult returns the original result when evaluation fails", () => {
     const original = { content: [{ type: "text", text: JSON.stringify({ title: 1 }) }] };
     assert.deepEqual(applyJmespathToToolResult(original, "starts_with(title, `a`)"), original);
+  });
+
+  test("applyJmespathToToolResult keeps structuredContent when the filter returns an object", () => {
+    const result = applyJmespathToToolResult(
+      {
+        content: [{ type: "text", text: JSON.stringify({ items: [{ title: "a" }], total: 1 }) }],
+        structuredContent: { items: [{ title: "a" }], total: 1 },
+      },
+      "{total: total}"
+    );
+    assert.deepEqual(result.structuredContent, { total: 1 });
+    assert.equal(CallToolResultSchema.safeParse(result).success, true);
+  });
+
+  test("applyJmespathToToolResult drops structuredContent the filter turns into a non-object", () => {
+    const items = [{ title: "a" }, { title: "b" }];
+    for (const [expression, filtered] of [
+      ["items[].title", ["a", "b"]],
+      ["missing", null],
+      ["length(items)", 2],
+    ] as const) {
+      const result = applyJmespathToToolResult(
+        {
+          content: [{ type: "text", text: JSON.stringify({ items }) }],
+          structuredContent: { items },
+        },
+        expression
+      );
+      assert.equal("structuredContent" in result, false, expression);
+      assert.deepEqual(
+        JSON.parse((result.content as { text: string }[])[0].text),
+        filtered,
+        expression
+      );
+      assert.equal(CallToolResultSchema.safeParse(result).success, true, expression);
+    }
   });
 
   test("getJmespathSyntaxError rejects invalid expressions before execution", () => {
