@@ -353,6 +353,36 @@ describe("When redactUrlSecretsInText runs", () => {
     it("should redact a password with a #", () => {
       assert.equal(redactUrlSecretsInText("https://u:123#x@host"), "https://[REDACTED]@host");
     });
+
+    it("should redact an email username, which has a dot but cannot be a host", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://alice%40example.com:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+  });
+
+  describe("with a host, a port, and an @ in the path or query", () => {
+    const urls = [
+      "https://gitlab.example:8443/api/v4/users?search=a@b.com",
+      "https://gitlab.example:8443/g/p/-/raw/main/logo@2x.png",
+      "https://gitlab.example:8443#a@b.com",
+      "http://localhost:8080/api/v4/users?search=a@b.com",
+      "http://127.0.0.1:8080/g/p/-/raw/main/logo@2x.png",
+      "http://[::1]:8080/api/v4/users?search=a@b.com",
+    ];
+    for (const url of urls) {
+      it(`should leave ${url} unchanged`, () => {
+        assert.equal(redactUrlSecretsInText(`GET ${url} failed`), `GET ${url} failed`);
+      });
+    }
+
+    it("should still redact a sensitive query value", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:8443/api/v4/users?search=a@b.com&private_token=x"),
+        "https://gitlab.example:8443/api/v4/users?search=a@b.com&private_token=[REDACTED]"
+      );
+    });
   });
 
   describe("with an @ after the host", () => {
@@ -445,6 +475,15 @@ describe("When redactGitLabUrlCredentials runs", () => {
       assert.equal(
         redactGitLabUrlCredentials("https://u:12/ab@host/api/v4"),
         "https://[REDACTED]@host/api/v4"
+      );
+    });
+  });
+
+  describe("with a host, a port, and an @ in the query", () => {
+    it("should return the URL unchanged", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://gitlab.example:8443/api/v4/users?search=a@b.com"),
+        "https://gitlab.example:8443/api/v4/users?search=a@b.com"
       );
     });
   });
@@ -693,6 +732,12 @@ describe("When redactUrlSecretsInLogLine runs", () => {
 
     it("should return a line without secrets unchanged", () => {
       const line = `${JSON.stringify({ msg: "mail alice@example.com", url: "https://host/a" })}\n`;
+
+      assert.equal(redactUrlSecretsInLogLine(line), line);
+    });
+
+    it("should keep a URL on a custom port with an @ in the path", () => {
+      const line = `${JSON.stringify({ url: "https://gitlab.example:8443/g/p/-/raw/main/logo@2x.png" })}\n`;
 
       assert.equal(redactUrlSecretsInLogLine(line), line);
     });

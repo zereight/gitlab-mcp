@@ -427,13 +427,19 @@ const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:", "ws:", 
 const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/;
 const HOST_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/;
 const HOST_WITH_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*):\d+$/;
+const DOTTED_HOST_NAME_PATTERN = /^[a-z0-9_.-]+$/i;
 
 // The userinfo ends at the last "@" before the path, so "https://host/a?x=1@2"
 // and ".../npm/@scope/pkg" keep their "@". A password with an unencoded "/"
 // ("user:p/ss@host") moves that "@" past the first "/"; it is told apart from
 // a URL by the "user:p" before the "/", which is not a host[:port].
-// A password of digits first ("u:12/ab@host", "u:123?x@host") reads as a port,
-// so after a port the last "@" counts unless it starts a path segment ("/@scope").
+// A password of digits first ("u:12/ab@host", "u:123?x@host") reads as a port.
+// So when the name before the port cannot be a host (no ".", not localhost,
+// not an IP literal), the last "@" counts unless it starts a path segment
+// ("/@scope"), and "gitlab.example:8443/users?search=a@b.com" keeps its "@".
+// Two shapes stay ambiguous. A username that is also a dotted host name
+// ("first.last:12/ab@host") is left unchanged. A single-label host on a port
+// ("gitlab:8080/users?search=a@b.com") is redacted up to that "@".
 // `lastUserinfoAt` is that "@" as an index into `rest`, or negative.
 function findUserinfoEnd(rest: string, lastUserinfoAt: number): number {
   const authorityEnd = rest.search(AUTHORITY_END_PATTERN);
@@ -443,12 +449,26 @@ function findUserinfoEnd(rest: string, lastUserinfoAt: number): number {
     return atIndex;
   }
   if (HOST_WITH_PORT_PATTERN.test(authority)) {
-    return Math.max(lastUserinfoAt, -1);
+    const host = authority.slice(0, authority.lastIndexOf(":"));
+    return couldBeHostName(host) ? -1 : Math.max(lastUserinfoAt, -1);
   }
   if (HOST_PORT_PATTERN.test(authority)) {
     return -1;
   }
   return rest.lastIndexOf("@");
+}
+
+// "%" (an encoded "@" in an email username) or "+" cannot appear in a host name.
+function couldBeHostName(host: string): boolean {
+  if ((host.startsWith("[") && host.endsWith("]")) || host.toLowerCase() === "localhost") {
+    return true;
+  }
+  return (
+    host.includes(".") &&
+    !host.startsWith(".") &&
+    !host.includes("..") &&
+    DOTTED_HOST_NAME_PATTERN.test(host)
+  );
 }
 
 // Found once per token, so each nested URL reads it in constant time.
