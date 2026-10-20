@@ -19,13 +19,18 @@ interface ToolCallOutcome {
   readonly stderr: string;
 }
 
-function serverEnv(apiUrl: string, logFormat: string | undefined): Record<string, string> {
+function serverEnv(
+  apiUrl: string,
+  logFormat: string | undefined,
+  extraEnv: Record<string, string>
+): Record<string, string> {
   const env: Record<string, string> = {
     GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
     GITLAB_API_URL: apiUrl,
     GITLAB_DISABLE_VERSION_CHECK: "true",
     USE_PIPELINE: "true",
     LOG_LEVEL: "info",
+    ...extraEnv,
   };
   if (logFormat !== undefined) {
     env.LOG_FORMAT = logFormat;
@@ -43,11 +48,12 @@ async function callToolAsync(
   toolName: string,
   args: Record<string, unknown>,
   apiUrl: string,
-  logFormat?: string
+  logFormat?: string,
+  extraEnv: Record<string, string> = {}
 ): Promise<ToolCallOutcome> {
   const child = spawn(process.execPath, [path.join(REPO_ROOT, "build/index.js")], {
     cwd: REPO_ROOT,
-    env: serverEnv(apiUrl, logFormat),
+    env: serverEnv(apiUrl, logFormat, extraEnv),
     stdio: ["pipe", "pipe", "pipe"],
   });
   const stdoutChunks: Buffer[] = [];
@@ -220,4 +226,55 @@ describe("When fetch rejects a credentialed URL during a tool call", () => {
       });
     });
   }
+});
+
+describe("When a tool returns a fetch error as data", () => {
+  let mockGitLab: MockGitLabServer;
+  let mockGitLabUrl: string;
+
+  before(async () => {
+    mockGitLab = new MockGitLabServer({
+      port: await findMockServerPort(),
+      validTokens: [MOCK_TOKEN],
+    });
+    await mockGitLab.start();
+    mockGitLabUrl = mockGitLab.getUrl();
+  });
+
+  after(async () => {
+    await mockGitLab.stop();
+  });
+
+  // execute_graphql reports a failed request as { error } without isError.
+  // GITLAB_GRAPHQL_URL is used as is, so fetch() rejects its userinfo.
+  async function callGraphqlAsync(): Promise<ToolCallOutcome> {
+    return callToolAsync(
+      "execute_graphql",
+      { query: "query { currentUser { id } }" },
+      `${mockGitLabUrl}/api/v4`,
+      undefined,
+      {
+        GITLAB_TOOLS: "execute_graphql",
+        GITLAB_GRAPHQL_URL: credentialedUrl(mockGitLabUrl, "/api/graphql"),
+      }
+    );
+  }
+
+  it("should return the error with the userinfo redacted", async () => {
+    const outcome = await callGraphqlAsync();
+    const result = outcome.response.result as { isError?: boolean; content: { text: string }[] };
+
+    assert.equal(result.isError, undefined);
+    assert.match(
+      JSON.parse(result.content[0].text).error,
+      /^GraphQL request failed: .*includes credentials: http:\/\/\[REDACTED\]@127\.0\.0\.1:/
+    );
+  });
+
+  it("should omit the password from the response and stderr", async () => {
+    const outcome = await callGraphqlAsync();
+
+    assert.equal(JSON.stringify(outcome.response).includes(URL_PASSWORD), false);
+    assert.equal(outcome.stderr.includes(URL_PASSWORD), false);
+  });
 });

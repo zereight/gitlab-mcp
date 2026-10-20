@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   redactGitLabUrlCredentials,
   redactUrlSecretsInError,
+  redactUrlSecretsInErrorMessage,
   redactUrlSecretsInLogLine,
   redactUrlSecretsInText,
   splitCommaSeparatedUrls,
@@ -590,6 +591,27 @@ describe("When redactUrlSecretsInError runs", () => {
   describe("with a thrown string", () => {
     it("should return the redacted string", () => {
       assert.equal(redactUrlSecretsInError("https://alice:pw@host"), "https://[REDACTED]@host");
+    });
+  });
+});
+
+describe("When redactUrlSecretsInErrorMessage runs", () => {
+  describe("with an undici credentials error", () => {
+    it("should return the redacted message", () => {
+      const error = new TypeError(
+        "Request cannot be constructed from a URL that includes credentials: https://alice:p%2Cw@host/api/graphql"
+      );
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        "Request cannot be constructed from a URL that includes credentials: https://[REDACTED]@host/api/graphql"
+      );
+    });
+  });
+
+  describe("with a thrown string", () => {
+    it("should return the redacted string", () => {
+      assert.equal(redactUrlSecretsInErrorMessage("https://alice:pw@host"), "https://[REDACTED]@host");
     });
   });
 });

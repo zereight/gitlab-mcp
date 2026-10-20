@@ -49,6 +49,15 @@ export function redactUrlSecretsInError(error: unknown): unknown {
   return error;
 }
 
+/**
+ * The redacted message of a caught error, for a tool result that reports the
+ * failure in its data (`{ "error": "GraphQL request failed: ..." }`) instead of
+ * as an isError result.
+ */
+export function redactUrlSecretsInErrorMessage(error: unknown): string {
+  return redactUrlSecretsInText(error instanceof Error ? error.message : String(error));
+}
+
 function redactErrorChain(error: unknown, seen: Set<Error>): void {
   if (!(error instanceof Error) || seen.has(error)) {
     return;

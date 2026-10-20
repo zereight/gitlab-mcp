@@ -233,6 +233,7 @@ import {
 } from "./utils/health-check-transport-error.js";
 import {
   redactUrlSecretsInError,
+  redactUrlSecretsInErrorMessage,
   redactUrlSecretsInText,
   splitCommaSeparatedUrls,
 } from "./utils/redact-url.js";
@@ -1275,7 +1276,11 @@ function createServer(): McpServer {
   return mcpServer;
 }
 
-/** An isError tool result can quote fetch/URL error text too; see redactUrlSecretsInError. */
+/**
+ * An isError tool result can quote fetch/URL error text too; see redactUrlSecretsInError.
+ * Other results carry GitLab data, which is returned as is; a handler that puts
+ * a caught error into its data redacts it there (redactUrlSecretsInErrorMessage).
+ */
 function redactErrorResultUrls<T>(result: T): T {
   if (!isRecord(result) || result.isError !== true || !Array.isArray(result.content)) {
     return result;
@@ -6024,7 +6029,7 @@ async function buildMergeRequestCommitAdditionSummary(
       summary,
     };
   } catch (error) {
-    const unavailableReason = error instanceof Error ? error.message : String(error);
+    const unavailableReason = redactUrlSecretsInErrorMessage(error);
     return {
       target_branch: mergeRequest.target_branch,
       source_commits_count: null,
@@ -6057,7 +6062,7 @@ async function buildMergeRequestApprovalSummary(
       source_endpoint: approvalState.source_endpoint ?? null,
     };
   } catch (error) {
-    const unavailableReason = error instanceof Error ? error.message : String(error);
+    const unavailableReason = redactUrlSecretsInErrorMessage(error);
     return {
       approved: null,
       user_has_approved: null,
@@ -6168,7 +6173,7 @@ async function buildMergeRequestDeploymentSummary(
       records,
     };
   } catch (error) {
-    const unavailableReason = error instanceof Error ? error.message : String(error);
+    const unavailableReason = redactUrlSecretsInErrorMessage(error);
 
     return {
       lookup_sha: lookupSha,
@@ -11947,8 +11952,8 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
-          const message =
-            describeFetchTransportError(err) ?? (err instanceof Error ? err.message : String(err));
+          // Returned as data, not isError, so the central error redaction does not see it.
+          const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
           return {
             content: [
               {
@@ -11996,7 +12001,8 @@ async function handleToolCall(params: any) {
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
-            const reason = describeFetchTransportError(forkError) ?? forkError.message;
+            const reason =
+              describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
           return {
@@ -13190,7 +13196,9 @@ async function handleToolCall(params: any) {
           } catch (noteError: any) {
             noteResult = {
               status: "failed",
-              message: `Note creation failed: ${noteError.message ?? noteError}`,
+              message: redactUrlSecretsInText(
+                `Note creation failed: ${noteError.message ?? noteError}`
+              ),
             };
           }
         }
