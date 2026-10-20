@@ -308,7 +308,8 @@ describe("When redactUrlSecretsInText runs", () => {
   });
 
   describe("with a long token of repeated separators", () => {
-    // Each input took seconds when every "," or "?" started a new scan of the rest.
+    // Each input took seconds when every ",", "?", or nested URL started a new
+    // scan of the rest.
     const inputs: Record<string, string> = {
       '"x:a," repeated': "x:a,".repeat(40_000),
       "commas before a final @": `x:${"a,".repeat(40_000)}a@h`,
@@ -317,6 +318,11 @@ describe("When redactUrlSecretsInText runs", () => {
       '":!" repeated after "://"': `x://!${":!".repeat(40_000)}`,
       '"! " repeated after a password': `x://!:! ${"! ".repeat(40_000)}`,
       "spaced userinfo repeated": "x://a:b c@h ".repeat(10_000),
+      'URLs nested in a bracket before "/@"': `http://${"[http:".repeat(40_000)}]/@`,
+      'URLs with a port nested in a bracket before "/@"': `http://${"[a:1http:".repeat(40_000)}]/@`,
+      "URLs nested in a bracket before a port": `http://${"[http:".repeat(40_000)}]:80/@`,
+      "URLs nested in a bracket with an IPv6 zone": `http://${"[::1%http:".repeat(40_000)}]:80/@`,
+      'URLs nested in a bracket before "?@"': `ws://${"[ws:".repeat(40_000)}]?@`,
     };
 
     for (const [name, text] of Object.entries(inputs)) {
@@ -328,13 +334,20 @@ describe("When redactUrlSecretsInText runs", () => {
       });
     }
 
-    it("should finish quickly for a log line with a long tool name", () => {
-      const message = `Tool "${"x:a,".repeat(40_000)}@" is not available`;
-      const start = performance.now();
-      redactUrlSecretsInLogLine(`${JSON.stringify({ msg: message, err: { stack: message } })}\n`);
+    const toolNames: Record<string, string> = {
+      "a long tool name": `${"x:a,".repeat(40_000)}@`,
+      "nested URLs in the tool name": `http://${"[http:".repeat(40_000)}]/@`,
+    };
 
-      assert.ok(performance.now() - start < 500);
-    });
+    for (const [name, toolName] of Object.entries(toolNames)) {
+      it(`should finish quickly for a log line with ${name}`, () => {
+        const message = `Tool "${toolName}" is not available`;
+        const start = performance.now();
+        redactUrlSecretsInLogLine(`${JSON.stringify({ msg: message, err: { stack: message } })}\n`);
+
+        assert.ok(performance.now() - start < 500);
+      });
+    }
   });
 
   describe("with a password of digits and then a slash, ? or #", () => {
@@ -360,6 +373,44 @@ describe("When redactUrlSecretsInText runs", () => {
         "https://[REDACTED]@host/api/v4"
       );
     });
+
+    it("should redact a bracketed username that is not an IPv6 address", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://[not-an-ip]:12/ab@host"),
+        "https://[REDACTED]@host"
+      );
+    });
+
+    it("should redact a dotted username when the digits cannot be a port", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://first.last:123456/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+
+    it("should redact digits above 65535 after a host name", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:65536/ab@host"),
+        "https://[REDACTED]@host"
+      );
+    });
+  });
+
+  describe("with a shape that reads as both userinfo and a host", () => {
+    // The two ambiguous shapes in the findUserinfoEnd comment.
+    it("should leave a dotted username with a port-sized password unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://first.last:12/ab@host/api/v4"),
+        "https://first.last:12/ab@host/api/v4"
+      );
+    });
+
+    it("should redact a single-label host on a port up to an @ in the query", () => {
+      assert.equal(
+        redactUrlSecretsInText("http://gitlab:8080/api/v4/users?search=a@b.com"),
+        "http://[REDACTED]@b.com"
+      );
+    });
   });
 
   describe("with a host, a port, and an @ in the path or query", () => {
@@ -367,6 +418,7 @@ describe("When redactUrlSecretsInText runs", () => {
       "https://gitlab.example:8443/api/v4/users?search=a@b.com",
       "https://gitlab.example:8443/g/p/-/raw/main/logo@2x.png",
       "https://gitlab.example:8443#a@b.com",
+      "https://gitlab.example:65535/api/v4/users?search=a@b.com",
       "http://localhost:8080/api/v4/users?search=a@b.com",
       "http://127.0.0.1:8080/g/p/-/raw/main/logo@2x.png",
       "http://[::1]:8080/api/v4/users?search=a@b.com",
@@ -401,6 +453,14 @@ describe("When redactUrlSecretsInText runs", () => {
       assert.equal(
         redactUrlSecretsInText("https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"),
         "https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"
+      );
+    });
+
+    it("should leave an npm scope path after a single-label host and port unchanged", () => {
+      // "gitlab:8080" could be a username and password, so only the "/@" check keeps it.
+      assert.equal(
+        redactUrlSecretsInText("http://gitlab:8080/api/v4/packages/npm/@scope/pkg"),
+        "http://gitlab:8080/api/v4/packages/npm/@scope/pkg"
       );
     });
   });

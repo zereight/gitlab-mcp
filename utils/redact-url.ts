@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 const SENSITIVE_QUERY_NAMES: ReadonlySet<string> = new Set([
   "access_token",
   "private_token",
@@ -361,12 +363,14 @@ function splitAuthorityUserinfo(
 // A URL inside another URL's path or query ("...?next=https://user:pass@host")
 // has its own authority. The text regex sees both as one token.
 // One pass per URL in the token, outer first, so a long token of nested URLs
-// does not grow the call stack.
+// does not grow the call stack. URLs nested in one authority share its end, and
+// the authority reader reads that text once for all of them.
 function redactCompactUserinfo(urlToken: string): string {
   // Without an "@" after a URL's scheme there is no userinfo to find, so
   // segments past the last "@" skip the authority scan.
   const lastAt = urlToken.lastIndexOf("@");
   const lastUserinfoAt = lastAtOutsidePathSegmentStart(urlToken);
+  const authorities = createAuthorityReader(urlToken);
   const parts: string[] = [];
   let offset = 0;
   for (;;) {
@@ -379,7 +383,7 @@ function redactCompactUserinfo(urlToken: string): string {
     const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
     const atIndex =
       hasAuthority && lastAt >= restStart
-        ? findUserinfoEnd(prefix.rest, lastUserinfoAt - restStart)
+        ? findUserinfoEnd(urlToken, restStart, authorities, lastAt, lastUserinfoAt)
         : -1;
     const nestedFrom = atIndex > 0 ? atIndex + 1 : 0;
     parts.push(atIndex > 0 ? `${prefix.scheme}[REDACTED]@` : prefix.scheme);
@@ -424,50 +428,139 @@ function findNestedUrlStart(text: string): number {
 const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:", "ws:", "wss:", "ftp:"]);
 
 // Path, query, fragment, and the quote or bracket that closes a URL in prose or JSON.
-const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/;
-const HOST_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/;
-const HOST_WITH_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*):\d+$/;
+const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/g;
+const DIGITS_PATTERN = /^\d*$/;
 const DOTTED_HOST_NAME_PATTERN = /^[a-z0-9_.-]+$/i;
+const LOCALHOST_PATTERN = /^localhost$/i;
+
+// The text from a URL's authority start to the next AUTHORITY_END_PATTERN
+// character. A URL nested in that authority ("http://[http:[http:…]/@") ends
+// at the same character, so the text is read once, from the first start, and a
+// later start compares its index with the positions found.
+interface AuthorityText {
+  readonly end: number;
+  // False when no end character follows; `end` is then the token length.
+  readonly closed: boolean;
+  readonly lastAt: number;
+  readonly lastColon: number;
+  readonly colonBeforeLast: number;
+  // The text after the last ":" is digits, or empty.
+  readonly digitsAfterLastColon: boolean;
+  // Those digits are above 65535, so they are not a port.
+  readonly portTooLarge: boolean;
+}
+
+interface AuthorityReader {
+  read(start: number): AuthorityText;
+  // The first "]" at or after `start`, or the token length.
+  closeBracket(start: number): number;
+}
+
+// Starts only move forward, and so do both positions here, as in
+// splitCommaSeparatedUrls: the authorities of a token are read once in total.
+function createAuthorityReader(token: string): AuthorityReader {
+  let text: AuthorityText | undefined;
+  let closeBracket = -1;
+  return {
+    read(start) {
+      if (text === undefined || text.end < start) {
+        text = readAuthorityText(token, start);
+      }
+      return text;
+    },
+    closeBracket(start) {
+      if (closeBracket < start) {
+        const index = token.indexOf("]", start);
+        closeBracket = index === -1 ? token.length : index;
+      }
+      return closeBracket;
+    },
+  };
+}
+
+function readAuthorityText(token: string, from: number): AuthorityText {
+  const end = indexOfPattern(token, AUTHORITY_END_PATTERN, from);
+  let lastAt = -1;
+  let lastColon = -1;
+  let colonBeforeLast = -1;
+  for (let index = from; index < end; index += 1) {
+    if (token[index] === "@") {
+      lastAt = index;
+    } else if (token[index] === ":") {
+      colonBeforeLast = lastColon;
+      lastColon = index;
+    }
+  }
+  const port = lastColon === -1 ? "" : token.slice(lastColon + 1, end);
+  const digitsAfterLastColon = DIGITS_PATTERN.test(port);
+  return {
+    end,
+    closed: end < token.length,
+    lastAt,
+    lastColon,
+    colonBeforeLast,
+    digitsAfterLastColon,
+    // WHATWG reads ":0000080" as port 80.
+    portTooLarge: digitsAfterLastColon && Number(port) > 65535,
+  };
+}
 
 // The userinfo ends at the last "@" before the path, so "https://host/a?x=1@2"
 // and ".../npm/@scope/pkg" keep their "@". A password with an unencoded "/"
 // ("user:p/ss@host") moves that "@" past the first "/"; it is told apart from
 // a URL by the "user:p" before the "/", which is not a host[:port].
 // A password of digits first ("u:12/ab@host", "u:123?x@host") reads as a port.
-// So when the name before the port cannot be a host (no ".", not localhost,
-// not an IP literal), the last "@" counts unless it starts a path segment
-// ("/@scope"), and "gitlab.example:8443/users?search=a@b.com" keeps its "@".
+// So when the name before the port cannot be a host (a dotted name of letters,
+// digits, "-" and "_", localhost, or an IPv6 literal), or the digits are above
+// 65535, the last "@" counts unless it starts a path segment ("/@scope"), and
+// "gitlab.example:8443/users?search=a@b.com" keeps its "@".
 // Two shapes stay ambiguous. A username that is also a dotted host name
 // ("first.last:12/ab@host") is left unchanged. A single-label host on a port
 // ("gitlab:8080/users?search=a@b.com") is redacted up to that "@".
-// `lastUserinfoAt` is that "@" as an index into `rest`, or negative.
-function findUserinfoEnd(rest: string, lastUserinfoAt: number): number {
-  const authorityEnd = rest.search(AUTHORITY_END_PATTERN);
-  const authority = authorityEnd === -1 ? rest : rest.slice(0, authorityEnd);
-  const atIndex = authority.lastIndexOf("@");
-  if (atIndex !== -1 || authorityEnd === -1) {
-    return atIndex;
+// `start` is the authority start in `token`; the result is an index from it.
+function findUserinfoEnd(
+  token: string,
+  start: number,
+  authorities: AuthorityReader,
+  lastAt: number,
+  lastUserinfoAt: number
+): number {
+  const text = authorities.read(start);
+  if (text.lastAt >= start || !text.closed) {
+    return Math.max(text.lastAt - start, -1);
   }
-  if (HOST_WITH_PORT_PATTERN.test(authority)) {
-    const host = authority.slice(0, authority.lastIndexOf(":"));
-    return couldBeHostName(host) ? -1 : Math.max(lastUserinfoAt, -1);
+  const { end, lastColon } = text;
+  const hasColon = lastColon >= start;
+  const oneColon = hasColon && text.colonBeforeLast < start;
+  // ":" and then only digits, maybe none.
+  const portDigits = hasColon && text.digitsAfterLastColon;
+  const bracketEnd = token[start] === "[" ? authorities.closeBracket(start) : -1;
+  // /^(?:\[[^\]]*\]|[^:]*):\d+$/: "host:port" or "[...]:port".
+  if (portDigits && lastColon + 1 < end && (oneColon || bracketEnd === lastColon - 1)) {
+    const host = token.slice(start, lastColon);
+    return !text.portTooLarge && couldBeHostName(host) ? -1 : Math.max(lastUserinfoAt - start, -1);
   }
-  if (HOST_PORT_PATTERN.test(authority)) {
-    return -1;
-  }
-  return rest.lastIndexOf("@");
+  // The rest of /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/: "host", "host:", "[...]", or "[...]:".
+  const hostWithoutPort =
+    !hasColon ||
+    (oneColon && portDigits) ||
+    bracketEnd === end - 1 ||
+    (portDigits && bracketEnd === lastColon - 1);
+  return hostWithoutPort ? -1 : lastAt - start;
 }
 
 // "%" (an encoded "@" in an email username) or "+" cannot appear in a host name.
+// The character test comes first and stops at the first other character.
 function couldBeHostName(host: string): boolean {
-  if ((host.startsWith("[") && host.endsWith("]")) || host.toLowerCase() === "localhost") {
-    return true;
+  if (host.startsWith("[")) {
+    return host.endsWith("]") && isIP(host.slice(1, -1)) === 6;
   }
   return (
-    host.includes(".") &&
-    !host.startsWith(".") &&
-    !host.includes("..") &&
-    DOTTED_HOST_NAME_PATTERN.test(host)
+    LOCALHOST_PATTERN.test(host) ||
+    (DOTTED_HOST_NAME_PATTERN.test(host) &&
+      host.includes(".") &&
+      !host.startsWith(".") &&
+      !host.includes(".."))
   );
 }
 
