@@ -63,6 +63,7 @@
     "test:oauth": "tsx test/oauth-tests.ts && node --import tsx/esm --test --experimental-test-isolation=none test/oauth-device-flow-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
+    "test:tools-list:update": "npm run build && UPDATE_TOOLS_LIST_GOLDEN=1 node --import tsx/esm --test --experimental-test-isolation=none test/tools-list-golden.test.ts",
     "lint": "eslint .",
     "check:runtime-deps": "node scripts/check-runtime-deps.mjs",
     "check:skill-sync": "tsx scripts/check-skill-sync.ts",
