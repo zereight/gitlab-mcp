@@ -224,8 +224,6 @@ function replaceUrlTokens(text: string, replace: (urlToken: string) => string): 
 }
 
 // "scheme://user:pa ss@host": a password with whitespace splits the token above.
-const SPACED_USERINFO_PATTERN = /([^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+)@/y;
-
 function redactSpacedUserinfo(text: string): string {
   const parts: string[] = [];
   let copied = 0;
@@ -233,14 +231,13 @@ function redactSpacedUserinfo(text: string): string {
   while (colon !== -1) {
     const start = findSchemeStart(text, colon);
     const authorityStart = colon + 3;
-    SPACED_USERINFO_PATTERN.lastIndex = authorityStart;
-    const match = start === -1 ? null : SPACED_USERINFO_PATTERN.exec(text);
-    if (match === null) {
+    const atIndex = start === -1 ? -1 : findSpacedUserinfoEnd(text, authorityStart);
+    if (atIndex === -1) {
       colon = text.indexOf("://", colon + 1);
       continue;
     }
-    const end = authorityStart + match[0].length;
-    if (!looksLikeHostPort(match[1], text.slice(end))) {
+    const end = atIndex + 1;
+    if (!looksLikeHostPort(text.slice(authorityStart, atIndex), text.slice(end))) {
       parts.push(text.slice(copied, start), `${text.slice(start, authorityStart)}[REDACTED]@`);
       copied = end;
     }
@@ -248,6 +245,47 @@ function redactSpacedUserinfo(text: string): string {
   }
   parts.push(text.slice(copied));
   return parts.join("");
+}
+
+const SPACED_USERINFO_STOP_PATTERN = /[\s/:@.]/;
+
+// Index of the "@" that ends /[^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+@/ at
+// `start`, or -1. Its parts cannot overlap, so one pass decides the match, and
+// the scan stops at the next "://".
+function findSpacedUserinfoEnd(text: string, start: number): number {
+  let index = skipUserinfoRun(text, start);
+  if (index === start || text[index] !== ":") {
+    return -1;
+  }
+  while (text[index] === ":") {
+    const runEnd = skipUserinfoRun(text, index + 1);
+    if (runEnd === index + 1) {
+      return -1;
+    }
+    index = runEnd;
+  }
+  let spacedRuns = 0;
+  while (index < text.length && WHITESPACE_PATTERN.test(text[index])) {
+    let runStart = index + 1;
+    while (runStart < text.length && WHITESPACE_PATTERN.test(text[runStart])) {
+      runStart += 1;
+    }
+    const runEnd = skipUserinfoRun(text, runStart);
+    if (runEnd === runStart) {
+      return -1;
+    }
+    index = runEnd;
+    spacedRuns += 1;
+  }
+  return spacedRuns > 0 && text[index] === "@" ? index : -1;
+}
+
+function skipUserinfoRun(text: string, from: number): number {
+  let index = from;
+  while (index < text.length && !SPACED_USERINFO_STOP_PATTERN.test(text[index])) {
+    index += 1;
+  }
+  return index;
 }
 
 // Start of the scheme that ends at `colon`, where /\b[a-z][a-z0-9+.-]*:/i

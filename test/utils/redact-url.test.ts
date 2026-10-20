@@ -314,6 +314,9 @@ describe("When redactUrlSecretsInText runs", () => {
       "commas before a final @": `x:${"a,".repeat(40_000)}a@h`,
       '"?" repeated': "?".repeat(40_000),
       "http-looking entries after a comma in the password": `x://a:${"b,http:c".repeat(20_000)}@h`,
+      '":!" repeated after "://"': `x://!${":!".repeat(40_000)}`,
+      '"! " repeated after a password': `x://!:! ${"! ".repeat(40_000)}`,
+      "spaced userinfo repeated": "x://a:b c@h ".repeat(10_000),
     };
 
     for (const [name, text] of Object.entries(inputs)) {
