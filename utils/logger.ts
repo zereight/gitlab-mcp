@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { pino, type DestinationStream, type Logger } from "pino";
+import { redactUrlSecretsInLogLine } from "./redact-url.js";
 
 const require = createRequire(import.meta.url);
 
@@ -157,6 +158,8 @@ export function flushBufferedLogs(logger: Logger): void {
  *   to stderr.
  * - Any other value, including unset, keeps human-readable pino-pretty output.
  * - All loggers redact the same set of sensitive fields.
+ * - Every line, in either format, has URL userinfo and token query values
+ *   redacted, including text from thrown fetch/URL errors and their causes.
  */
 export function createLogger(name?: string): Logger {
   const isJson = process.env.LOG_FORMAT === "json";
@@ -166,6 +169,9 @@ export function createLogger(name?: string): Logger {
     redact: {
       paths: REDACT_PATHS,
       censor: "[REDACTED]",
+    },
+    hooks: {
+      streamWrite: redactUrlSecretsInLogLine,
     },
   };
   if (isJson) {

@@ -35,6 +35,123 @@ export function redactUrlSecretsInText(text: string): string {
   return redactSensitiveQuery(redactUrlUserinfoInText(redactParseableUrlUserinfo(text)));
 }
 
+/**
+ * Redacts an error in place: `message`, `stack`, and every `cause` below it.
+ * undici and `new URL()` put the URL they rejected into the message, so a
+ * credentialed URL would otherwise reach the MCP client and the log verbatim.
+ * A thrown string is returned redacted; other values are returned unchanged.
+ */
+export function redactUrlSecretsInError(error: unknown): unknown {
+  if (typeof error === "string") {
+    return redactUrlSecretsInText(error);
+  }
+  redactErrorChain(error, new Set());
+  return error;
+}
+
+function redactErrorChain(error: unknown, seen: Set<Error>): void {
+  if (!(error instanceof Error) || seen.has(error)) {
+    return;
+  }
+  seen.add(error);
+  redactErrorField(error, "message");
+  redactErrorField(error, "stack");
+  if (typeof error.cause === "string") {
+    redactErrorField(error, "cause");
+  } else {
+    redactErrorChain(error.cause, seen);
+  }
+  if (error instanceof AggregateError && Array.isArray(error.errors)) {
+    for (const inner of error.errors) {
+      redactErrorChain(inner, seen);
+    }
+  }
+}
+
+function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {
+  const value: unknown = error[field];
+  if (typeof value !== "string") {
+    return;
+  }
+  const redacted = redactUrlSecretsInText(value);
+  if (redacted === value) {
+    return;
+  }
+  try {
+    error[field] = redacted;
+  } catch {
+    // A frozen error keeps its text; the logger still redacts its own copy.
+  }
+}
+
+/**
+ * Redacts one serialized pino line. Each JSON string is redacted after
+ * JSON.parse, so a URL next to a quote cannot pull the rest of the line into
+ * the userinfo match. A line that is not JSON is redacted as text.
+ */
+export function redactUrlSecretsInLogLine(line: string): string {
+  if (!line.includes("@") && !line.includes("=")) {
+    return line;
+  }
+  const newline = line.endsWith("\n") ? "\n" : "";
+  const body = newline ? line.slice(0, -1) : line;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return redactUrlSecretsInText(line);
+  }
+  let changed = false;
+  const redacted = mapJsonStrings(parsed, value => {
+    const next = redactUrlSecretsInText(value);
+    changed ||= next !== value;
+    return next;
+  });
+  return changed ? `${JSON.stringify(redacted)}${newline}` : line;
+}
+
+function mapJsonStrings(value: unknown, map: (value: string) => string): unknown {
+  if (typeof value === "string") {
+    return map(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => mapJsonStrings(item, map));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, mapJsonStrings(item, map)])
+    );
+  }
+  return value;
+}
+
+/**
+ * Drops userinfo from a configured GitLab API URL. fetch() refuses a URL with
+ * credentials, and GitLab API authentication goes in request headers, so the
+ * userinfo is removed before any request is built. A value that does not parse
+ * is returned unchanged for the config validation to report.
+ */
+export function stripUrlUserinfo(url: string): {
+  readonly url: string;
+  readonly hadUserinfo: boolean;
+} {
+  const trimmed = url.trim();
+  const parsed = tryParseUrl(trimmed);
+  if (parsed === null || (parsed.username.length === 0 && parsed.password.length === 0)) {
+    return { url, hadUserinfo: false };
+  }
+  parsed.username = "";
+  parsed.password = "";
+  const serialized = parsed.toString();
+  // "https://user:pass@host" serializes as "https://host/"; keep the input's form.
+  const addedRootSlash =
+    parsed.pathname === "/" &&
+    parsed.search.length === 0 &&
+    parsed.hash.length === 0 &&
+    !trimmed.endsWith("/");
+  return { url: addedRootSlash ? serialized.slice(0, -1) : serialized, hadUserinfo: true };
+}
+
 function redactSensitiveQuery(url: string): string {
   return url.replace(
     /([?&#])([^=&\s#]+)=[^&\s#]+/g,
@@ -60,9 +177,10 @@ function decodeQueryName(rawName: string): string {
 }
 
 function redactUrlUserinfoInText(message: string): string {
+  // A token can hold a comma-separated GITLAB_API_URL list; each entry has its own userinfo.
   const withoutCompactUserinfo = message.replace(
     /\b[a-z][a-z0-9+.-]*:(?:\/\/|\/)?[^\s]+/gi,
-    urlToken => redactCompactUserinfo(urlToken)
+    urlToken => splitCommaSeparatedUrls(urlToken).map(redactCompactUserinfo).join(",")
   );
   return withoutCompactUserinfo.replace(
     /\b([a-z][a-z0-9+.-]*:\/\/)([^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+)@/gi,
@@ -129,18 +247,56 @@ function redactCompactUserinfo(urlToken: string): string {
   if (prefix === null) {
     return urlToken;
   }
-  const atIndex = prefix.rest.lastIndexOf("@");
+  const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
+  const atIndex = hasAuthority ? findUserinfoEnd(prefix.rest) : -1;
   if (atIndex <= 0) {
-    return urlToken;
+    return `${prefix.scheme}${redactNestedUrls(prefix.rest)}`;
   }
-  return `${prefix.scheme}[REDACTED]@${prefix.rest.slice(atIndex + 1)}`;
+  return `${prefix.scheme}[REDACTED]@${redactNestedUrls(prefix.rest.slice(atIndex + 1))}`;
+}
+
+// A URL inside another URL's path or query ("...?next=https://user:pass@host")
+// has its own authority. The text regex sees both as one token.
+const NESTED_URL_PATTERN = /[a-z][a-z0-9+.-]*:(?:\/\/|\/)?[^\s]/i;
+
+function redactNestedUrls(rest: string): string {
+  const start = rest.search(NESTED_URL_PATTERN);
+  if (start === -1) {
+    return rest;
+  }
+  return `${rest.slice(0, start)}${redactCompactUserinfo(rest.slice(start))}`;
+}
+
+// WHATWG special schemes read userinfo without "//" ("https:user:pass@host").
+// Other schemes have an authority only after "//", so "mailto:a@b.com" has none.
+const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:", "ws:", "wss:", "ftp:"]);
+
+// Path, query, fragment, and the quote or bracket that closes a URL in prose or JSON.
+const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/;
+const HOST_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/;
+
+// The userinfo ends at the last "@" before the path, so "https://host/a?x=1@2"
+// and ".../npm/@scope/pkg" keep their "@". A password with an unencoded "/"
+// ("user:p/ss@host") moves that "@" past the first "/"; it is told apart from
+// a URL by the "user:p" before the "/", which is not a host[:port].
+function findUserinfoEnd(rest: string): number {
+  const authorityEnd = rest.search(AUTHORITY_END_PATTERN);
+  const authority = authorityEnd === -1 ? rest : rest.slice(0, authorityEnd);
+  const atIndex = authority.lastIndexOf("@");
+  if (atIndex !== -1 || authorityEnd === -1 || HOST_PORT_PATTERN.test(authority)) {
+    return atIndex;
+  }
+  return rest.lastIndexOf("@");
 }
 
 const SCHEME_PREFIX_PATTERN = /^([a-z][a-z0-9+.-]*:)(\/\/|\/)?/i;
 
-function readSchemePrefix(
-  value: string
-): { readonly scheme: string; readonly rest: string } | null {
+function readSchemePrefix(value: string): {
+  readonly scheme: string;
+  readonly name: string;
+  readonly hasAuthoritySlashes: boolean;
+  readonly rest: string;
+} | null {
   const schemeMatch = SCHEME_PREFIX_PATTERN.exec(value);
   if (schemeMatch === null) {
     return null;
@@ -148,6 +304,8 @@ function readSchemePrefix(
   const scheme = schemeMatch[0];
   return {
     scheme,
+    name: schemeMatch[1].toLowerCase(),
+    hasAuthoritySlashes: schemeMatch[2] === "//",
     rest: value.slice(scheme.length),
   };
 }

@@ -5,6 +5,7 @@ import {
   encodeGitLabPathSegment,
   isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
+  parseConfiguredGitLabApiUrls,
 } from "../../utils/url.js";
 
 describe("When isCleartextRemoteUrl runs", () => {
@@ -33,6 +34,53 @@ describe("When normalizeGitLabApiUrl runs", () => {
       normalizeGitLabApiUrl("https://gitlab.example.com"),
       "https://gitlab.example.com/api/v4"
     );
+  });
+});
+
+describe("When parseConfiguredGitLabApiUrls runs", () => {
+  describe("with userinfo in a single URL", () => {
+    test("should drop it", () => {
+      assert.deepEqual(parseConfiguredGitLabApiUrls("https://alice:pw@gitlab.example.com"), {
+        urls: ["https://gitlab.example.com/api/v4"],
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with an encoded comma in the password", () => {
+    test("should keep one URL and drop the userinfo", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls("https://alice:p%2Cw@gitlab.example.com/api/v4"),
+        { urls: ["https://gitlab.example.com/api/v4"], hadUserinfo: true }
+      );
+    });
+  });
+
+  describe("with a literal comma in the password", () => {
+    test("should keep one URL and drop the userinfo", () => {
+      assert.deepEqual(parseConfiguredGitLabApiUrls("https://alice:p,w@gitlab.example.com"), {
+        urls: ["https://gitlab.example.com/api/v4"],
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with userinfo in the second URL of a list", () => {
+    test("should split the list and drop it", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls("https://a.example/api/v4,https://bob:pw@b.example"),
+        { urls: ["https://a.example/api/v4", "https://b.example/api/v4"], hadUserinfo: true }
+      );
+    });
+  });
+
+  describe("with no userinfo", () => {
+    test("should report none", () => {
+      assert.deepEqual(parseConfiguredGitLabApiUrls("https://a.example,https://b.example"), {
+        urls: ["https://a.example/api/v4", "https://b.example/api/v4"],
+        hadUserinfo: false,
+      });
+    });
   });
 });
 

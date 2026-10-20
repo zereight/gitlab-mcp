@@ -1,3 +1,5 @@
+import { splitCommaSeparatedUrls, stripUrlUserinfo } from "./redact-url.js";
+
 /**
  * Smart URL handling for GitLab API
  *
@@ -16,6 +18,30 @@ export function normalizeGitLabApiUrl(url: string): string {
     normalizedUrl = `${normalizedUrl}/api/v4`;
   }
   return normalizedUrl;
+}
+
+export const API_URL_USERINFO_WARNING =
+  "GITLAB_API_URL contains a username or password before the host. It is ignored: requests " +
+  "go to the URL without it. Set GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_JOB_TOKEN, or " +
+  "GITLAB_USE_OAUTH=true to authenticate instead.";
+
+export interface ConfiguredGitLabApiUrls {
+  readonly urls: string[];
+  /** True when at least one entry had userinfo; see API_URL_USERINFO_WARNING. */
+  readonly hadUserinfo: boolean;
+}
+
+/**
+ * Split a comma-separated GITLAB_API_URL, drop userinfo from each entry, and
+ * normalize it. fetch() refuses a URL with credentials, so a URL that kept
+ * them would fail every request and echo the password in the error.
+ */
+export function parseConfiguredGitLabApiUrls(value: string): ConfiguredGitLabApiUrls {
+  const entries = splitCommaSeparatedUrls(value).map(stripUrlUserinfo);
+  return {
+    urls: entries.map(entry => normalizeGitLabApiUrl(entry.url)),
+    hadUserinfo: entries.some(entry => entry.hadUserinfo),
+  };
 }
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);

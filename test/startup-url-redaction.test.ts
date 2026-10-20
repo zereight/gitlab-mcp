@@ -14,8 +14,15 @@ const DEFAULT_STARTUP_API_URL = `https://${SECRET_USER}:${SECRET_PASSWORD}@gitla
 const SLASHLESS_LIST_API_URL = `https://gitlab.example/api/v4,https:slashless-user:${SLASHLESS_PASSWORD}@other.example`;
 const COMMA_PASSWORD = "pass,word";
 const COMMA_API_URL = `https://comma-user:${COMMA_PASSWORD}@gitlab.example.com/api/v4`;
+const ENCODED_COMMA_PASSWORD = "pass%2Cword";
+const ENCODED_COMMA_API_URL = `https://comma-user:${ENCODED_COMMA_PASSWORD}@gitlab.example.com/api/v4`;
 const HTTP_TAIL_PASSWORD_HEAD = "supersecret";
 const HTTP_TAIL_API_URL = `https://alice:${HTTP_TAIL_PASSWORD_HEAD},https:word@gitlab.example.com/api/v4`;
+const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
+const USERINFO_WARNING = "GITLAB_API_URL contains a username or password before the host";
+// One URL, not followed by a second list entry.
+const ONE_CLEAN_URL_LOG =
+  /Configured GitLab API URLs: https:\/\/gitlab\.example\.com\/api\/v4(?![,/?])/;
 
 interface StartupLogs {
   readonly stdout: string;
@@ -113,28 +120,38 @@ async function captureStartupLogsAsync(
   };
 }
 
+function countOccurrences(text: string, needle: string): number {
+  return text.split(needle).length - 1;
+}
+
 describe("When the stdio server starts", () => {
   describe("with credentials in GITLAB_API_URL", () => {
-    it("should redact the configured URL log", async () => {
+    it("should log the configured URL without userinfo", async () => {
       const logs = await captureStartupLogsAsync();
 
       assert.equal(
         logs.stderr.includes(
-          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4?private_token=[REDACTED]"
+          "Configured GitLab API URLs: https://gitlab.example.com/api/v4?private_token=[REDACTED]"
         ),
         true
       );
     });
 
-    it("should redact the default URL log", async () => {
+    it("should log the default URL without userinfo", async () => {
       const logs = await captureStartupLogsAsync();
 
       assert.equal(
         logs.stderr.includes(
-          "Default GitLab API URL: https://[REDACTED]@gitlab.example.com/api/v4?private_token=[REDACTED]"
+          "Default GitLab API URL: https://gitlab.example.com/api/v4?private_token=[REDACTED]"
         ),
         true
       );
+    });
+
+    it("should warn once that the userinfo is ignored", async () => {
+      const logs = await captureStartupLogsAsync();
+
+      assert.equal(countOccurrences(logs.stderr, USERINFO_WARNING), 1);
     });
 
     it("should omit the embedded secrets from stderr", async () => {
@@ -155,15 +172,21 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a later slashless URL in GITLAB_API_URL", () => {
-    it("should redact each configured URL", async () => {
+    it("should log each configured URL without userinfo", async () => {
       const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
 
       assert.equal(
         logs.stderr.includes(
-          "Configured GitLab API URLs: https://gitlab.example/api/v4, https:[REDACTED]@other.example/api/v4"
+          "Configured GitLab API URLs: https://gitlab.example/api/v4, https://other.example/api/v4"
         ),
         true
       );
+    });
+
+    it("should warn once that the userinfo is ignored", async () => {
+      const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
+
+      assert.equal(countOccurrences(logs.stderr, USERINFO_WARNING), 1);
     });
 
     it("should omit the slashless password from stderr", async () => {
@@ -174,15 +197,10 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma inside the password", () => {
-    it("should redact the configured URL log", async () => {
+    it("should log one URL without userinfo", async () => {
       const logs = await captureStartupLogsAsync(COMMA_API_URL);
 
-      assert.equal(
-        logs.stderr.includes(
-          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4"
-        ),
-        true
-      );
+      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
     });
 
     it("should omit the password from stderr", async () => {
@@ -192,22 +210,39 @@ describe("When the stdio server starts", () => {
     });
   });
 
+  describe("with a percent-encoded comma inside the password", () => {
+    it("should log one URL without userinfo", async () => {
+      const logs = await captureStartupLogsAsync(ENCODED_COMMA_API_URL);
+
+      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
+    });
+
+    it("should omit the password from stderr", async () => {
+      const logs = await captureStartupLogsAsync(ENCODED_COMMA_API_URL);
+
+      assert.equal(logs.stderr.includes(ENCODED_COMMA_PASSWORD), false);
+    });
+  });
+
   describe("with a comma and an http-looking tail inside the password", () => {
-    it("should redact the configured URL log", async () => {
+    it("should log one URL without userinfo", async () => {
       const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
 
-      assert.equal(
-        logs.stderr.includes(
-          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4"
-        ),
-        true
-      );
+      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
     });
 
     it("should omit the password from stderr", async () => {
       const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
 
       assert.equal(logs.stderr.includes(HTTP_TAIL_PASSWORD_HEAD), false);
+    });
+  });
+
+  describe("without credentials in GITLAB_API_URL", () => {
+    it("should not warn about userinfo", async () => {
+      const logs = await captureStartupLogsAsync(PLAIN_API_URL);
+
+      assert.equal(logs.stderr.includes(USERINFO_WARNING), false);
     });
   });
 });

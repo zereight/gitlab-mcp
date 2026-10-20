@@ -199,10 +199,12 @@ import {
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
+  API_URL_USERINFO_WARNING,
   encodeGitLabPath,
   encodeGitLabPathSegment,
   isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
+  parseConfiguredGitLabApiUrls,
 } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -229,7 +231,11 @@ import {
   describeFetchTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
-import { redactUrlSecretsInText, splitCommaSeparatedUrls } from "./utils/redact-url.js";
+import {
+  redactUrlSecretsInError,
+  redactUrlSecretsInText,
+  splitCommaSeparatedUrls,
+} from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -935,10 +941,16 @@ function createServer(): McpServer {
         toolName === "get_pipeline_job_output" ||
         toolName === "get_job_artifact_file" ||
         (toolName === "download_release_asset" && !IS_REMOTE);
-      const filtered = applyJmespathToToolResult(result, jmespathExpression, {
-        ...completionOptions,
-        maskValue: maskingEngine ? (value: unknown) => maskingEngine!.maskValue(value) : undefined,
-      });
+      const filtered = applyJmespathToToolResult(
+        redactErrorResultUrls(result),
+        jmespathExpression,
+        {
+          ...completionOptions,
+          maskValue: maskingEngine
+            ? (value: unknown) => maskingEngine!.maskValue(value)
+            : undefined,
+        }
+      );
       const masked = maskingEngine
         ? maskingEngine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
@@ -959,7 +971,10 @@ function createServer(): McpServer {
 
     const logError = (error: unknown): unknown => {
       const durationMs = Date.now() - start;
-      const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
+      // fetch() and new URL() quote the URL they rejected, userinfo included. The
+      // redacted error is what gets logged, returned, or rethrown to the client.
+      const redactedError = redactUrlSecretsInError(error);
+      const safeError = maskingEngine ? maskingEngine.maskError(redactedError) : redactedError;
       logger.error(
         {
           tool: toolName,
@@ -1258,6 +1273,22 @@ function createServer(): McpServer {
   });
 
   return mcpServer;
+}
+
+/** An isError tool result can quote fetch/URL error text too; see redactUrlSecretsInError. */
+function redactErrorResultUrls<T>(result: T): T {
+  if (!isRecord(result) || result.isError !== true || !Array.isArray(result.content)) {
+    return result;
+  }
+  // Same shape as the input; only text values change.
+  return {
+    ...result,
+    content: result.content.map((item: unknown) =>
+      isRecord(item) && typeof item.text === "string"
+        ? { ...item, text: redactUrlSecretsInText(item.text) }
+        : item
+    ),
+  } as T;
 }
 
 function formatHostWithPort(host: string, port: number): string | null {
@@ -1605,6 +1636,12 @@ let oauthClient: GitLabOAuth | null = null;
  */
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
 
+// Userinfo is dropped here, before the client pool or any request URL is built.
+// Defined before the first emitDeprecatedEnvWarnings() call, which reports it.
+const CONFIGURED_GITLAB_API_URLS = parseConfiguredGitLabApiUrls(
+  getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
+);
+
 let hasEmittedDeprecatedEnvWarnings = false;
 
 function emitDeprecatedEnvWarnings(): void {
@@ -1612,7 +1649,10 @@ function emitDeprecatedEnvWarnings(): void {
     return;
   }
   hasEmittedDeprecatedEnvWarnings = true;
-  const warnings = getDeprecatedEnvWarnings(buildDeprecatedEnvInput());
+  const warnings = [
+    ...getDeprecatedEnvWarnings(buildDeprecatedEnvInput()),
+    ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo ? [API_URL_USERINFO_WARNING] : []),
+  ];
   for (const warning of warnings) {
     logger.warn(warning);
   }
@@ -1740,9 +1780,7 @@ const hiddenToolSet = new Set(
 }
 
 const clientPool = new GitLabClientPool({
-  apiUrls: splitCommaSeparatedUrls(
-    getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
-  ).map(normalizeGitLabApiUrl),
+  apiUrls: CONFIGURED_GITLAB_API_URLS.urls,
   httpProxy: HTTP_PROXY,
   httpsProxy: HTTPS_PROXY,
   noProxy: NO_PROXY,
@@ -2249,6 +2287,9 @@ function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } 
   try {
     const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    // Same rule as GITLAB_API_URL: fetch() rejects a URL that carries userinfo.
+    url.username = "";
+    url.password = "";
     return { host: url.host, apiUrl: normalizeGitLabApiUrl(url.toString()) };
   } catch {
     return null;
@@ -2280,10 +2321,7 @@ function resolveTrustedGitLabApiUrl(value: string): string {
   return allowedApiUrl;
 }
 
-// Use the normalizeGitLabApiUrl function to handle various URL formats
-const GITLAB_API_URLS = splitCommaSeparatedUrls(
-  getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
-).map(normalizeGitLabApiUrl);
+const GITLAB_API_URLS = CONFIGURED_GITLAB_API_URLS.urls;
 const GITLAB_API_URL = GITLAB_API_URLS[0];
 const GITLAB_ALLOWED_API_URLS_BY_HOST = new Map<string, string>();
 for (const { host, apiUrl } of [
@@ -17805,7 +17843,7 @@ async function main(): Promise<void> {
       process.exit(0);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      process.stderr.write(`${message}\n`);
+      process.stderr.write(`${redactUrlSecretsInText(message)}\n`);
       logger.error({ err: error }, "auth command failed");
       exitAfterFlush(1);
     }
@@ -17821,7 +17859,7 @@ async function main(): Promise<void> {
     try {
       initOAuthClient();
       const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
-      const masked = maskCliToolResult(cli.toolName, result);
+      const masked = maskCliToolResult(cli.toolName, redactErrorResultUrls(result));
       const formatted = formatToolOutput({
         result: masked,
         mode: cli.output,
@@ -17853,9 +17891,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function maskCliToolResult(toolName: string, result: unknown): unknown {
-  const gitlabInstance = getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com";
   const engine = maskingPolicyResolver?.select({
-    gitlabInstance,
+    gitlabInstance: GITLAB_API_URL,
     allowBuiltinForUnscoped: true,
   });
   if (!engine || !isRecord(result)) {

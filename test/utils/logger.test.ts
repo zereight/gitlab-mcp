@@ -52,6 +52,23 @@ process.stderr.write("AFTER_FATAL_LOG\\n");
 process.exit(1);
 `;
 
+const URL_PASSWORD = "p%2Cw0rd-7f3a9c";
+
+const URL_ERROR_PROBE_SOURCE = `
+import { createLogger } from "./utils/logger.ts";
+
+const marker = process.env.PROBE_MARKER ?? "";
+const url = "http://alice:${URL_PASSWORD}@127.0.0.1:9/api/v4/projects/1";
+const err = new TypeError("Request cannot be constructed from a URL that includes credentials: " + url, {
+  cause: new Error("connect " + url),
+});
+const logger = createLogger("probe");
+logger.error({ err, url }, marker + " " + url);
+logger.flush(() => {
+  process.exit(0);
+});
+`;
+
 interface ProbeResult {
   readonly stdout: string;
   readonly stderr: string;
@@ -137,6 +154,40 @@ describe("When createLogger writes a record", () => {
       assert.equal(probe.code, 0);
       assert.equal(probe.stdout, "");
       assert.equal(readable, true);
+    });
+  });
+});
+
+describe("When createLogger writes an error with a credentialed URL", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should omit the password", async () => {
+      const probe = await runProbe("json", JSON_MARKER, URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.includes(JSON_MARKER), true);
+      assert.equal(probe.stderr.includes(URL_PASSWORD), false);
+    });
+
+    it("should keep the redacted host", async () => {
+      const probe = await runProbe("json", JSON_MARKER, URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.stderr.includes("http://[REDACTED]@127.0.0.1:9/api/v4/projects/1"), true);
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should omit the password", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.includes(PRETTY_MARKER), true);
+      assert.equal(probe.stderr.includes(URL_PASSWORD), false);
+    });
+
+    it("should keep the redacted host", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.stderr.includes("http://[REDACTED]@127.0.0.1:9/api/v4/projects/1"), true);
     });
   });
 });
