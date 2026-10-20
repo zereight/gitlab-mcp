@@ -304,7 +304,7 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | 환경 변수                     | 필수 | 설명                                                                                                                            |
 | ----------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                                                                                             |
-| `GITLAB_API_URL`              | 예   | GitLab API base URL                                                                                                             |
+| `GITLAB_API_URL`              | 예   | GitLab API base URL. URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다.                                            |
 | `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                                                                                     |
 | `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
 | `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
@@ -572,7 +572,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 예     | 활성화하려면 `true`                                                                                                                                                        |
 | `GITLAB_OAUTH_APP_ID`                       | 예     | 사전 등록 GitLab OAuth 애플리케이션의 client ID                                                                                                                            |
 | `MCP_SERVER_URL`                            | 예     | MCP 서버의 공개 HTTPS URL                                                                                                                                                  |
-| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다.                                                                     |
+| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다.                                                  |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |

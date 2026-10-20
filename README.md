@@ -326,7 +326,7 @@ exchanging credentials with GitLab on behalf of the client.
 | Environment Variable          | Required | Description                                                                                                                             |
 | ----------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | ✅       | Set to `true` to enable                                                                                                                 |
-| `GITLAB_API_URL`              | ✅       | GitLab API base URL                                                                                                                     |
+| `GITLAB_API_URL`              | ✅       | GitLab API base URL. Do not embed credentials (`user:pass@`) in the URL; they are ignored.                                              |
 | `GITLAB_OAUTH_APP_ID`         | ✅       | GitLab OAuth Application ID                                                                                                             |
 | `MCP_SERVER_URL`              | ✅       | Public HTTPS URL of this MCP server                                                                                                     |
 | `STREAMABLE_HTTP`             | ✅       | Must be `true`                                                                                                                          |
