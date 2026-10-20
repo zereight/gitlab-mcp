@@ -193,13 +193,14 @@ build_docs() {
 # v2.4.0-rc.1 are skipped, so notes and the docs pin start from a stable release.
 get_previous_tag() {
   local current_tag="$1"
+  # Exactly vX.Y.Z. git describe only takes globs, so the excludes drop any
+  # suffix (-rc.1, +build.1) and a fourth segment.
+  local stable_tag=(--match "v[0-9]*.[0-9]*.[0-9]*" --exclude "v*[!0-9.]*" --exclude "*.*.*.*")
   if [ -n "$current_tag" ]; then
     # Find the tag before the current one
-    git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-*" \
-      "${current_tag}^" 2>/dev/null || echo ""
+    git describe --tags --abbrev=0 "${stable_tag[@]}" "${current_tag}^" 2>/dev/null || echo ""
   else
-    git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-*" \
-      2>/dev/null || echo ""
+    git describe --tags --abbrev=0 "${stable_tag[@]}" 2>/dev/null || echo ""
   fi
 }
 

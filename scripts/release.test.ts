@@ -59,8 +59,10 @@ describe("release.sh get_previous_tag", () => {
     git(repo, "init", "-q");
     commitAndTag(repo, "v1.0.0");
     commitAndTag(repo, "v1.0.1-next.5");
+    commitAndTag(repo, "v1.0.1+build.1");
     commitAndTag(repo, "v1.0.1-rc.1");
     commitAndTag(repo, "v1.0.1");
+    commitAndTag(repo, "v1.0.1.1");
     commitAndTag(repo, "v1.0.2-rc.1");
   });
 
@@ -68,11 +70,11 @@ describe("release.sh get_previous_tag", () => {
     fs.rmSync(repo, { recursive: true, force: true });
   });
 
-  test("skips pre-release tags before the current tag", () => {
+  test("skips pre-release and build tags before the current tag", () => {
     assert.strictEqual(previousTag("v1.0.1"), "v1.0.0");
   });
 
-  test("skips a pre-release tag on HEAD when no current tag is given", () => {
+  test("skips non-X.Y.Z tags down from HEAD when no current tag is given", () => {
     assert.strictEqual(previousTag(""), "v1.0.1");
   });
 });
