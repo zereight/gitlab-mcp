@@ -20,14 +20,21 @@ export function normalizeGitLabApiUrl(url: string): string {
   return normalizedUrl;
 }
 
-export const API_URL_USERINFO_WARNING =
-  "GITLAB_API_URL contains a username or password before the host. It is ignored: requests " +
-  "go to the URL without it. Set GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_JOB_TOKEN, or " +
-  "GITLAB_USE_OAUTH=true to authenticate instead.";
+/**
+ * Startup warning for a configured API URL that had userinfo. `source` names
+ * where the URL came from. The advice stays generic: a remote-authorization or
+ * MCP OAuth deployment must not be told to add a server token.
+ */
+export function apiUrlUserinfoWarning(source: "--api-url" | "GITLAB_API_URL"): string {
+  return (
+    `${source} contains a username or password before the host. It is ignored: requests ` +
+    "go to the URL without it. Use a token or OAuth configuration to authenticate instead."
+  );
+}
 
 export interface ConfiguredGitLabApiUrls {
   readonly urls: string[];
-  /** True when at least one entry had userinfo; see API_URL_USERINFO_WARNING. */
+  /** True when at least one entry had userinfo; see apiUrlUserinfoWarning. */
   readonly hadUserinfo: boolean;
 }
 

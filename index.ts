@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {
+  cliArgs,
   getConfig,
   ENABLE_DYNAMIC_API_URL,
   ENABLE_DYNAMIC_PROJECT_SCOPE,
@@ -199,7 +200,7 @@ import {
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
-  API_URL_USERINFO_WARNING,
+  apiUrlUserinfoWarning,
   encodeGitLabPath,
   encodeGitLabPathSegment,
   isCleartextRemoteUrl,
@@ -1656,7 +1657,9 @@ function emitDeprecatedEnvWarnings(): void {
   hasEmittedDeprecatedEnvWarnings = true;
   const warnings = [
     ...getDeprecatedEnvWarnings(buildDeprecatedEnvInput()),
-    ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo ? [API_URL_USERINFO_WARNING] : []),
+    ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo
+      ? [apiUrlUserinfoWarning(cliArgs["api-url"] ? "--api-url" : "GITLAB_API_URL")]
+      : []),
   ];
   for (const warning of warnings) {
     logger.warn(warning);

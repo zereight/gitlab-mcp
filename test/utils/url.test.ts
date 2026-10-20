@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  apiUrlUserinfoWarning,
   encodeGitLabPath,
   encodeGitLabPathSegment,
   isCleartextRemoteUrl,
@@ -81,6 +82,20 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
         hadUserinfo: false,
       });
     });
+  });
+});
+
+describe("When apiUrlUserinfoWarning runs", () => {
+  test("should name the --api-url flag", () => {
+    assert.match(apiUrlUserinfoWarning("--api-url"), /^--api-url contains a username/);
+  });
+
+  // Remote-authorization and MCP OAuth deployments refuse a server token.
+  test("should not ask for a personal access token", () => {
+    assert.equal(
+      apiUrlUserinfoWarning("GITLAB_API_URL").includes("GITLAB_PERSONAL_ACCESS_TOKEN"),
+      false
+    );
   });
 });
 
