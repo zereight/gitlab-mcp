@@ -414,6 +414,21 @@ describe("credential headers across redirect hops", () => {
     );
   });
 
+  test("redacts userinfo from the downgrade target in the error message", async () => {
+    const calls: RecordedCall[] = [];
+    await assert.rejects(
+      () =>
+        fetchWithValidatedRedirects(`https://${PUBLIC_HOST}/start`, {
+          headers: credentials,
+          fetchImpl: stubRedirectFetch(`http://alice:pw-7c1e@${PUBLIC_HOST}/file`, calls),
+        }),
+      (error: Error) =>
+        error instanceof UnsafeRedirectError &&
+        error.message.includes(`cleartext http://[REDACTED]@${PUBLIC_HOST}/file`) &&
+        !error.message.includes("pw-7c1e")
+    );
+  });
+
   test("follows an http-to-https upgrade and keeps credentials on a trusted host", async () => {
     const calls: RecordedCall[] = [];
     const response = await fetchWithValidatedRedirects(`http://${PUBLIC_HOST}/start`, {

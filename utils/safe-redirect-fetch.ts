@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { fetch as undiciFetch, type Dispatcher } from "undici";
+import { redactUrlSecretsInText } from "./redact-url.js";
 
 /** Maximum number of redirect hops an outbound download request may follow. */
 export const DEFAULT_MAX_REDIRECTS = 5;
@@ -410,8 +411,11 @@ export async function fetchWithValidatedRedirects(
     // keeps — on the wire in cleartext, so it is refused before the destination is
     // evaluated and before any trust decision can re-enable the credentials.
     if (currentProtocol === "https:" && target.protocol === "http:") {
+      // The download proxy returns this message to the client, and Location can carry userinfo.
       throw new UnsafeRedirectError(
-        `Refusing to follow redirect from ${currentUrl} to cleartext ${target.toString()}`
+        redactUrlSecretsInText(
+          `Refusing to follow redirect from ${currentUrl} to cleartext ${target.toString()}`
+        )
       );
     }
 
