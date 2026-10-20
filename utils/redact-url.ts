@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 const SENSITIVE_QUERY_NAMES: ReadonlySet<string> = new Set([
   "access_token",
   "private_token",
@@ -8,8 +10,9 @@ const SENSITIVE_QUERY_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * Removes userinfo from a GitLab API URL before it is returned to the client.
- * A password with an unencoded slash is not a valid WHATWG URL, so that form
- * uses the same text redaction as transport error messages.
+ * A password with an unencoded slash is not a valid WHATWG URL, or parses as a
+ * host and port ("https://u:12/ab@host" has host "u"), so those forms use the
+ * same text redaction as transport error messages.
  */
 export function redactGitLabUrlCredentials(url: string): string {
   try {
@@ -19,7 +22,7 @@ export function redactGitLabUrlCredentials(url: string): string {
       parsed.username = "";
       parsed.password = "";
     }
-    const serialized = hadUserinfo ? parsed.toString() : url;
+    const serialized = hadUserinfo ? parsed.toString() : redactUrlUserinfoInText(url);
     return redactSensitiveQuery(serialized);
   } catch {
     return redactSensitiveQuery(redactUrlUserinfoInText(url));
@@ -35,9 +38,136 @@ export function redactUrlSecretsInText(text: string): string {
   return redactSensitiveQuery(redactUrlUserinfoInText(redactParseableUrlUserinfo(text)));
 }
 
+/**
+ * Redacts an error in place: `message`, `stack`, and every `cause` below it.
+ * undici and `new URL()` put the URL they rejected into the message, so a
+ * credentialed URL would otherwise reach the MCP client and the log verbatim.
+ * A thrown string is returned redacted; other values are returned unchanged.
+ */
+export function redactUrlSecretsInError(error: unknown): unknown {
+  if (typeof error === "string") {
+    return redactUrlSecretsInText(error);
+  }
+  redactErrorChain(error, new Set());
+  return error;
+}
+
+/**
+ * The redacted message of a caught error, for a tool result that reports the
+ * failure in its data (`{ "error": "GraphQL request failed: ..." }`) instead of
+ * as an isError result.
+ */
+export function redactUrlSecretsInErrorMessage(error: unknown): string {
+  return redactUrlSecretsInText(error instanceof Error ? error.message : String(error));
+}
+
+function redactErrorChain(error: unknown, seen: Set<Error>): void {
+  if (!(error instanceof Error) || seen.has(error)) {
+    return;
+  }
+  seen.add(error);
+  redactErrorField(error, "message");
+  redactErrorField(error, "stack");
+  if (typeof error.cause === "string") {
+    redactErrorField(error, "cause");
+  } else {
+    redactErrorChain(error.cause, seen);
+  }
+  if (error instanceof AggregateError && Array.isArray(error.errors)) {
+    for (const inner of error.errors) {
+      redactErrorChain(inner, seen);
+    }
+  }
+}
+
+function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {
+  const value: unknown = error[field];
+  if (typeof value !== "string") {
+    return;
+  }
+  const redacted = redactUrlSecretsInText(value);
+  if (redacted === value) {
+    return;
+  }
+  try {
+    error[field] = redacted;
+  } catch {
+    // A frozen error keeps its text; the logger still redacts its own copy.
+  }
+}
+
+/**
+ * Redacts one serialized pino line. Each JSON string is redacted after
+ * JSON.parse, so a URL next to a quote cannot pull the rest of the line into
+ * the userinfo match. A line that is not JSON is redacted as text.
+ */
+export function redactUrlSecretsInLogLine(line: string): string {
+  if (!line.includes("@") && !line.includes("=")) {
+    return line;
+  }
+  const newline = line.endsWith("\n") ? "\n" : "";
+  const body = newline ? line.slice(0, -1) : line;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return redactUrlSecretsInText(line);
+  }
+  let changed = false;
+  const redacted = mapJsonStrings(parsed, value => {
+    const next = redactUrlSecretsInText(value);
+    changed ||= next !== value;
+    return next;
+  });
+  return changed ? `${JSON.stringify(redacted)}${newline}` : line;
+}
+
+function mapJsonStrings(value: unknown, map: (value: string) => string): unknown {
+  if (typeof value === "string") {
+    return map(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => mapJsonStrings(item, map));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, mapJsonStrings(item, map)])
+    );
+  }
+  return value;
+}
+
+/**
+ * Drops userinfo from a configured GitLab API URL. fetch() refuses a URL with
+ * credentials, and GitLab API authentication goes in request headers, so the
+ * userinfo is removed before any request is built. A value that does not parse
+ * is returned unchanged for the config validation to report.
+ */
+export function stripUrlUserinfo(url: string): {
+  readonly url: string;
+  readonly hadUserinfo: boolean;
+} {
+  const trimmed = url.trim();
+  const parsed = tryParseUrl(trimmed);
+  if (parsed === null || (parsed.username.length === 0 && parsed.password.length === 0)) {
+    return { url, hadUserinfo: false };
+  }
+  parsed.username = "";
+  parsed.password = "";
+  const serialized = parsed.toString();
+  // "https://user:pass@host" serializes as "https://host/"; keep the input's form.
+  const addedRootSlash =
+    parsed.pathname === "/" &&
+    parsed.search.length === 0 &&
+    parsed.hash.length === 0 &&
+    !trimmed.endsWith("/");
+  return { url: addedRootSlash ? serialized.slice(0, -1) : serialized, hadUserinfo: true };
+}
+
 function redactSensitiveQuery(url: string): string {
+  // The name cannot hold a separator, so a run of "?" is not rescanned from each one.
   return url.replace(
-    /([?&#])([^=&\s#]+)=[^&\s#]+/g,
+    /([?&#])([^=&\s#?]+)=[^&\s#]+/g,
     (match, separator: string, rawName: string) => {
       if (!isSensitiveQueryName(rawName)) {
         return match;
@@ -59,20 +189,126 @@ function decodeQueryName(rawName: string): string {
   }
 }
 
+// Every scan below runs in time linear in the text: log lines can carry
+// client-chosen strings such as an unknown tool name.
 function redactUrlUserinfoInText(message: string): string {
-  const withoutCompactUserinfo = message.replace(
-    /\b[a-z][a-z0-9+.-]*:(?:\/\/|\/)?[^\s]+/gi,
-    urlToken => redactCompactUserinfo(urlToken)
+  // A token can hold a comma-separated GITLAB_API_URL list; each entry has its own userinfo.
+  const withoutCompactUserinfo = replaceUrlTokens(message, urlToken =>
+    splitCommaSeparatedUrls(urlToken).map(redactCompactUserinfo).join(",")
   );
-  return withoutCompactUserinfo.replace(
-    /\b([a-z][a-z0-9+.-]*:\/\/)([^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+)@/gi,
-    (match: string, scheme: string, userinfo: string, offset: number, source: string) => {
-      if (looksLikeHostPort(userinfo, source.slice(offset + match.length))) {
-        return match;
-      }
-      return `${scheme}[REDACTED]@`;
+  return redactSpacedUserinfo(withoutCompactUserinfo);
+}
+
+const WORD_CHAR_PATTERN = /\w/;
+const WHITESPACE_PATTERN = /\s/;
+const NEXT_WHITESPACE_PATTERN = /\s/g;
+
+// The tokens /\b[a-z][a-z0-9+.-]*:\S+/gi matches: a scheme, then the text up
+// to the next whitespace.
+function replaceUrlTokens(text: string, replace: (urlToken: string) => string): string {
+  const parts: string[] = [];
+  let copied = 0;
+  let colon = text.indexOf(":");
+  while (colon !== -1) {
+    const followedByText = colon + 1 < text.length && !WHITESPACE_PATTERN.test(text[colon + 1]);
+    const start = followedByText ? findSchemeStart(text, colon) : -1;
+    if (start === -1) {
+      colon = text.indexOf(":", colon + 1);
+      continue;
     }
-  );
+    const end = indexOfPattern(text, NEXT_WHITESPACE_PATTERN, colon + 1);
+    parts.push(text.slice(copied, start), replace(text.slice(start, end)));
+    copied = end;
+    colon = text.indexOf(":", end);
+  }
+  parts.push(text.slice(copied));
+  return parts.join("");
+}
+
+// "scheme://user:pa ss@host": a password with whitespace splits the token above.
+function redactSpacedUserinfo(text: string): string {
+  const parts: string[] = [];
+  let copied = 0;
+  let colon = text.indexOf("://");
+  while (colon !== -1) {
+    const start = findSchemeStart(text, colon);
+    const authorityStart = colon + 3;
+    const atIndex = start === -1 ? -1 : findSpacedUserinfoEnd(text, authorityStart);
+    if (atIndex === -1) {
+      colon = text.indexOf("://", colon + 1);
+      continue;
+    }
+    const end = atIndex + 1;
+    if (!looksLikeHostPort(text.slice(authorityStart, atIndex), text.slice(end))) {
+      parts.push(text.slice(copied, start), `${text.slice(start, authorityStart)}[REDACTED]@`);
+      copied = end;
+    }
+    colon = text.indexOf("://", end);
+  }
+  parts.push(text.slice(copied));
+  return parts.join("");
+}
+
+const SPACED_USERINFO_STOP_PATTERN = /[\s/:@.]/;
+
+// Index of the "@" that ends /[^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+@/ at
+// `start`, or -1. Its parts cannot overlap, so one pass decides the match, and
+// the scan stops at the next "://".
+function findSpacedUserinfoEnd(text: string, start: number): number {
+  let index = skipUserinfoRun(text, start);
+  if (index === start || text[index] !== ":") {
+    return -1;
+  }
+  while (text[index] === ":") {
+    const runEnd = skipUserinfoRun(text, index + 1);
+    if (runEnd === index + 1) {
+      return -1;
+    }
+    index = runEnd;
+  }
+  let spacedRuns = 0;
+  while (index < text.length && WHITESPACE_PATTERN.test(text[index])) {
+    let runStart = index + 1;
+    while (runStart < text.length && WHITESPACE_PATTERN.test(text[runStart])) {
+      runStart += 1;
+    }
+    const runEnd = skipUserinfoRun(text, runStart);
+    if (runEnd === runStart) {
+      return -1;
+    }
+    index = runEnd;
+    spacedRuns += 1;
+  }
+  return spacedRuns > 0 && text[index] === "@" ? index : -1;
+}
+
+function skipUserinfoRun(text: string, from: number): number {
+  let index = from;
+  while (index < text.length && !SPACED_USERINFO_STOP_PATTERN.test(text[index])) {
+    index += 1;
+  }
+  return index;
+}
+
+// Start of the scheme that ends at `colon`, where /\b[a-z][a-z0-9+.-]*:/i
+// would match it, or -1. Walking back from the ":" reads a run like "a.a.a.a"
+// once; the regex would rescan it from every letter.
+function findSchemeStart(text: string, colon: number): number {
+  let start = -1;
+  for (let index = colon - 1; index >= 0 && SCHEME_CHAR_PATTERN.test(text[index]); index -= 1) {
+    const atWordBoundary = index === 0 || !WORD_CHAR_PATTERN.test(text[index - 1]);
+    if (atWordBoundary && SCHEME_START_PATTERN.test(text[index])) {
+      start = index;
+    }
+  }
+  return start;
+}
+
+// Index of the first match of a global `pattern` at or after `from`, or the text length.
+function indexOfPattern(text: string, pattern: RegExp, from: number): number {
+  pattern.lastIndex = from;
+  const match = pattern.exec(text);
+  return match === null ? text.length : match.index;
 }
 
 function redactParseableUrlUserinfo(text: string): string {
@@ -124,23 +360,227 @@ function splitAuthorityUserinfo(
   };
 }
 
+// A URL inside another URL's path or query ("...?next=https://user:pass@host")
+// has its own authority. The text regex sees both as one token.
+// One pass per URL in the token, outer first, so a long token of nested URLs
+// does not grow the call stack. URLs nested in one authority share its end, and
+// the authority reader reads that text once for all of them.
 function redactCompactUserinfo(urlToken: string): string {
-  const prefix = readSchemePrefix(urlToken);
-  if (prefix === null) {
-    return urlToken;
+  // Without an "@" after a URL's scheme there is no userinfo to find, so
+  // segments past the last "@" skip the authority scan.
+  const lastAt = urlToken.lastIndexOf("@");
+  const lastUserinfoAt = lastAtOutsidePathSegmentStart(urlToken);
+  const authorities = createAuthorityReader(urlToken);
+  const parts: string[] = [];
+  let offset = 0;
+  for (;;) {
+    const prefix = readSchemePrefix(urlToken.slice(offset));
+    if (prefix === null) {
+      parts.push(urlToken.slice(offset));
+      break;
+    }
+    const restStart = offset + prefix.scheme.length;
+    const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
+    const atIndex =
+      hasAuthority && lastAt >= restStart
+        ? findUserinfoEnd(urlToken, restStart, authorities, lastAt, lastUserinfoAt)
+        : -1;
+    const nestedFrom = atIndex > 0 ? atIndex + 1 : 0;
+    parts.push(atIndex > 0 ? `${prefix.scheme}[REDACTED]@` : prefix.scheme);
+    const rest = prefix.rest.slice(nestedFrom);
+    const nestedStart = findNestedUrlStart(rest);
+    if (nestedStart === -1) {
+      parts.push(rest);
+      break;
+    }
+    parts.push(rest.slice(0, nestedStart));
+    offset = restStart + nestedFrom + nestedStart;
   }
-  const atIndex = prefix.rest.lastIndexOf("@");
-  if (atIndex <= 0) {
-    return urlToken;
+  return parts.join("");
+}
+
+const SCHEME_CHAR_PATTERN = /[a-z0-9+.-]/i;
+const SCHEME_START_PATTERN = /[a-z]/i;
+
+// Index of the first match of /[a-z][a-z0-9+.-]*:\S/i, or -1. It walks back
+// from each ":" instead of trying every start position, so a long run of
+// letters in a path is read once rather than once per letter.
+function findNestedUrlStart(text: string): number {
+  for (let colon = text.indexOf(":"); colon !== -1; colon = text.indexOf(":", colon + 1)) {
+    if (colon + 1 >= text.length || /\s/.test(text[colon + 1])) {
+      continue;
+    }
+    let start = -1;
+    for (let index = colon - 1; index >= 0 && SCHEME_CHAR_PATTERN.test(text[index]); index -= 1) {
+      if (SCHEME_START_PATTERN.test(text[index])) {
+        start = index;
+      }
+    }
+    if (start !== -1) {
+      return start;
+    }
   }
-  return `${prefix.scheme}[REDACTED]@${prefix.rest.slice(atIndex + 1)}`;
+  return -1;
+}
+
+// WHATWG special schemes read userinfo without "//" ("https:user:pass@host").
+// Other schemes have an authority only after "//", so "mailto:a@b.com" has none.
+const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:", "ws:", "wss:", "ftp:"]);
+
+// Path, query, fragment, and the quote or bracket that closes a URL in prose or JSON.
+const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/g;
+const DIGITS_PATTERN = /^\d*$/;
+const DOTTED_HOST_NAME_PATTERN = /^[a-z0-9_.-]+$/i;
+const LOCALHOST_PATTERN = /^localhost$/i;
+
+// The text from a URL's authority start to the next AUTHORITY_END_PATTERN
+// character. A URL nested in that authority ("http://[http:[http:…]/@") ends
+// at the same character, so the text is read once, from the first start, and a
+// later start compares its index with the positions found.
+interface AuthorityText {
+  readonly end: number;
+  // False when no end character follows; `end` is then the token length.
+  readonly closed: boolean;
+  readonly lastAt: number;
+  readonly lastColon: number;
+  readonly colonBeforeLast: number;
+  // The text after the last ":" is digits, or empty.
+  readonly digitsAfterLastColon: boolean;
+  // Those digits are above 65535, so they are not a port.
+  readonly portTooLarge: boolean;
+}
+
+interface AuthorityReader {
+  read(start: number): AuthorityText;
+  // The first "]" at or after `start`, or the token length.
+  closeBracket(start: number): number;
+}
+
+// Starts only move forward, and so do both positions here, as in
+// splitCommaSeparatedUrls: the authorities of a token are read once in total.
+function createAuthorityReader(token: string): AuthorityReader {
+  let text: AuthorityText | undefined;
+  let closeBracket = -1;
+  return {
+    read(start) {
+      if (text === undefined || text.end < start) {
+        text = readAuthorityText(token, start);
+      }
+      return text;
+    },
+    closeBracket(start) {
+      if (closeBracket < start) {
+        const index = token.indexOf("]", start);
+        closeBracket = index === -1 ? token.length : index;
+      }
+      return closeBracket;
+    },
+  };
+}
+
+function readAuthorityText(token: string, from: number): AuthorityText {
+  const end = indexOfPattern(token, AUTHORITY_END_PATTERN, from);
+  let lastAt = -1;
+  let lastColon = -1;
+  let colonBeforeLast = -1;
+  for (let index = from; index < end; index += 1) {
+    if (token[index] === "@") {
+      lastAt = index;
+    } else if (token[index] === ":") {
+      colonBeforeLast = lastColon;
+      lastColon = index;
+    }
+  }
+  const port = lastColon === -1 ? "" : token.slice(lastColon + 1, end);
+  const digitsAfterLastColon = DIGITS_PATTERN.test(port);
+  return {
+    end,
+    closed: end < token.length,
+    lastAt,
+    lastColon,
+    colonBeforeLast,
+    digitsAfterLastColon,
+    // WHATWG reads ":0000080" as port 80.
+    portTooLarge: digitsAfterLastColon && Number(port) > 65535,
+  };
+}
+
+// The userinfo ends at the last "@" before the path, so "https://host/a?x=1@2"
+// and ".../npm/@scope/pkg" keep their "@". A password with an unencoded "/"
+// ("user:p/ss@host") moves that "@" past the first "/"; it is told apart from
+// a URL by the "user:p" before the "/", which is not a host[:port].
+// A password of digits first ("u:12/ab@host", "u:123?x@host") reads as a port.
+// So when the name before the port cannot be a host (a dotted name of letters,
+// digits, "-" and "_", localhost, or an IPv6 literal), or the digits are above
+// 65535, the last "@" counts unless it starts a path segment ("/@scope"), and
+// "gitlab.example:8443/users?search=a@b.com" keeps its "@".
+// Two shapes stay ambiguous. A username that is also a dotted host name
+// ("first.last:12/ab@host") is left unchanged. A single-label host on a port
+// ("gitlab:8080/users?search=a@b.com") is redacted up to that "@".
+// `start` is the authority start in `token`; the result is an index from it.
+function findUserinfoEnd(
+  token: string,
+  start: number,
+  authorities: AuthorityReader,
+  lastAt: number,
+  lastUserinfoAt: number
+): number {
+  const text = authorities.read(start);
+  if (text.lastAt >= start || !text.closed) {
+    return Math.max(text.lastAt - start, -1);
+  }
+  const { end, lastColon } = text;
+  const hasColon = lastColon >= start;
+  const oneColon = hasColon && text.colonBeforeLast < start;
+  // ":" and then only digits, maybe none.
+  const portDigits = hasColon && text.digitsAfterLastColon;
+  const bracketEnd = token[start] === "[" ? authorities.closeBracket(start) : -1;
+  // /^(?:\[[^\]]*\]|[^:]*):\d+$/: "host:port" or "[...]:port".
+  if (portDigits && lastColon + 1 < end && (oneColon || bracketEnd === lastColon - 1)) {
+    const host = token.slice(start, lastColon);
+    return !text.portTooLarge && couldBeHostName(host) ? -1 : Math.max(lastUserinfoAt - start, -1);
+  }
+  // The rest of /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/: "host", "host:", "[...]", or "[...]:".
+  const hostWithoutPort =
+    !hasColon ||
+    (oneColon && portDigits) ||
+    bracketEnd === end - 1 ||
+    (portDigits && bracketEnd === lastColon - 1);
+  return hostWithoutPort ? -1 : lastAt - start;
+}
+
+// "%" (an encoded "@" in an email username) or "+" cannot appear in a host name.
+// The character test comes first and stops at the first other character.
+function couldBeHostName(host: string): boolean {
+  if (host.startsWith("[")) {
+    return host.endsWith("]") && isIP(host.slice(1, -1)) === 6;
+  }
+  return (
+    LOCALHOST_PATTERN.test(host) ||
+    (DOTTED_HOST_NAME_PATTERN.test(host) &&
+      host.includes(".") &&
+      !host.startsWith(".") &&
+      !host.includes(".."))
+  );
+}
+
+// Found once per token, so each nested URL reads it in constant time.
+function lastAtOutsidePathSegmentStart(urlToken: string): number {
+  let index = urlToken.lastIndexOf("@");
+  while (index > 0 && urlToken[index - 1] === "/") {
+    index = urlToken.lastIndexOf("@", index - 1);
+  }
+  return index;
 }
 
 const SCHEME_PREFIX_PATTERN = /^([a-z][a-z0-9+.-]*:)(\/\/|\/)?/i;
 
-function readSchemePrefix(
-  value: string
-): { readonly scheme: string; readonly rest: string } | null {
+function readSchemePrefix(value: string): {
+  readonly scheme: string;
+  readonly name: string;
+  readonly hasAuthoritySlashes: boolean;
+  readonly rest: string;
+} | null {
   const schemeMatch = SCHEME_PREFIX_PATTERN.exec(value);
   if (schemeMatch === null) {
     return null;
@@ -148,59 +588,77 @@ function readSchemePrefix(
   const scheme = schemeMatch[0];
   return {
     scheme,
+    name: schemeMatch[1].toLowerCase(),
+    hasAuthoritySlashes: schemeMatch[2] === "//",
     rest: value.slice(scheme.length),
   };
 }
 
+// A comma is inside a password when the entry's authority is still open (no
+// "@", "/", "?", or "#" after the scheme yet) and the next of those after the
+// comma, or whitespace, is an "@".
+const AUTHORITY_CLOSE_PATTERN = /[@/?#]/g;
+const USERINFO_STOP_PATTERN = /[@/?# \t]/g;
+
 export function splitCommaSeparatedUrls(value: string): readonly string[] {
   const parts: string[] = [];
   let start = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    if (value[index] !== ",") {
-      continue;
+  // Where the current entry's authority starts, -1 without a scheme; read at its first comma.
+  let restStart: number | undefined;
+  let inUserinfo = false;
+  // Both positions only move forward, so a value with many commas is read once.
+  let closeIndex = -1;
+  let stopIndex = -1;
+  for (let comma = value.indexOf(","); comma !== -1; comma = value.indexOf(",", comma + 1)) {
+    if (restStart === undefined) {
+      restStart = readRestStart(value, start, comma);
     }
-    if (commaIsInsideUserinfo(value, start, index)) {
-      continue;
+    if (restStart !== -1) {
+      if (closeIndex < restStart) {
+        closeIndex = indexOfPattern(value, AUTHORITY_CLOSE_PATTERN, restStart);
+      }
+      if (stopIndex < comma) {
+        stopIndex = indexOfPattern(value, USERINFO_STOP_PATTERN, comma + 1);
+      }
+      const commaInUserinfo =
+        closeIndex > comma &&
+        value[stopIndex] === "@" &&
+        (inUserinfo || !startsNextUrl(value, start, comma));
+      if (commaInUserinfo) {
+        inUserinfo = true;
+        continue;
+      }
     }
-    parts.push(value.slice(start, index).trim());
-    start = index + 1;
+    parts.push(value.slice(start, comma).trim());
+    start = comma + 1;
+    restStart = undefined;
+    inUserinfo = false;
   }
   parts.push(value.slice(start).trim());
   return parts;
 }
 
+function readRestStart(value: string, start: number, comma: number): number {
+  const raw = value.slice(start, comma);
+  const prefix = readSchemePrefix(raw.trim());
+  if (prefix === null) {
+    return -1;
+  }
+  return start + raw.length - raw.trimStart().length + prefix.scheme.length;
+}
+
 // "https://a.example,https:user:pass@b.example" is two URLs; the "@" after the
 // comma belongs to the next one. The text before the comma must parse as a URL
 // by itself, so "https://alice:secret,https:word@host" stays one entry.
-// Only http(s) counts, so "pass,abc:def@host" stays.
-const NEXT_HTTP_URL_PATTERN = /^https?:/i;
+// Only http(s) counts, so "pass,abc:def@host" stays. Checked at an entry's
+// first comma only: once a comma is in the password, so is every comma up to its "@".
+const NEXT_HTTP_URL_PATTERN = /https?:/iy;
 
-function commaIsInsideUserinfo(value: string, start: number, commaIndex: number): boolean {
-  const entry = value.slice(start, commaIndex).trim();
-  const prefix = readSchemePrefix(entry);
-  if (prefix === null || authorityAlreadyClosed(prefix.rest)) {
-    return false;
-  }
-  const afterComma = value.slice(commaIndex + 1);
-  const startsNextUrl = NEXT_HTTP_URL_PATTERN.test(afterComma) && tryParseUrl(entry) !== null;
-  return !startsNextUrl && userinfoAtFollows(afterComma);
-}
-
-function authorityAlreadyClosed(rest: string): boolean {
-  return rest.includes("@") || rest.includes("/") || rest.includes("?") || rest.includes("#");
-}
-
-function userinfoAtFollows(afterComma: string): boolean {
-  for (let index = 0; index < afterComma.length; index += 1) {
-    const char = afterComma[index];
-    if (char === "@") {
-      return true;
-    }
-    if (char === "/" || char === "?" || char === "#" || char === " " || char === "\t") {
-      return false;
-    }
-  }
-  return false;
+function startsNextUrl(value: string, start: number, comma: number): boolean {
+  NEXT_HTTP_URL_PATTERN.lastIndex = comma + 1;
+  return (
+    NEXT_HTTP_URL_PATTERN.test(value) && tryParseUrl(value.slice(start, comma).trim()) !== null
+  );
 }
 
 // "user:pa ss@host" is a password. "localhost:3000 a@b.com" is a host, then an email.

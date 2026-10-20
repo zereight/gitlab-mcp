@@ -1,6 +1,7 @@
 import { renderTable } from "./tables.js";
 import type { TableSpec } from "./curated.js";
 import type { OutputMode } from "./args.js";
+import { redactUrlSecretsInText } from "../utils/redact-url.js";
 
 export interface ToolCallResult {
   readonly content?: unknown;
@@ -85,7 +86,7 @@ function ensureTrailingNewline(text: string): string {
 }
 
 function redactSecrets(message: string): string {
-  return message.replace(/glpat-[A-Za-z0-9_-]+/g, "[REDACTED]");
+  return redactUrlSecretsInText(message).replace(/glpat-[A-Za-z0-9_-]+/g, "[REDACTED]");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

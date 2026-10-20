@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   redactGitLabUrlCredentials,
+  redactUrlSecretsInError,
+  redactUrlSecretsInErrorMessage,
+  redactUrlSecretsInLogLine,
   redactUrlSecretsInText,
   splitCommaSeparatedUrls,
+  stripUrlUserinfo,
 } from "../../utils/redact-url.js";
 
 describe("When redactUrlSecretsInText runs", () => {
@@ -224,6 +228,266 @@ describe("When redactUrlSecretsInText runs", () => {
       );
     });
   });
+
+  describe("with an undici credentials error", () => {
+    it("should redact a password with an encoded comma", () => {
+      assert.equal(
+        redactUrlSecretsInText(
+          "Request cannot be constructed from a URL that includes credentials: http://alice:p%2Cw@127.0.0.1:9/api/v4/projects/1"
+        ),
+        "Request cannot be constructed from a URL that includes credentials: http://[REDACTED]@127.0.0.1:9/api/v4/projects/1"
+      );
+    });
+
+    it("should redact a password without a comma", () => {
+      assert.equal(
+        redactUrlSecretsInText(
+          "Request cannot be constructed from a URL that includes credentials: https://alice:pw@host/api/v4"
+        ),
+        "Request cannot be constructed from a URL that includes credentials: https://[REDACTED]@host/api/v4"
+      );
+    });
+  });
+
+  describe("with an encoded @ in the password", () => {
+    it("should redact up to the host", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://alice:p%40ss@host/x"),
+        "https://[REDACTED]@host/x"
+      );
+    });
+  });
+
+  describe("with several credentialed URLs in prose", () => {
+    it("should redact each one", () => {
+      assert.equal(
+        redactUrlSecretsInText(
+          "fetch https://alice:pw@host failed; see https://host/a,b and https://c:d@e/f."
+        ),
+        "fetch https://[REDACTED]@host failed; see https://host/a,b and https://[REDACTED]@e/f."
+      );
+    });
+  });
+
+  describe("with a comma list where only the second URL has userinfo", () => {
+    it("should redact the second URL", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://a.example/api/v4,https://bob:pw@b.example/api/v4"),
+        "https://a.example/api/v4,https://[REDACTED]@b.example/api/v4"
+      );
+    });
+  });
+
+  describe("with a credentialed URL inside another URL", () => {
+    it("should redact the inner userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://host/login?next=https://u:p@h/x"),
+        "https://host/login?next=https://[REDACTED]@h/x"
+      );
+    });
+  });
+
+  describe("with a long token of nested scheme segments", () => {
+    it("should redact the innermost userinfo", () => {
+      // Each "x://" starts one more URL nested in the previous one's path.
+      const outer = "x://".repeat(50_000);
+
+      assert.equal(
+        redactUrlSecretsInText(`fetch failed: ${outer}https://alice:pw-5e0d@host/api`),
+        `fetch failed: ${outer}https://[REDACTED]@host/api`
+      );
+    });
+  });
+
+  describe("with a long path of letters", () => {
+    it("should return it unchanged", { timeout: 5000 }, () => {
+      const url = `https://host/${"a".repeat(200_000)}`;
+
+      assert.equal(redactUrlSecretsInText(url), url);
+    });
+  });
+
+  describe("with a long token of repeated separators", () => {
+    // Each input took seconds when every ",", "?", or nested URL started a new
+    // scan of the rest.
+    const inputs: Record<string, string> = {
+      '"x:a," repeated': "x:a,".repeat(40_000),
+      "commas before a final @": `x:${"a,".repeat(40_000)}a@h`,
+      '"?" repeated': "?".repeat(40_000),
+      "http-looking entries after a comma in the password": `x://a:${"b,http:c".repeat(20_000)}@h`,
+      '":!" repeated after "://"': `x://!${":!".repeat(40_000)}`,
+      '"! " repeated after a password': `x://!:! ${"! ".repeat(40_000)}`,
+      "spaced userinfo repeated": "x://a:b c@h ".repeat(10_000),
+      'URLs nested in a bracket before "/@"': `http://${"[http:".repeat(40_000)}]/@`,
+      'URLs with a port nested in a bracket before "/@"': `http://${"[a:1http:".repeat(40_000)}]/@`,
+      "URLs nested in a bracket before a port": `http://${"[http:".repeat(40_000)}]:80/@`,
+      "URLs nested in a bracket with an IPv6 zone": `http://${"[::1%http:".repeat(40_000)}]:80/@`,
+      'URLs nested in a bracket before "?@"': `ws://${"[ws:".repeat(40_000)}]?@`,
+    };
+
+    for (const [name, text] of Object.entries(inputs)) {
+      it(`should finish quickly for ${name}`, () => {
+        const start = performance.now();
+        redactUrlSecretsInText(text);
+
+        assert.ok(performance.now() - start < 500);
+      });
+    }
+
+    const toolNames: Record<string, string> = {
+      "a long tool name": `${"x:a,".repeat(40_000)}@`,
+      "nested URLs in the tool name": `http://${"[http:".repeat(40_000)}]/@`,
+    };
+
+    for (const [name, toolName] of Object.entries(toolNames)) {
+      it(`should finish quickly for a log line with ${name}`, () => {
+        const message = `Tool "${toolName}" is not available`;
+        const start = performance.now();
+        redactUrlSecretsInLogLine(`${JSON.stringify({ msg: message, err: { stack: message } })}\n`);
+
+        assert.ok(performance.now() - start < 500);
+      });
+    }
+  });
+
+  describe("with a password of digits and then a slash, ? or #", () => {
+    // WHATWG reads "u:12" as a host and port, so only the text scan finds the userinfo.
+    it("should redact a password with a slash", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://u:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+
+    it("should redact a password with a ?", () => {
+      assert.equal(redactUrlSecretsInText("https://u:123?x@host"), "https://[REDACTED]@host");
+    });
+
+    it("should redact a password with a #", () => {
+      assert.equal(redactUrlSecretsInText("https://u:123#x@host"), "https://[REDACTED]@host");
+    });
+
+    it("should redact an email username, which has a dot but cannot be a host", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://alice%40example.com:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+
+    it("should redact a bracketed username that is not an IPv6 address", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://[not-an-ip]:12/ab@host"),
+        "https://[REDACTED]@host"
+      );
+    });
+
+    it("should redact a dotted username when the digits cannot be a port", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://first.last:123456/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+
+    it("should redact digits above 65535 after a host name", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:65536/ab@host"),
+        "https://[REDACTED]@host"
+      );
+    });
+  });
+
+  describe("with a shape that reads as both userinfo and a host", () => {
+    // The two ambiguous shapes in the findUserinfoEnd comment.
+    it("should leave a dotted username with a port-sized password unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://first.last:12/ab@host/api/v4"),
+        "https://first.last:12/ab@host/api/v4"
+      );
+    });
+
+    it("should redact a single-label host on a port up to an @ in the query", () => {
+      assert.equal(
+        redactUrlSecretsInText("http://gitlab:8080/api/v4/users?search=a@b.com"),
+        "http://[REDACTED]@b.com"
+      );
+    });
+  });
+
+  describe("with a host, a port, and an @ in the path or query", () => {
+    const urls = [
+      "https://gitlab.example:8443/api/v4/users?search=a@b.com",
+      "https://gitlab.example:8443/g/p/-/raw/main/logo@2x.png",
+      "https://gitlab.example:8443#a@b.com",
+      "https://gitlab.example:65535/api/v4/users?search=a@b.com",
+      "http://localhost:8080/api/v4/users?search=a@b.com",
+      "http://127.0.0.1:8080/g/p/-/raw/main/logo@2x.png",
+      "http://[::1]:8080/api/v4/users?search=a@b.com",
+    ];
+    for (const url of urls) {
+      it(`should leave ${url} unchanged`, () => {
+        assert.equal(redactUrlSecretsInText(`GET ${url} failed`), `GET ${url} failed`);
+      });
+    }
+
+    it("should still redact a sensitive query value", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:8443/api/v4/users?search=a@b.com&private_token=x"),
+        "https://gitlab.example:8443/api/v4/users?search=a@b.com&private_token=[REDACTED]"
+      );
+    });
+  });
+
+  describe("with an @ after the host", () => {
+    it("should leave a query value unchanged", () => {
+      assert.equal(redactUrlSecretsInText("https://host/a?x=1@2"), "https://host/a?x=1@2");
+    });
+
+    it("should leave an npm scope path unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.com/api/v4/projects/1/packages/npm/@scope/pkg"),
+        "https://gitlab.com/api/v4/projects/1/packages/npm/@scope/pkg"
+      );
+    });
+
+    it("should leave an npm scope path after a port unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"),
+        "https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"
+      );
+    });
+
+    it("should leave an npm scope path after a single-label host and port unchanged", () => {
+      // "gitlab:8080" could be a username and password, so only the "/@" check keeps it.
+      assert.equal(
+        redactUrlSecretsInText("http://gitlab:8080/api/v4/packages/npm/@scope/pkg"),
+        "http://gitlab:8080/api/v4/packages/npm/@scope/pkg"
+      );
+    });
+  });
+
+  describe("with a mailto link", () => {
+    it("should leave the address unchanged", () => {
+      assert.equal(redactUrlSecretsInText("mailto:alice@example.com"), "mailto:alice@example.com");
+    });
+  });
+
+  describe("with a URL inside JSON text", () => {
+    it("should stop at the closing quote", () => {
+      assert.equal(
+        redactUrlSecretsInText('{"err":"https://alice:pw@host/api","m":"x@y"}'),
+        '{"err":"https://[REDACTED]@host/api","m":"x@y"}'
+      );
+    });
+  });
+
+  describe("with text that is already redacted", () => {
+    it("should leave it unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://[REDACTED]@host/api"),
+        "https://[REDACTED]@host/api"
+      );
+    });
+  });
 });
 
 describe("When redactGitLabUrlCredentials runs", () => {
@@ -263,6 +527,24 @@ describe("When redactGitLabUrlCredentials runs", () => {
   describe("with a single slash after the scheme", () => {
     it("should strip the userinfo", () => {
       assert.equal(redactGitLabUrlCredentials("https:/user:pass@host"), "https://host/");
+    });
+  });
+
+  describe("with a password of digits and then a slash", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://u:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+  });
+
+  describe("with a host, a port, and an @ in the query", () => {
+    it("should return the URL unchanged", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://gitlab.example:8443/api/v4/users?search=a@b.com"),
+        "https://gitlab.example:8443/api/v4/users?search=a@b.com"
+      );
     });
   });
 
@@ -360,6 +642,172 @@ describe("When splitCommaSeparatedUrls runs", () => {
       assert.deepEqual(
         splitCommaSeparatedUrls("https://user:pass,word@host").map(redactUrlSecretsInText),
         ["https://[REDACTED]@host"]
+      );
+    });
+  });
+});
+
+describe("When stripUrlUserinfo runs", () => {
+  describe("with a user and password", () => {
+    it("should return the URL without them", () => {
+      assert.deepEqual(stripUrlUserinfo("https://alice:pw@host/api/v4"), {
+        url: "https://host/api/v4",
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with an encoded comma in the password", () => {
+    it("should return the URL without it", () => {
+      assert.deepEqual(stripUrlUserinfo("https://alice:p%2Cw@host/api/v4"), {
+        url: "https://host/api/v4",
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with a username only", () => {
+    it("should return the URL without it", () => {
+      assert.deepEqual(stripUrlUserinfo("https://alice@host/api/v4"), {
+        url: "https://host/api/v4",
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with a root URL", () => {
+    it("should not add a trailing slash", () => {
+      assert.deepEqual(stripUrlUserinfo("https://alice:pw@host"), {
+        url: "https://host",
+        hadUserinfo: true,
+      });
+    });
+  });
+
+  describe("with no userinfo", () => {
+    it("should return the input unchanged", () => {
+      assert.deepEqual(stripUrlUserinfo("https://host:8443/api/v4"), {
+        url: "https://host:8443/api/v4",
+        hadUserinfo: false,
+      });
+    });
+  });
+
+  describe("with a value that does not parse", () => {
+    it("should return the input unchanged", () => {
+      assert.deepEqual(stripUrlUserinfo("not a url"), { url: "not a url", hadUserinfo: false });
+    });
+  });
+});
+
+describe("When redactUrlSecretsInError runs", () => {
+  describe("with a credentialed URL in the message and cause", () => {
+    it("should redact the message", () => {
+      const error = new TypeError("fetch failed: https://alice:pw@host/api/v4", {
+        cause: new Error("connect https://alice:pw@host"),
+      });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "fetch failed: https://[REDACTED]@host/api/v4");
+    });
+
+    it("should redact the cause", () => {
+      const cause = new Error("connect https://alice:pw@host");
+      const error = new TypeError("fetch failed", { cause });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(cause.message, "connect https://[REDACTED]@host");
+    });
+
+    it("should redact the stack", () => {
+      const error = new TypeError("fetch failed: https://alice:pw@host/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.stack?.includes("alice:pw"), false);
+    });
+  });
+
+  describe("with a string cause", () => {
+    it("should redact the cause", () => {
+      const error = new Error("fetch failed", { cause: "https://alice:pw@host" });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.cause, "https://[REDACTED]@host");
+    });
+  });
+
+  describe("with a cause cycle", () => {
+    it("should redact once and return", () => {
+      const error = new Error("https://alice:pw@host");
+      error.cause = error;
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "https://[REDACTED]@host");
+    });
+  });
+
+  describe("with a thrown string", () => {
+    it("should return the redacted string", () => {
+      assert.equal(redactUrlSecretsInError("https://alice:pw@host"), "https://[REDACTED]@host");
+    });
+  });
+});
+
+describe("When redactUrlSecretsInErrorMessage runs", () => {
+  describe("with an undici credentials error", () => {
+    it("should return the redacted message", () => {
+      const error = new TypeError(
+        "Request cannot be constructed from a URL that includes credentials: https://alice:p%2Cw@host/api/graphql"
+      );
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        "Request cannot be constructed from a URL that includes credentials: https://[REDACTED]@host/api/graphql"
+      );
+    });
+  });
+
+  describe("with a thrown string", () => {
+    it("should return the redacted string", () => {
+      assert.equal(redactUrlSecretsInErrorMessage("https://alice:pw@host"), "https://[REDACTED]@host");
+    });
+  });
+});
+
+describe("When redactUrlSecretsInLogLine runs", () => {
+  describe("with a JSON line", () => {
+    it("should redact a URL in a nested string", () => {
+      const line = `${JSON.stringify({ msg: "x", err: { message: "https://alice:pw@host/api" } })}\n`;
+
+      assert.equal(
+        redactUrlSecretsInLogLine(line),
+        `${JSON.stringify({ msg: "x", err: { message: "https://[REDACTED]@host/api" } })}\n`
+      );
+    });
+
+    it("should return a line without secrets unchanged", () => {
+      const line = `${JSON.stringify({ msg: "mail alice@example.com", url: "https://host/a" })}\n`;
+
+      assert.equal(redactUrlSecretsInLogLine(line), line);
+    });
+
+    it("should keep a URL on a custom port with an @ in the path", () => {
+      const line = `${JSON.stringify({ url: "https://gitlab.example:8443/g/p/-/raw/main/logo@2x.png" })}\n`;
+
+      assert.equal(redactUrlSecretsInLogLine(line), line);
+    });
+  });
+
+  describe("with a line that is not JSON", () => {
+    it("should redact it as text", () => {
+      assert.equal(
+        redactUrlSecretsInLogLine("failed https://alice:pw@host\n"),
+        "failed https://[REDACTED]@host\n"
       );
     });
   });

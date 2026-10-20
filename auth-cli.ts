@@ -4,6 +4,8 @@ import { parseCliArgs } from "./cli-boolean-flags.js";
 import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
+import { stripUrlUserinfo } from "./utils/redact-url.js";
+import { apiUrlUserinfoWarning } from "./utils/url.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-auth");
@@ -102,7 +104,13 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     throw new Error("Missing OAuth client ID. Pass --client-id or set GITLAB_OAUTH_CLIENT_ID.");
   }
 
-  const apiUrl = readFlag(argv, "api-url") ?? env.GITLAB_API_URL ?? DEFAULT_API_URL;
+  const apiUrlFlag = readFlag(argv, "api-url");
+  const configuredApiUrl = stripUrlUserinfo(apiUrlFlag ?? env.GITLAB_API_URL ?? DEFAULT_API_URL);
+  if (configuredApiUrl.hadUserinfo) {
+    logger.warn(apiUrlUserinfoWarning(apiUrlFlag !== undefined ? "--api-url" : "GITLAB_API_URL"));
+    flushStartupLogs(logger);
+  }
+  const apiUrl = configuredApiUrl.url;
   const tokenPath =
     readFlag(argv, "token-path") ??
     env.GITLAB_OAUTH_TOKEN_PATH ??

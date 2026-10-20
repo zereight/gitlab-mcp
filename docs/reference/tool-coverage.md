@@ -274,9 +274,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`erase_pipeline_job`](../tools/pipelines.md#erase_pipeline_job)
 - [ ] [`wait_for_pipeline`](../tools/pipelines.md#wait_for_pipeline)
 - [ ] [`wait_for_job`](../tools/pipelines.md#wait_for_job)
-- [x] [`list_job_artifacts`](../tools/pipelines.md#list_job_artifacts) — `test/test-blank-filters.ts`, `test/test-job-artifacts.ts`
+- [x] [`list_job_artifacts`](../tools/pipelines.md#list_job_artifacts) — `test/api-url-credentials.test.ts`, `test/test-blank-filters.ts`, `test/test-job-artifacts.ts`
 - [x] [`download_job_artifacts`](../tools/pipelines.md#download_job_artifacts) — `test/oauth-download-url.test.ts`, `test/test-job-artifacts.ts`, `test/test-remote-downloads.ts`
-- [x] [`get_job_artifact_file`](../tools/pipelines.md#get_job_artifact_file) — `test/test-job-artifacts.ts`
+- [x] [`get_job_artifact_file`](../tools/pipelines.md#get_job_artifact_file) — `test/api-url-credentials.test.ts`, `test/test-job-artifacts.ts`
 - [x] [`list_project_runners`](../tools/pipelines.md#list_project_runners) — `test/test-runners.ts`
 - [x] [`get_runner`](../tools/pipelines.md#get_runner) — `test/test-runners.ts`
 
@@ -436,5 +436,5 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="meta"></a>
 
-- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
+- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
 - [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`

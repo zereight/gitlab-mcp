@@ -303,7 +303,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | 环境变量                      | 必需 | 说明                                                                                                        |
 | ----------------------------- | ---- | ----------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                                                                        |
-| `GITLAB_API_URL`              | 是   | GitLab API base URL                                                                                         |
+| `GITLAB_API_URL`              | 是   | GitLab API base URL。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。                            |
 | `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                                                                                 |
 | `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                                                                               |
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
@@ -571,7 +571,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 是   | 设置为 `true` 以启用                                                                                                                     |
 | `GITLAB_OAUTH_APP_ID`                       | 是   | 预先注册的 GitLab OAuth 应用 client ID                                                                                                   |
 | `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
-| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）                                                                                  |
+| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。                     |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
