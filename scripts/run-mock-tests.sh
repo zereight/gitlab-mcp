@@ -41,7 +41,8 @@ run_mock_tests 4 \
   -o -path 'test/cli/*.test.ts' \)
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
-node --import tsx/esm --test --experimental-test-isolation=none scripts/tool-coverage/coverage.test.ts
+node --import tsx/esm --test --experimental-test-isolation=none \
+  scripts/tool-coverage/coverage.test.ts scripts/release.test.ts
 
 # Server-spawning suites — sequential to avoid port races and node:test IPC flakes
 run_mock_tests 1 \

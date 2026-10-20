@@ -127,7 +127,8 @@ by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are left
 out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
 [#815](https://github.com/zereight/gitlab-mcp/issues/815) deprecation notice.
 
-Publishing the GitHub release starts these workflows, directly or in turn:
+Publishing a stable GitHub release starts these workflows, directly or in turn.
+A pre-release skips them; see [Pre-release builds](#pre-release-builds-next).
 
 - **`npm-publish.yml`** builds the tag and publishes `@zereight/mcp-gitlab` to
   npm with trusted publishing (OIDC) and provenance. The workflow uses no npm
@@ -162,3 +163,27 @@ After a release:
 - Merge the `automation/homebrew-formula` PR.
 - Comment on linked issues with the published version. Close them after the
   reporter confirms.
+
+## Pre-release builds (`@next`)
+
+`npm-publish.yml` also publishes pre-release builds to the npm `next` dist-tag,
+so a reporter can try a merged fix before the next stable release with
+`npx -y @zereight/mcp-gitlab@next`.
+
+- A push to `main` that changes the package (TypeScript sources outside
+  `test/`, `scripts/`, and `mcp-server/`, `package.json`, `package-lock.json`,
+  or the TypeScript config) publishes `<next patch>-next.<run number>`, for
+  example `2.3.5-next.123`. `chore(release):` commits and pushes by
+  `github-actions[bot]` are skipped.
+- A GitHub pre-release publishes its tag version, which must look like
+  `vX.Y.Z-rc.1`.
+- The version is set in the job workspace only and never committed back. The
+  publish uses trusted publishing (OIDC) and provenance like `latest`, always
+  with `--tag next`. `next` runs one at a time, so overlapping pushes don't
+  race.
+- A pre-release doesn't publish `latest` to npm, sync the Homebrew formula,
+  push Docker images, update the MCP Registry, or upload the MCP bundle.
+  `scripts/release.sh` ignores pre-release tags and versions when it picks the
+  previous tag and the docs pin.
+- Right after a stable release, `next` can be older than `latest` until the
+  next push to `main` publishes a new build.

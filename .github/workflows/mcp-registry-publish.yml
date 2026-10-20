@@ -22,7 +22,7 @@ permissions:
   id-token: none
 
 jobs:
-  publish:
+  check-release:
     # Only a successful Docker Publish run for a release in this repository.
     # Docker Publish's own workflow_dispatch runs and failed runs skip.
     if: >-
@@ -30,6 +30,33 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'release' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      # workflow_run carries no release payload. For a release run,
+      # head_branch is the release tag, so ask the API whether it is a
+      # pre-release. A pre-release must not change the registry entry.
+      - name: Check for a pre-release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [ "$EVENT_NAME" != "workflow_run" ]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          prerelease="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
+          echo "Release ${TAG}: prerelease=${prerelease}"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: check-release
+    if: needs.check-release.outputs.prerelease == 'false'
     permissions:
       contents: read
       id-token: write
