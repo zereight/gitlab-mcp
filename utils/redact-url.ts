@@ -8,8 +8,9 @@ const SENSITIVE_QUERY_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * Removes userinfo from a GitLab API URL before it is returned to the client.
- * A password with an unencoded slash is not a valid WHATWG URL, so that form
- * uses the same text redaction as transport error messages.
+ * A password with an unencoded slash is not a valid WHATWG URL, or parses as a
+ * host and port ("https://u:12/ab@host" has host "u"), so those forms use the
+ * same text redaction as transport error messages.
  */
 export function redactGitLabUrlCredentials(url: string): string {
   try {
@@ -19,7 +20,7 @@ export function redactGitLabUrlCredentials(url: string): string {
       parsed.username = "";
       parsed.password = "";
     }
-    const serialized = hadUserinfo ? parsed.toString() : url;
+    const serialized = hadUserinfo ? parsed.toString() : redactUrlUserinfoInText(url);
     return redactSensitiveQuery(serialized);
   } catch {
     return redactSensitiveQuery(redactUrlUserinfoInText(url));
@@ -327,6 +328,7 @@ function redactCompactUserinfo(urlToken: string): string {
   // Without an "@" after a URL's scheme there is no userinfo to find, so
   // segments past the last "@" skip the authority scan.
   const lastAt = urlToken.lastIndexOf("@");
+  const lastUserinfoAt = lastAtOutsidePathSegmentStart(urlToken);
   const parts: string[] = [];
   let offset = 0;
   for (;;) {
@@ -337,7 +339,10 @@ function redactCompactUserinfo(urlToken: string): string {
     }
     const restStart = offset + prefix.scheme.length;
     const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
-    const atIndex = hasAuthority && lastAt >= restStart ? findUserinfoEnd(prefix.rest) : -1;
+    const atIndex =
+      hasAuthority && lastAt >= restStart
+        ? findUserinfoEnd(prefix.rest, lastUserinfoAt - restStart)
+        : -1;
     const nestedFrom = atIndex > 0 ? atIndex + 1 : 0;
     parts.push(atIndex > 0 ? `${prefix.scheme}[REDACTED]@` : prefix.scheme);
     const rest = prefix.rest.slice(nestedFrom);
@@ -383,19 +388,38 @@ const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["http:", "https:", "ws:", 
 // Path, query, fragment, and the quote or bracket that closes a URL in prose or JSON.
 const AUTHORITY_END_PATTERN = /[/\\?#"'<>`]/;
 const HOST_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*)(?::\d*)?$/;
+const HOST_WITH_PORT_PATTERN = /^(?:\[[^\]]*\]|[^:]*):\d+$/;
 
 // The userinfo ends at the last "@" before the path, so "https://host/a?x=1@2"
 // and ".../npm/@scope/pkg" keep their "@". A password with an unencoded "/"
 // ("user:p/ss@host") moves that "@" past the first "/"; it is told apart from
 // a URL by the "user:p" before the "/", which is not a host[:port].
-function findUserinfoEnd(rest: string): number {
+// A password of digits first ("u:12/ab@host", "u:123?x@host") reads as a port,
+// so after a port the last "@" counts unless it starts a path segment ("/@scope").
+// `lastUserinfoAt` is that "@" as an index into `rest`, or negative.
+function findUserinfoEnd(rest: string, lastUserinfoAt: number): number {
   const authorityEnd = rest.search(AUTHORITY_END_PATTERN);
   const authority = authorityEnd === -1 ? rest : rest.slice(0, authorityEnd);
   const atIndex = authority.lastIndexOf("@");
-  if (atIndex !== -1 || authorityEnd === -1 || HOST_PORT_PATTERN.test(authority)) {
+  if (atIndex !== -1 || authorityEnd === -1) {
     return atIndex;
   }
+  if (HOST_WITH_PORT_PATTERN.test(authority)) {
+    return Math.max(lastUserinfoAt, -1);
+  }
+  if (HOST_PORT_PATTERN.test(authority)) {
+    return -1;
+  }
   return rest.lastIndexOf("@");
+}
+
+// Found once per token, so each nested URL reads it in constant time.
+function lastAtOutsidePathSegmentStart(urlToken: string): number {
+  let index = urlToken.lastIndexOf("@");
+  while (index > 0 && urlToken[index - 1] === "/") {
+    index = urlToken.lastIndexOf("@", index - 1);
+  }
+  return index;
 }
 
 const SCHEME_PREFIX_PATTERN = /^([a-z][a-z0-9+.-]*:)(\/\/|\/)?/i;

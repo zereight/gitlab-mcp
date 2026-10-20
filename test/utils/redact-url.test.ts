@@ -334,6 +334,24 @@ describe("When redactUrlSecretsInText runs", () => {
     });
   });
 
+  describe("with a password of digits and then a slash, ? or #", () => {
+    // WHATWG reads "u:12" as a host and port, so only the text scan finds the userinfo.
+    it("should redact a password with a slash", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://u:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
+    });
+
+    it("should redact a password with a ?", () => {
+      assert.equal(redactUrlSecretsInText("https://u:123?x@host"), "https://[REDACTED]@host");
+    });
+
+    it("should redact a password with a #", () => {
+      assert.equal(redactUrlSecretsInText("https://u:123#x@host"), "https://[REDACTED]@host");
+    });
+  });
+
   describe("with an @ after the host", () => {
     it("should leave a query value unchanged", () => {
       assert.equal(redactUrlSecretsInText("https://host/a?x=1@2"), "https://host/a?x=1@2");
@@ -343,6 +361,13 @@ describe("When redactUrlSecretsInText runs", () => {
       assert.equal(
         redactUrlSecretsInText("https://gitlab.com/api/v4/projects/1/packages/npm/@scope/pkg"),
         "https://gitlab.com/api/v4/projects/1/packages/npm/@scope/pkg"
+      );
+    });
+
+    it("should leave an npm scope path after a port unchanged", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"),
+        "https://gitlab.example:8443/api/v4/packages/npm/@scope/pkg"
       );
     });
   });
@@ -409,6 +434,15 @@ describe("When redactGitLabUrlCredentials runs", () => {
   describe("with a single slash after the scheme", () => {
     it("should strip the userinfo", () => {
       assert.equal(redactGitLabUrlCredentials("https:/user:pass@host"), "https://host/");
+    });
+  });
+
+  describe("with a password of digits and then a slash", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://u:12/ab@host/api/v4"),
+        "https://[REDACTED]@host/api/v4"
+      );
     });
   });
 

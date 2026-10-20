@@ -18,6 +18,9 @@ const ENCODED_COMMA_PASSWORD = "pass%2Cword";
 const ENCODED_COMMA_API_URL = `https://comma-user:${ENCODED_COMMA_PASSWORD}@gitlab.example.com/api/v4`;
 const HTTP_TAIL_PASSWORD_HEAD = "supersecret";
 const HTTP_TAIL_API_URL = `https://alice:${HTTP_TAIL_PASSWORD_HEAD},https:word@gitlab.example.com/api/v4`;
+const DIGIT_PASSWORD_TAIL = "digit-pass-9f2a";
+// WHATWG reads "alice:12" as a host and port, so the URL is not stripped.
+const DIGIT_PASSWORD_API_URL = `https://alice:12/${DIGIT_PASSWORD_TAIL}@gitlab.example.com/api/v4`;
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
 const USERINFO_WARNING = "GITLAB_API_URL contains a username or password before the host";
 // One URL, not followed by a second list entry.
@@ -235,6 +238,25 @@ describe("When the stdio server starts", () => {
       const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
 
       assert.equal(logs.stderr.includes(HTTP_TAIL_PASSWORD_HEAD), false);
+    });
+  });
+
+  describe("with a password of digits and then a slash", () => {
+    it("should log the configured URL with the userinfo redacted", async () => {
+      const logs = await captureStartupLogsAsync(DIGIT_PASSWORD_API_URL);
+
+      assert.equal(
+        logs.stderr.includes(
+          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4"
+        ),
+        true
+      );
+    });
+
+    it("should omit the password from stderr", async () => {
+      const logs = await captureStartupLogsAsync(DIGIT_PASSWORD_API_URL);
+
+      assert.equal(logs.stderr.includes(DIGIT_PASSWORD_TAIL), false);
     });
   });
 
