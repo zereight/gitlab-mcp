@@ -286,6 +286,26 @@ describe("When redactUrlSecretsInText runs", () => {
     });
   });
 
+  describe("with a long token of nested scheme segments", () => {
+    it("should redact the innermost userinfo", () => {
+      // Each "x://" starts one more URL nested in the previous one's path.
+      const outer = "x://".repeat(50_000);
+
+      assert.equal(
+        redactUrlSecretsInText(`fetch failed: ${outer}https://alice:pw-5e0d@host/api`),
+        `fetch failed: ${outer}https://[REDACTED]@host/api`
+      );
+    });
+  });
+
+  describe("with a long path of letters", () => {
+    it("should return it unchanged", { timeout: 5000 }, () => {
+      const url = `https://host/${"a".repeat(200_000)}`;
+
+      assert.equal(redactUrlSecretsInText(url), url);
+    });
+  });
+
   describe("with an @ after the host", () => {
     it("should leave a query value unchanged", () => {
       assert.equal(redactUrlSecretsInText("https://host/a?x=1@2"), "https://host/a?x=1@2");

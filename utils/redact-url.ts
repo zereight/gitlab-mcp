@@ -242,29 +242,61 @@ function splitAuthorityUserinfo(
   };
 }
 
-function redactCompactUserinfo(urlToken: string): string {
-  const prefix = readSchemePrefix(urlToken);
-  if (prefix === null) {
-    return urlToken;
-  }
-  const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
-  const atIndex = hasAuthority ? findUserinfoEnd(prefix.rest) : -1;
-  if (atIndex <= 0) {
-    return `${prefix.scheme}${redactNestedUrls(prefix.rest)}`;
-  }
-  return `${prefix.scheme}[REDACTED]@${redactNestedUrls(prefix.rest.slice(atIndex + 1))}`;
-}
-
 // A URL inside another URL's path or query ("...?next=https://user:pass@host")
 // has its own authority. The text regex sees both as one token.
-const NESTED_URL_PATTERN = /[a-z][a-z0-9+.-]*:(?:\/\/|\/)?[^\s]/i;
-
-function redactNestedUrls(rest: string): string {
-  const start = rest.search(NESTED_URL_PATTERN);
-  if (start === -1) {
-    return rest;
+// One pass per URL in the token, outer first, so a long token of nested URLs
+// does not grow the call stack.
+function redactCompactUserinfo(urlToken: string): string {
+  // Without an "@" after a URL's scheme there is no userinfo to find, so
+  // segments past the last "@" skip the authority scan.
+  const lastAt = urlToken.lastIndexOf("@");
+  const parts: string[] = [];
+  let offset = 0;
+  for (;;) {
+    const prefix = readSchemePrefix(urlToken.slice(offset));
+    if (prefix === null) {
+      parts.push(urlToken.slice(offset));
+      break;
+    }
+    const restStart = offset + prefix.scheme.length;
+    const hasAuthority = prefix.hasAuthoritySlashes || SPECIAL_SCHEMES.has(prefix.name);
+    const atIndex = hasAuthority && lastAt >= restStart ? findUserinfoEnd(prefix.rest) : -1;
+    const nestedFrom = atIndex > 0 ? atIndex + 1 : 0;
+    parts.push(atIndex > 0 ? `${prefix.scheme}[REDACTED]@` : prefix.scheme);
+    const rest = prefix.rest.slice(nestedFrom);
+    const nestedStart = findNestedUrlStart(rest);
+    if (nestedStart === -1) {
+      parts.push(rest);
+      break;
+    }
+    parts.push(rest.slice(0, nestedStart));
+    offset = restStart + nestedFrom + nestedStart;
   }
-  return `${rest.slice(0, start)}${redactCompactUserinfo(rest.slice(start))}`;
+  return parts.join("");
+}
+
+const SCHEME_CHAR_PATTERN = /[a-z0-9+.-]/i;
+const SCHEME_START_PATTERN = /[a-z]/i;
+
+// Index of the first match of /[a-z][a-z0-9+.-]*:\S/i, or -1. It walks back
+// from each ":" instead of trying every start position, so a long run of
+// letters in a path is read once rather than once per letter.
+function findNestedUrlStart(text: string): number {
+  for (let colon = text.indexOf(":"); colon !== -1; colon = text.indexOf(":", colon + 1)) {
+    if (colon + 1 >= text.length || /\s/.test(text[colon + 1])) {
+      continue;
+    }
+    let start = -1;
+    for (let index = colon - 1; index >= 0 && SCHEME_CHAR_PATTERN.test(text[index]); index -= 1) {
+      if (SCHEME_START_PATTERN.test(text[index])) {
+        start = index;
+      }
+    }
+    if (start !== -1) {
+      return start;
+    }
+  }
+  return -1;
 }
 
 // WHATWG special schemes read userinfo without "//" ("https:user:pass@host").
