@@ -307,6 +307,33 @@ describe("When redactUrlSecretsInText runs", () => {
     });
   });
 
+  describe("with a long token of repeated separators", () => {
+    // Each input took seconds when every "," or "?" started a new scan of the rest.
+    const inputs: Record<string, string> = {
+      '"x:a," repeated': "x:a,".repeat(40_000),
+      "commas before a final @": `x:${"a,".repeat(40_000)}a@h`,
+      '"?" repeated': "?".repeat(40_000),
+      "http-looking entries after a comma in the password": `x://a:${"b,http:c".repeat(20_000)}@h`,
+    };
+
+    for (const [name, text] of Object.entries(inputs)) {
+      it(`should finish quickly for ${name}`, () => {
+        const start = performance.now();
+        redactUrlSecretsInText(text);
+
+        assert.ok(performance.now() - start < 500);
+      });
+    }
+
+    it("should finish quickly for a log line with a long tool name", () => {
+      const message = `Tool "${"x:a,".repeat(40_000)}@" is not available`;
+      const start = performance.now();
+      redactUrlSecretsInLogLine(`${JSON.stringify({ msg: message, err: { stack: message } })}\n`);
+
+      assert.ok(performance.now() - start < 500);
+    });
+  });
+
   describe("with an @ after the host", () => {
     it("should leave a query value unchanged", () => {
       assert.equal(redactUrlSecretsInText("https://host/a?x=1@2"), "https://host/a?x=1@2");
