@@ -1,8 +1,27 @@
 name: NPM Publish
 
+# A stable GitHub release publishes to the `latest` dist-tag and syncs the
+# Homebrew formula. A push to main that changes the package, or a GitHub
+# pre-release, publishes a pre-release build to the `next` dist-tag instead.
+# The publish jobs stay in this file because npm trusted publishing (OIDC) is
+# configured for this workflow file name.
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    # Inputs of the published package: everything tsconfig.build.json
+    # compiles, plus the package and TypeScript config.
+    paths:
+      - "**.ts"
+      - "!test/**"
+      - "!scripts/**"
+      - "!mcp-server/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "tsconfig.build.json"
+      - ".github/workflows/npm-publish.yml"
 
 permissions:
   contents: read
@@ -10,6 +29,7 @@ permissions:
 
 jobs:
   npm:
+    if: github.event_name == 'release' && !github.event.release.prerelease
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -34,6 +54,7 @@ jobs:
 
   sync-homebrew:
     needs: npm
+    if: github.event_name == 'release' && !github.event.release.prerelease
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -62,3 +83,93 @@ jobs:
           commit-message: "chore(homebrew): sync formula for release"
           body: "Automated Homebrew formula sync after npm publish."
           add-paths: Formula/zereight-mcp-gitlab.rb
+
+  # Pre-release builds for `npx -y @zereight/mcp-gitlab@next`. The version is
+  # stamped in the job workspace only and is never committed back to main.
+  # Release commits (chore(release): ...) and bot pushes are skipped: the
+  # stable release publishes those.
+  next:
+    if: >-
+      github.repository == 'zereight/gitlab-mcp' &&
+      ((github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):')) ||
+      (github.event_name == 'release' && github.event.release.prerelease))
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    # One @next publish at a time, in order. A newer run waits instead of
+    # cancelling one that may be publishing, and replaces any queued run.
+    concurrency:
+      group: npm-next
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.2"
+          registry-url: "https://registry.npmjs.org/"
+      # main push: <next patch>-next.<run number>, e.g. 2.3.5-next.123.
+      # Pre-release: the tag version, which must be X.Y.Z-<pre> so it can't
+      # use up a stable version number on npm.
+      - name: Stamp pre-release version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            version="${RELEASE_TAG#v}"
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$ ]]; then
+              echo "::error::Pre-release tag ${RELEASE_TAG} must look like vX.Y.Z-rc.1."
+              exit 1
+            fi
+          else
+            current="$(node -p 'require("./package.json").version')"
+            if ! [[ "$current" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              echo "::error::package.json version ${current} is not a stable X.Y.Z version."
+              exit 1
+            fi
+            version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))-next.${RUN_NUMBER}"
+          fi
+          npm version "$version" --no-git-tag-version --allow-same-version
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      # A re-run of a run that already published must not fail on the
+      # existing version.
+      - name: Check npm for this version
+        id: published
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if npm view "@zereight/mcp-gitlab@${VERSION}" version >/dev/null 2>&1; then
+            echo "@zereight/mcp-gitlab@${VERSION} is already on npm. Skipping publish."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install dependencies
+        if: steps.published.outputs.exists != 'true'
+        run: npm ci --ignore-scripts
+      - name: Build
+        if: steps.published.outputs.exists != 'true'
+        run: npm run build
+      # Always pass --tag next: without it npm would move `latest`.
+      - name: Publish to npm (next)
+        if: steps.published.outputs.exists != 'true'
+        run: npx --yes npm@11.5.2 publish --access public --provenance --tag next
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "### @zereight/mcp-gitlab@${VERSION}"
+            echo
+            echo "Dist-tag \`next\`. Try it with \`npx -y @zereight/mcp-gitlab@next\`."
+          } >> "$GITHUB_STEP_SUMMARY"

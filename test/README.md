@@ -25,7 +25,7 @@ Commands are the `scripts` entries in `package.json`.
 `scripts/run-mock-tests.sh` does four steps:
 
 1. Parallel (`-P 4`) pure unit files. No MCP process. Each file: `node --import tsx/esm --test --experimental-test-isolation=none --test-concurrency=1`.
-2. `node --import tsx/esm --test --experimental-test-isolation=none scripts/tool-coverage/coverage.test.ts`.
+2. `node --import tsx/esm --test --experimental-test-isolation=none scripts/tool-coverage/coverage.test.ts scripts/release.test.ts`.
 3. The remaining suites, one at a time (`-P 1`), same `node --test` command. The script calls this the server-spawning pass (port races and `node:test` IPC flakes). It is selected by filename, so some files here do not start a server.
 4. `tsx test/oauth-tests.ts`.
 

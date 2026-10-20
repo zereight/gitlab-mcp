@@ -121,6 +121,7 @@ sync_pinned_npx_docs_version() {
   fi
 
   # Git tags can outpace npm when publish fails; pin must exist on the registry.
+  # Only stable X.Y.Z versions qualify; @next builds are pre-releases.
   if ! npm view "@zereight/mcp-gitlab@${version}" version >/dev/null 2>&1; then
     local npm_pin
     npm_pin=$(
@@ -129,7 +130,7 @@ const wanted = process.argv[1];
 let raw = "";
 process.stdin.on("data", (c) => (raw += c));
 process.stdin.on("end", () => {
-  const versions = JSON.parse(raw);
+  const versions = JSON.parse(raw).filter((v) => /^\d+\.\d+\.\d+$/.test(v));
   const pin = [...versions].reverse().find(
     (v) => v.localeCompare(wanted, undefined, { numeric: true }) < 0
   );
@@ -166,7 +167,11 @@ function files(root) {
 
 for (const file of roots.flatMap(files)) {
   const before = fs.readFileSync(file, "utf8");
-  const after = before.replace(/@zereight\/mcp-gitlab@\d+\.\d+\.\d+/g, `@zereight/mcp-gitlab@${version}`);
+  // A pre-release pin (@2.3.5-next.4) is replaced whole, not just its X.Y.Z part.
+  const after = before.replace(
+    /@zereight\/mcp-gitlab@\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?/g,
+    `@zereight/mcp-gitlab@${version}`
+  );
   if (after !== before) fs.writeFileSync(file, after);
 }
 NODE
@@ -184,14 +189,18 @@ build_docs() {
   make docs
 }
 
-# Determine the previous tag for changelog
+# Determine the previous stable tag for changelog. Pre-release tags such as
+# v2.4.0-rc.1 are skipped, so notes and the docs pin start from a stable release.
 get_previous_tag() {
   local current_tag="$1"
+  # Exactly vX.Y.Z. git describe only takes globs, so the excludes drop any
+  # suffix (-rc.1, +build.1) and a fourth segment.
+  local stable_tag=(--match "v[0-9]*.[0-9]*.[0-9]*" --exclude "v*[!0-9.]*" --exclude "*.*.*.*")
   if [ -n "$current_tag" ]; then
     # Find the tag before the current one
-    git describe --tags --abbrev=0 "${current_tag}^" 2>/dev/null || echo ""
+    git describe --tags --abbrev=0 "${stable_tag[@]}" "${current_tag}^" 2>/dev/null || echo ""
   else
-    git describe --tags --abbrev=0 2>/dev/null || echo ""
+    git describe --tags --abbrev=0 "${stable_tag[@]}" 2>/dev/null || echo ""
   fi
 }
 
@@ -570,7 +579,7 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   
 else
   # No existing tag - create new version bump
-  PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+  PREV_TAG=$(get_previous_tag "")
 
   if ! commits_mention_prs "$PREV_TAG"; then
     echo "❌ Commits since ${PREV_TAG:-start} have no PR references (#N)."
