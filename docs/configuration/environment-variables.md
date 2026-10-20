@@ -616,6 +616,8 @@ inactivity window for sealed sids.
 
 GitLab API base URL.
 
+Do not put credentials in the URL (`https://user:pass@host`). They are ignored with a startup warning; authenticate with `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, or OAuth instead.
+
 Default:
 
 - `https://gitlab.com/api/v4`
