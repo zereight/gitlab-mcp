@@ -65,6 +65,8 @@ GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_contex
 - stdio 通过 `mcp-remote`，需要 Node.js 20 或更高版本。
 - Toolset 使用请求头 `X-Gitlab-Enabled-Mcp-Server-Toolsets`。可选请求头 `X-Gitlab-Mcp-Server-Tool-Name-Prefix` 只保留工具名前缀的前 32 个字符。
 
+[与官方 GitLab MCP 服务器的完整对比 →](./docs/comparison/official-gitlab-mcp.md)
+
 快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`，并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
 
 ### 客户端设置指南

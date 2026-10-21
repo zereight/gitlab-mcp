@@ -65,6 +65,8 @@ O GitLab também inclui um [servidor MCP oficial](https://docs.gitlab.com/user/m
 - O stdio passa por `mcp-remote` e exige Node.js 20 ou posterior.
 - Os toolsets usam o cabeçalho `X-Gitlab-Enabled-Mcp-Server-Toolsets`. O cabeçalho opcional `X-Gitlab-Mcp-Server-Tool-Name-Prefix` mantém os primeiros 32 caracteres de um prefixo de nome de ferramenta.
 
+[Comparação completa com o servidor MCP oficial do GitLab →](./docs/comparison/official-gitlab-mcp.md)
+
 Início rápido: escolha abaixo uma configuração com Personal Access Token ou OAuth2, instale `@zereight/mcp-gitlab` e use `zereight-mcp-gitlab` na configuração do seu cliente MCP.
 
 ### Guias de configuração de clientes
