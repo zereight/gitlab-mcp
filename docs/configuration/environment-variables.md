@@ -620,7 +620,7 @@ Do not put credentials in the URL (`https://user:pass@host`), whether it comes f
 
 Each URL must use `http` or `https`; startup fails for any other value, such as `localhost:8080`, without printing it.
 
-The value can also be a comma-separated list of URLs. If a URL still has a password, a comma in the password must be written as `%2C`. A literal comma can be read as a list separator: `https://alice:123,https:word@host` becomes the two URLs `https://alice:123` and `https:word@host`, requests go to the wrong host, and the startup log, which prints only the host name of each URL, lists `alice, host`.
+The value can also be a comma-separated list of URLs. If a URL still has a password, a comma in the password must be written as `%2C`. A literal comma can be read as a list separator: `https://alice:123,https:word@host` becomes the two URLs `https://alice:123` and `https:word@host`, requests go to the wrong host, and the startup log lists `alice, host`. The startup log prints only the host name of each URL, so URLs that differ only in port or path look the same there.
 
 Default:
 

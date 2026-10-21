@@ -313,6 +313,16 @@ describe("When apiUrlHostnameForLog runs", () => {
   test("should not print an empty host name", () => {
     assert.equal(apiUrlHostnameForLog("localhost:8080/api/v4"), "<invalid>");
   });
+
+  // The second half of "http://alice:12,http://sec/ret@host": "sec" is part of the password.
+  test("should not print a host that is followed by an @ in the path", () => {
+    assert.equal(apiUrlHostnameForLog("http://sec/ret@host/api/v4"), "<invalid>");
+  });
+
+  test("should not print a host that is followed by an @ in the query or fragment", () => {
+    assert.equal(apiUrlHostnameForLog("http://sec?ret@host/api/v4"), "<invalid>");
+    assert.equal(apiUrlHostnameForLog("http://sec#ret@host/api/v4"), "<invalid>");
+  });
 });
 
 describe("When encodeGitLabPathSegment runs", () => {

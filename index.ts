@@ -17726,7 +17726,8 @@ function initOAuthClient(): void {
   }
   if (isCleartextRemoteUrl(GITLAB_API_URL)) {
     throw new Error(
-      `Refusing to send OAuth tokens over cleartext HTTP to ${redactUrlSecretsInText(GITLAB_API_URL)}. ` +
+      // The host name only: a port can hold the start of a password (see apiUrlHostnameForLog).
+      `Refusing to send OAuth tokens over cleartext HTTP to http://${apiUrlHostnameForLog(GITLAB_API_URL)}. ` +
         "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
     );
   }

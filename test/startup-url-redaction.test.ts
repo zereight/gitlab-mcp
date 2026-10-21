@@ -30,6 +30,11 @@ const CREDENTIAL_PART = /alice|Pw7x/;
 // Both pieces of "alice:12,http://w" parse, so the list splits and "12" reads as a port.
 const SPLIT_PORT_API_URL = "http://alice:12,http://w@host";
 const SPLIT_PORT_HEAD = "12";
+const SPLIT_PORT_HOST_AND_PORT = "alice:12";
+// Here the second URL is "http://sec/ret@host", whose host "sec" is part of the password.
+const SPLIT_PORT_SLASH_API_URL = "http://alice:12,http://sec/ret@host";
+const OAUTH_ENV = { GITLAB_USE_OAUTH: "true", GITLAB_OAUTH_CLIENT_ID: "fake-client-id" };
+const OAUTH_CLEARTEXT_ERROR = "Refusing to send OAuth tokens over cleartext HTTP";
 const PORTS_AND_IPV6_API_URL =
   "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4";
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
@@ -42,12 +47,22 @@ interface StartupLogs {
   readonly stderr: string;
 }
 
-function startupEnv(apiUrl: string): Record<string, string> {
+interface CaptureOptions {
+  readonly extraEnv?: Readonly<Record<string, string>>;
+  /** Wait for the server to exit by itself with this text in stderr, instead of the URL logs. */
+  readonly exitMarker?: string;
+}
+
+function startupEnv(
+  apiUrl: string,
+  extraEnv: Readonly<Record<string, string>> = {}
+): Record<string, string> {
   const env: Record<string, string> = {
     GITLAB_PERSONAL_ACCESS_TOKEN: "glpat-fakefakefake",
     GITLAB_API_URL: apiUrl,
     GITLAB_DISABLE_VERSION_CHECK: "true",
     LOG_LEVEL: "info",
+    ...extraEnv,
   };
   if (process.env.PATH !== undefined) {
     env.PATH = process.env.PATH;
@@ -59,11 +74,13 @@ function startupEnv(apiUrl: string): Record<string, string> {
 }
 
 async function captureStartupLogsAsync(
-  apiUrl: string = DEFAULT_STARTUP_API_URL
+  apiUrl: string = DEFAULT_STARTUP_API_URL,
+  options: CaptureOptions = {}
 ): Promise<StartupLogs> {
+  const marker = options.exitMarker ?? "Default GitLab API URL:";
   const child = spawn(process.execPath, [path.join(REPO_ROOT, "build/index.js")], {
     cwd: REPO_ROOT,
-    env: startupEnv(apiUrl),
+    env: startupEnv(apiUrl, options.extraEnv),
     stdio: ["pipe", "pipe", "pipe"],
   });
   const stdoutChunks: Buffer[] = [];
@@ -91,21 +108,22 @@ async function captureStartupLogsAsync(
     };
     const timer = setTimeout(() => {
       const stderr = Buffer.concat(stderrChunks).toString("utf8");
-      finish(new Error(`timed out waiting for startup URL log\n${stderr}`));
+      finish(new Error(`timed out waiting for "${marker}"\n${stderr}`));
     }, 20000);
     child.stderr?.on("data", () => {
       const stderr = Buffer.concat(stderrChunks).toString("utf8");
-      if (stderr.includes("Default GitLab API URL:")) {
+      if (options.exitMarker === undefined && stderr.includes(marker)) {
         finish();
       }
     });
-    child.once("exit", code => {
+    // "close" rather than "exit": output written just before exit is read by then.
+    child.once("close", code => {
       const stderr = Buffer.concat(stderrChunks).toString("utf8");
-      if (stderr.includes("Default GitLab API URL:")) {
+      if (stderr.includes(marker)) {
         finish();
         return;
       }
-      finish(new Error(`server exited (${String(code)}) before the startup URL log\n${stderr}`));
+      finish(new Error(`server exited (${String(code)}) before "${marker}"\n${stderr}`));
     });
   });
 
@@ -303,13 +321,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a password of digits and then a slash", () => {
-    // Requests go to the host WHATWG reads, "alice", so that is the host logged.
-    it("should log only the host name WHATWG reads", async () => {
+    // WHATWG reads the user name "alice" as the host, and the "@" in the path shows it.
+    it("should not log the host name WHATWG reads", async () => {
       const logs = await captureStartupLogsAsync(DIGIT_PASSWORD_API_URL);
 
       assert.equal(
         logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: alice"
+        "Configured GitLab API URLs: <invalid>"
       );
     });
 
@@ -394,6 +412,56 @@ describe("When the stdio server starts", () => {
 
       assert.equal(
         urlLogs.some(message => message.includes(SPLIT_PORT_HEAD)),
+        false
+      );
+    });
+
+    it("should omit the host and port of the first URL from stderr", async () => {
+      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
+
+      assert.equal(logs.stderr.includes(SPLIT_PORT_HOST_AND_PORT), false);
+    });
+  });
+
+  describe("with a password comma and slash that split the value into two URLs", () => {
+    it("should not log the host of the URL that has an @ after its host", async () => {
+      const logs = await captureStartupLogsAsync(SPLIT_PORT_SLASH_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: alice, <invalid>"
+      );
+    });
+  });
+
+  describe("with OAuth and a password comma that splits the value into two URLs", () => {
+    const captureOAuthLogsAsync = () =>
+      captureStartupLogsAsync(SPLIT_PORT_API_URL, {
+        extraEnv: OAUTH_ENV,
+        exitMarker: OAUTH_CLEARTEXT_ERROR,
+      });
+
+    it("should refuse cleartext HTTP and name only the host", async () => {
+      const logs = await captureOAuthLogsAsync();
+
+      assert.equal(
+        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://alice. Use an https://`),
+        true
+      );
+    });
+
+    // Timestamps and the pid hold digits too, so only the text after "alice" is checked.
+    it("should omit the start of the password from the output", async () => {
+      const logs = await captureOAuthLogsAsync();
+      const output = `${logs.stdout}\n${logs.stderr}`;
+      const afterHost = output
+        .split("\n")
+        .filter(line => line.includes("alice"))
+        .map(line => line.slice(line.indexOf("alice")));
+
+      assert.equal(output.includes(SPLIT_PORT_HOST_AND_PORT), false);
+      assert.equal(
+        afterHost.some(text => text.includes(SPLIT_PORT_HEAD)),
         false
       );
     });
