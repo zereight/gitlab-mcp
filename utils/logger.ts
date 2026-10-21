@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import { pino, type DestinationStream, type Logger } from "pino";
-import { redactUrlSecretsInLogLine } from "./redact-url.js";
+import { pino, type DestinationStream, type LogFn, type Logger } from "pino";
+import { redactUrlSecretsInError, redactUrlSecretsInLogLine } from "./redact-url.js";
 
 const require = createRequire(import.meta.url);
 
@@ -150,6 +150,37 @@ export function flushBufferedLogs(logger: Logger): void {
 }
 
 /**
+ * pino's error serializer, run on the redacted error. It copies the error's own
+ * fields, and the `input` of an ERR_INVALID_URL can be the start of a password
+ * that the line redaction cannot recognize.
+ */
+export function serializeLoggedError(error: unknown): unknown {
+  return pino.stdSerializers.err(redactUrlSecretsInError(error) as Error);
+}
+
+// Keys whose error pino or pino-pretty prints even though no serializer runs on it.
+const LOGGED_ERROR_KEYS = ["err", "error"] as const;
+
+/**
+ * Redacts a logged error before pino reads it. Without a message argument pino
+ * takes `msg` from the error's own message, and an error under `error` is
+ * copied as it is.
+ */
+function redactLoggedErrors(this: Logger, args: Parameters<LogFn>, method: LogFn): void {
+  const first: unknown = args[0];
+  if (first instanceof Error) {
+    redactUrlSecretsInError(first);
+  } else if (typeof first === "object" && first !== null) {
+    for (const key of LOGGED_ERROR_KEYS) {
+      if (key in first) {
+        redactUrlSecretsInError((first as Record<string, unknown>)[key]);
+      }
+    }
+  }
+  method.apply(this, args);
+}
+
+/**
  * Create a pino logger with consistent redaction, level, format, and
  * destination across the entire codebase.
  *
@@ -160,6 +191,8 @@ export function flushBufferedLogs(logger: Logger): void {
  * - All loggers redact the same set of sensitive fields.
  * - Every line, in either format, has URL userinfo and token query values
  *   redacted, including text from thrown fetch/URL errors and their causes.
+ * - A logged error, as the first argument or under `err` or `error`, is
+ *   redacted before pino copies its fields or its message.
  */
 export function createLogger(name?: string): Logger {
   const isJson = process.env.LOG_FORMAT === "json";
@@ -170,7 +203,11 @@ export function createLogger(name?: string): Logger {
       paths: REDACT_PATHS,
       censor: "[REDACTED]",
     },
+    serializers: {
+      err: serializeLoggedError,
+    },
     hooks: {
+      logMethod: redactLoggedErrors,
       streamWrite: redactUrlSecretsInLogLine,
     },
   };

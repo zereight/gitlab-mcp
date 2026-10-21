@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  apiUrlError,
   apiUrlUserinfoWarning,
+  configuredApiUrlErrors,
   encodeGitLabPath,
   encodeGitLabPathSegment,
   isCleartextRemoteUrl,
@@ -93,6 +95,174 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
         urls: ["https://a.example/api/v4", "https://b.example/api/v4"],
         hadUserinfo: false,
       });
+    });
+  });
+
+  describe("with an upper-case scheme, an IPv6 host, and trailing slashes", () => {
+    test("should keep both URLs and drop the trailing slashes", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls(
+          "HTTPS://GITLAB.EXAMPLE.COM/api/v4/,http://[::1]:8080/api/v4/"
+        ),
+        {
+          urls: ["HTTPS://GITLAB.EXAMPLE.COM/api/v4", "http://[::1]:8080/api/v4"],
+          hadUserinfo: false,
+        }
+      );
+    });
+  });
+});
+
+// "alice", "Pw7x", and "Qz9" are parts of a username or password; none may
+// appear in an error. ("p" alone would match "http".)
+const CREDENTIAL_PART = /alice|Pw7x|Qz9/;
+const COMMA_HINT =
+  "GITLAB_API_URL is split at commas: write a comma inside a username or password as %2C";
+
+describe("When configuredApiUrlErrors runs", () => {
+  // A comma in the password splits the list where the text after it reaches
+  // "/" before "@", so each value below gives an entry that is part of a credential.
+  const credentialFragments: Record<string, string> = {
+    "a password prefix before a comma": "http://alice:Pw7x,http://w@host/api/v4",
+    "a username-only fragment": "http://alice,:Pw7x/x@host/api/v4",
+    "a username and password without a scheme": "alice:Pw7x,https://gitlab.example/api/v4",
+    "a whole URL without a scheme": "alice:Pw7x,w@host",
+    "several commas in the password": "http://alice:Pw7x,Qz9,,http://w@host/api/v4",
+    "whitespace around the entries": " http://alice:Pw7x , http://w@host/api/v4 ",
+    "whitespace inside the password": "http://alice:Pw7x Qz9,http://w@host/api/v4",
+  };
+
+  for (const [name, value] of Object.entries(credentialFragments)) {
+    describe(`with ${name}`, () => {
+      test("should report an error", () => {
+        assert.notEqual(configuredApiUrlErrors("GITLAB_API_URL", value).length, 0);
+      });
+
+      test("should not print any part of the credential", () => {
+        const text = configuredApiUrlErrors("GITLAB_API_URL", value).join("\n");
+
+        assert.equal(CREDENTIAL_PART.test(text), false);
+      });
+    });
+  }
+
+  describe("with a password prefix before a comma", () => {
+    test("should name the entry by its position and add the %2C hint", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors("GITLAB_API_URL", "http://alice:Pw7x,http://w@host/api/v4"),
+        [
+          "GITLAB_API_URL entry 1 of 2 is not a valid URL (value not shown: it may contain a password)",
+          COMMA_HINT,
+        ]
+      );
+    });
+  });
+
+  describe("with an empty entry", () => {
+    test("should report it as empty without the %2C hint", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors("GITLAB_API_URL", "https://a.example,,https://b.example"),
+        ["GITLAB_API_URL entry 2 of 3 is empty"]
+      );
+    });
+  });
+
+  describe("with a trailing comma", () => {
+    test("should report the last entry as empty without the %2C hint", () => {
+      assert.deepEqual(configuredApiUrlErrors("GITLAB_API_URL", "https://a.example/api/v4,"), [
+        "GITLAB_API_URL entry 2 of 2 is empty",
+      ]);
+    });
+  });
+
+  describe("with an empty entry and a password prefix before a comma", () => {
+    test("should add the %2C hint", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors("GITLAB_API_URL", "http://alice:Pw7x,,http://w@host/api/v4"),
+        [
+          "GITLAB_API_URL entry 1 of 3 is not a valid URL (value not shown: it may contain a password)",
+          "GITLAB_API_URL entry 2 of 3 is empty",
+          COMMA_HINT,
+        ]
+      );
+    });
+  });
+
+  describe("with a scheme typo", () => {
+    test("should say the entry needs http or https", () => {
+      assert.deepEqual(configuredApiUrlErrors("GITLAB_API_URL", "htp:/gitlab.example"), [
+        "GITLAB_API_URL entry 1 of 1 is not an http or https URL (value not shown: it may contain a password)",
+      ]);
+    });
+  });
+
+  describe("with an invalid port in one URL", () => {
+    test("should not add the comma hint", () => {
+      assert.deepEqual(configuredApiUrlErrors("--api-url", "https://gitlab.example:bad/api/v4"), [
+        "--api-url entry 1 of 1 is not a valid URL (value not shown: it may contain a password)",
+      ]);
+    });
+  });
+
+  const validConfigs: Record<string, string> = {
+    "one URL": "https://gitlab.example/api/v4",
+    "two URLs": "https://a.example/api/v4,https://b.example/api/v4",
+    "two URLs with a space": "https://a.example/api/v4, https://b.example",
+    "a loopback URL on a port": "http://localhost:8080/api/v4",
+    "an upper-case scheme and host": "HTTPS://GITLAB.EXAMPLE.COM/api/v4",
+    "an IPv6 loopback URL on a port": "http://[::1]:8080/api/v4",
+    "a trailing slash": "https://gitlab.example/api/v4/",
+    "two URLs with trailing slashes": "https://a.example/api/v4/,https://b.example/",
+    "a comma inside the password": "https://user:pass,word@gitlab.example/api/v4",
+    "an encoded comma inside the password": "https://user:pass%2Cword@gitlab.example/api/v4",
+    "a later slashless URL with userinfo":
+      "https://gitlab.example/api/v4,https:slashless-user:pw@other.example",
+  };
+
+  for (const [name, value] of Object.entries(validConfigs)) {
+    describe(`with ${name}`, () => {
+      test("should report no error", () => {
+        assert.deepEqual(configuredApiUrlErrors("GITLAB_API_URL", value), []);
+      });
+    });
+  }
+
+  describe("with a long list of password fragments", () => {
+    test("should finish quickly", () => {
+      const value = "http://a:p,".repeat(4_546);
+      const start = performance.now();
+      const errors = configuredApiUrlErrors("GITLAB_API_URL", value);
+
+      assert.ok(performance.now() - start < 500);
+      assert.equal(errors.length, 4_548);
+    });
+  });
+});
+
+describe("When apiUrlError runs", () => {
+  describe("with a URL split inside the password by a comma", () => {
+    test("should not print any part of the credential", () => {
+      const error = apiUrlError("--api-url", "http://alice:Pw7x,http://w@host/api/v4");
+
+      assert.equal(
+        error,
+        "--api-url is not a valid URL (value not shown: it may contain a password); write a comma inside a username or password as %2C"
+      );
+    });
+  });
+
+  describe("with a non-http scheme", () => {
+    test("should say the URL needs http or https", () => {
+      assert.equal(
+        apiUrlError("GITLAB_API_URL", "alice:Pw7x@host"),
+        "GITLAB_API_URL is not an http or https URL (value not shown: it may contain a password)"
+      );
+    });
+  });
+
+  describe("with an https URL", () => {
+    test("should return null", () => {
+      assert.equal(apiUrlError("GITLAB_API_URL", "https://gitlab.example/api/v4"), null);
     });
   });
 });

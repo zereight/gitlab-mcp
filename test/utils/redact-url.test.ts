@@ -10,6 +10,44 @@ import {
   stripUrlUserinfo,
 } from "../../utils/redact-url.js";
 
+// alice's password and the userinfo of the URL after the comma.
+const INVALID_URL_CREDENTIAL = /alice|Pw7x|w@/;
+
+function invalidUrlError(input: string, base?: string): Error {
+  try {
+    return new Error(`parsed as ${new URL(input, base).href}`);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+}
+
+async function fetchError(url: string): Promise<Error> {
+  try {
+    await fetch(url);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+  return assert.fail(`fetch accepted ${url}`);
+}
+
+// Fetch errors for `count` distinct URLs, from `first` on, in an AggregateError
+// whose message quotes the message of each.
+function quotingAggregateError(count: number, first = 0): AggregateError {
+  const errors = Array.from({ length: count }, (_, index) => {
+    const input = `http://alice:Pw7x${first + index}/api/v4`;
+    return new TypeError(`Failed to parse URL from ${input}`, {
+      cause: invalidUrlError(input),
+    });
+  });
+  return new AggregateError(errors, errors.map(error => error.message).join("; "));
+}
+
+function redactedMessage(count: number): string {
+  return Array.from({ length: count }, () => "Failed to parse URL from [REDACTED]").join("; ");
+}
+
 describe("When redactUrlSecretsInText runs", () => {
   describe("with userinfo", () => {
     it("should replace the user and password", () => {
@@ -756,9 +794,325 @@ describe("When redactUrlSecretsInError runs", () => {
       assert.equal(redactUrlSecretsInError("https://alice:pw@host"), "https://[REDACTED]@host");
     });
   });
+
+  describe("with an ERR_INVALID_URL from a password split at a comma", () => {
+    it("should replace the input", () => {
+      const error = invalidUrlError("http://alice:Pw7x,http://w@host/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(JSON.stringify(error), '{"code":"ERR_INVALID_URL","input":"[REDACTED]"}');
+    });
+
+    it("should leave no credential in the message or stack", () => {
+      const error = invalidUrlError("http://alice:Pw7x,http://w@host/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.message}\n${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+  });
+
+  describe("with an ERR_INVALID_URL read against a credentialed base", () => {
+    it("should replace the input and the base", () => {
+      const error = invalidUrlError("/projects/1", "http://alice:Pw7x/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(
+        JSON.stringify(error),
+        '{"code":"ERR_INVALID_URL","input":"[REDACTED]","base":"[REDACTED]"}'
+      );
+    });
+  });
+
+  describe("with a fetch error for a URL that does not parse", () => {
+    it("should hide the quoted URL in the message", async () => {
+      const error = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "Failed to parse URL from [REDACTED]");
+    });
+
+    it("should leave no credential in the stack or the cause", async () => {
+      const error = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+
+      redactUrlSecretsInError(error);
+      const cause = error.cause as Error;
+
+      assert.doesNotMatch(
+        `${error.stack}\n${cause.stack}\n${JSON.stringify(cause)}`,
+        INVALID_URL_CREDENTIAL
+      );
+    });
+
+    it("should finish quickly for a 50k-character URL", async () => {
+      const error = await fetchError("http://a:p,".repeat(4_546));
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 5_000);
+      assert.equal(error.message, "Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with a wrapper that quotes a fetch error's message", () => {
+    it("should hide the URL in the wrapper's message", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "GraphQL request failed: Failed to parse URL from [REDACTED]");
+    });
+
+    it("should leave no credential in the wrapper's stack", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide the URL after the inner error was redacted by itself", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(inner);
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.message}\n${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+  });
+
+  describe("with two errors that share an ERR_INVALID_URL cause", () => {
+    it("should hide the URL in both", async () => {
+      const first = await fetchError("http://alice:Pw7x/x");
+      const second = new TypeError(`second: ${first.message}`, { cause: first.cause });
+
+      redactUrlSecretsInError(new AggregateError([first, second], "both failed"));
+
+      assert.deepEqual(
+        [first.message, second.message],
+        ["Failed to parse URL from [REDACTED]", "second: Failed to parse URL from [REDACTED]"]
+      );
+    });
+
+    it("should hide the URL in both when each is redacted by itself", async () => {
+      const first = await fetchError("http://alice:Pw7x/x");
+      const second = new TypeError(`second: ${first.message}`, { cause: first.cause });
+
+      redactUrlSecretsInError(first);
+      redactUrlSecretsInError(second);
+
+      assert.equal(second.message, "second: Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with an AggregateError of 2,000 fetch errors for distinct URLs", () => {
+    function parseErrors(): TypeError[] {
+      return Array.from({ length: 2_000 }, (_, index) => {
+        const input = `http://alice:Pw7x${index}/api/v4`;
+        return new TypeError(`Failed to parse URL from ${input}`, {
+          cause: invalidUrlError(input),
+        });
+      });
+    }
+
+    it("should hide every URL", () => {
+      const errors = parseErrors();
+
+      redactUrlSecretsInError(new AggregateError(errors, "All promises were rejected"));
+
+      assert.equal(
+        errors.every(error => error.message === "Failed to parse URL from [REDACTED]"),
+        true
+      );
+    });
+
+    it("should finish quickly", () => {
+      const error = new AggregateError(parseErrors(), "All promises were rejected");
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 5_000);
+    });
+  });
+
+  describe("with an AggregateError whose message quotes the message of each error", () => {
+    it("should hide all 40 URLs in its message", () => {
+      const error = quotingAggregateError(40);
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, redactedMessage(40));
+    });
+
+    it("should leave no credential in its stack", () => {
+      const error = quotingAggregateError(40);
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs in redactUrlSecretsInErrorMessage", () => {
+      assert.equal(redactUrlSecretsInErrorMessage(quotingAggregateError(40)), redactedMessage(40));
+    });
+
+    it("should finish quickly for 5,000 errors", () => {
+      const error = quotingAggregateError(5_000);
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 10_000);
+      assert.equal(error.message, redactedMessage(5_000));
+    });
+
+    // Reads no stack, so the time is the scan of the message: split and join over
+    // every text, quadratic in the count, would take tens of seconds.
+    it("should finish quickly for 30,000 errors in redactUrlSecretsInErrorMessage", () => {
+      const error = quotingAggregateError(30_000);
+
+      const startedAt = performance.now();
+      const message = redactUrlSecretsInErrorMessage(error);
+
+      assert.ok(performance.now() - startedAt < 5_000);
+      assert.equal(message, redactedMessage(30_000));
+    });
+
+    it("should hide overlapping URLs as one", () => {
+      const errors = [invalidUrlError("http://alice:Pw7x"), invalidUrlError("Pw7x/api/v4")];
+      const error = new AggregateError(errors, "both: http://alice:Pw7x/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "both: [REDACTED]");
+    });
+  });
+
+  describe("with such an AggregateError of 40 errors inside another", () => {
+    it("should hide all 40 URLs in the message of the inner one", () => {
+      const inner = quotingAggregateError(40);
+
+      redactUrlSecretsInError(new AggregateError([inner], "All requests failed"));
+
+      assert.equal(inner.message, redactedMessage(40));
+    });
+
+    it("should leave no credential in the stack of the inner one", () => {
+      const inner = quotingAggregateError(40);
+
+      redactUrlSecretsInError(new AggregateError([inner], "All requests failed"));
+
+      assert.doesNotMatch(`${inner.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs below a wrapper and a cause", () => {
+      const inner = quotingAggregateError(40);
+      const wrapper = new Error(`retry failed: ${inner.message}`, { cause: inner });
+      const error = new Error("sync failed", {
+        cause: new AggregateError([wrapper], "All retries failed"),
+      });
+
+      redactUrlSecretsInError(error);
+
+      assert.deepEqual(
+        [wrapper.message, inner.message],
+        [`retry failed: ${redactedMessage(40)}`, redactedMessage(40)]
+      );
+      assert.doesNotMatch(`${wrapper.stack}\n${inner.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs in redactUrlSecretsInErrorMessage", () => {
+      const inner = quotingAggregateError(40);
+      const error = new AggregateError([inner], `All requests failed: ${inner.message}`);
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        `All requests failed: ${redactedMessage(40)}`
+      );
+    });
+
+    // 24,300 errors below the one passed in, with 12,000 URLs among them: split
+    // and join over every text for each error, quadratic in the count, would
+    // take over ten seconds; a matcher built for each error, longer still.
+    it("should finish quickly for 300 of them", () => {
+      const inners = Array.from({ length: 300 }, (_, index) =>
+        quotingAggregateError(40, index * 40)
+      );
+      const error = new AggregateError(inners, "All requests failed");
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 10_000);
+      assert.equal(
+        inners.every(inner => inner.message === redactedMessage(40)),
+        true
+      );
+    });
+  });
+
+  describe("with errors that hold no URL", () => {
+    it("should leave a network error unchanged", () => {
+      const error = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
+        code: "ECONNREFUSED",
+      });
+      const before = { message: error.message, stack: error.stack, json: JSON.stringify(error) };
+
+      redactUrlSecretsInError(error);
+
+      assert.deepEqual(
+        { message: error.message, stack: error.stack, json: JSON.stringify(error) },
+        before
+      );
+    });
+
+    it("should keep the input of an error that is not ERR_INVALID_URL", () => {
+      const error = Object.assign(new Error("Unexpected token"), { input: "{oops" });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.input, "{oops");
+    });
+
+    it("should keep a parse message with no ERR_INVALID_URL cause", () => {
+      const error = new TypeError("Failed to parse URL from not-a-url");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "Failed to parse URL from not-a-url");
+    });
+  });
 });
 
 describe("When redactUrlSecretsInErrorMessage runs", () => {
+  describe("with a fetch error for a URL that does not parse", () => {
+    it("should hide the quoted URL", async () => {
+      const error = await fetchError("http://alice:Pw7x,http://w@host/api/v4/projects/1");
+
+      assert.equal(redactUrlSecretsInErrorMessage(error), "Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with a wrapper that quotes a fetch error's message", () => {
+    it("should hide the quoted URL", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        "GraphQL request failed: Failed to parse URL from [REDACTED]"
+      );
+    });
+  });
+
   describe("with an undici credentials error", () => {
     it("should return the redacted message", () => {
       const error = new TypeError(

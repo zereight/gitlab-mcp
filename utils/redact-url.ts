@@ -42,13 +42,23 @@ export function redactUrlSecretsInText(text: string): string {
  * Redacts an error in place: `message`, `stack`, and every `cause` below it.
  * undici and `new URL()` put the URL they rejected into the message, so a
  * credentialed URL would otherwise reach the MCP client and the log verbatim.
+ * The `input` and `base` of an ERR_INVALID_URL are replaced, not redacted:
+ * text that did not parse has no host to keep, and it can be the start of a
+ * password cut off at a comma ("http://alice:p/api/v4"), with no "@" for the
+ * text redaction to find. The same text is replaced wherever another error
+ * of the chain quotes it ("Failed to parse URL from ...", or a wrapper that
+ * copies that message): every such text, in the message and stack of every
+ * error of the chain.
  * A thrown string is returned redacted; other values are returned unchanged.
  */
 export function redactUrlSecretsInError(error: unknown): unknown {
   if (typeof error === "string") {
     return redactUrlSecretsInText(error);
   }
-  redactErrorChain(error, new Set());
+  const chain = readErrorChain(error);
+  for (const item of chain.errors) {
+    redactChainedError(item, chain);
+  }
   return error;
 }
 
@@ -58,26 +68,315 @@ export function redactUrlSecretsInError(error: unknown): unknown {
  * as an isError result.
  */
 export function redactUrlSecretsInErrorMessage(error: unknown): string {
-  return redactUrlSecretsInText(error instanceof Error ? error.message : String(error));
+  if (!(error instanceof Error)) {
+    return redactUrlSecretsInText(String(error));
+  }
+  return redactUrlSecretsInText(withoutInvalidUrls(error.message, readErrorChain(error)));
 }
 
-function redactErrorChain(error: unknown, seen: Set<Error>): void {
-  if (!(error instanceof Error) || seen.has(error)) {
-    return;
+const REDACTED = "[REDACTED]";
+// Own enumerable fields of Node's ERR_INVALID_URL, which pino's error serializer copies.
+const INVALID_URL_FIELDS = ["input", "base"] as const;
+
+// The input and base of each ERR_INVALID_URL as first read. A wrapper that quoted
+// them can be redacted after the ERR_INVALID_URL already was.
+const invalidUrlTexts = new WeakMap<Error, readonly string[]>();
+
+interface ErrorChain {
+  readonly errors: readonly Error[];
+  // Every input and base in the chain, for each error of it: an AggregateError's
+  // own message can quote the message of each of its errors, at any depth.
+  readonly texts: readonly string[];
+  readonly heads: TextHeads | undefined;
+  // Built from `texts` the first time a message or stack may quote one of them,
+  // then shared by every error of the chain.
+  matcher: TextMatcher | undefined;
+}
+
+function isInvalidUrlError(value: unknown): value is Error & Record<string, unknown> {
+  return value instanceof Error && (value as { code?: unknown }).code === "ERR_INVALID_URL";
+}
+
+function readInvalidUrlTexts(error: unknown): readonly string[] {
+  if (!isInvalidUrlError(error)) {
+    return [];
   }
-  seen.add(error);
-  redactErrorField(error, "message");
-  redactErrorField(error, "stack");
-  if (typeof error.cause === "string") {
-    redactErrorField(error, "cause");
-  } else {
-    redactErrorChain(error.cause, seen);
+  const known = invalidUrlTexts.get(error);
+  if (known !== undefined) {
+    return known;
   }
-  if (error instanceof AggregateError && Array.isArray(error.errors)) {
-    for (const inner of error.errors) {
-      redactErrorChain(inner, seen);
+  const texts: string[] = [];
+  for (const field of INVALID_URL_FIELDS) {
+    const value = error[field];
+    if (typeof value === "string" && value.length > 0 && value !== REDACTED) {
+      texts.push(value);
     }
   }
+  invalidUrlTexts.set(error, texts);
+  return texts;
+}
+
+// Every error reachable through `cause` and AggregateError `errors`, each once.
+function readErrorChain(root: unknown): ErrorChain {
+  const errors: Error[] = [];
+  const all = new Set<string>();
+  const seen = new Set<Error>();
+  const pending: unknown[] = [root];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (!(value instanceof Error) || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    errors.push(value);
+    for (const text of readInvalidUrlTexts(value)) {
+      all.add(text);
+    }
+    pending.push(value.cause);
+    if (value instanceof AggregateError && Array.isArray(value.errors)) {
+      for (const inner of value.errors) {
+        pending.push(inner);
+      }
+    }
+  }
+  const texts = [...all];
+  return {
+    errors,
+    texts,
+    heads: texts.length > 0 ? buildTextHeads(texts) : undefined,
+    matcher: undefined,
+  };
+}
+
+function redactChainedError(error: Error, chain: ErrorChain): void {
+  // Before the text redaction can change the quoted text.
+  hideInvalidUrls(error, "message", chain);
+  hideInvalidUrls(error, "stack", chain);
+  redactErrorField(error, "message");
+  redactErrorField(error, "stack");
+  if (isInvalidUrlError(error)) {
+    for (const field of INVALID_URL_FIELDS) {
+      const value = error[field];
+      if (typeof value === "string" && value.length > 0) {
+        setErrorField(error, field, REDACTED);
+      }
+    }
+  }
+  if (typeof error.cause === "string") {
+    redactErrorField(error, "cause");
+  }
+}
+
+function hideInvalidUrls(error: Error, field: "message" | "stack", chain: ErrorChain): void {
+  const value: unknown = error[field];
+  if (typeof value !== "string") {
+    return;
+  }
+  const hidden = withoutInvalidUrls(value, chain);
+  if (hidden !== value) {
+    setErrorField(error, field, hidden);
+  }
+}
+
+// One pass to rule out the text, and at most one more to hide what it quotes.
+function withoutInvalidUrls(text: string, chain: ErrorChain): string {
+  if (chain.heads === undefined || !mayQuoteText(text, chain.heads)) {
+    return text;
+  }
+  chain.matcher ??= buildTextMatcher(chain.texts);
+  return hideMatchedTexts(text, chain.matcher);
+}
+
+/**
+ * The hash of the first `width` code units of each text, `width` being the same
+ * for every text. A text can only occur where a window of that many code units
+ * has one of these hashes, so a message with no such window quotes none of the
+ * texts and needs no matcher: an AggregateError's own message seldom does.
+ */
+interface TextHeads {
+  readonly width: number;
+  readonly hashes: ReadonlySet<number>;
+}
+
+// Long enough that few windows look like the start of a URL, short enough to hash fast.
+const MAX_HEAD_WIDTH = 16;
+const HASH_BASE = 0x01000193;
+// Keeps each hash a small integer.
+const HASH_MASK = 0x3fffffff;
+
+function buildTextHeads(texts: readonly string[]): TextHeads {
+  let width = MAX_HEAD_WIDTH;
+  for (const text of texts) {
+    width = Math.min(width, text.length);
+  }
+  const hashes = new Set<number>();
+  for (const text of texts) {
+    let hash = 0;
+    for (let index = 0; index < width; index += 1) {
+      hash = (Math.imul(hash, HASH_BASE) + text.charCodeAt(index)) | 0;
+    }
+    hashes.add(hash & HASH_MASK);
+  }
+  return { width, hashes };
+}
+
+// A rolling hash over each window of the text, in one pass.
+function mayQuoteText(text: string, heads: TextHeads): boolean {
+  const { width, hashes } = heads;
+  // HASH_BASE ** (width - 1), to take out the code unit that leaves the window.
+  let top = 1;
+  for (let index = 1; index < width; index += 1) {
+    top = Math.imul(top, HASH_BASE);
+  }
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (index >= width) {
+      hash = (hash - Math.imul(text.charCodeAt(index - width), top)) | 0;
+    }
+    hash = (Math.imul(hash, HASH_BASE) + text.charCodeAt(index)) | 0;
+    if (index + 1 >= width && hashes.has(hash & HASH_MASK)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Finds a list of texts in one pass over a message (Aho-Corasick), so the cost
+ * is the message length plus the total length of the texts, not their product.
+ * Nodes are the prefixes of the texts; node 0 is the empty one.
+ */
+interface TextMatcher {
+  // The edges in an open-addressing table. A slot holds the key of an edge,
+  // node * CODE_UNITS + code unit + 1, or 0 when empty; and the node it leads to.
+  // A Map is slower here: most of these keys are too large for a small integer,
+  // so each one would be a heap number.
+  readonly keys: Float64Array;
+  readonly targets: Int32Array;
+  // The node of the longest proper suffix of a node that is also a node.
+  readonly fail: Int32Array;
+  // The length of the longest text that ends a node, or 0.
+  readonly longest: Int32Array;
+}
+
+const CODE_UNITS = 0x10000;
+
+// The slot of the edge from a node on a code unit, or the empty slot it would take.
+function edgeSlot(keys: Float64Array, node: number, code: number): number {
+  const key = node * CODE_UNITS + code + 1;
+  const mask = keys.length - 1;
+  let hash = Math.imul(node, 0x9e3779b1) ^ code;
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+  let slot = (hash ^ (hash >>> 13)) & mask;
+  while (keys[slot] !== 0 && keys[slot] !== key) {
+    slot = (slot + 1) & mask;
+  }
+  return slot;
+}
+
+function buildTextMatcher(texts: readonly string[]): TextMatcher {
+  let size = 1;
+  for (const text of texts) {
+    size += text.length;
+  }
+  // A power of two, at least twice the number of edges.
+  let slots = 2;
+  while (slots < 2 * size) {
+    slots *= 2;
+  }
+  const keys = new Float64Array(slots);
+  const targets = new Int32Array(slots);
+  const longest = new Int32Array(size);
+  // The children of a node as a list: its first child, then each child's sibling.
+  // 0 ends a list, because node 0 is no node's child.
+  const firstChild = new Int32Array(size);
+  const sibling = new Int32Array(size);
+  const unit = new Int32Array(size);
+  let nodes = 1;
+  for (const text of texts) {
+    let node = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index);
+      const slot = edgeSlot(keys, node, code);
+      if (keys[slot] === 0) {
+        keys[slot] = node * CODE_UNITS + code + 1;
+        targets[slot] = nodes;
+        unit[nodes] = code;
+        sibling[nodes] = firstChild[node];
+        firstChild[node] = nodes;
+        nodes += 1;
+      }
+      node = targets[slot];
+    }
+    longest[node] = text.length;
+  }
+  // Breadth first: a fail link points to a shorter node, whose own link and
+  // longest text are then already known.
+  const matcher = { keys, targets, fail: new Int32Array(size), longest };
+  const queue = new Int32Array(nodes);
+  let queued = 0;
+  for (let child = firstChild[0]; child !== 0; child = sibling[child]) {
+    queue[queued] = child;
+    queued += 1;
+  }
+  for (let head = 0; head < queued; head += 1) {
+    const node = queue[head];
+    if (longest[node] === 0) {
+      longest[node] = longest[matcher.fail[node]];
+    }
+    for (let child = firstChild[node]; child !== 0; child = sibling[child]) {
+      matcher.fail[child] = nextNode(matcher, matcher.fail[node], unit[child]);
+      queue[queued] = child;
+      queued += 1;
+    }
+  }
+  return matcher;
+}
+
+function nextNode(matcher: TextMatcher, node: number, code: number): number {
+  for (let from = node; ; from = matcher.fail[from]) {
+    const slot = edgeSlot(matcher.keys, from, code);
+    if (matcher.keys[slot] !== 0) {
+      return matcher.targets[slot];
+    }
+    if (from === 0) {
+      return 0;
+    }
+  }
+}
+
+// Each part of the text covered by a text of the matcher becomes one [REDACTED].
+// Overlapping matches are merged, so a shorter text inside a longer one leaves
+// nothing behind; matches that only touch stay apart, as split and join leave them.
+function hideMatchedTexts(text: string, matcher: TextMatcher): string {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let node = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    node = nextNode(matcher, node, text.charCodeAt(index));
+    const length = matcher.longest[node];
+    if (length === 0) {
+      continue;
+    }
+    let start = index + 1 - length;
+    while (ends.length > 0 && ends[ends.length - 1] > start) {
+      ends.pop();
+      start = Math.min(start, starts.pop() ?? start);
+    }
+    starts.push(start);
+    ends.push(index + 1);
+  }
+  if (starts.length === 0) {
+    return text;
+  }
+  const parts: string[] = [];
+  let from = 0;
+  for (let range = 0; range < starts.length; range += 1) {
+    parts.push(text.slice(from, starts[range]), REDACTED);
+    from = ends[range];
+  }
+  parts.push(text.slice(from));
+  return parts.join("");
 }
 
 function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {
@@ -86,11 +385,14 @@ function redactErrorField(error: Error, field: "message" | "stack" | "cause"): v
     return;
   }
   const redacted = redactUrlSecretsInText(value);
-  if (redacted === value) {
-    return;
+  if (redacted !== value) {
+    setErrorField(error, field, redacted);
   }
+}
+
+function setErrorField(error: Error, field: string, value: string): void {
   try {
-    error[field] = redacted;
+    (error as unknown as Record<string, unknown>)[field] = value;
   } catch {
     // A frozen error keeps its text; the logger still redacts its own copy.
   }

@@ -1,7 +1,7 @@
 import { renderTable } from "./tables.js";
 import type { TableSpec } from "./curated.js";
 import type { OutputMode } from "./args.js";
-import { redactUrlSecretsInText } from "../utils/redact-url.js";
+import { redactUrlSecretsInErrorMessage } from "../utils/redact-url.js";
 
 export interface ToolCallResult {
   readonly content?: unknown;
@@ -37,8 +37,7 @@ export function formatToolOutput(input: {
 }
 
 export function formatCliError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return `${redactSecrets(message)}\n`;
+  return `${redactGitLabTokens(redactUrlSecretsInErrorMessage(error))}\n`;
 }
 
 export function resultIsError(result: unknown): boolean {
@@ -85,8 +84,8 @@ function ensureTrailingNewline(text: string): string {
   return text.endsWith("\n") ? text : `${text}\n`;
 }
 
-function redactSecrets(message: string): string {
-  return redactUrlSecretsInText(message).replace(/glpat-[A-Za-z0-9_-]+/g, "[REDACTED]");
+function redactGitLabTokens(message: string): string {
+  return message.replace(/glpat-[A-Za-z0-9_-]+/g, "[REDACTED]");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
