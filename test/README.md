@@ -18,6 +18,7 @@ Commands are the `scripts` entries in `package.json`.
 | `npm run test:remote-auth`         | `npm run build`, then `node --import tsx/esm --test --experimental-test-isolation=none test/remote-auth-simple-test.ts`. Does not run `test/remote-auth-tests.ts`.                                                                                                                                                |
 | `npm run test:list-merge-requests` | `npm run build`, then `tsx test/test-list-merge-requests.ts` (mock GitLab, `node:test`). `test:mock` also runs this file.                                                                                                                                                                                         |
 | `npm run test:approvals`           | `npm run build`, then `tsx test/test-merge-request-approvals.ts`. Not part of `test:mock`. Needs `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_TOKEN`, and `GITLAB_PROJECT_ID`. Optional: `MERGE_REQUEST_IID`, `GITLAB_API_URL` (default `https://gitlab.com/api/v4`).                                                |
+| `npm run test:tools-list:update`   | `npm run build`, then rewrites `test/fixtures/tools-list.golden.jsonl` from the server output. See [Golden `tools/list` fixture](#golden-toolslist-fixture).                                                                                                                                                      |
 | `npm run test:consumer-smoke`      | `bash scripts/consumer-install-smoke.sh`. Packs the package, installs it in a temp app, and starts `zereight-mcp-gitlab` with a dummy token. Fails on module-load crashes. Does not compile; `build/` must already exist.                                                                                         |
 
 ### `test:mock` order
@@ -67,6 +68,17 @@ node --import tsx/esm --test --experimental-test-isolation=none --test-concurren
 | `test/stateless/*.test.ts`         | Stateless OAuth helpers. The six files named in pass 1 run in parallel; `session-id-integration.test.ts` is pass 3. `npm run test:stateless` runs all seven after a build. |
 | `test/clients/`                    | MCP client helpers (`client.ts`, `stdio-client.ts`, `sse-client.ts`, `streamable-http-client.ts`, `custom-header-client.ts`). Not tests.                                   |
 | `test/validate-api.js`             | `test:live` only.                                                                                                                                                          |
+
+## Golden `tools/list` fixture
+
+`test/tools-list-golden.test.ts` (pass 3) starts `build/index.js` over stdio four times: default config, `GITLAB_TOOLSETS=all`, and `all` with `GITLAB_PERMISSION_MODE=readonly` and `modify`. It compares the result with `test/fixtures/tools-list.golden.jsonl`, one line per tool in `all` order:
+
+- `default`, `readonly`, `modify`: whether that configuration lists the tool
+- `properties`, `required`: input property names and required fields
+- `annotations`: the listed annotations
+- `shape`: a hash of the input schema with description text removed
+
+Description edits do not change the fixture. A refactor that moves code without changing behavior should leave it unchanged. If a change is meant to alter `tools/list` (a new parameter, a permission-mode change, a dependency bump that changes the generated schema), run `npm run test:tools-list:update` and commit the fixture with the change.
 
 ## Mock GitLab server
 
