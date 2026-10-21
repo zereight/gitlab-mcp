@@ -66,6 +66,18 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
     });
   });
 
+  // A literal "123,https:" here would start a second URL (#876).
+  describe("with an encoded comma before an http-looking tail in a list", () => {
+    test("should keep each URL whole and drop the userinfo", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls(
+          "https://alice:123%2Chttps:word@a.example/api/v4,https://b.example/api/v4"
+        ),
+        { urls: ["https://a.example/api/v4", "https://b.example/api/v4"], hadUserinfo: true }
+      );
+    });
+  });
+
   describe("with userinfo in the second URL of a list", () => {
     test("should split the list and drop it", () => {
       assert.deepEqual(
