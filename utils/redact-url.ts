@@ -42,6 +42,10 @@ export function redactUrlSecretsInText(text: string): string {
  * Redacts an error in place: `message`, `stack`, and every `cause` below it.
  * undici and `new URL()` put the URL they rejected into the message, so a
  * credentialed URL would otherwise reach the MCP client and the log verbatim.
+ * The `input` and `base` of an ERR_INVALID_URL are replaced, not redacted:
+ * text that did not parse has no host to keep, and it can be the start of a
+ * password cut off at a comma ("http://alice:p/api/v4"), with no "@" for the
+ * text redaction to find.
  * A thrown string is returned redacted; other values are returned unchanged.
  */
 export function redactUrlSecretsInError(error: unknown): unknown {
@@ -58,7 +62,28 @@ export function redactUrlSecretsInError(error: unknown): unknown {
  * as an isError result.
  */
 export function redactUrlSecretsInErrorMessage(error: unknown): string {
-  return redactUrlSecretsInText(error instanceof Error ? error.message : String(error));
+  if (!(error instanceof Error)) {
+    return redactUrlSecretsInText(String(error));
+  }
+  return redactUrlSecretsInText(withoutQuotedInvalidUrl(error.message, error.cause));
+}
+
+const REDACTED = "[REDACTED]";
+// Own enumerable fields of Node's ERR_INVALID_URL, which pino's error serializer copies.
+const INVALID_URL_FIELDS = ["input", "base"] as const;
+
+function isInvalidUrlError(value: unknown): value is Error & Record<string, unknown> {
+  return value instanceof Error && (value as { code?: unknown }).code === "ERR_INVALID_URL";
+}
+
+// undici rejects a URL that does not parse with "Failed to parse URL from
+// <input>" and keeps the ERR_INVALID_URL as its cause.
+function withoutQuotedInvalidUrl(message: string, cause: unknown): string {
+  const input = isInvalidUrlError(cause) ? cause.input : undefined;
+  if (typeof input !== "string" || input.length === 0 || !message.endsWith(input)) {
+    return message;
+  }
+  return `${message.slice(0, message.length - input.length)}${REDACTED}`;
 }
 
 function redactErrorChain(error: unknown, seen: Set<Error>): void {
@@ -66,8 +91,19 @@ function redactErrorChain(error: unknown, seen: Set<Error>): void {
     return;
   }
   seen.add(error);
+  // Before the text redaction can change the quoted input, and before the
+  // cause below loses it.
+  hideQuotedInvalidUrl(error);
   redactErrorField(error, "message");
   redactErrorField(error, "stack");
+  if (isInvalidUrlError(error)) {
+    for (const field of INVALID_URL_FIELDS) {
+      const value = error[field];
+      if (typeof value === "string" && value.length > 0) {
+        setErrorField(error, field, REDACTED);
+      }
+    }
+  }
   if (typeof error.cause === "string") {
     redactErrorField(error, "cause");
   } else {
@@ -80,17 +116,40 @@ function redactErrorChain(error: unknown, seen: Set<Error>): void {
   }
 }
 
+function hideQuotedInvalidUrl(error: Error): void {
+  const message: unknown = error.message;
+  if (typeof message !== "string") {
+    return;
+  }
+  const hidden = withoutQuotedInvalidUrl(message, error.cause);
+  if (hidden === message) {
+    return;
+  }
+  setErrorField(error, "message", hidden);
+  if (typeof error.stack === "string") {
+    // The stack starts with the message the error was created with.
+    setErrorField(
+      error,
+      "stack",
+      error.stack.replace(message, () => hidden)
+    );
+  }
+}
+
 function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {
   const value: unknown = error[field];
   if (typeof value !== "string") {
     return;
   }
   const redacted = redactUrlSecretsInText(value);
-  if (redacted === value) {
-    return;
+  if (redacted !== value) {
+    setErrorField(error, field, redacted);
   }
+}
+
+function setErrorField(error: Error, field: string, value: string): void {
   try {
-    error[field] = redacted;
+    (error as unknown as Record<string, unknown>)[field] = value;
   } catch {
     // A frozen error keeps its text; the logger still redacts its own copy.
   }

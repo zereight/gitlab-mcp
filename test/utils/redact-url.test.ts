@@ -10,6 +10,28 @@ import {
   stripUrlUserinfo,
 } from "../../utils/redact-url.js";
 
+// alice's password and the userinfo of the URL after the comma.
+const INVALID_URL_CREDENTIAL = /alice|Pw7x|w@/;
+
+function invalidUrlError(input: string, base?: string): Error {
+  try {
+    return new Error(`parsed as ${new URL(input, base).href}`);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+}
+
+async function fetchError(url: string): Promise<Error> {
+  try {
+    await fetch(url);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+  return assert.fail(`fetch accepted ${url}`);
+}
+
 describe("When redactUrlSecretsInText runs", () => {
   describe("with userinfo", () => {
     it("should replace the user and password", () => {
@@ -756,9 +778,112 @@ describe("When redactUrlSecretsInError runs", () => {
       assert.equal(redactUrlSecretsInError("https://alice:pw@host"), "https://[REDACTED]@host");
     });
   });
+
+  describe("with an ERR_INVALID_URL from a password split at a comma", () => {
+    it("should replace the input", () => {
+      const error = invalidUrlError("http://alice:Pw7x,http://w@host/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(JSON.stringify(error), '{"code":"ERR_INVALID_URL","input":"[REDACTED]"}');
+    });
+
+    it("should leave no credential in the message or stack", () => {
+      const error = invalidUrlError("http://alice:Pw7x,http://w@host/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.message}\n${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+  });
+
+  describe("with an ERR_INVALID_URL read against a credentialed base", () => {
+    it("should replace the input and the base", () => {
+      const error = invalidUrlError("/projects/1", "http://alice:Pw7x/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(
+        JSON.stringify(error),
+        '{"code":"ERR_INVALID_URL","input":"[REDACTED]","base":"[REDACTED]"}'
+      );
+    });
+  });
+
+  describe("with a fetch error for a URL that does not parse", () => {
+    it("should hide the quoted URL in the message", async () => {
+      const error = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "Failed to parse URL from [REDACTED]");
+    });
+
+    it("should leave no credential in the stack or the cause", async () => {
+      const error = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+
+      redactUrlSecretsInError(error);
+      const cause = error.cause as Error;
+
+      assert.doesNotMatch(
+        `${error.stack}\n${cause.stack}\n${JSON.stringify(cause)}`,
+        INVALID_URL_CREDENTIAL
+      );
+    });
+
+    it("should finish quickly for a 50k-character URL", async () => {
+      const error = await fetchError("http://a:p,".repeat(4_546));
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 500);
+      assert.equal(error.message, "Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with errors that hold no URL", () => {
+    it("should leave a network error unchanged", () => {
+      const error = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
+        code: "ECONNREFUSED",
+      });
+      const before = { message: error.message, stack: error.stack, json: JSON.stringify(error) };
+
+      redactUrlSecretsInError(error);
+
+      assert.deepEqual(
+        { message: error.message, stack: error.stack, json: JSON.stringify(error) },
+        before
+      );
+    });
+
+    it("should keep the input of an error that is not ERR_INVALID_URL", () => {
+      const error = Object.assign(new Error("Unexpected token"), { input: "{oops" });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.input, "{oops");
+    });
+
+    it("should keep a parse message with no ERR_INVALID_URL cause", () => {
+      const error = new TypeError("Failed to parse URL from not-a-url");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "Failed to parse URL from not-a-url");
+    });
+  });
 });
 
 describe("When redactUrlSecretsInErrorMessage runs", () => {
+  describe("with a fetch error for a URL that does not parse", () => {
+    it("should hide the quoted URL", async () => {
+      const error = await fetchError("http://alice:Pw7x,http://w@host/api/v4/projects/1");
+
+      assert.equal(redactUrlSecretsInErrorMessage(error), "Failed to parse URL from [REDACTED]");
+    });
+  });
+
   describe("with an undici credentials error", () => {
     it("should return the redacted message", () => {
       const error = new TypeError(

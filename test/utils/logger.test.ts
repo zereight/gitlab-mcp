@@ -4,6 +4,8 @@ import { once } from "node:events";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { pino } from "pino";
+import { serializeLoggedError } from "../../utils/logger.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PRETTY_MARKER = "PRETTY_PROBE_7f3a9c";
@@ -68,6 +70,41 @@ logger.flush(() => {
   process.exit(0);
 });
 `;
+
+// A password split at a comma, a fetch of a URL cut there, and a credentialed base.
+const INVALID_URL_ERROR_PROBE_SOURCE = `
+import { createLogger } from "./utils/logger.ts";
+
+function invalidUrlError(input, base) {
+  try {
+    return new Error("parsed as " + new URL(input, base).href);
+  } catch (error) {
+    return error;
+  }
+}
+
+const marker = process.env.PROBE_MARKER ?? "";
+const fetchError = await fetch("http://alice:Pw7x/api/v4/projects/1").catch(error => error);
+const logger = createLogger("probe");
+logger.error({ err: invalidUrlError("http://alice:Pw7x,http://w@host/api/v4") }, marker);
+logger.error({ err: fetchError }, marker);
+logger.error(invalidUrlError("/projects/1", "http://alice:Pw7x/api/v4"), marker);
+logger.flush(() => {
+  process.exit(0);
+});
+`;
+
+// alice's password and the userinfo of the URL after the comma.
+const INVALID_URL_CREDENTIAL = /alice|Pw7x|w@/;
+
+function invalidUrlError(input: string): Error {
+  try {
+    return new Error(`parsed as ${new URL(input).href}`);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+}
 
 interface ProbeResult {
   readonly stdout: string;
@@ -188,6 +225,74 @@ describe("When createLogger writes an error with a credentialed URL", () => {
       const probe = await runProbe(undefined, PRETTY_MARKER, URL_ERROR_PROBE_SOURCE);
 
       assert.equal(probe.stderr.includes("http://[REDACTED]@127.0.0.1:9/api/v4/projects/1"), true);
+    });
+  });
+});
+
+describe("When createLogger writes an ERR_INVALID_URL error", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should omit the credential", async () => {
+      const probe = await runProbe("json", JSON_MARKER, INVALID_URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.split(JSON_MARKER).length, 4);
+      assert.doesNotMatch(probe.stderr, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should log the input and base as redacted", async () => {
+      const probe = await runProbe("json", JSON_MARKER, INVALID_URL_ERROR_PROBE_SOURCE);
+      const errors = probe.stderr
+        .split("\n")
+        .filter(line => line.includes(JSON_MARKER))
+        .map(line => (JSON.parse(line) as { err: Record<string, unknown> }).err);
+
+      assert.deepEqual(
+        errors.map(error => [error.message, error.input, error.base]),
+        [
+          ["Invalid URL", "[REDACTED]", undefined],
+          ["Failed to parse URL from [REDACTED]: Invalid URL", undefined, undefined],
+          ["Invalid URL", "[REDACTED]", "[REDACTED]"],
+        ]
+      );
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should omit the credential", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, INVALID_URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.split(PRETTY_MARKER).length, 4);
+      assert.doesNotMatch(probe.stderr, INVALID_URL_CREDENTIAL);
+    });
+  });
+});
+
+describe("When serializeLoggedError runs", () => {
+  describe("with an ERR_INVALID_URL", () => {
+    it("should leave no credential in the serialized error", () => {
+      const error = invalidUrlError("http://alice:Pw7x/api/v4/projects/1");
+
+      assert.doesNotMatch(JSON.stringify(serializeLoggedError(error)), INVALID_URL_CREDENTIAL);
+    });
+  });
+
+  describe("with an error that holds no URL", () => {
+    it("should serialize it as pino does", () => {
+      const error = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
+        code: "ECONNREFUSED",
+      });
+
+      assert.equal(
+        JSON.stringify(serializeLoggedError(error)),
+        JSON.stringify(pino.stdSerializers.err(error))
+      );
+    });
+  });
+
+  describe("with a value that is not an error", () => {
+    it("should return it unchanged", () => {
+      assert.equal(serializeLoggedError(42), 42);
     });
   });
 });

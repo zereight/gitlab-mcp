@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { pino, type DestinationStream, type Logger } from "pino";
-import { redactUrlSecretsInLogLine } from "./redact-url.js";
+import { redactUrlSecretsInError, redactUrlSecretsInLogLine } from "./redact-url.js";
 
 const require = createRequire(import.meta.url);
 
@@ -150,6 +150,15 @@ export function flushBufferedLogs(logger: Logger): void {
 }
 
 /**
+ * pino's error serializer, run on the redacted error. It copies the error's own
+ * fields, and the `input` of an ERR_INVALID_URL can be the start of a password
+ * that the line redaction cannot recognize.
+ */
+export function serializeLoggedError(error: unknown): unknown {
+  return pino.stdSerializers.err(redactUrlSecretsInError(error) as Error);
+}
+
+/**
  * Create a pino logger with consistent redaction, level, format, and
  * destination across the entire codebase.
  *
@@ -160,6 +169,7 @@ export function flushBufferedLogs(logger: Logger): void {
  * - All loggers redact the same set of sensitive fields.
  * - Every line, in either format, has URL userinfo and token query values
  *   redacted, including text from thrown fetch/URL errors and their causes.
+ * - An error logged as `err` is redacted before pino copies its fields.
  */
 export function createLogger(name?: string): Logger {
   const isJson = process.env.LOG_FORMAT === "json";
@@ -169,6 +179,9 @@ export function createLogger(name?: string): Logger {
     redact: {
       paths: REDACT_PATHS,
       censor: "[REDACTED]",
+    },
+    serializers: {
+      err: serializeLoggedError,
     },
     hooks: {
       streamWrite: redactUrlSecretsInLogLine,
