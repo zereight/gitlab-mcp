@@ -164,6 +164,38 @@ export class StdioTestClient implements MCPClientInterface {
     }
   }
 
+  async listPrompts() {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return await this.client.listPrompts();
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to list prompts: ${error instanceof Error ? error.message : String(error)}`,
+        'listPrompts',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async getPrompt(name: string, arguments_?: Record<string, string>) {
+    if (!this.transport) {
+      throw new MCPConnectionError('Client is not connected');
+    }
+
+    try {
+      return await this.client.getPrompt({ name, arguments: arguments_ });
+    } catch (error) {
+      throw new MCPToolCallError(
+        `Failed to get prompt '${name}': ${error instanceof Error ? error.message : String(error)}`,
+        name,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
   async serverCapabilities(): Promise<ServerCapabilities | undefined> {
     if (!this.transport) {
       throw new MCPConnectionError('Client is not connected');
