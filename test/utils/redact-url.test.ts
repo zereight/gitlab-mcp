@@ -842,6 +842,91 @@ describe("When redactUrlSecretsInError runs", () => {
     });
   });
 
+  describe("with a wrapper that quotes a fetch error's message", () => {
+    it("should hide the URL in the wrapper's message", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "GraphQL request failed: Failed to parse URL from [REDACTED]");
+    });
+
+    it("should leave no credential in the wrapper's stack", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide the URL after the inner error was redacted by itself", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      redactUrlSecretsInError(inner);
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.message}\n${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+  });
+
+  describe("with two errors that share an ERR_INVALID_URL cause", () => {
+    it("should hide the URL in both", async () => {
+      const first = await fetchError("http://alice:Pw7x/x");
+      const second = new TypeError(`second: ${first.message}`, { cause: first.cause });
+
+      redactUrlSecretsInError(new AggregateError([first, second], "both failed"));
+
+      assert.deepEqual(
+        [first.message, second.message],
+        ["Failed to parse URL from [REDACTED]", "second: Failed to parse URL from [REDACTED]"]
+      );
+    });
+
+    it("should hide the URL in both when each is redacted by itself", async () => {
+      const first = await fetchError("http://alice:Pw7x/x");
+      const second = new TypeError(`second: ${first.message}`, { cause: first.cause });
+
+      redactUrlSecretsInError(first);
+      redactUrlSecretsInError(second);
+
+      assert.equal(second.message, "second: Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with an AggregateError of 2,000 fetch errors for distinct URLs", () => {
+    function parseErrors(): TypeError[] {
+      return Array.from({ length: 2_000 }, (_, index) => {
+        const input = `http://alice:Pw7x${index}/api/v4`;
+        return new TypeError(`Failed to parse URL from ${input}`, {
+          cause: invalidUrlError(input),
+        });
+      });
+    }
+
+    it("should hide every URL", () => {
+      const errors = parseErrors();
+
+      redactUrlSecretsInError(new AggregateError(errors, "All promises were rejected"));
+
+      assert.equal(
+        errors.every(error => error.message === "Failed to parse URL from [REDACTED]"),
+        true
+      );
+    });
+
+    it("should finish quickly", () => {
+      const error = new AggregateError(parseErrors(), "All promises were rejected");
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 500);
+    });
+  });
+
   describe("with errors that hold no URL", () => {
     it("should leave a network error unchanged", () => {
       const error = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
@@ -881,6 +966,18 @@ describe("When redactUrlSecretsInErrorMessage runs", () => {
       const error = await fetchError("http://alice:Pw7x,http://w@host/api/v4/projects/1");
 
       assert.equal(redactUrlSecretsInErrorMessage(error), "Failed to parse URL from [REDACTED]");
+    });
+  });
+
+  describe("with a wrapper that quotes a fetch error's message", () => {
+    it("should hide the quoted URL", async () => {
+      const inner = await fetchError("http://alice:Pw7x/api/v4/projects/1");
+      const error = new Error(`GraphQL request failed: ${inner.message}`, { cause: inner });
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        "GraphQL request failed: Failed to parse URL from [REDACTED]"
+      );
     });
   });
 

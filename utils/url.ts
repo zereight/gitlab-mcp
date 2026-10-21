@@ -60,13 +60,15 @@ export function commaSplitHint(source: string): string {
 
 /**
  * Startup errors for a configured GITLAB_API_URL list, one per bad entry, and
- * none of them echo the entry. Each entry must be an http:// or https:// URL:
+ * none of them echo the entry. Each entry must be an http or https URL:
  * fetch() cannot use another scheme, and a value without "//" such as
- * "alice:p,w@host" parses as a URL whose scheme is the username.
+ * "alice:p,w@host" parses as a URL whose scheme is the username. The scheme
+ * is checked, not the "//": fetch() also accepts "https:/host".
  */
 export function configuredApiUrlErrors(source: ApiUrlSource, value: string): string[] {
   const entries = splitCommaSeparatedUrls(value);
   const errors: string[] = [];
+  let hasInvalidEntry = false;
   entries.forEach((entry, index) => {
     if (entry.length === 0) {
       errors.push(`${source} entry ${index + 1} of ${entries.length} is empty`);
@@ -74,10 +76,13 @@ export function configuredApiUrlErrors(source: ApiUrlSource, value: string): str
     }
     const problem = apiUrlProblem(entry);
     if (problem !== null) {
+      hasInvalidEntry = true;
       errors.push(invalidListEntryError(source, index, entries.length, problem));
     }
   });
-  if (errors.length > 0 && entries.length > 1) {
+  // With only empty entries wrong, the list has an extra comma ("a,,b" or a
+  // trailing one), and the hint about a comma inside a password would mislead.
+  if (hasInvalidEntry && entries.length > 1) {
     errors.push(commaSplitHint(source));
   }
   return errors;
@@ -85,7 +90,7 @@ export function configuredApiUrlErrors(source: ApiUrlSource, value: string): str
 
 /**
  * The error for one API URL that is not split at commas (the `auth` command),
- * or null when it is an http:// or https:// URL.
+ * or null when it is an http or https URL.
  */
 export function apiUrlError(source: ApiUrlSource, url: string): string | null {
   const problem = apiUrlProblem(url.trim());
@@ -105,7 +110,7 @@ function apiUrlProblem(url: string): string | null {
   }
   return parsed.protocol === "http:" || parsed.protocol === "https:"
     ? null
-    : "does not start with http:// or https://";
+    : "is not an http or https URL";
 }
 
 export interface ConfiguredGitLabApiUrls {

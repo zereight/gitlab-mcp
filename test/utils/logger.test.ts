@@ -94,6 +94,29 @@ logger.flush(() => {
 });
 `;
 
+// The same errors with no message argument, and one under `error`, which no
+// serializer handles. The marker is the logger name, the only text in every line.
+const UNNAMED_INVALID_URL_ERROR_PROBE_SOURCE = `
+import { createLogger } from "./utils/logger.ts";
+
+function invalidUrlError(input, base) {
+  try {
+    return new Error("parsed as " + new URL(input, base).href);
+  } catch (error) {
+    return error;
+  }
+}
+
+const fetchError = await fetch("http://alice:Pw7x/api/v4/projects/1").catch(error => error);
+const logger = createLogger(process.env.PROBE_MARKER ?? "");
+logger.error(fetchError);
+logger.error({ err: invalidUrlError("http://alice:Pw7x,http://w@host/api/v4") });
+logger.error({ error: invalidUrlError("/projects/1", "http://alice:Pw7x/api/v4") });
+logger.flush(() => {
+  process.exit(0);
+});
+`;
+
 // alice's password and the userinfo of the URL after the comma.
 const INVALID_URL_CREDENTIAL = /alice|Pw7x|w@/;
 
@@ -260,6 +283,66 @@ describe("When createLogger writes an ERR_INVALID_URL error", () => {
   describe("with LOG_FORMAT unset", () => {
     it("should omit the credential", async () => {
       const probe = await runProbe(undefined, PRETTY_MARKER, INVALID_URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.split(PRETTY_MARKER).length, 4);
+      assert.doesNotMatch(probe.stderr, INVALID_URL_CREDENTIAL);
+    });
+  });
+});
+
+describe("When createLogger writes an ERR_INVALID_URL error with no message or under `error`", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should omit the credential", async () => {
+      const probe = await runProbe("json", JSON_MARKER, UNNAMED_INVALID_URL_ERROR_PROBE_SOURCE);
+
+      assert.equal(probe.code, 0);
+      assert.equal(probe.stderr.split(JSON_MARKER).length, 4);
+      assert.doesNotMatch(probe.stderr, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should log the message, input, and base as redacted", async () => {
+      const probe = await runProbe("json", JSON_MARKER, UNNAMED_INVALID_URL_ERROR_PROBE_SOURCE);
+      const records = probe.stderr
+        .split("\n")
+        .filter(line => line.includes(JSON_MARKER))
+        .map(
+          line =>
+            JSON.parse(line) as {
+              msg?: string;
+              err?: Record<string, unknown>;
+              error?: Record<string, unknown>;
+            }
+        );
+
+      assert.deepEqual(
+        records.map(record => [record.msg, record.err?.message, record.err?.input, record.error]),
+        [
+          [
+            "Failed to parse URL from [REDACTED]",
+            "Failed to parse URL from [REDACTED]: Invalid URL",
+            undefined,
+            undefined,
+          ],
+          ["Invalid URL", "Invalid URL", "[REDACTED]", undefined],
+          [
+            undefined,
+            undefined,
+            undefined,
+            { code: "ERR_INVALID_URL", input: "[REDACTED]", base: "[REDACTED]" },
+          ],
+        ]
+      );
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should omit the credential", async () => {
+      const probe = await runProbe(
+        undefined,
+        PRETTY_MARKER,
+        UNNAMED_INVALID_URL_ERROR_PROBE_SOURCE
+      );
 
       assert.equal(probe.code, 0);
       assert.equal(probe.stderr.split(PRETTY_MARKER).length, 4);

@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { pino, type DestinationStream, type Logger } from "pino";
+import { pino, type DestinationStream, type LogFn, type Logger } from "pino";
 import { redactUrlSecretsInError, redactUrlSecretsInLogLine } from "./redact-url.js";
 
 const require = createRequire(import.meta.url);
@@ -158,6 +158,28 @@ export function serializeLoggedError(error: unknown): unknown {
   return pino.stdSerializers.err(redactUrlSecretsInError(error) as Error);
 }
 
+// Keys whose error pino or pino-pretty prints even though no serializer runs on it.
+const LOGGED_ERROR_KEYS = ["err", "error"] as const;
+
+/**
+ * Redacts a logged error before pino reads it. Without a message argument pino
+ * takes `msg` from the error's own message, and an error under `error` is
+ * copied as it is.
+ */
+function redactLoggedErrors(this: Logger, args: Parameters<LogFn>, method: LogFn): void {
+  const first: unknown = args[0];
+  if (first instanceof Error) {
+    redactUrlSecretsInError(first);
+  } else if (typeof first === "object" && first !== null) {
+    for (const key of LOGGED_ERROR_KEYS) {
+      if (key in first) {
+        redactUrlSecretsInError((first as Record<string, unknown>)[key]);
+      }
+    }
+  }
+  method.apply(this, args);
+}
+
 /**
  * Create a pino logger with consistent redaction, level, format, and
  * destination across the entire codebase.
@@ -169,7 +191,8 @@ export function serializeLoggedError(error: unknown): unknown {
  * - All loggers redact the same set of sensitive fields.
  * - Every line, in either format, has URL userinfo and token query values
  *   redacted, including text from thrown fetch/URL errors and their causes.
- * - An error logged as `err` is redacted before pino copies its fields.
+ * - A logged error, as the first argument or under `err` or `error`, is
+ *   redacted before pino copies its fields or its message.
  */
 export function createLogger(name?: string): Logger {
   const isJson = process.env.LOG_FORMAT === "json";
@@ -184,6 +207,7 @@ export function createLogger(name?: string): Logger {
       err: serializeLoggedError,
     },
     hooks: {
+      logMethod: redactLoggedErrors,
       streamWrite: redactUrlSecretsInLogLine,
     },
   };

@@ -17804,8 +17804,7 @@ async function main(): Promise<void> {
       await runAuthCommandAsync();
       process.exit(0);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      process.stderr.write(`${redactUrlSecretsInText(message)}\n`);
+      process.stderr.write(`${redactUrlSecretsInErrorMessage(error)}\n`);
       logger.error({ err: error }, "auth command failed");
       exitAfterFlush(1);
     }

@@ -45,14 +45,19 @@ export function redactUrlSecretsInText(text: string): string {
  * The `input` and `base` of an ERR_INVALID_URL are replaced, not redacted:
  * text that did not parse has no host to keep, and it can be the start of a
  * password cut off at a comma ("http://alice:p/api/v4"), with no "@" for the
- * text redaction to find.
+ * text redaction to find. The same text is replaced wherever another error
+ * of the chain quotes it ("Failed to parse URL from ...", or a wrapper that
+ * copies that message).
  * A thrown string is returned redacted; other values are returned unchanged.
  */
 export function redactUrlSecretsInError(error: unknown): unknown {
   if (typeof error === "string") {
     return redactUrlSecretsInText(error);
   }
-  redactErrorChain(error, new Set());
+  const chain = readErrorChain(error);
+  for (const item of chain.errors) {
+    redactChainedError(item, chain);
+  }
   return error;
 }
 
@@ -65,35 +70,81 @@ export function redactUrlSecretsInErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
     return redactUrlSecretsInText(String(error));
   }
-  return redactUrlSecretsInText(withoutQuotedInvalidUrl(error.message, error.cause));
+  return redactUrlSecretsInText(withoutInvalidUrls(error.message, error, readErrorChain(error)));
 }
 
 const REDACTED = "[REDACTED]";
 // Own enumerable fields of Node's ERR_INVALID_URL, which pino's error serializer copies.
 const INVALID_URL_FIELDS = ["input", "base"] as const;
+// The texts looked for in every message and stack of a chain. More would make an
+// AggregateError of many parse failures quadratic; past this, an error still has
+// the texts of its own cause removed.
+const MAX_SHARED_INVALID_URLS = 32;
+
+// The input and base of each ERR_INVALID_URL as first read. A wrapper that quoted
+// them can be redacted after the ERR_INVALID_URL already was.
+const invalidUrlTexts = new WeakMap<Error, readonly string[]>();
+
+interface ErrorChain {
+  readonly errors: readonly Error[];
+  readonly shared: readonly string[];
+}
 
 function isInvalidUrlError(value: unknown): value is Error & Record<string, unknown> {
   return value instanceof Error && (value as { code?: unknown }).code === "ERR_INVALID_URL";
 }
 
-// undici rejects a URL that does not parse with "Failed to parse URL from
-// <input>" and keeps the ERR_INVALID_URL as its cause.
-function withoutQuotedInvalidUrl(message: string, cause: unknown): string {
-  const input = isInvalidUrlError(cause) ? cause.input : undefined;
-  if (typeof input !== "string" || input.length === 0 || !message.endsWith(input)) {
-    return message;
+function readInvalidUrlTexts(error: unknown): readonly string[] {
+  if (!isInvalidUrlError(error)) {
+    return [];
   }
-  return `${message.slice(0, message.length - input.length)}${REDACTED}`;
+  const known = invalidUrlTexts.get(error);
+  if (known !== undefined) {
+    return known;
+  }
+  const texts: string[] = [];
+  for (const field of INVALID_URL_FIELDS) {
+    const value = error[field];
+    if (typeof value === "string" && value.length > 0 && value !== REDACTED) {
+      texts.push(value);
+    }
+  }
+  invalidUrlTexts.set(error, texts);
+  return texts;
 }
 
-function redactErrorChain(error: unknown, seen: Set<Error>): void {
-  if (!(error instanceof Error) || seen.has(error)) {
-    return;
+// Every error reachable through `cause` and AggregateError `errors`, each once.
+function readErrorChain(root: unknown): ErrorChain {
+  const errors: Error[] = [];
+  const shared = new Set<string>();
+  const seen = new Set<Error>();
+  const pending: unknown[] = [root];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (!(value instanceof Error) || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    errors.push(value);
+    for (const text of readInvalidUrlTexts(value)) {
+      if (shared.size < MAX_SHARED_INVALID_URLS) {
+        shared.add(text);
+      }
+    }
+    pending.push(value.cause);
+    if (value instanceof AggregateError && Array.isArray(value.errors)) {
+      for (const inner of value.errors) {
+        pending.push(inner);
+      }
+    }
   }
-  seen.add(error);
-  // Before the text redaction can change the quoted input, and before the
-  // cause below loses it.
-  hideQuotedInvalidUrl(error);
+  return { errors, shared: [...shared] };
+}
+
+function redactChainedError(error: Error, chain: ErrorChain): void {
+  // Before the text redaction can change the quoted text.
+  hideInvalidUrls(error, "message", chain);
+  hideInvalidUrls(error, "stack", chain);
   redactErrorField(error, "message");
   redactErrorField(error, "stack");
   if (isInvalidUrlError(error)) {
@@ -106,34 +157,32 @@ function redactErrorChain(error: unknown, seen: Set<Error>): void {
   }
   if (typeof error.cause === "string") {
     redactErrorField(error, "cause");
-  } else {
-    redactErrorChain(error.cause, seen);
-  }
-  if (error instanceof AggregateError && Array.isArray(error.errors)) {
-    for (const inner of error.errors) {
-      redactErrorChain(inner, seen);
-    }
   }
 }
 
-function hideQuotedInvalidUrl(error: Error): void {
-  const message: unknown = error.message;
-  if (typeof message !== "string") {
+function hideInvalidUrls(error: Error, field: "message" | "stack", chain: ErrorChain): void {
+  const value: unknown = error[field];
+  if (typeof value !== "string") {
     return;
   }
-  const hidden = withoutQuotedInvalidUrl(message, error.cause);
-  if (hidden === message) {
-    return;
+  const hidden = withoutInvalidUrls(value, error, chain);
+  if (hidden !== value) {
+    setErrorField(error, field, hidden);
   }
-  setErrorField(error, "message", hidden);
-  if (typeof error.stack === "string") {
-    // The stack starts with the message the error was created with.
-    setErrorField(
-      error,
-      "stack",
-      error.stack.replace(message, () => hidden)
-    );
+}
+
+function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): string {
+  // Longest first, so a base that contains the input leaves no tail behind.
+  const texts = [...chain.shared, ...readInvalidUrlTexts(error.cause)].sort(
+    (a, b) => b.length - a.length
+  );
+  let hidden = text;
+  for (const invalidUrl of texts) {
+    if (hidden.includes(invalidUrl)) {
+      hidden = hidden.split(invalidUrl).join(REDACTED);
+    }
   }
+  return hidden;
 }
 
 function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {

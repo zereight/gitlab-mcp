@@ -327,7 +327,7 @@ describe("When the stdio server starts", () => {
       const startup = await captureFailedStartupAsync(SCHEMELESS_CREDENTIAL_API_URL);
 
       assert.equal(startup.code, 1);
-      assert.match(startup.stderr, /does not start with http:\/\/ or https:\/\//);
+      assert.match(startup.stderr, /is not an http or https URL/);
     });
 
     it("should omit every part of the credential from stderr", async () => {

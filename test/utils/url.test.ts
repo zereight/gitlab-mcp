@@ -97,6 +97,20 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
       });
     });
   });
+
+  describe("with an upper-case scheme, an IPv6 host, and trailing slashes", () => {
+    test("should keep both URLs and drop the trailing slashes", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls(
+          "HTTPS://GITLAB.EXAMPLE.COM/api/v4/,http://[::1]:8080/api/v4/"
+        ),
+        {
+          urls: ["HTTPS://GITLAB.EXAMPLE.COM/api/v4", "http://[::1]:8080/api/v4"],
+          hadUserinfo: false,
+        }
+      );
+    });
+  });
 });
 
 // "alice", "Pw7x", and "Qz9" are parts of a username or password; none may
@@ -145,18 +159,39 @@ describe("When configuredApiUrlErrors runs", () => {
   });
 
   describe("with an empty entry", () => {
-    test("should report it as empty", () => {
+    test("should report it as empty without the %2C hint", () => {
       assert.deepEqual(
         configuredApiUrlErrors("GITLAB_API_URL", "https://a.example,,https://b.example"),
-        ["GITLAB_API_URL entry 2 of 3 is empty", COMMA_HINT]
+        ["GITLAB_API_URL entry 2 of 3 is empty"]
+      );
+    });
+  });
+
+  describe("with a trailing comma", () => {
+    test("should report the last entry as empty without the %2C hint", () => {
+      assert.deepEqual(configuredApiUrlErrors("GITLAB_API_URL", "https://a.example/api/v4,"), [
+        "GITLAB_API_URL entry 2 of 2 is empty",
+      ]);
+    });
+  });
+
+  describe("with an empty entry and a password prefix before a comma", () => {
+    test("should add the %2C hint", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors("GITLAB_API_URL", "http://alice:Pw7x,,http://w@host/api/v4"),
+        [
+          "GITLAB_API_URL entry 1 of 3 is not a valid URL (value not shown: it may contain a password)",
+          "GITLAB_API_URL entry 2 of 3 is empty",
+          COMMA_HINT,
+        ]
       );
     });
   });
 
   describe("with a scheme typo", () => {
-    test("should say the entry needs http:// or https://", () => {
+    test("should say the entry needs http or https", () => {
       assert.deepEqual(configuredApiUrlErrors("GITLAB_API_URL", "htp:/gitlab.example"), [
-        "GITLAB_API_URL entry 1 of 1 does not start with http:// or https:// (value not shown: it may contain a password)",
+        "GITLAB_API_URL entry 1 of 1 is not an http or https URL (value not shown: it may contain a password)",
       ]);
     });
   });
@@ -174,6 +209,10 @@ describe("When configuredApiUrlErrors runs", () => {
     "two URLs": "https://a.example/api/v4,https://b.example/api/v4",
     "two URLs with a space": "https://a.example/api/v4, https://b.example",
     "a loopback URL on a port": "http://localhost:8080/api/v4",
+    "an upper-case scheme and host": "HTTPS://GITLAB.EXAMPLE.COM/api/v4",
+    "an IPv6 loopback URL on a port": "http://[::1]:8080/api/v4",
+    "a trailing slash": "https://gitlab.example/api/v4/",
+    "two URLs with trailing slashes": "https://a.example/api/v4/,https://b.example/",
     "a comma inside the password": "https://user:pass,word@gitlab.example/api/v4",
     "an encoded comma inside the password": "https://user:pass%2Cword@gitlab.example/api/v4",
     "a later slashless URL with userinfo":
@@ -213,10 +252,10 @@ describe("When apiUrlError runs", () => {
   });
 
   describe("with a non-http scheme", () => {
-    test("should say the URL needs http:// or https://", () => {
+    test("should say the URL needs http or https", () => {
       assert.equal(
         apiUrlError("GITLAB_API_URL", "alice:Pw7x@host"),
-        "GITLAB_API_URL does not start with http:// or https:// (value not shown: it may contain a password)"
+        "GITLAB_API_URL is not an http or https URL (value not shown: it may contain a password)"
       );
     });
   });
