@@ -1,10 +1,11 @@
 # Official GitLab MCP Server
 
 GitLab ships its own [MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)
-inside GitLab, on the Free, Premium, and Ultimate tiers. This page compares it with `@zereight/mcp-gitlab` on what decides whether it works
-in your setup: GitLab version, token type, transport, rate limits, and tool controls.
+inside GitLab, on the Free, Premium, and Ultimate tiers (Free since GitLab 19.2). This page compares
+it with `@zereight/mcp-gitlab` on what decides whether it works in your setup: GitLab version, token
+type, transport, rate limits, and tool controls.
 
-Facts about the official server come from its documentation as read on 2026-10-20. Check the
+Facts about the official server come from its documentation as read on 2026-10-21. Check the
 [official page](https://docs.gitlab.com/user/model_context_protocol/mcp_server/) for changes.
 
 ## At a glance
@@ -25,8 +26,8 @@ Facts about the official server come from its documentation as read on 2026-10-2
 ## GitLab version
 
 The official server first shipped as an experiment in GitLab 18.3, became beta in 18.6, and became
-generally available in 19.5. Toolset selection arrived in 19.5. An instance on an older release does
-not have the endpoint.
+generally available in 19.5. It moved from Premium to Free in 19.2, and toolset selection arrived in
+19.5. An instance on an older release does not have the endpoint.
 
 `@zereight/mcp-gitlab` calls the GitLab REST API v4 and, for some tools, GraphQL. It does not
 document a minimum GitLab version. Newer features still need a GitLab release that has them: for
@@ -85,12 +86,12 @@ single tool call can make more than one API request.
 
 The official server returns a default set of toolsets: `core`, `merge_requests`, `work_items`,
 `repository`, and `ci`, plus `meta` always and `duo_agent_platform` where GitLab Duo Agent Platform
-is available. `wikis`, `code_security`, and `orbit` are opt-in. Clients choose toolsets or single
-tools with HTTP headers. Listing a tool does not grant access: each call checks the user's project
-and namespace permissions.
+is available. `wikis`, `code_security`, and `orbit` (added in 19.6) are opt-in. Clients choose
+toolsets or single tools with HTTP headers. Listing a tool does not grant access: each call checks
+the user's project and namespace permissions.
 
-`@zereight/mcp-gitlab` calls GitLab as the token's user, so GitLab permissions apply too. On top of
-that, the server can narrow what an agent sees or runs:
+`@zereight/mcp-gitlab` calls GitLab as the token's user, so GitLab permissions apply too. In
+addition, the server can narrow what an agent sees or runs:
 
 | Control                                       | Setting                                                                                                                                                  |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -116,7 +117,9 @@ Pick the official server when:
 
 Pick `@zereight/mcp-gitlab` when:
 
-- Your GitLab release does not include the official server (before 18.3)
+- Your GitLab release does not include the official server (before 18.3), or has only its
+  experiment or beta (18.3 to 19.4), which needs Premium or Ultimate before 19.2 and has no toolset
+  selection (added in 19.5)
 - You use a classic personal access token, a project or group access token, or a CI job token
 - You need read-only or no-delete modes, approval prompts, or a project allowlist
 - You need tools outside the official toolsets; see the [tools reference](../tools/index.md)
