@@ -132,6 +132,26 @@ export function parseConfiguredGitLabApiUrls(value: string): ConfiguredGitLabApi
   };
 }
 
+/**
+ * The host name of a configured API URL, for the startup log. A password with a
+ * literal comma can be split into two URLs, and "http://alice:12" then reads
+ * the start of the password as a port, which text redaction keeps. The port,
+ * userinfo, path, and query are left out. An IPv6 host keeps its brackets.
+ * An "@" after the host means the host can be part of a password
+ * ("http://sec/ret@host" from "alice:12,http://sec/ret@host"), so it is not shown.
+ */
+export function apiUrlHostnameForLog(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "<invalid>";
+  }
+  const atAfterHost =
+    parsed.pathname.includes("@") || parsed.search.includes("@") || parsed.hash.includes("@");
+  return parsed.hostname.length === 0 || atAfterHost ? "<invalid>" : parsed.hostname;
+}
+
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /**

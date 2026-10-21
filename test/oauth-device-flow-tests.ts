@@ -631,6 +631,29 @@ describe("When running the auth command", () => {
     });
   });
 
+  // A literal comma in the password makes the whole value unparseable.
+  describe("with a GITLAB_API_URL that does not parse", () => {
+    it("should fail before calling GitLab without printing the value", async () => {
+      await assert.rejects(
+        () =>
+          runAuthCommandAsync({
+            argv: ["node", "index.js", "auth", `--client-id=${CLIENT_ID}`],
+            env: { GITLAB_API_URL: "http://alice:12,http://w@host" },
+            stdout: createStdoutBuffer().stdout,
+            fetchImpl: async () => {
+              throw new Error("fetch should not run with an invalid API URL");
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /^GITLAB_API_URL is not a valid URL .*%2C$/);
+          assert.equal(/alice|12/.test(error.message), false);
+          return true;
+        }
+      );
+    });
+  });
+
   describe("with a successful device flow", () => {
     it("should print the user code and not the device code or access token", async () => {
       const tokenPath = createTempTokenPath();

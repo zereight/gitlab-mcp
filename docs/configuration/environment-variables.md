@@ -620,7 +620,7 @@ Do not put credentials in the URL (`https://user:pass@host`), whether it comes f
 
 Each URL must use `http` or `https`; startup fails for any other value, such as `localhost:8080`, without printing it.
 
-The value can also be a comma-separated list of URLs. If a URL still has a password that contains a comma, write the comma as `%2C`. Some literal commas are read as list separators: `https://alice:123,https:word@host` becomes the two URLs `https://alice:123` and `https:word@host`, and requests go to the wrong host.
+The value can also be a comma-separated list of URLs. If a URL still has a password, a comma in the password must be written as `%2C`. A literal comma can be read as a list separator: `https://alice:123,https:word@host` becomes the two URLs `https://alice:123` and `https:word@host`, requests go to the wrong host, and the startup log lists `alice, host`. With two or more literal commas, the startup log can also print the host of a middle piece even though it is part of the password (`sec` in `http://alice:12,http://sec,https://ret@host`), so write every comma as `%2C`. The startup log prints only the host name of each URL, so URLs that differ only in port or path look the same there. An entry that does not parse, has no host, or has an `@` in its path, query, or fragment shows as `<invalid>`; this includes a valid URL such as `https://gitlab.example.com/gl@team`, which requests still use as it is.
 
 Default:
 

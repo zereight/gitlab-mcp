@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   apiUrlError,
+  apiUrlHostnameForLog,
   apiUrlUserinfoWarning,
   configuredApiUrlErrors,
   encodeGitLabPath,
@@ -278,6 +279,49 @@ describe("When apiUrlUserinfoWarning runs", () => {
       apiUrlUserinfoWarning("GITLAB_API_URL").includes("GITLAB_PERSONAL_ACCESS_TOKEN"),
       false
     );
+  });
+});
+
+describe("When apiUrlHostnameForLog runs", () => {
+  test("should drop the port, path, and query", () => {
+    assert.equal(
+      apiUrlHostnameForLog("https://gitlab.example.com:8443/api/v4?private_token=sekrit"),
+      "gitlab.example.com"
+    );
+  });
+
+  test("should drop the userinfo", () => {
+    assert.equal(
+      apiUrlHostnameForLog("https://alice:pw@gitlab.example.com/api/v4"),
+      "gitlab.example.com"
+    );
+  });
+
+  // The first half of "http://alice:12,http://w@host": the password start reads as a port.
+  test("should drop a port that holds the start of a password", () => {
+    assert.equal(apiUrlHostnameForLog("http://alice:12/api/v4"), "alice");
+  });
+
+  test("should keep the brackets of an IPv6 host", () => {
+    assert.equal(apiUrlHostnameForLog("https://[2001:db8::1]:8443/api/v4"), "[2001:db8::1]");
+  });
+
+  test("should not print a value that does not parse", () => {
+    assert.equal(apiUrlHostnameForLog("https://alice:pa ss@/api/v4"), "<invalid>");
+  });
+
+  test("should not print an empty host name", () => {
+    assert.equal(apiUrlHostnameForLog("localhost:8080/api/v4"), "<invalid>");
+  });
+
+  // The second half of "http://alice:12,http://sec/ret@host": "sec" is part of the password.
+  test("should not print a host that is followed by an @ in the path", () => {
+    assert.equal(apiUrlHostnameForLog("http://sec/ret@host/api/v4"), "<invalid>");
+  });
+
+  test("should not print a host that is followed by an @ in the query or fragment", () => {
+    assert.equal(apiUrlHostnameForLog("http://sec?ret@host/api/v4"), "<invalid>");
+    assert.equal(apiUrlHostnameForLog("http://sec#ret@host/api/v4"), "<invalid>");
   });
 });
 
