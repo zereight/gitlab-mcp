@@ -18,7 +18,7 @@ Facts about the official server come from its documentation as read on 2026-10-2
 | **Tokens**         | Personal, project, and group access tokens, CI job tokens, OAuth, cookie file                      | OAuth token with the `mcp` scope, or a fine-grained personal access token                                       |
 | **Transports**     | stdio, Streamable HTTP, legacy SSE                                                                 | HTTP (GitLab 18.6 and later); stdio through `mcp-remote`                                                        |
 | **Node.js**        | >=18.17                                                                                            | 20 or later for stdio; none for HTTP                                                                            |
-| **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over Streamable HTTP or SSE | Separate MCP endpoint limit (GitLab.com: 60/min Free, 600/min Premium and Ultimate)                             |
+| **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over Streamable HTTP or SSE | Separate MCP endpoint limit (GitLab.com, flags off by default: 60/min Free, 600/min Premium and Ultimate)       |
 | **Tool selection** | `GITLAB_TOOLSETS`, `GITLAB_TOOLS`, `discover_tools`                                                | `X-Gitlab-Enabled-Mcp-Server-Toolsets` and `X-Gitlab-Enabled-Mcp-Server-Tools` headers                          |
 | **Write controls** | `GITLAB_PERMISSION_MODE`, deny regex, approve and hidden policies, project allowlist               | GitLab permissions checked on every call                                                                        |
 | **License**        | MIT                                                                                                | Part of GitLab                                                                                                  |
@@ -74,9 +74,10 @@ proxy, which needs Node.js 20 or later.
 ## Rate limits
 
 On GitLab.com, the official server limits `POST /api/v4/mcp` per user by the namespace plan: 60
-requests per minute on Free, 600 on Premium and Ultimate. The limit applies per user, not per client
-or token, and requests also count toward the general GitLab.com limits. On Self-Managed and
-Dedicated, an administrator sets one MCP limit for the instance.
+requests per minute on Free, 600 on Premium and Ultimate. GitLab introduced these limits in 19.5
+behind feature flags that are disabled by default. The limit applies per user, not per client or
+token, and requests also count toward the general GitLab.com limits. On Self-Managed and Dedicated,
+an administrator sets one MCP limit for the instance.
 
 `@zereight/mcp-gitlab` makes ordinary REST and GraphQL calls. They count toward the GitLab API limits
 for the token's user, such as the
