@@ -201,6 +201,7 @@ import {
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
+  apiUrlHostnameForLog,
   apiUrlUserinfoWarning,
   commaSplitHint,
   configuredApiUrlErrors,
@@ -17773,10 +17774,11 @@ async function runServer() {
       });
     }
 
+    // Host names only. GITLAB_API_URL is GITLAB_API_URLS[0], so it is logged the same way.
     logger.info(
-      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(redactUrlSecretsInText).join(", ")}`
+      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(apiUrlHostnameForLog).join(", ")}`
     );
-    logger.info(`Default GitLab API URL: ${redactUrlSecretsInText(GITLAB_API_URL)}`);
+    logger.info(`Default GitLab API URL: ${apiUrlHostnameForLog(GITLAB_API_URL)}`);
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);

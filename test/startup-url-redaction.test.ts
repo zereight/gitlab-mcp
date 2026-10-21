@@ -27,11 +27,15 @@ const SPLIT_PASSWORD_API_URL = "http://alice:Pw7x,http://w@host/api/v4";
 // Parses as a URL whose scheme is "alice:".
 const SCHEMELESS_CREDENTIAL_API_URL = "alice:Pw7x,w@host";
 const CREDENTIAL_PART = /alice|Pw7x/;
+// Both pieces of "alice:12,http://w" parse, so the list splits and "12" reads as a port.
+const SPLIT_PORT_API_URL = "http://alice:12,http://w@host";
+const SPLIT_PORT_HEAD = "12";
+const PORTS_AND_IPV6_API_URL =
+  "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4";
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
 const USERINFO_WARNING = "GITLAB_API_URL contains a username or password before the host";
-// One URL, not followed by a second list entry.
-const ONE_CLEAN_URL_LOG =
-  /Configured GitLab API URLs: https:\/\/gitlab\.example\.com\/api\/v4(?![,/?])/;
+const CONFIGURED_URLS_PREFIX = "Configured GitLab API URLs: ";
+const DEFAULT_URL_PREFIX = "Default GitLab API URL: ";
 
 interface StartupLogs {
   readonly stdout: string;
@@ -168,27 +172,36 @@ function countOccurrences(text: string, needle: string): number {
   return text.split(needle).length - 1;
 }
 
+// The message from `prefix` to the end of its line, without the color reset
+// that pino-pretty adds, or "" when no line has it.
+function logMessage(stderr: string, prefix: string): string {
+  for (const line of stderr.split("\n")) {
+    const start = line.indexOf(prefix);
+    if (start !== -1) {
+      const colorCode = line.indexOf("\u001b[", start);
+      return line.slice(start, colorCode === -1 ? line.length : colorCode).trimEnd();
+    }
+  }
+  return "";
+}
+
 describe("When the stdio server starts", () => {
   describe("with credentials in GITLAB_API_URL", () => {
-    it("should log the configured URL without userinfo", async () => {
+    it("should log only the host name of the configured URL", async () => {
       const logs = await captureStartupLogsAsync();
 
       assert.equal(
-        logs.stderr.includes(
-          "Configured GitLab API URLs: https://gitlab.example.com/api/v4?private_token=[REDACTED]"
-        ),
-        true
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: gitlab.example.com"
       );
     });
 
-    it("should log the default URL without userinfo", async () => {
+    it("should log only the host name of the default URL", async () => {
       const logs = await captureStartupLogsAsync();
 
       assert.equal(
-        logs.stderr.includes(
-          "Default GitLab API URL: https://gitlab.example.com/api/v4?private_token=[REDACTED]"
-        ),
-        true
+        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
+        "Default GitLab API URL: gitlab.example.com"
       );
     });
 
@@ -216,14 +229,12 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a later slashless URL in GITLAB_API_URL", () => {
-    it("should log each configured URL without userinfo", async () => {
+    it("should log only the host name of each configured URL", async () => {
       const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
 
       assert.equal(
-        logs.stderr.includes(
-          "Configured GitLab API URLs: https://gitlab.example/api/v4, https://other.example/api/v4"
-        ),
-        true
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: gitlab.example, other.example"
       );
     });
 
@@ -241,10 +252,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma inside the password", () => {
-    it("should log one URL without userinfo", async () => {
+    it("should log the host name of one URL", async () => {
       const logs = await captureStartupLogsAsync(COMMA_API_URL);
 
-      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: gitlab.example.com"
+      );
     });
 
     it("should omit the password from stderr", async () => {
@@ -255,10 +269,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a percent-encoded comma inside the password", () => {
-    it("should log one URL without userinfo", async () => {
+    it("should log the host name of one URL", async () => {
       const logs = await captureStartupLogsAsync(ENCODED_COMMA_API_URL);
 
-      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: gitlab.example.com"
+      );
     });
 
     it("should omit the password from stderr", async () => {
@@ -269,10 +286,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma and an http-looking tail inside the password", () => {
-    it("should log one URL without userinfo", async () => {
+    it("should log the host name of one URL", async () => {
       const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
 
-      assert.match(logs.stderr, ONE_CLEAN_URL_LOG);
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: gitlab.example.com"
+      );
     });
 
     it("should omit the password from stderr", async () => {
@@ -283,14 +303,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a password of digits and then a slash", () => {
-    it("should log the configured URL with the userinfo redacted", async () => {
+    // Requests go to the host WHATWG reads, "alice", so that is the host logged.
+    it("should log only the host name WHATWG reads", async () => {
       const logs = await captureStartupLogsAsync(DIGIT_PASSWORD_API_URL);
 
       assert.equal(
-        logs.stderr.includes(
-          "Configured GitLab API URLs: https://[REDACTED]@gitlab.example.com/api/v4"
-        ),
-        true
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: alice"
       );
     });
 
@@ -346,6 +365,57 @@ describe("When the stdio server starts", () => {
       assert.equal(startup.code, 1);
       assert.match(startup.stderr, /GITLAB_ALLOWED_HOSTS entry 2 of 3 is not a valid host or URL/);
       assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
+    });
+  });
+
+  describe("with a password comma that splits the value into two URLs", () => {
+    // "alice" is the host of the first URL, so it is logged; the port is not.
+    it("should log only the host name of each URL", async () => {
+      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: alice, host"
+      );
+    });
+
+    it("should log only the host name of the default URL", async () => {
+      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
+
+      assert.equal(logMessage(logs.stderr, DEFAULT_URL_PREFIX), "Default GitLab API URL: alice");
+    });
+
+    it("should omit the start of the password from the URL logs", async () => {
+      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
+      const urlLogs = [
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
+      ];
+
+      assert.equal(
+        urlLogs.some(message => message.includes(SPLIT_PORT_HEAD)),
+        false
+      );
+    });
+  });
+
+  describe("with ports and an IPv6 host in GITLAB_API_URL", () => {
+    it("should log only the host name of each URL", async () => {
+      const logs = await captureStartupLogsAsync(PORTS_AND_IPV6_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: [2001:db8::1], gitlab.example, other.example"
+      );
+    });
+
+    it("should log the IPv6 default host in brackets", async () => {
+      const logs = await captureStartupLogsAsync(PORTS_AND_IPV6_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
+        "Default GitLab API URL: [2001:db8::1]"
+      );
     });
   });
 
