@@ -5,7 +5,7 @@ import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./depre
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import { stripUrlUserinfo } from "./utils/redact-url.js";
-import { apiUrlUserinfoWarning } from "./utils/url.js";
+import { apiUrlError, apiUrlUserinfoWarning } from "./utils/url.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-auth");
@@ -105,12 +105,18 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   }
 
   const apiUrlFlag = readFlag(argv, "api-url");
+  const apiUrlSource = apiUrlFlag !== undefined ? "--api-url" : "GITLAB_API_URL";
   const configuredApiUrl = stripUrlUserinfo(apiUrlFlag ?? env.GITLAB_API_URL ?? DEFAULT_API_URL);
   if (configuredApiUrl.hadUserinfo) {
-    logger.warn(apiUrlUserinfoWarning(apiUrlFlag !== undefined ? "--api-url" : "GITLAB_API_URL"));
+    logger.warn(apiUrlUserinfoWarning(apiUrlSource));
     flushStartupLogs(logger);
   }
   const apiUrl = configuredApiUrl.url;
+  // The fetch error for a URL that does not parse would print it.
+  const invalidApiUrl = apiUrlError(apiUrlSource, apiUrl);
+  if (invalidApiUrl !== null) {
+    throw new Error(invalidApiUrl);
+  }
   const tokenPath =
     readFlag(argv, "token-path") ??
     env.GITLAB_OAUTH_TOKEN_PATH ??

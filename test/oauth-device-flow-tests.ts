@@ -602,6 +602,35 @@ describe("When running the auth command", () => {
     });
   });
 
+  // The fetch error for this URL printed "http://alice:Pw7x,http://[REDACTED]@host/...".
+  describe("with --api-url split inside the password by a comma", () => {
+    it("should fail before calling GitLab without printing the URL", async () => {
+      await assert.rejects(
+        () =>
+          runAuthCommandAsync({
+            argv: [
+              "node",
+              "index.js",
+              "auth",
+              `--client-id=${CLIENT_ID}`,
+              "--api-url=http://alice:Pw7x,http://w@host/api/v4",
+            ],
+            env: {},
+            stdout: createStdoutBuffer().stdout,
+            fetchImpl: async () => {
+              throw new Error("fetch should not run with an invalid API URL");
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /^--api-url is not a valid URL .*%2C$/);
+          assert.equal(/alice|Pw7x/.test(error.message), false);
+          return true;
+        }
+      );
+    });
+  });
+
   describe("with a successful device flow", () => {
     it("should print the user code and not the device code or access token", async () => {
       const tokenPath = createTempTokenPath();

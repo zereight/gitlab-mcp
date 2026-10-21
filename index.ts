@@ -202,11 +202,15 @@ import {
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
   apiUrlUserinfoWarning,
+  commaSplitHint,
+  configuredApiUrlErrors,
   encodeGitLabPath,
   encodeGitLabPathSegment,
+  invalidListEntryError,
   isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
   parseConfiguredGitLabApiUrls,
+  type ApiUrlSource,
 } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -237,7 +241,6 @@ import {
   redactUrlSecretsInError,
   redactUrlSecretsInErrorMessage,
   redactUrlSecretsInText,
-  splitCommaSeparatedUrls,
 } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
@@ -1410,42 +1413,56 @@ function validateConfiguration(): void {
     }
   }
 
-  // Validate GITLAB_API_URL format
-  const configuredApiUrls = getConfig("api-url", "GITLAB_API_URL");
-  const apiUrls = configuredApiUrls === undefined ? [] : splitCommaSeparatedUrls(configuredApiUrls);
-  if (apiUrls.length > 0) {
-    for (const url of apiUrls) {
-      try {
-        new URL(url.trim());
-      } catch {
-        errors.push(
-          `GITLAB_API_URL contains an invalid URL: ${redactUrlSecretsInText(url.trim())}`
-        );
-      }
-    }
-  }
+  errors.push(...configuredGitLabApiUrlErrors());
 
+  // No entry is echoed: a comma inside a password splits these lists too.
   const allowedHosts = getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS")?.split(",") || [];
-  for (const host of allowedHosts) {
+  let hasInvalidAllowedHost = false;
+  allowedHosts.forEach((host, index) => {
     if (host.trim() && !toAllowedGitLabApiUrl(host)) {
-      errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+      hasInvalidAllowedHost = true;
+      errors.push(
+        invalidListEntryError(
+          "GITLAB_ALLOWED_HOSTS",
+          index,
+          allowedHosts.length,
+          "is not a valid host or URL"
+        )
+      );
     }
+  });
+  if (hasInvalidAllowedHost && allowedHosts.length > 1) {
+    errors.push(commaSplitHint("GITLAB_ALLOWED_HOSTS"));
   }
 
   const mcpAllowedHosts = getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS")?.split(",") || [];
-  for (const host of mcpAllowedHosts) {
+  mcpAllowedHosts.forEach((host, index) => {
     if (host.trim() && !toAllowedMcpHost(host)) {
-      errors.push(`MCP_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+      errors.push(
+        invalidListEntryError(
+          "MCP_ALLOWED_HOSTS",
+          index,
+          mcpAllowedHosts.length,
+          "is not a valid host or URL"
+        )
+      );
     }
-  }
+  });
 
   const mcpAllowedOrigins =
     getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
-  for (const origin of mcpAllowedOrigins) {
+  mcpAllowedOrigins.forEach((origin, index) => {
     if (origin.trim() && !toAllowedMcpOrigin(origin)) {
-      errors.push(`MCP_ALLOWED_ORIGINS contains an invalid origin URL: ${origin.trim()}`);
+      errors.push(
+        invalidListEntryError(
+          "MCP_ALLOWED_ORIGINS",
+          index,
+          mcpAllowedOrigins.length,
+          "is not a valid origin URL"
+        )
+      );
     }
-  }
+  });
 
   // Validate auth configuration
   const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
@@ -1575,6 +1592,14 @@ let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
 const CONFIGURED_GITLAB_API_URLS = parseConfiguredGitLabApiUrls(
   getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
 );
+const API_URL_SOURCE: ApiUrlSource = cliArgs["api-url"] ? "--api-url" : "GITLAB_API_URL";
+
+// Checked before the first request: a fetch error would print an entry that
+// does not parse, and that entry can be the start of a password.
+function configuredGitLabApiUrlErrors(): string[] {
+  const configured = getConfig("api-url", "GITLAB_API_URL");
+  return configured === undefined ? [] : configuredApiUrlErrors(API_URL_SOURCE, configured);
+}
 
 let hasEmittedDeprecatedEnvWarnings = false;
 
@@ -1585,9 +1610,7 @@ function emitDeprecatedEnvWarnings(): void {
   hasEmittedDeprecatedEnvWarnings = true;
   const warnings = [
     ...getDeprecatedEnvWarnings(buildDeprecatedEnvInput()),
-    ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo
-      ? [apiUrlUserinfoWarning(cliArgs["api-url"] ? "--api-url" : "GITLAB_API_URL")]
-      : []),
+    ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo ? [apiUrlUserinfoWarning(API_URL_SOURCE)] : []),
   ];
   for (const warning of warnings) {
     logger.warn(warning);
@@ -17793,6 +17816,11 @@ async function main(): Promise<void> {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"
       );
+      process.exit(2);
+    }
+    const apiUrlErrors = configuredGitLabApiUrlErrors();
+    if (apiUrlErrors.length > 0) {
+      process.stderr.write(apiUrlErrors.map(error => `${error}\n`).join(""));
       process.exit(2);
     }
     try {

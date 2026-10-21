@@ -25,11 +25,87 @@ export function normalizeGitLabApiUrl(url: string): string {
  * where the URL came from. The advice stays generic: a remote-authorization or
  * MCP OAuth deployment must not be told to add a server token.
  */
-export function apiUrlUserinfoWarning(source: "--api-url" | "GITLAB_API_URL"): string {
+export function apiUrlUserinfoWarning(source: ApiUrlSource): string {
   return (
     `${source} contains a username or password before the host. It is ignored: requests ` +
     "go to the URL without it. Use a token or OAuth configuration to authenticate instead."
   );
+}
+
+export type ApiUrlSource = "--api-url" | "GITLAB_API_URL";
+
+const HIDDEN_VALUE_NOTE = "(value not shown: it may contain a password)";
+const COMMA_IN_PASSWORD_HINT = "write a comma inside a username or password as %2C";
+
+/**
+ * Startup error for one entry of a comma-separated URL or host list. The entry
+ * is named by its position only. A comma inside a password splits the list
+ * there ("http://alice:p,http://w@host" gives "http://alice:p"), and an entry
+ * that does not parse has no host that is safe to show: any of its text can
+ * be part of the password.
+ */
+export function invalidListEntryError(
+  source: string,
+  index: number,
+  total: number,
+  problem: string
+): string {
+  return `${source} entry ${index + 1} of ${total} ${problem} ${HIDDEN_VALUE_NOTE}`;
+}
+
+/** Follows the entry errors of a list that had more than one entry. */
+export function commaSplitHint(source: string): string {
+  return `${source} is split at commas: ${COMMA_IN_PASSWORD_HINT}`;
+}
+
+/**
+ * Startup errors for a configured GITLAB_API_URL list, one per bad entry, and
+ * none of them echo the entry. Each entry must be an http:// or https:// URL:
+ * fetch() cannot use another scheme, and a value without "//" such as
+ * "alice:p,w@host" parses as a URL whose scheme is the username.
+ */
+export function configuredApiUrlErrors(source: ApiUrlSource, value: string): string[] {
+  const entries = splitCommaSeparatedUrls(value);
+  const errors: string[] = [];
+  entries.forEach((entry, index) => {
+    if (entry.length === 0) {
+      errors.push(`${source} entry ${index + 1} of ${entries.length} is empty`);
+      return;
+    }
+    const problem = apiUrlProblem(entry);
+    if (problem !== null) {
+      errors.push(invalidListEntryError(source, index, entries.length, problem));
+    }
+  });
+  if (errors.length > 0 && entries.length > 1) {
+    errors.push(commaSplitHint(source));
+  }
+  return errors;
+}
+
+/**
+ * The error for one API URL that is not split at commas (the `auth` command),
+ * or null when it is an http:// or https:// URL.
+ */
+export function apiUrlError(source: ApiUrlSource, url: string): string | null {
+  const problem = apiUrlProblem(url.trim());
+  if (problem === null) {
+    return null;
+  }
+  const hint = url.includes(",") ? `; ${COMMA_IN_PASSWORD_HINT}` : "";
+  return `${source} ${problem} ${HIDDEN_VALUE_NOTE}${hint}`;
+}
+
+function apiUrlProblem(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "is not a valid URL";
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:"
+    ? null
+    : "does not start with http:// or https://";
 }
 
 export interface ConfiguredGitLabApiUrls {

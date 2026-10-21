@@ -21,6 +21,12 @@ const HTTP_TAIL_API_URL = `https://alice:${HTTP_TAIL_PASSWORD_HEAD},https:word@g
 const DIGIT_PASSWORD_TAIL = "digit-pass-9f2a";
 // WHATWG reads "alice:12" as a host and port, so the URL is not stripped.
 const DIGIT_PASSWORD_API_URL = `https://alice:12/${DIGIT_PASSWORD_TAIL}@gitlab.example.com/api/v4`;
+// The text after the comma reaches "/" before "@", so the list is split inside
+// the password and the first entry, "http://alice:Pw7x", does not parse.
+const SPLIT_PASSWORD_API_URL = "http://alice:Pw7x,http://w@host/api/v4";
+// Parses as a URL whose scheme is "alice:".
+const SCHEMELESS_CREDENTIAL_API_URL = "alice:Pw7x,w@host";
+const CREDENTIAL_PART = /alice|Pw7x/;
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
 const USERINFO_WARNING = "GITLAB_API_URL contains a username or password before the host";
 // One URL, not followed by a second list entry.
@@ -121,6 +127,41 @@ async function captureStartupLogsAsync(
     stdout: Buffer.concat(stdoutChunks).toString("utf8"),
     stderr: Buffer.concat(stderrChunks).toString("utf8"),
   };
+}
+
+interface FailedStartup {
+  readonly code: number | null;
+  readonly stderr: string;
+}
+
+// For a GITLAB_API_URL that fails configuration validation: the server exits
+// before it logs the configured URLs.
+async function captureFailedStartupAsync(
+  apiUrl: string,
+  options: { readonly args?: readonly string[]; readonly env?: Record<string, string> } = {}
+): Promise<FailedStartup> {
+  const child = spawn(
+    process.execPath,
+    [path.join(REPO_ROOT, "build/index.js"), ...(options.args ?? [])],
+    {
+      cwd: REPO_ROOT,
+      env: { ...startupEnv(apiUrl), ...options.env },
+      stdio: ["pipe", "pipe", "pipe"],
+    }
+  );
+  const stderrChunks: Buffer[] = [];
+  child.stderr?.on("data", chunk => {
+    stderrChunks.push(Buffer.from(chunk));
+  });
+  const timer = setTimeout(() => {
+    child.kill("SIGKILL");
+  }, 20000);
+  try {
+    const [code] = await once(child, "close");
+    return { code: code as number | null, stderr: Buffer.concat(stderrChunks).toString("utf8") };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function countOccurrences(text: string, needle: string): number {
@@ -260,11 +301,75 @@ describe("When the stdio server starts", () => {
     });
   });
 
+  describe("with a comma that splits the password before an http URL", () => {
+    it("should fail validation and name the entry by its position", async () => {
+      const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL);
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, /GITLAB_API_URL entry 1 of 2 is not a valid URL/);
+    });
+
+    it("should tell the user to write the comma as %2C", async () => {
+      const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL);
+
+      assert.match(startup.stderr, /write a comma inside a username or password as %2C/);
+    });
+
+    it("should omit every part of the credential from stderr", async () => {
+      const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL);
+
+      assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
+    });
+  });
+
+  describe("with a username and password but no scheme", () => {
+    it("should fail validation instead of logging the URL", async () => {
+      const startup = await captureFailedStartupAsync(SCHEMELESS_CREDENTIAL_API_URL);
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, /does not start with http:\/\/ or https:\/\//);
+    });
+
+    it("should omit every part of the credential from stderr", async () => {
+      const startup = await captureFailedStartupAsync(SCHEMELESS_CREDENTIAL_API_URL);
+
+      assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
+    });
+  });
+
+  describe("with a credential in an invalid GITLAB_ALLOWED_HOSTS entry", () => {
+    it("should fail validation without printing the entry", async () => {
+      const startup = await captureFailedStartupAsync(PLAIN_API_URL, {
+        env: { GITLAB_ALLOWED_HOSTS: "alice:Pw7x@host:bad,https://alice:Pw7x,w@host" },
+      });
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, /GITLAB_ALLOWED_HOSTS entry 2 of 3 is not a valid host or URL/);
+      assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
+    });
+  });
+
   describe("without credentials in GITLAB_API_URL", () => {
     it("should not warn about userinfo", async () => {
       const logs = await captureStartupLogsAsync(PLAIN_API_URL);
 
       assert.equal(logs.stderr.includes(USERINFO_WARNING), false);
+    });
+  });
+});
+
+// The CLI does not run validateConfiguration; the request URL was printed in
+// the error log ("input": "http://alice:Pw7x/api/v4/projects/1").
+describe("When the human CLI runs a tool", () => {
+  describe("with a comma that splits the password before an http URL", () => {
+    it("should exit before the request without printing the credential", async () => {
+      const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL, {
+        args: ["tool", "get_project", "--project-id", "1"],
+      });
+
+      assert.equal(startup.code, 2);
+      assert.match(startup.stderr, /GITLAB_API_URL entry 1 of 2 is not a valid URL/);
+      assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
     });
   });
 });
