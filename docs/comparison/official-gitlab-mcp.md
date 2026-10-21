@@ -114,8 +114,9 @@ addition, the server can narrow what an agent sees or runs:
 
 The opt-in `api` toolset (`gitlab_api_request`) still honors permission mode for its methods
 (`readonly` allows only `GET`, `modify` rejects `DELETE`), and the project allowlist or a session
-project scope on `/projects/:id` paths. It bypasses the other project and tool limits above, so
-leave it off when you rely on them; see the [API tools reference](../tools/api.md).
+project scope on `/projects/:id` paths. If `GITLAB_TOOL_POLICY_APPROVE` lists it, calls still need
+`_confirmed: true`. Beyond that, `gitlab_api_request` bypasses the other project and tool limits
+above, so leave it off when you rely on them; see the [API tools reference](../tools/api.md).
 
 See the [tools reference](../tools/index.md) for every toolset.
 
