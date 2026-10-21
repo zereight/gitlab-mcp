@@ -18,7 +18,7 @@ Facts about the official server come from its documentation as read on 2026-10-2
 | **Tokens**         | Personal, project, and group access tokens, CI job tokens, OAuth, cookie file        | OAuth token with the `mcp` scope, or a fine-grained personal access token                                       |
 | **Transports**     | stdio, Streamable HTTP, legacy SSE                                                   | HTTP; stdio through `mcp-remote`                                                                                |
 | **Node.js**        | >=18.17                                                                              | 20 or later for stdio; none for HTTP                                                                            |
-| **Rate limits**    | Normal GitLab API limits for the token's user                                        | Separate MCP endpoint limit (GitLab.com: 60/min Free, 600/min Premium and Ultimate)                             |
+| **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over HTTP     | Separate MCP endpoint limit (GitLab.com: 60/min Free, 600/min Premium and Ultimate)                             |
 | **Tool selection** | `GITLAB_TOOLSETS`, `GITLAB_TOOLS`, `discover_tools`                                  | `X-Gitlab-Enabled-Mcp-Server-Toolsets` and `X-Gitlab-Enabled-Mcp-Server-Tools` headers                          |
 | **Write controls** | `GITLAB_PERMISSION_MODE`, deny regex, approve and hidden policies, project allowlist | GitLab permissions checked on every call                                                                        |
 | **License**        | MIT                                                                                  | Part of GitLab                                                                                                  |
@@ -82,6 +82,11 @@ for the token's user, such as the
 [GitLab.com rate limits](https://docs.gitlab.com/user/gitlab_com/#rate-limits-on-gitlabcom). A
 single tool call can make more than one API request.
 
+Over Streamable HTTP or SSE, the server also has its own request limit,
+[`MAX_REQUESTS_PER_MINUTE`](../configuration/environment-variables.md#max_requests_per_minute)
+(default 60), separate from the GitLab limits. A client over it gets `429` from the server itself.
+It does not apply over stdio.
+
 ## Tool selection and write controls
 
 The official server returns a default set of toolsets: `core`, `merge_requests`, `work_items`,
@@ -93,14 +98,15 @@ the user's project and namespace permissions.
 `@zereight/mcp-gitlab` calls GitLab as the token's user, so GitLab permissions apply too. In
 addition, the server can narrow what an agent sees or runs:
 
-| Control                                       | Setting                                                                                                                                                  |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Toolsets and single tools                     | [`GITLAB_TOOLSETS`](../configuration/environment-variables.md#gitlab_toolsets), [`GITLAB_TOOLS`](../configuration/environment-variables.md#gitlab_tools) |
-| Read only, or no delete and teardown          | [`GITLAB_PERMISSION_MODE`](../configuration/environment-variables.md#gitlab_permission_mode) (`readonly`, `modify`, `full`)                              |
-| Block tools by name                           | [`GITLAB_DENIED_TOOLS_REGEX`](../configuration/environment-variables.md#gitlab_denied_tools_regex)                                                       |
-| Hide tools from `tools/list` (still callable) | [`GITLAB_TOOL_POLICY_HIDDEN`](../configuration/environment-variables.md#gitlab_tool_policy_hidden)                                                       |
-| Require `_confirmed: true` before a call runs | [`GITLAB_TOOL_POLICY_APPROVE`](../configuration/environment-variables.md#gitlab_tool_policy_approve)                                                     |
-| Limit projects                                | [`GITLAB_ALLOWED_PROJECT_IDS`](../configuration/environment-variables.md#gitlab_allowed_project_ids)                                                     |
+| Control                                           | Setting                                                                                                                                                  |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolsets and single tools                         | [`GITLAB_TOOLSETS`](../configuration/environment-variables.md#gitlab_toolsets), [`GITLAB_TOOLS`](../configuration/environment-variables.md#gitlab_tools) |
+| Read only, or no delete and teardown              | [`GITLAB_PERMISSION_MODE`](../configuration/environment-variables.md#gitlab_permission_mode) (`readonly`, `modify`, `full`)                              |
+| Block tools by name                               | [`GITLAB_DENIED_TOOLS_REGEX`](../configuration/environment-variables.md#gitlab_denied_tools_regex)                                                       |
+| Hide tools from `tools/list` (still callable)     | [`GITLAB_TOOL_POLICY_HIDDEN`](../configuration/environment-variables.md#gitlab_tool_policy_hidden)                                                       |
+| Require `_confirmed: true` before a call runs     | [`GITLAB_TOOL_POLICY_APPROVE`](../configuration/environment-variables.md#gitlab_tool_policy_approve)                                                     |
+| Limit which projects tools act on                 | [`GITLAB_ALLOWED_PROJECT_IDS`](../configuration/environment-variables.md#gitlab_allowed_project_ids)                                                     |
+| Also hide other projects from listings and search | [`ENABLE_STRICT_PROJECT_SCOPE`](../configuration/environment-variables.md#enable_strict_project_scope) (`true`, with an allowlist)                       |
 
 The opt-in `api` toolset (`gitlab_api_request`) bypasses the project and tool limits above. Leave
 it off when you rely on them; see the [API tools reference](../tools/api.md).
