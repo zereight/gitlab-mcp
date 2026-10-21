@@ -112,11 +112,8 @@ addition, the server can narrow what an agent sees or runs:
 | Limit which projects tools act on                 | [`GITLAB_ALLOWED_PROJECT_IDS`](../configuration/environment-variables.md#gitlab_allowed_project_ids)                                                     |
 | Also hide other projects from listings and search | [`ENABLE_STRICT_PROJECT_SCOPE`](../configuration/environment-variables.md#enable_strict_project_scope) (`true`, with an allowlist)                       |
 
-The opt-in `api` toolset (`gitlab_api_request`) still honors permission mode for its methods
-(`readonly` allows only `GET`, `modify` rejects `DELETE`), and the project allowlist or a session
-project scope on `/projects/:id` paths. If `GITLAB_TOOL_POLICY_APPROVE` lists it, calls still need
-`_confirmed: true`. Beyond that, `gitlab_api_request` bypasses the other project and tool limits
-above, so leave it off when you rely on them; see the [API tools reference](../tools/api.md).
+The opt-in `api` toolset (`gitlab_api_request`) skips some of these safeguards, so read the
+[Raw API tool docs](../tools/api.md) before you enable it.
 
 See the [tools reference](../tools/index.md) for every toolset.
 
