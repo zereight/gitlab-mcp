@@ -10,18 +10,18 @@ Facts about the official server come from its documentation as read on 2026-10-2
 
 ## At a glance
 
-|                    | @zereight/mcp-gitlab                                                                 | Official GitLab MCP server                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| **Where it runs**  | Your machine, container, or server (npm, Homebrew, Docker)                           | Inside GitLab at `https://<gitlab-host>/api/v4/mcp`                                                             |
-| **GitLab version** | Any instance with REST API v4; no documented minimum                                 | GitLab 18.3 or later (experiment); generally available in 19.5                                                  |
-| **Turned on by**   | Nothing on the GitLab side; you supply a token                                       | "Allow access to the MCP server" for the top-level group (GitLab.com) or the instance (Self-Managed, Dedicated) |
-| **Tokens**         | Personal, project, and group access tokens, CI job tokens, OAuth, cookie file        | OAuth token with the `mcp` scope, or a fine-grained personal access token                                       |
-| **Transports**     | stdio, Streamable HTTP, legacy SSE                                                   | HTTP; stdio through `mcp-remote`                                                                                |
-| **Node.js**        | >=18.17                                                                              | 20 or later for stdio; none for HTTP                                                                            |
-| **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over HTTP     | Separate MCP endpoint limit (GitLab.com: 60/min Free, 600/min Premium and Ultimate)                             |
-| **Tool selection** | `GITLAB_TOOLSETS`, `GITLAB_TOOLS`, `discover_tools`                                  | `X-Gitlab-Enabled-Mcp-Server-Toolsets` and `X-Gitlab-Enabled-Mcp-Server-Tools` headers                          |
-| **Write controls** | `GITLAB_PERMISSION_MODE`, deny regex, approve and hidden policies, project allowlist | GitLab permissions checked on every call                                                                        |
-| **License**        | MIT                                                                                  | Part of GitLab                                                                                                  |
+|                    | @zereight/mcp-gitlab                                                                               | Official GitLab MCP server                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Where it runs**  | Your machine, container, or server (npm, Homebrew, Docker)                                         | Inside GitLab at `https://<gitlab-host>/api/v4/mcp`                                                             |
+| **GitLab version** | Any instance with REST API v4; no documented minimum                                               | GitLab 18.3 or later (experiment); generally available in 19.5                                                  |
+| **Turned on by**   | Nothing on the GitLab side; you supply a token                                                     | "Allow access to the MCP server" for the top-level group (GitLab.com) or the instance (Self-Managed, Dedicated) |
+| **Tokens**         | Personal, project, and group access tokens, CI job tokens, OAuth, cookie file                      | OAuth token with the `mcp` scope, or a fine-grained personal access token                                       |
+| **Transports**     | stdio, Streamable HTTP, legacy SSE                                                                 | HTTP; stdio through `mcp-remote`                                                                                |
+| **Node.js**        | >=18.17                                                                                            | 20 or later for stdio; none for HTTP                                                                            |
+| **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over Streamable HTTP or SSE | Separate MCP endpoint limit (GitLab.com: 60/min Free, 600/min Premium and Ultimate)                             |
+| **Tool selection** | `GITLAB_TOOLSETS`, `GITLAB_TOOLS`, `discover_tools`                                                | `X-Gitlab-Enabled-Mcp-Server-Toolsets` and `X-Gitlab-Enabled-Mcp-Server-Tools` headers                          |
+| **Write controls** | `GITLAB_PERMISSION_MODE`, deny regex, approve and hidden policies, project allowlist               | GitLab permissions checked on every call                                                                        |
+| **License**        | MIT                                                                                                | Part of GitLab                                                                                                  |
 
 ## GitLab version
 
