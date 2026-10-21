@@ -90,8 +90,11 @@ interface ErrorChain {
   readonly errors: readonly Error[];
   // Every input and base in the chain, for the error the chain was read from: an
   // AggregateError's own message can quote the message of each of its errors.
-  readonly matcher: TextMatcher | undefined;
-  // The first MAX_SHARED_INVALID_URLS of them, for each error below it.
+  readonly texts: readonly string[];
+  readonly heads: TextHeads | undefined;
+  // Built from `texts` the first time a message or stack may quote one of them.
+  matcher: TextMatcher | undefined;
+  // The first MAX_SHARED_INVALID_URLS of them, longest first, for each error below it.
   readonly shared: readonly string[];
 }
 
@@ -144,8 +147,10 @@ function readErrorChain(root: unknown): ErrorChain {
   const texts = [...all];
   return {
     errors,
-    matcher: texts.length > 0 ? buildTextMatcher(texts) : undefined,
-    shared: texts.slice(0, MAX_SHARED_INVALID_URLS),
+    texts,
+    heads: texts.length > 0 ? buildTextHeads(texts) : undefined,
+    matcher: undefined,
+    shared: texts.slice(0, MAX_SHARED_INVALID_URLS).sort(byLengthDescending),
   };
 }
 
@@ -181,19 +186,98 @@ function hideInvalidUrls(error: Error, field: "message" | "stack", chain: ErrorC
 
 function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): string {
   if (error === chain.errors[0]) {
-    return chain.matcher === undefined ? text : hideMatchedTexts(text, chain.matcher);
+    if (chain.heads === undefined || !mayQuoteText(text, chain.heads)) {
+      return text;
+    }
+    chain.matcher ??= buildTextMatcher(chain.texts);
+    return hideMatchedTexts(text, chain.matcher);
   }
-  // Longest first, so a base that contains the input leaves no tail behind.
-  const texts = [...chain.shared, ...readInvalidUrlTexts(error.cause)].sort(
-    (a, b) => b.length - a.length
-  );
   let hidden = text;
-  for (const invalidUrl of texts) {
+  for (const invalidUrl of withOwnTexts(chain.shared, readInvalidUrlTexts(error.cause))) {
     if (hidden.includes(invalidUrl)) {
       hidden = hidden.split(invalidUrl).join(REDACTED);
     }
   }
   return hidden;
+}
+
+// Longest first, so a base that contains the input leaves no tail behind.
+function byLengthDescending(a: string, b: string): number {
+  return b.length - a.length;
+}
+
+// The shared texts, already longest first, with those of an error's own cause
+// merged in. Of two the same length the shared one comes first, as in a stable
+// sort of both lists, without sorting the shared ones again for each error.
+function withOwnTexts(shared: readonly string[], own: readonly string[]): readonly string[] {
+  if (own.length === 0) {
+    return shared;
+  }
+  const rest = [...own].sort(byLengthDescending);
+  const texts: string[] = [];
+  let next = 0;
+  for (const text of shared) {
+    while (next < rest.length && rest[next].length > text.length) {
+      texts.push(rest[next]);
+      next += 1;
+    }
+    texts.push(text);
+  }
+  return texts.concat(rest.slice(next));
+}
+
+/**
+ * The hash of the first `width` code units of each text, `width` being the same
+ * for every text. A text can only occur where a window of that many code units
+ * has one of these hashes, so a message with no such window quotes none of the
+ * texts and needs no matcher: an AggregateError's own message seldom does.
+ */
+interface TextHeads {
+  readonly width: number;
+  readonly hashes: ReadonlySet<number>;
+}
+
+// Long enough that few windows look like the start of a URL, short enough to hash fast.
+const MAX_HEAD_WIDTH = 16;
+const HASH_BASE = 0x01000193;
+// Keeps each hash a small integer.
+const HASH_MASK = 0x3fffffff;
+
+function buildTextHeads(texts: readonly string[]): TextHeads {
+  let width = MAX_HEAD_WIDTH;
+  for (const text of texts) {
+    width = Math.min(width, text.length);
+  }
+  const hashes = new Set<number>();
+  for (const text of texts) {
+    let hash = 0;
+    for (let index = 0; index < width; index += 1) {
+      hash = (Math.imul(hash, HASH_BASE) + text.charCodeAt(index)) | 0;
+    }
+    hashes.add(hash & HASH_MASK);
+  }
+  return { width, hashes };
+}
+
+// A rolling hash over each window of the text, in one pass.
+function mayQuoteText(text: string, heads: TextHeads): boolean {
+  const { width, hashes } = heads;
+  // HASH_BASE ** (width - 1), to take out the code unit that leaves the window.
+  let top = 1;
+  for (let index = 1; index < width; index += 1) {
+    top = Math.imul(top, HASH_BASE);
+  }
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (index >= width) {
+      hash = (hash - Math.imul(text.charCodeAt(index - width), top)) | 0;
+    }
+    hash = (Math.imul(hash, HASH_BASE) + text.charCodeAt(index)) | 0;
+    if (index + 1 >= width && hashes.has(hash & HASH_MASK)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -202,8 +286,12 @@ function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): stri
  * Nodes are the prefixes of the texts; node 0 is the empty one.
  */
 interface TextMatcher {
-  // The node after a code unit, keyed by node * CODE_UNITS + code unit.
-  readonly next: ReadonlyMap<number, number>;
+  // The edges in an open-addressing table. A slot holds the key of an edge,
+  // node * CODE_UNITS + code unit + 1, or 0 when empty; and the node it leads to.
+  // A Map is slower here: most of these keys are too large for a small integer,
+  // so each one would be a heap number.
+  readonly keys: Float64Array;
+  readonly targets: Int32Array;
   // The node of the longest proper suffix of a node that is also a node.
   readonly fail: Int32Array;
   // The length of the longest text that ends a node, or 0.
@@ -212,12 +300,31 @@ interface TextMatcher {
 
 const CODE_UNITS = 0x10000;
 
+// The slot of the edge from a node on a code unit, or the empty slot it would take.
+function edgeSlot(keys: Float64Array, node: number, code: number): number {
+  const key = node * CODE_UNITS + code + 1;
+  const mask = keys.length - 1;
+  let hash = Math.imul(node, 0x9e3779b1) ^ code;
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+  let slot = (hash ^ (hash >>> 13)) & mask;
+  while (keys[slot] !== 0 && keys[slot] !== key) {
+    slot = (slot + 1) & mask;
+  }
+  return slot;
+}
+
 function buildTextMatcher(texts: readonly string[]): TextMatcher {
   let size = 1;
   for (const text of texts) {
     size += text.length;
   }
-  const next = new Map<number, number>();
+  // A power of two, at least twice the number of edges.
+  let slots = 2;
+  while (slots < 2 * size) {
+    slots *= 2;
+  }
+  const keys = new Float64Array(slots);
+  const targets = new Int32Array(slots);
   const longest = new Int32Array(size);
   // The children of a node as a list: its first child, then each child's sibling.
   // 0 ends a list, because node 0 is no node's child.
@@ -229,22 +336,22 @@ function buildTextMatcher(texts: readonly string[]): TextMatcher {
     let node = 0;
     for (let index = 0; index < text.length; index += 1) {
       const code = text.charCodeAt(index);
-      let child = next.get(node * CODE_UNITS + code);
-      if (child === undefined) {
-        child = nodes;
+      const slot = edgeSlot(keys, node, code);
+      if (keys[slot] === 0) {
+        keys[slot] = node * CODE_UNITS + code + 1;
+        targets[slot] = nodes;
+        unit[nodes] = code;
+        sibling[nodes] = firstChild[node];
+        firstChild[node] = nodes;
         nodes += 1;
-        next.set(node * CODE_UNITS + code, child);
-        unit[child] = code;
-        sibling[child] = firstChild[node];
-        firstChild[node] = child;
       }
-      node = child;
+      node = targets[slot];
     }
     longest[node] = text.length;
   }
   // Breadth first: a fail link points to a shorter node, whose own link and
   // longest text are then already known.
-  const matcher = { next, fail: new Int32Array(size), longest };
+  const matcher = { keys, targets, fail: new Int32Array(size), longest };
   const queue = new Int32Array(nodes);
   let queued = 0;
   for (let child = firstChild[0]; child !== 0; child = sibling[child]) {
@@ -267,9 +374,9 @@ function buildTextMatcher(texts: readonly string[]): TextMatcher {
 
 function nextNode(matcher: TextMatcher, node: number, code: number): number {
   for (let from = node; ; from = matcher.fail[from]) {
-    const to = matcher.next.get(from * CODE_UNITS + code);
-    if (to !== undefined) {
-      return to;
+    const slot = edgeSlot(matcher.keys, from, code);
+    if (matcher.keys[slot] !== 0) {
+      return matcher.targets[slot];
     }
     if (from === 0) {
       return 0;

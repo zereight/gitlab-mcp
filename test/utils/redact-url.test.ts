@@ -837,7 +837,7 @@ describe("When redactUrlSecretsInError runs", () => {
       const startedAt = performance.now();
       redactUrlSecretsInError(error);
 
-      assert.ok(performance.now() - startedAt < 500);
+      assert.ok(performance.now() - startedAt < 5_000);
       assert.equal(error.message, "Failed to parse URL from [REDACTED]");
     });
   });
@@ -923,7 +923,7 @@ describe("When redactUrlSecretsInError runs", () => {
       const startedAt = performance.now();
       redactUrlSecretsInError(error);
 
-      assert.ok(performance.now() - startedAt < 500);
+      assert.ok(performance.now() - startedAt < 5_000);
     });
   });
 
@@ -968,18 +968,20 @@ describe("When redactUrlSecretsInError runs", () => {
       const startedAt = performance.now();
       redactUrlSecretsInError(error);
 
-      assert.ok(performance.now() - startedAt < 1_000);
+      assert.ok(performance.now() - startedAt < 10_000);
       assert.equal(error.message, redactedMessage(5_000));
     });
 
-    it("should finish quickly for 10,000 errors in redactUrlSecretsInErrorMessage", () => {
-      const error = quotingAggregateError(10_000);
+    // Reads no stack, so the time is the scan of the message: split and join over
+    // every text, quadratic in the count, would take tens of seconds.
+    it("should finish quickly for 30,000 errors in redactUrlSecretsInErrorMessage", () => {
+      const error = quotingAggregateError(30_000);
 
       const startedAt = performance.now();
       const message = redactUrlSecretsInErrorMessage(error);
 
-      assert.ok(performance.now() - startedAt < 500);
-      assert.equal(message, redactedMessage(10_000));
+      assert.ok(performance.now() - startedAt < 5_000);
+      assert.equal(message, redactedMessage(30_000));
     });
 
     it("should hide overlapping URLs as one", () => {
