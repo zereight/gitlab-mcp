@@ -47,6 +47,7 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
       assert.deepEqual(parseConfiguredGitLabApiUrls("https://alice:pw@gitlab.example.com"), {
         urls: ["https://gitlab.example.com/api/v4"],
         hadUserinfo: true,
+        hostnamesForLog: ["gitlab.example.com"],
       });
     });
   });
@@ -55,7 +56,11 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
     test("should keep one URL and drop the userinfo", () => {
       assert.deepEqual(
         parseConfiguredGitLabApiUrls("https://alice:p%2Cw@gitlab.example.com/api/v4"),
-        { urls: ["https://gitlab.example.com/api/v4"], hadUserinfo: true }
+        {
+          urls: ["https://gitlab.example.com/api/v4"],
+          hadUserinfo: true,
+          hostnamesForLog: ["gitlab.example.com"],
+        }
       );
     });
   });
@@ -65,6 +70,7 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
       assert.deepEqual(parseConfiguredGitLabApiUrls("https://alice:p,w@gitlab.example.com"), {
         urls: ["https://gitlab.example.com/api/v4"],
         hadUserinfo: true,
+        hostnamesForLog: ["gitlab.example.com"],
       });
     });
   });
@@ -76,16 +82,25 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
         parseConfiguredGitLabApiUrls(
           "https://alice:123%2Chttps:word@a.example/api/v4,https://b.example/api/v4"
         ),
-        { urls: ["https://a.example/api/v4", "https://b.example/api/v4"], hadUserinfo: true }
+        {
+          urls: ["https://a.example/api/v4", "https://b.example/api/v4"],
+          hadUserinfo: true,
+          hostnamesForLog: ["a.example", "b.example"],
+        }
       );
     });
   });
 
+  // The first URL could be the start of a password that a comma cut off.
   describe("with userinfo in the second URL of a list", () => {
-    test("should split the list and drop it", () => {
+    test("should split the list, drop it, and not log the first host", () => {
       assert.deepEqual(
         parseConfiguredGitLabApiUrls("https://a.example/api/v4,https://bob:pw@b.example"),
-        { urls: ["https://a.example/api/v4", "https://b.example/api/v4"], hadUserinfo: true }
+        {
+          urls: ["https://a.example/api/v4", "https://b.example/api/v4"],
+          hadUserinfo: true,
+          hostnamesForLog: ["<invalid>", "b.example"],
+        }
       );
     });
   });
@@ -95,6 +110,7 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
       assert.deepEqual(parseConfiguredGitLabApiUrls("https://a.example,https://b.example"), {
         urls: ["https://a.example/api/v4", "https://b.example/api/v4"],
         hadUserinfo: false,
+        hostnamesForLog: ["a.example", "b.example"],
       });
     });
   });
@@ -108,7 +124,69 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
         {
           urls: ["HTTPS://GITLAB.EXAMPLE.COM/api/v4", "http://[::1]:8080/api/v4"],
           hadUserinfo: false,
+          hostnamesForLog: ["gitlab.example.com", "[::1]"],
         }
+      );
+    });
+  });
+
+  // The password "12,http://password:34,http://tail" has two literal commas.
+  describe("with a password split into three URLs", () => {
+    const value = "http://alice:12,http://password:34,http://tail@gitlab.example/api/v4";
+
+    test("should log only the host of the URL with the @", () => {
+      assert.deepEqual(parseConfiguredGitLabApiUrls(value).hostnamesForLog, [
+        "<invalid>",
+        "<invalid>",
+        "gitlab.example",
+      ]);
+    });
+
+    test("should still send requests to each URL as split", () => {
+      assert.deepEqual(parseConfiguredGitLabApiUrls(value).urls, [
+        "http://alice:12/api/v4",
+        "http://password:34/api/v4",
+        "http://gitlab.example/api/v4",
+      ]);
+    });
+  });
+
+  describe("with a password split into two URLs", () => {
+    test("should not log the user name read as the first host", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls("http://alice:12,http://w@host").hostnamesForLog,
+        ["<invalid>", "host"]
+      );
+    });
+  });
+
+  describe("with an @ in the path of a later URL", () => {
+    test("should log none of the hosts up to it", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls("https://a.example/api/v4,https://b.example/gl@team")
+          .hostnamesForLog,
+        ["<invalid>", "<invalid>"]
+      );
+    });
+  });
+
+  describe("with URLs after the last @", () => {
+    test("should log their hosts", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls("http://alice:12,http://w@host,https://b.example:8443/api/v4")
+          .hostnamesForLog,
+        ["<invalid>", "host", "b.example"]
+      );
+    });
+  });
+
+  describe("with ports and an IPv6 host and no @", () => {
+    test("should log the host of each URL", () => {
+      assert.deepEqual(
+        parseConfiguredGitLabApiUrls(
+          "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4"
+        ).hostnamesForLog,
+        ["[2001:db8::1]", "gitlab.example", "other.example"]
       );
     });
   });
@@ -298,6 +376,7 @@ describe("When apiUrlHostnameForLog runs", () => {
   });
 
   // The first half of "http://alice:12,http://w@host": the password start reads as a port.
+  // parseConfiguredGitLabApiUrls also hides "alice" there, because a later URL has an "@".
   test("should drop a port that holds the start of a password", () => {
     assert.equal(apiUrlHostnameForLog("http://alice:12/api/v4"), "alice");
   });
