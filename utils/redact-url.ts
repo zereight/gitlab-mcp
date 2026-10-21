@@ -47,7 +47,8 @@ export function redactUrlSecretsInText(text: string): string {
  * password cut off at a comma ("http://alice:p/api/v4"), with no "@" for the
  * text redaction to find. The same text is replaced wherever another error
  * of the chain quotes it ("Failed to parse URL from ...", or a wrapper that
- * copies that message).
+ * copies that message): every such text in the error passed in, and in an
+ * error below it the first MAX_SHARED_INVALID_URLS and those of its own cause.
  * A thrown string is returned redacted; other values are returned unchanged.
  */
 export function redactUrlSecretsInError(error: unknown): unknown {
@@ -76,9 +77,9 @@ export function redactUrlSecretsInErrorMessage(error: unknown): string {
 const REDACTED = "[REDACTED]";
 // Own enumerable fields of Node's ERR_INVALID_URL, which pino's error serializer copies.
 const INVALID_URL_FIELDS = ["input", "base"] as const;
-// The texts looked for in every message and stack of a chain. More would make an
-// AggregateError of many parse failures quadratic; past this, an error still has
-// the texts of its own cause removed.
+// The texts looked for in the message and stack of each error below the one the
+// chain was read from. More would make an AggregateError of many parse failures
+// quadratic; past this, an error still has the texts of its own cause removed.
 const MAX_SHARED_INVALID_URLS = 32;
 
 // The input and base of each ERR_INVALID_URL as first read. A wrapper that quoted
@@ -87,6 +88,10 @@ const invalidUrlTexts = new WeakMap<Error, readonly string[]>();
 
 interface ErrorChain {
   readonly errors: readonly Error[];
+  // Every input and base in the chain, for the error the chain was read from: an
+  // AggregateError's own message can quote the message of each of its errors.
+  readonly matcher: TextMatcher | undefined;
+  // The first MAX_SHARED_INVALID_URLS of them, for each error below it.
   readonly shared: readonly string[];
 }
 
@@ -116,7 +121,7 @@ function readInvalidUrlTexts(error: unknown): readonly string[] {
 // Every error reachable through `cause` and AggregateError `errors`, each once.
 function readErrorChain(root: unknown): ErrorChain {
   const errors: Error[] = [];
-  const shared = new Set<string>();
+  const all = new Set<string>();
   const seen = new Set<Error>();
   const pending: unknown[] = [root];
   while (pending.length > 0) {
@@ -127,9 +132,7 @@ function readErrorChain(root: unknown): ErrorChain {
     seen.add(value);
     errors.push(value);
     for (const text of readInvalidUrlTexts(value)) {
-      if (shared.size < MAX_SHARED_INVALID_URLS) {
-        shared.add(text);
-      }
+      all.add(text);
     }
     pending.push(value.cause);
     if (value instanceof AggregateError && Array.isArray(value.errors)) {
@@ -138,7 +141,12 @@ function readErrorChain(root: unknown): ErrorChain {
       }
     }
   }
-  return { errors, shared: [...shared] };
+  const texts = [...all];
+  return {
+    errors,
+    matcher: texts.length > 0 ? buildTextMatcher(texts) : undefined,
+    shared: texts.slice(0, MAX_SHARED_INVALID_URLS),
+  };
 }
 
 function redactChainedError(error: Error, chain: ErrorChain): void {
@@ -172,6 +180,9 @@ function hideInvalidUrls(error: Error, field: "message" | "stack", chain: ErrorC
 }
 
 function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): string {
+  if (error === chain.errors[0]) {
+    return chain.matcher === undefined ? text : hideMatchedTexts(text, chain.matcher);
+  }
   // Longest first, so a base that contains the input leaves no tail behind.
   const texts = [...chain.shared, ...readInvalidUrlTexts(error.cause)].sort(
     (a, b) => b.length - a.length
@@ -183,6 +194,121 @@ function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): stri
     }
   }
   return hidden;
+}
+
+/**
+ * Finds a list of texts in one pass over a message (Aho-Corasick), so the cost
+ * is the message length plus the total length of the texts, not their product.
+ * Nodes are the prefixes of the texts; node 0 is the empty one.
+ */
+interface TextMatcher {
+  // The node after a code unit, keyed by node * CODE_UNITS + code unit.
+  readonly next: ReadonlyMap<number, number>;
+  // The node of the longest proper suffix of a node that is also a node.
+  readonly fail: Int32Array;
+  // The length of the longest text that ends a node, or 0.
+  readonly longest: Int32Array;
+}
+
+const CODE_UNITS = 0x10000;
+
+function buildTextMatcher(texts: readonly string[]): TextMatcher {
+  let size = 1;
+  for (const text of texts) {
+    size += text.length;
+  }
+  const next = new Map<number, number>();
+  const longest = new Int32Array(size);
+  // The children of a node as a list: its first child, then each child's sibling.
+  // 0 ends a list, because node 0 is no node's child.
+  const firstChild = new Int32Array(size);
+  const sibling = new Int32Array(size);
+  const unit = new Int32Array(size);
+  let nodes = 1;
+  for (const text of texts) {
+    let node = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index);
+      let child = next.get(node * CODE_UNITS + code);
+      if (child === undefined) {
+        child = nodes;
+        nodes += 1;
+        next.set(node * CODE_UNITS + code, child);
+        unit[child] = code;
+        sibling[child] = firstChild[node];
+        firstChild[node] = child;
+      }
+      node = child;
+    }
+    longest[node] = text.length;
+  }
+  // Breadth first: a fail link points to a shorter node, whose own link and
+  // longest text are then already known.
+  const matcher = { next, fail: new Int32Array(size), longest };
+  const queue = new Int32Array(nodes);
+  let queued = 0;
+  for (let child = firstChild[0]; child !== 0; child = sibling[child]) {
+    queue[queued] = child;
+    queued += 1;
+  }
+  for (let head = 0; head < queued; head += 1) {
+    const node = queue[head];
+    if (longest[node] === 0) {
+      longest[node] = longest[matcher.fail[node]];
+    }
+    for (let child = firstChild[node]; child !== 0; child = sibling[child]) {
+      matcher.fail[child] = nextNode(matcher, matcher.fail[node], unit[child]);
+      queue[queued] = child;
+      queued += 1;
+    }
+  }
+  return matcher;
+}
+
+function nextNode(matcher: TextMatcher, node: number, code: number): number {
+  for (let from = node; ; from = matcher.fail[from]) {
+    const to = matcher.next.get(from * CODE_UNITS + code);
+    if (to !== undefined) {
+      return to;
+    }
+    if (from === 0) {
+      return 0;
+    }
+  }
+}
+
+// Each part of the text covered by a text of the matcher becomes one [REDACTED].
+// Overlapping matches are merged, so a shorter text inside a longer one leaves
+// nothing behind; matches that only touch stay apart, as split and join leave them.
+function hideMatchedTexts(text: string, matcher: TextMatcher): string {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let node = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    node = nextNode(matcher, node, text.charCodeAt(index));
+    const length = matcher.longest[node];
+    if (length === 0) {
+      continue;
+    }
+    let start = index + 1 - length;
+    while (ends.length > 0 && ends[ends.length - 1] > start) {
+      ends.pop();
+      start = Math.min(start, starts.pop() ?? start);
+    }
+    starts.push(start);
+    ends.push(index + 1);
+  }
+  if (starts.length === 0) {
+    return text;
+  }
+  const parts: string[] = [];
+  let from = 0;
+  for (let range = 0; range < starts.length; range += 1) {
+    parts.push(text.slice(from, starts[range]), REDACTED);
+    from = ends[range];
+  }
+  parts.push(text.slice(from));
+  return parts.join("");
 }
 
 function redactErrorField(error: Error, field: "message" | "stack" | "cause"): void {

@@ -927,6 +927,71 @@ describe("When redactUrlSecretsInError runs", () => {
     });
   });
 
+  describe("with an AggregateError whose message quotes the message of each error", () => {
+    function quotingAggregateError(count: number): AggregateError {
+      const errors = Array.from({ length: count }, (_, index) => {
+        const input = `http://alice:Pw7x${index}/api/v4`;
+        return new TypeError(`Failed to parse URL from ${input}`, {
+          cause: invalidUrlError(input),
+        });
+      });
+      return new AggregateError(errors, errors.map(error => error.message).join("; "));
+    }
+
+    function redactedMessage(count: number): string {
+      return Array.from({ length: count }, () => "Failed to parse URL from [REDACTED]").join("; ");
+    }
+
+    it("should hide all 40 URLs in its message, past the first 32", () => {
+      const error = quotingAggregateError(40);
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, redactedMessage(40));
+    });
+
+    it("should leave no credential in its stack", () => {
+      const error = quotingAggregateError(40);
+
+      redactUrlSecretsInError(error);
+
+      assert.doesNotMatch(`${error.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs in redactUrlSecretsInErrorMessage", () => {
+      assert.equal(redactUrlSecretsInErrorMessage(quotingAggregateError(40)), redactedMessage(40));
+    });
+
+    it("should finish quickly for 5,000 errors", () => {
+      const error = quotingAggregateError(5_000);
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 1_000);
+      assert.equal(error.message, redactedMessage(5_000));
+    });
+
+    it("should finish quickly for 10,000 errors in redactUrlSecretsInErrorMessage", () => {
+      const error = quotingAggregateError(10_000);
+
+      const startedAt = performance.now();
+      const message = redactUrlSecretsInErrorMessage(error);
+
+      assert.ok(performance.now() - startedAt < 500);
+      assert.equal(message, redactedMessage(10_000));
+    });
+
+    it("should hide overlapping URLs as one", () => {
+      const errors = [invalidUrlError("http://alice:Pw7x"), invalidUrlError("Pw7x/api/v4")];
+      const error = new AggregateError(errors, "both: http://alice:Pw7x/api/v4");
+
+      redactUrlSecretsInError(error);
+
+      assert.equal(error.message, "both: [REDACTED]");
+    });
+  });
+
   describe("with errors that hold no URL", () => {
     it("should leave a network error unchanged", () => {
       const error = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:443"), {
