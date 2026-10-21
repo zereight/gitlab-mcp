@@ -8,12 +8,12 @@
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
   },
-  "version": "2.3.5",
+  "version": "2.3.6",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zereight/mcp-gitlab",
-      "version": "2.3.5",
+      "version": "2.3.6",
       "transport": {
         "type": "stdio"
       },
@@ -176,7 +176,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.5",
+      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.6",
       "transport": {
         "type": "stdio"
       },
