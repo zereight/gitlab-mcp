@@ -32,6 +32,22 @@ async function fetchError(url: string): Promise<Error> {
   return assert.fail(`fetch accepted ${url}`);
 }
 
+// Fetch errors for `count` distinct URLs, from `first` on, in an AggregateError
+// whose message quotes the message of each.
+function quotingAggregateError(count: number, first = 0): AggregateError {
+  const errors = Array.from({ length: count }, (_, index) => {
+    const input = `http://alice:Pw7x${first + index}/api/v4`;
+    return new TypeError(`Failed to parse URL from ${input}`, {
+      cause: invalidUrlError(input),
+    });
+  });
+  return new AggregateError(errors, errors.map(error => error.message).join("; "));
+}
+
+function redactedMessage(count: number): string {
+  return Array.from({ length: count }, () => "Failed to parse URL from [REDACTED]").join("; ");
+}
+
 describe("When redactUrlSecretsInText runs", () => {
   describe("with userinfo", () => {
     it("should replace the user and password", () => {
@@ -928,21 +944,7 @@ describe("When redactUrlSecretsInError runs", () => {
   });
 
   describe("with an AggregateError whose message quotes the message of each error", () => {
-    function quotingAggregateError(count: number): AggregateError {
-      const errors = Array.from({ length: count }, (_, index) => {
-        const input = `http://alice:Pw7x${index}/api/v4`;
-        return new TypeError(`Failed to parse URL from ${input}`, {
-          cause: invalidUrlError(input),
-        });
-      });
-      return new AggregateError(errors, errors.map(error => error.message).join("; "));
-    }
-
-    function redactedMessage(count: number): string {
-      return Array.from({ length: count }, () => "Failed to parse URL from [REDACTED]").join("; ");
-    }
-
-    it("should hide all 40 URLs in its message, past the first 32", () => {
+    it("should hide all 40 URLs in its message", () => {
       const error = quotingAggregateError(40);
 
       redactUrlSecretsInError(error);
@@ -991,6 +993,69 @@ describe("When redactUrlSecretsInError runs", () => {
       redactUrlSecretsInError(error);
 
       assert.equal(error.message, "both: [REDACTED]");
+    });
+  });
+
+  describe("with such an AggregateError of 40 errors inside another", () => {
+    it("should hide all 40 URLs in the message of the inner one", () => {
+      const inner = quotingAggregateError(40);
+
+      redactUrlSecretsInError(new AggregateError([inner], "All requests failed"));
+
+      assert.equal(inner.message, redactedMessage(40));
+    });
+
+    it("should leave no credential in the stack of the inner one", () => {
+      const inner = quotingAggregateError(40);
+
+      redactUrlSecretsInError(new AggregateError([inner], "All requests failed"));
+
+      assert.doesNotMatch(`${inner.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs below a wrapper and a cause", () => {
+      const inner = quotingAggregateError(40);
+      const wrapper = new Error(`retry failed: ${inner.message}`, { cause: inner });
+      const error = new Error("sync failed", {
+        cause: new AggregateError([wrapper], "All retries failed"),
+      });
+
+      redactUrlSecretsInError(error);
+
+      assert.deepEqual(
+        [wrapper.message, inner.message],
+        [`retry failed: ${redactedMessage(40)}`, redactedMessage(40)]
+      );
+      assert.doesNotMatch(`${wrapper.stack}\n${inner.stack}`, INVALID_URL_CREDENTIAL);
+    });
+
+    it("should hide all 40 URLs in redactUrlSecretsInErrorMessage", () => {
+      const inner = quotingAggregateError(40);
+      const error = new AggregateError([inner], `All requests failed: ${inner.message}`);
+
+      assert.equal(
+        redactUrlSecretsInErrorMessage(error),
+        `All requests failed: ${redactedMessage(40)}`
+      );
+    });
+
+    // 24,300 errors below the one passed in, with 12,000 URLs among them: split
+    // and join over every text for each error, quadratic in the count, would
+    // take over ten seconds; a matcher built for each error, longer still.
+    it("should finish quickly for 300 of them", () => {
+      const inners = Array.from({ length: 300 }, (_, index) =>
+        quotingAggregateError(40, index * 40)
+      );
+      const error = new AggregateError(inners, "All requests failed");
+
+      const startedAt = performance.now();
+      redactUrlSecretsInError(error);
+
+      assert.ok(performance.now() - startedAt < 10_000);
+      assert.equal(
+        inners.every(inner => inner.message === redactedMessage(40)),
+        true
+      );
     });
   });
 

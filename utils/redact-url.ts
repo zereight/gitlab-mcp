@@ -47,8 +47,8 @@ export function redactUrlSecretsInText(text: string): string {
  * password cut off at a comma ("http://alice:p/api/v4"), with no "@" for the
  * text redaction to find. The same text is replaced wherever another error
  * of the chain quotes it ("Failed to parse URL from ...", or a wrapper that
- * copies that message): every such text in the error passed in, and in an
- * error below it the first MAX_SHARED_INVALID_URLS and those of its own cause.
+ * copies that message): every such text, in the message and stack of every
+ * error of the chain.
  * A thrown string is returned redacted; other values are returned unchanged.
  */
 export function redactUrlSecretsInError(error: unknown): unknown {
@@ -71,16 +71,12 @@ export function redactUrlSecretsInErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
     return redactUrlSecretsInText(String(error));
   }
-  return redactUrlSecretsInText(withoutInvalidUrls(error.message, error, readErrorChain(error)));
+  return redactUrlSecretsInText(withoutInvalidUrls(error.message, readErrorChain(error)));
 }
 
 const REDACTED = "[REDACTED]";
 // Own enumerable fields of Node's ERR_INVALID_URL, which pino's error serializer copies.
 const INVALID_URL_FIELDS = ["input", "base"] as const;
-// The texts looked for in the message and stack of each error below the one the
-// chain was read from. More would make an AggregateError of many parse failures
-// quadratic; past this, an error still has the texts of its own cause removed.
-const MAX_SHARED_INVALID_URLS = 32;
 
 // The input and base of each ERR_INVALID_URL as first read. A wrapper that quoted
 // them can be redacted after the ERR_INVALID_URL already was.
@@ -88,14 +84,13 @@ const invalidUrlTexts = new WeakMap<Error, readonly string[]>();
 
 interface ErrorChain {
   readonly errors: readonly Error[];
-  // Every input and base in the chain, for the error the chain was read from: an
-  // AggregateError's own message can quote the message of each of its errors.
+  // Every input and base in the chain, for each error of it: an AggregateError's
+  // own message can quote the message of each of its errors, at any depth.
   readonly texts: readonly string[];
   readonly heads: TextHeads | undefined;
-  // Built from `texts` the first time a message or stack may quote one of them.
+  // Built from `texts` the first time a message or stack may quote one of them,
+  // then shared by every error of the chain.
   matcher: TextMatcher | undefined;
-  // The first MAX_SHARED_INVALID_URLS of them, longest first, for each error below it.
-  readonly shared: readonly string[];
 }
 
 function isInvalidUrlError(value: unknown): value is Error & Record<string, unknown> {
@@ -150,7 +145,6 @@ function readErrorChain(root: unknown): ErrorChain {
     texts,
     heads: texts.length > 0 ? buildTextHeads(texts) : undefined,
     matcher: undefined,
-    shared: texts.slice(0, MAX_SHARED_INVALID_URLS).sort(byLengthDescending),
   };
 }
 
@@ -178,52 +172,19 @@ function hideInvalidUrls(error: Error, field: "message" | "stack", chain: ErrorC
   if (typeof value !== "string") {
     return;
   }
-  const hidden = withoutInvalidUrls(value, error, chain);
+  const hidden = withoutInvalidUrls(value, chain);
   if (hidden !== value) {
     setErrorField(error, field, hidden);
   }
 }
 
-function withoutInvalidUrls(text: string, error: Error, chain: ErrorChain): string {
-  if (error === chain.errors[0]) {
-    if (chain.heads === undefined || !mayQuoteText(text, chain.heads)) {
-      return text;
-    }
-    chain.matcher ??= buildTextMatcher(chain.texts);
-    return hideMatchedTexts(text, chain.matcher);
+// One pass to rule out the text, and at most one more to hide what it quotes.
+function withoutInvalidUrls(text: string, chain: ErrorChain): string {
+  if (chain.heads === undefined || !mayQuoteText(text, chain.heads)) {
+    return text;
   }
-  let hidden = text;
-  for (const invalidUrl of withOwnTexts(chain.shared, readInvalidUrlTexts(error.cause))) {
-    if (hidden.includes(invalidUrl)) {
-      hidden = hidden.split(invalidUrl).join(REDACTED);
-    }
-  }
-  return hidden;
-}
-
-// Longest first, so a base that contains the input leaves no tail behind.
-function byLengthDescending(a: string, b: string): number {
-  return b.length - a.length;
-}
-
-// The shared texts, already longest first, with those of an error's own cause
-// merged in. Of two the same length the shared one comes first, as in a stable
-// sort of both lists, without sorting the shared ones again for each error.
-function withOwnTexts(shared: readonly string[], own: readonly string[]): readonly string[] {
-  if (own.length === 0) {
-    return shared;
-  }
-  const rest = [...own].sort(byLengthDescending);
-  const texts: string[] = [];
-  let next = 0;
-  for (const text of shared) {
-    while (next < rest.length && rest[next].length > text.length) {
-      texts.push(rest[next]);
-      next += 1;
-    }
-    texts.push(text);
-  }
-  return texts.concat(rest.slice(next));
+  chain.matcher ??= buildTextMatcher(chain.texts);
+  return hideMatchedTexts(text, chain.matcher);
 }
 
 /**
