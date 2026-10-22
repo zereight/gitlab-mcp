@@ -1,6 +1,6 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,10 +9,10 @@ import { fileURLToPath } from "node:url";
 const RELEASE_SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "release.sh");
 
 // release.sh runs the release at top level, so only the function is sourced.
-function readGetPreviousTag(): string {
+function readFunction(name: string): string {
   const script = fs.readFileSync(RELEASE_SCRIPT, "utf8");
-  const match = /^get_previous_tag\(\) \{\n[\s\S]*?\n\}\n/m.exec(script);
-  assert.ok(match, "get_previous_tag() not found in scripts/release.sh");
+  const match = new RegExp(`^${name}\\(\\) \\{\\n[\\s\\S]*?\\n\\}\\n`, "m").exec(script);
+  assert.ok(match, `${name}() not found in scripts/release.sh`);
   return match[0];
 }
 
@@ -39,9 +39,51 @@ function commitAndTag(cwd: string, tag: string): void {
   git(cwd, "tag", tag);
 }
 
+describe("release.sh release type", () => {
+  const requireReleaseType = readFunction("require_release_type");
+  const usage = "Usage: scripts/release.sh [patch|minor|major]";
+
+  function check(...args: string[]) {
+    return spawnSync(
+      "bash",
+      ["-c", `${requireReleaseType}\nrequire_release_type "$@"`, "_", ...args],
+      { encoding: "utf8" }
+    );
+  }
+
+  test("accepts no argument, patch, minor, and major", () => {
+    for (const args of [[], ["patch"], ["minor"], ["major"]]) {
+      const result = check(...args);
+      assert.strictEqual(result.status, 0, `rejected [${args.join(" ")}]: ${result.stdout}`);
+    }
+  });
+
+  test("rejects other release types and extra arguments with the usage", () => {
+    for (const args of [["Minor"], ["prerelease"], ["2.4.0"], ["--dry-run"], ["minor", "major"]]) {
+      const result = check(...args);
+      assert.strictEqual(result.status, 1, `accepted [${args.join(" ")}]`);
+      assert.ok(result.stdout.includes(usage), result.stdout);
+    }
+  });
+
+  test("the script stops on a bad release type before its other checks", () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "release-type-"));
+    try {
+      const result = spawnSync("bash", [RELEASE_SCRIPT, "minr"], { cwd, encoding: "utf8" });
+      assert.strictEqual(result.status, 1);
+      assert.strictEqual(
+        result.stdout,
+        `❌ Unknown release type: minr\n   ${usage} (default: patch)\n`
+      );
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("release.sh get_previous_tag", () => {
   let repo = "";
-  const getPreviousTag = readGetPreviousTag();
+  const getPreviousTag = readFunction("get_previous_tag");
 
   function previousTag(currentTag: string): string {
     return execFileSync(
