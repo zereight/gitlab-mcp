@@ -117,6 +117,8 @@ export interface ConfiguredGitLabApiUrls {
   readonly urls: string[];
   /** True when at least one entry had userinfo; see apiUrlUserinfoWarning. */
   readonly hadUserinfo: boolean;
+  /** What the startup log prints for each of `urls`; see apiUrlHostnamesForLog. */
+  readonly hostnamesForLog: string[];
 }
 
 /**
@@ -125,31 +127,59 @@ export interface ConfiguredGitLabApiUrls {
  * them would fail every request and echo the password in the error.
  */
 export function parseConfiguredGitLabApiUrls(value: string): ConfiguredGitLabApiUrls {
-  const entries = splitCommaSeparatedUrls(value).map(stripUrlUserinfo);
+  const rawEntries = splitCommaSeparatedUrls(value);
+  const entries = rawEntries.map(stripUrlUserinfo);
+  const urls = entries.map(entry => normalizeGitLabApiUrl(entry.url));
   return {
-    urls: entries.map(entry => normalizeGitLabApiUrl(entry.url)),
+    urls,
     hadUserinfo: entries.some(entry => entry.hadUserinfo),
+    hostnamesForLog: apiUrlHostnamesForLog(rawEntries, urls),
   };
 }
 
+const INVALID_HOSTNAME = "<invalid>";
+
 /**
- * The host name of a configured API URL, for the startup log. A password with a
- * literal comma can be split into two URLs, and "http://alice:12" then reads
+ * The host name of each configured API URL, for the startup log. `rawEntries`
+ * are the entries as split, before userinfo is dropped, and `urls` the URLs
+ * built from them. A password with literal commas can be split into several
+ * URLs: "http://alice:12,http://password:34,http://tail@host" gives
+ * "http://password:34", whose host is part of the password, and no single
+ * entry shows that. The password ends at an "@", so every entry before the last
+ * one with an "@" shows as "<invalid>", even when it is a whole URL of its own.
+ */
+function apiUrlHostnamesForLog(rawEntries: readonly string[], urls: readonly string[]): string[] {
+  let lastWithAt = -1;
+  rawEntries.forEach((entry, index) => {
+    if (entry.includes("@")) {
+      lastWithAt = index;
+    }
+  });
+  return urls.map((url, index) =>
+    index < lastWithAt ? INVALID_HOSTNAME : apiUrlHostnameForLog(url)
+  );
+}
+
+/**
+ * The host name of one configured API URL, for the startup log. A password with
+ * a literal comma can be split into two URLs, and "http://alice:12" then reads
  * the start of the password as a port, which text redaction keeps. The port,
  * userinfo, path, and query are left out. An IPv6 host keeps its brackets.
  * An "@" after the host means the host can be part of a password
  * ("http://sec/ret@host" from "alice:12,http://sec/ret@host"), so it is not shown.
+ * The host of a URL cut out of the middle of a password looks like any other
+ * host here, so the startup log uses the list from parseConfiguredGitLabApiUrls.
  */
 export function apiUrlHostnameForLog(url: string): string {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return "<invalid>";
+    return INVALID_HOSTNAME;
   }
   const atAfterHost =
     parsed.pathname.includes("@") || parsed.search.includes("@") || parsed.hash.includes("@");
-  return parsed.hostname.length === 0 || atAfterHost ? "<invalid>" : parsed.hostname;
+  return parsed.hostname.length === 0 || atAfterHost ? INVALID_HOSTNAME : parsed.hostname;
 }
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);

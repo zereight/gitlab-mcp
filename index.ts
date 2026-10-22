@@ -202,7 +202,6 @@ import {
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
-  apiUrlHostnameForLog,
   apiUrlUserinfoWarning,
   commaSplitHint,
   configuredApiUrlErrors,
@@ -17751,8 +17750,9 @@ function initOAuthClient(): void {
   }
   if (isCleartextRemoteUrl(GITLAB_API_URL)) {
     throw new Error(
-      // The host name only: a port can hold the start of a password (see apiUrlHostnameForLog).
-      `Refusing to send OAuth tokens over cleartext HTTP to http://${apiUrlHostnameForLog(GITLAB_API_URL)}. ` +
+      // The host name only, from the list GITLAB_API_URL is the first of: a port, or a
+      // whole URL split off by a comma, can be part of a password (see parseConfiguredGitLabApiUrls).
+      `Refusing to send OAuth tokens over cleartext HTTP to http://${CONFIGURED_GITLAB_API_URLS.hostnamesForLog[0]}. ` +
         "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
     );
   }
@@ -17800,11 +17800,11 @@ async function runServer() {
       });
     }
 
-    // Host names only. GITLAB_API_URL is GITLAB_API_URLS[0], so it is logged the same way.
-    logger.info(
-      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(apiUrlHostnameForLog).join(", ")}`
-    );
-    logger.info(`Default GitLab API URL: ${apiUrlHostnameForLog(GITLAB_API_URL)}`);
+    // Host names only, decided for the whole list (see parseConfiguredGitLabApiUrls).
+    // GITLAB_API_URL is GITLAB_API_URLS[0], so it is logged the same way.
+    const hostnames = CONFIGURED_GITLAB_API_URLS.hostnamesForLog;
+    logger.info(`Configured GitLab API URLs: ${hostnames.join(", ")}`);
+    logger.info(`Default GitLab API URL: ${hostnames[0]}`);
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);

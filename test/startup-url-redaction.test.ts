@@ -4,6 +4,7 @@ import { once } from "node:events";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { apiUrlUserinfoWarning } from "../utils/url.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SECRET_USER = "fakeuser";
@@ -33,12 +34,20 @@ const SPLIT_PORT_HEAD = "12";
 const SPLIT_PORT_HOST_AND_PORT = "alice:12";
 // Here the second URL is "http://sec/ret@host", whose host "sec" is part of the password.
 const SPLIT_PORT_SLASH_API_URL = "http://alice:12,http://sec/ret@host";
+const SPLIT_PORT_CREDENTIAL_PART = /alice|12/;
+// Two commas in the password "7351,http://pw8y:9573,http://tl3x" give three URLs
+// that all parse; the host of the middle one, "pw8y", is part of the password.
+const THREE_PIECE_API_URL = "http://alice:7351,http://pw8y:9573,http://tl3x@gitlab.example/api/v4";
+const THREE_PIECE_CREDENTIAL_PART = /alice|pw8y|7351|9573|tl3x/;
 const OAUTH_ENV = { GITLAB_USE_OAUTH: "true", GITLAB_OAUTH_CLIENT_ID: "fake-client-id" };
 const OAUTH_CLEARTEXT_ERROR = "Refusing to send OAuth tokens over cleartext HTTP";
+const OAUTH_USERINFO_API_URL = "http://carol:Qm4v8@gitlab.example/api/v4";
+const OAUTH_USERINFO_CREDENTIAL_PART = /carol|Qm4v8/;
 const PORTS_AND_IPV6_API_URL =
   "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4";
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
 const USERINFO_WARNING = "GITLAB_API_URL contains a username or password before the host";
+const USERINFO_WARNING_TEXT = apiUrlUserinfoWarning("GITLAB_API_URL");
 const CONFIGURED_URLS_PREFIX = "Configured GitLab API URLs: ";
 const DEFAULT_URL_PREFIX = "Default GitLab API URL: ";
 
@@ -203,6 +212,25 @@ function logMessage(stderr: string, prefix: string): string {
   return "";
 }
 
+// eslint-disable-next-line no-control-regex
+const COLOR_CODE_PATTERN = /\u001b\[\d+m/g;
+const LOG_PREFIX_PATTERN = /^[A-Z]+ \[[\d:.]+\] \(\d+\): /;
+const STACK_FRAME_PATTERN = /^\s*at /;
+
+// The text of each stderr line without color codes, level, time, and pid, and
+// without stack frames: those hold digits whatever the configured URL is.
+function logTexts(stderr: string): string[] {
+  return stderr
+    .split("\n")
+    .map(line => line.replace(COLOR_CODE_PATTERN, "").replace(LOG_PREFIX_PATTERN, ""))
+    .filter(text => !STACK_FRAME_PATTERN.test(text));
+}
+
+// The texts that match `part`, except the userinfo warning, whose wording has "password".
+function textsWithCredentialPart(stderr: string, part: RegExp): string[] {
+  return logTexts(stderr).filter(text => text !== USERINFO_WARNING_TEXT && part.test(text));
+}
+
 describe("When the stdio server starts", () => {
   describe("with credentials in GITLAB_API_URL", () => {
     it("should log only the host name of the configured URL", async () => {
@@ -247,12 +275,13 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a later slashless URL in GITLAB_API_URL", () => {
-    it("should log only the host name of each configured URL", async () => {
+    // A URL before one with an "@" could be the start of a password cut off at a comma.
+    it("should log only the host name of the URL with the userinfo", async () => {
       const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
 
       assert.equal(
         logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: gitlab.example, other.example"
+        "Configured GitLab API URLs: <invalid>, other.example"
       );
     });
 
@@ -387,20 +416,23 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a password comma that splits the value into two URLs", () => {
-    // "alice" is the host of the first URL, so it is logged; the port is not.
-    it("should log only the host name of each URL", async () => {
+    // The second URL has an "@", so the first one, whose host is the user name, is not logged.
+    it("should log only the host name of the URL with the @", async () => {
       const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
 
       assert.equal(
         logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: alice, host"
+        "Configured GitLab API URLs: <invalid>, host"
       );
     });
 
-    it("should log only the host name of the default URL", async () => {
+    it("should not log the host name of the default URL", async () => {
       const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
 
-      assert.equal(logMessage(logs.stderr, DEFAULT_URL_PREFIX), "Default GitLab API URL: alice");
+      assert.equal(
+        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
+        "Default GitLab API URL: <invalid>"
+      );
     });
 
     it("should omit the start of the password from the URL logs", async () => {
@@ -424,13 +456,39 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a password comma and slash that split the value into two URLs", () => {
-    it("should not log the host of the URL that has an @ after its host", async () => {
+    it("should not log the host of the URL that has an @ after its host, or before it", async () => {
       const logs = await captureStartupLogsAsync(SPLIT_PORT_SLASH_API_URL);
 
       assert.equal(
         logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: alice, <invalid>"
+        "Configured GitLab API URLs: <invalid>, <invalid>"
       );
+    });
+  });
+
+  describe("with two password commas that split the value into three URLs", () => {
+    it("should log only the host name of the URL with the @", async () => {
+      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
+        "Configured GitLab API URLs: <invalid>, <invalid>, gitlab.example"
+      );
+    });
+
+    it("should not log the host name of the default URL", async () => {
+      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
+
+      assert.equal(
+        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
+        "Default GitLab API URL: <invalid>"
+      );
+    });
+
+    it("should omit every part of the credential from the log lines", async () => {
+      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
+
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, THREE_PIECE_CREDENTIAL_PART), []);
     });
   });
 
@@ -441,29 +499,69 @@ describe("When the stdio server starts", () => {
         exitMarker: OAUTH_CLEARTEXT_ERROR,
       });
 
-    it("should refuse cleartext HTTP and name only the host", async () => {
+    it("should refuse cleartext HTTP without naming the host", async () => {
       const logs = await captureOAuthLogsAsync();
 
       assert.equal(
-        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://alice. Use an https://`),
+        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://<invalid>. Use an https://`),
         true
       );
     });
 
-    // Timestamps and the pid hold digits too, so only the text after "alice" is checked.
-    it("should omit the start of the password from the output", async () => {
+    it("should omit the user name and the start of the password from the output", async () => {
       const logs = await captureOAuthLogsAsync();
-      const output = `${logs.stdout}\n${logs.stderr}`;
-      const afterHost = output
-        .split("\n")
-        .filter(line => line.includes("alice"))
-        .map(line => line.slice(line.indexOf("alice")));
 
-      assert.equal(output.includes(SPLIT_PORT_HOST_AND_PORT), false);
+      assert.equal(`${logs.stdout}\n${logs.stderr}`.includes(SPLIT_PORT_HOST_AND_PORT), false);
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, SPLIT_PORT_CREDENTIAL_PART), []);
+    });
+  });
+
+  describe("with OAuth and two password commas that split the value into three URLs", () => {
+    const captureOAuthLogsAsync = () =>
+      captureStartupLogsAsync(THREE_PIECE_API_URL, {
+        extraEnv: OAUTH_ENV,
+        exitMarker: OAUTH_CLEARTEXT_ERROR,
+      });
+
+    it("should refuse cleartext HTTP without naming the host", async () => {
+      const logs = await captureOAuthLogsAsync();
+
       assert.equal(
-        afterHost.some(text => text.includes(SPLIT_PORT_HEAD)),
-        false
+        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://<invalid>. Use an https://`),
+        true
       );
+    });
+
+    it("should omit every part of the credential from the log lines", async () => {
+      const logs = await captureOAuthLogsAsync();
+
+      assert.equal(logs.stdout, "");
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, THREE_PIECE_CREDENTIAL_PART), []);
+    });
+  });
+
+  describe("with OAuth and credentials in a cleartext GITLAB_API_URL", () => {
+    const captureOAuthLogsAsync = () =>
+      captureStartupLogsAsync(OAUTH_USERINFO_API_URL, {
+        extraEnv: OAUTH_ENV,
+        exitMarker: OAUTH_CLEARTEXT_ERROR,
+      });
+
+    // The only URL has the @, so its host is not part of a password and is shown.
+    it("should refuse cleartext HTTP and name the host", async () => {
+      const logs = await captureOAuthLogsAsync();
+
+      assert.equal(
+        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://gitlab.example. Use an https://`),
+        true
+      );
+    });
+
+    it("should omit the user name and password from the log lines", async () => {
+      const logs = await captureOAuthLogsAsync();
+
+      assert.equal(logs.stdout, "");
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, OAUTH_USERINFO_CREDENTIAL_PART), []);
     });
   });
 
