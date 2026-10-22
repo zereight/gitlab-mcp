@@ -38,6 +38,19 @@ describe("When MCP tool descriptions are exposed", () => {
     });
   });
 
+  describe("with protected branch tools", () => {
+    it("should send rule changes to update_protected_branch instead of protect_branch", () => {
+      const protect = getExposedTool("protect_branch").description;
+      assert.match(protect, /409[\s\S]*update_protected_branch/);
+      assert.doesNotMatch(protect, /create or update/i);
+      assert.match(getExposedTool("unprotect_branch").description, /update_protected_branch/);
+      assert.match(
+        getExposedTool("update_protected_branch").description,
+        /get_protected_branch[\s\S]*_destroy/
+      );
+    });
+  });
+
   describe("with list_issues", () => {
     it("should include issue-management guidance and omit group_id", () => {
       const tool = getExposedTool("list_issues");

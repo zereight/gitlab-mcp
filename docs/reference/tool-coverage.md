@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 276 |
-| Invoked | 175 |
-| Coverage | 63.4% |
+| Tools | 277 |
+| Invoked | 176 |
+| Coverage | 63.5% |
 
 ## By toolset
 
@@ -18,7 +18,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | --- | ---: | ---: | ---: |
 | [Projects & Namespaces](#projects) | 9 | 11 | 81.8% |
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
-| [Branches & Commits](#branches) | 6 | 15 | 40.0% |
+| [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
 | [Merge Requests](#merge_requests) | 14 | 46 | 30.4% |
 | [Issues](#issues) | 11 | 24 | 45.8% |
@@ -80,6 +80,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_protected_branches`](../tools/branches.md#list_protected_branches) — `test/test-protected-branches.ts`
 - [x] [`get_protected_branch`](../tools/branches.md#get_protected_branch) — `test/test-protected-branches.ts`
 - [x] [`protect_branch`](../tools/branches.md#protect_branch) — `test/test-protected-branches.ts`
+- [x] [`update_protected_branch`](../tools/branches.md#update_protected_branch) — `test/test-permission-mode.ts`, `test/test-protected-branches.ts`
 - [x] [`unprotect_branch`](../tools/branches.md#unprotect_branch) — `test/test-permission-mode.ts`, `test/test-protected-branches.ts`
 - [x] [`update_default_branch`](../tools/branches.md#update_default_branch) — `test/test-protected-branches.ts`
 - [ ] [`list_commits`](../tools/branches.md#list_commits)

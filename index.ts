@@ -362,6 +362,7 @@ import {
   GetProtectedBranchSchema,
   ListProtectedBranchesSchema,
   ProtectBranchSchema,
+  UpdateProtectedBranchSchema,
   UnprotectBranchSchema,
   UpdateDefaultBranchSchema,
   DeleteDraftNoteSchema,
@@ -15789,6 +15790,66 @@ async function handleToolCall(params: any) {
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
           method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedBranchSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "update_protected_branch": {
+        const args = UpdateProtectedBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_branches/${encodeGitLabPathSegment(args.branch_name)}`
+        );
+
+        const body: Record<string, unknown> = {};
+        if (args.allow_force_push !== undefined) body.allow_force_push = args.allow_force_push;
+        if (args.code_owner_approval_required !== undefined)
+          body.code_owner_approval_required = args.code_owner_approval_required;
+        if (args.allowed_to_push?.length) body.allowed_to_push = args.allowed_to_push;
+        if (args.allowed_to_merge?.length) body.allowed_to_merge = args.allowed_to_merge;
+        if (args.allowed_to_unprotect?.length)
+          body.allowed_to_unprotect = args.allowed_to_unprotect;
+
+        // GitLab docs: keep at least one unprotect grant, or the rule can no longer be
+        // changed or removed. Only requests that destroy an unprotect record pay for this GET.
+        // Best-effort preflight: PATCH has no conditional update, so a change made to the
+        // rule between this GET and the PATCH is not detected.
+        if (args.allowed_to_unprotect?.some(entry => entry._destroy === true)) {
+          const destroyedIds = new Set(
+            args.allowed_to_unprotect
+              .filter(entry => entry._destroy === true)
+              .map(entry => entry.id)
+          );
+          const currentResponse = await fetch(url.toString(), {
+            ...getFetchConfig(),
+          });
+          await handleGitLabError(currentResponse);
+          const current = GitLabProtectedBranchSchema.parse(await currentResponse.json());
+          // Records without an id cannot be destroyed by id, so they stay.
+          const kept = (current.unprotect_access_levels ?? []).filter(
+            record => record.id === undefined || !destroyedIds.has(record.id)
+          ).length;
+          // Entries with an id change an existing record; only entries without one add a grant.
+          const added = args.allowed_to_unprotect.filter(
+            entry => entry._destroy !== true && entry.id === undefined
+          ).length;
+          if (kept + added === 0) {
+            throw new ToolInputError(
+              `Refusing to update protected branch '${args.branch_name}': this request would remove every allowed_to_unprotect record, and GitLab advises keeping at least one so the rule can still be changed or removed. Keep one existing record or add a replacement entry in the same request.`
+            );
+          }
+        }
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "PATCH",
           body: JSON.stringify(body),
         });
 

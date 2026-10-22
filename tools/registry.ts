@@ -54,6 +54,7 @@ import {
   GetProtectedBranchSchema,
   ListProtectedBranchesSchema,
   ProtectBranchSchema,
+  UpdateProtectedBranchSchema,
   ProtectTagSchema,
   UnprotectBranchSchema,
   UnprotectTagSchema,
@@ -396,6 +397,12 @@ export const allTools = [
     name: "protect_branch",
     description: "Protect a repository branch (set push/merge/unprotect access levels)",
     inputSchema: toJSONSchema(ProtectBranchSchema),
+  },
+  {
+    name: "update_protected_branch",
+    description:
+      "Update an existing protected branch rule in place (access levels, force push, code owner approval)",
+    inputSchema: toJSONSchema(UpdateProtectedBranchSchema),
   },
   {
     name: "unprotect_branch",
@@ -1946,6 +1953,9 @@ export const destructiveTools = new Set([
   "delete_branch",
   "unprotect_branch",
   "protect_branch",
+  // Can loosen protection (force push, wider access). Not in deleteTools: the rule stays,
+  // and modify mode needs an in-place update because unprotect_branch is blocked there.
+  "update_protected_branch",
   "unprotect_tag",
   "protect_tag",
   "update_default_branch",
@@ -2299,6 +2309,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_protected_branches",
       "get_protected_branch",
       "protect_branch",
+      "update_protected_branch",
       "unprotect_branch",
       "update_default_branch",
       "list_commits",
