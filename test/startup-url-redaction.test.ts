@@ -35,13 +35,14 @@ const SPLIT_PORT_HOST_AND_PORT = "alice:12";
 // Here the second URL is "http://sec/ret@host", whose host "sec" is part of the password.
 const SPLIT_PORT_SLASH_API_URL = "http://alice:12,http://sec/ret@host";
 const SPLIT_PORT_CREDENTIAL_PART = /alice|12/;
-// Two commas in the password "7351,http://pw8y:9573,http://tail" give three URLs
+// Two commas in the password "7351,http://pw8y:9573,http://tl3x" give three URLs
 // that all parse; the host of the middle one, "pw8y", is part of the password.
-const THREE_PIECE_API_URL = "http://alice:7351,http://pw8y:9573,http://tail@gitlab.example/api/v4";
-const THREE_PIECE_CREDENTIAL_PART = /alice|pw8y|7351|9573/;
+const THREE_PIECE_API_URL = "http://alice:7351,http://pw8y:9573,http://tl3x@gitlab.example/api/v4";
+const THREE_PIECE_CREDENTIAL_PART = /alice|pw8y|7351|9573|tl3x/;
 const OAUTH_ENV = { GITLAB_USE_OAUTH: "true", GITLAB_OAUTH_CLIENT_ID: "fake-client-id" };
 const OAUTH_CLEARTEXT_ERROR = "Refusing to send OAuth tokens over cleartext HTTP";
-const OAUTH_USERINFO_API_URL = "http://u:p@gitlab.example/api/v4";
+const OAUTH_USERINFO_API_URL = "http://carol:Qm4v8@gitlab.example/api/v4";
+const OAUTH_USERINFO_CREDENTIAL_PART = /carol|Qm4v8/;
 const PORTS_AND_IPV6_API_URL =
   "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4";
 const PLAIN_API_URL = "https://gitlab.example.com/api/v4";
@@ -540,17 +541,27 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with OAuth and credentials in a cleartext GITLAB_API_URL", () => {
-    // The only URL has the @, so its host is not part of a password and is shown.
-    it("should refuse cleartext HTTP and name the host", async () => {
-      const logs = await captureStartupLogsAsync(OAUTH_USERINFO_API_URL, {
+    const captureOAuthLogsAsync = () =>
+      captureStartupLogsAsync(OAUTH_USERINFO_API_URL, {
         extraEnv: OAUTH_ENV,
         exitMarker: OAUTH_CLEARTEXT_ERROR,
       });
+
+    // The only URL has the @, so its host is not part of a password and is shown.
+    it("should refuse cleartext HTTP and name the host", async () => {
+      const logs = await captureOAuthLogsAsync();
 
       assert.equal(
         logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://gitlab.example. Use an https://`),
         true
       );
+    });
+
+    it("should omit the user name and password from the log lines", async () => {
+      const logs = await captureOAuthLogsAsync();
+
+      assert.equal(logs.stdout, "");
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, OAUTH_USERINFO_CREDENTIAL_PART), []);
     });
   });
 
