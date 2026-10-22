@@ -116,8 +116,9 @@ a `v2` maintenance branch and a script change when v3.0 ships.
    or major release uses this path. That path skips step 3, so the PR that
    bumps `package.json` must also bump `server.json` (`version`, the npm
    package `version`, and the image tag; the MCP Registry publish fails on a
-   mismatch) and regenerate `.well-known/mcp/server-card.json`
-   (`npx tsx scripts/generate-server-card.ts`).
+   mismatch), regenerate `.well-known/mcp/server-card.json`
+   (`npx tsx scripts/generate-server-card.ts`), and pin the `npx` examples to
+   the previous release.
 3. It syncs the version into `server.json` and
    `.well-known/mcp/server-card.json`, and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good
