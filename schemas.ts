@@ -2404,16 +2404,20 @@ export const UpdateProtectedBranchSchema = ProjectParamsSchema.extend({
     .array(protectedBranchAccessEntry)
     .optional()
     .describe(
-      "Push access entries to add, change, or remove. deploy_key_id entries work on Free from GitLab 18.10; access_level, user_id, and group_id entries need PREMIUM"
+      "Push access entries to add, change, or remove. GitLab documents access_level, user_id, and group_id entries as Premium/Ultimate, and deploy_key_id entries as Free from 18.10"
     ),
   allowed_to_merge: z
     .array(protectedBranchAccessEntry)
     .optional()
-    .describe("Merge access entries to add, change, or remove (PREMIUM)"),
+    .describe(
+      "Merge access entries to add, change, or remove. GitLab documents access_level, user_id, and group_id entries as Premium/Ultimate"
+    ),
   allowed_to_unprotect: z
     .array(protectedBranchAccessEntry)
     .optional()
-    .describe("Unprotect access entries to add, change, or remove; 0 is not allowed (PREMIUM)"),
+    .describe(
+      "Unprotect access entries to add, change, or remove; 0 is not allowed. GitLab documents access_level, user_id, and group_id entries as Premium/Ultimate"
+    ),
 })
   .refine(
     args =>

@@ -15819,6 +15819,8 @@ async function handleToolCall(params: any) {
 
         // GitLab docs: keep at least one unprotect grant, or the rule can no longer be
         // changed or removed. Only requests that destroy an unprotect record pay for this GET.
+        // Best-effort preflight: PATCH has no conditional update, so a change made to the
+        // rule between this GET and the PATCH is not detected.
         if (args.allowed_to_unprotect?.some(entry => entry._destroy === true)) {
           const destroyedIds = new Set(
             args.allowed_to_unprotect
