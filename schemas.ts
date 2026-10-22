@@ -2398,7 +2398,7 @@ export const UpdateProtectedBranchSchema = ProjectParamsSchema.extend({
     "Allow users who can push to the branch to force push"
   ),
   code_owner_approval_required: stringBoolean.describe(
-    "Require code owner approval before merging (PREMIUM)"
+    "Require code owner approval before merging. GitLab documents this as Premium/Ultimate"
   ),
   allowed_to_push: z
     .array(protectedBranchAccessEntry)
