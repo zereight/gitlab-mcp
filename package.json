@@ -49,7 +49,6 @@
     "prepare": "npm run build",
     "dev": "npm run build && node build/index.js",
     "watch": "tsc -p tsconfig.build.json --watch",
-    "deploy": "npm publish --access public",
     "changelog": "auto-changelog -p",
     "test": "npm run test:all",
     "test:all": "npm run build && npm run test:mock && npm run test:live",
