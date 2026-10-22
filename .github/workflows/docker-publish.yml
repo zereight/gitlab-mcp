@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Docker image tag (e.g., v2.0.19 or latest)'
+        description: 'Docker image tag (e.g., 2.3.6 or latest)'
         required: true
         default: 'latest'
 
@@ -50,12 +50,17 @@ jobs:
         run: |
           echo "tags=zereight050/gitlab-mcp:${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
 
+      # Provenance and SBOM attestations are pushed with the image, as one
+      # attestation manifest per platform in the image index. Pin
+      # provenance explicitly instead of relying on the action's default.
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: mode=max
+          sbom: true
           tags: ${{ github.event_name == 'release' && steps.meta-release.outputs.tags || steps.meta-manual.outputs.tags }}
 
       - name: Update Docker Hub description

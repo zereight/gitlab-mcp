@@ -73,7 +73,20 @@ Full list:
 ## Tags
 
 - `latest` — latest stable release
-- `vX.Y.Z` — pinned releases, e.g. `zereight050/gitlab-mcp:v2.1.59`
+- `X.Y.Z` — pinned releases, e.g. `zereight050/gitlab-mcp:2.1.59`
+
+## Provenance and SBOM
+
+Release images are multi-platform (`linux/amd64`, `linux/arm64`) and carry a
+build provenance attestation and an SBOM for each platform. Inspect them with
+Docker Buildx 0.10.0 or later:
+
+```bash
+docker buildx imagetools inspect zereight050/gitlab-mcp:<version> --format '{{ json .Provenance }}'
+docker buildx imagetools inspect zereight050/gitlab-mcp:<version> --format '{{ json .SBOM }}'
+```
+
+Images up to 2.3.6 have no SBOM.
 
 ## Links
 
