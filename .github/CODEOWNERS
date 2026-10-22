@@ -22,7 +22,6 @@
 # Release and publish scripts
 /scripts/release.sh                 @zereight
 /scripts/publish_mcp_registry.sh    @zereight
-/scripts/image_push.sh              @zereight
 /scripts/pack-mcpb.sh               @zereight
 /scripts/sync-homebrew-formula.sh   @zereight
 

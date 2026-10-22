@@ -46,8 +46,10 @@ Process:
 4. Check `git log <last tag>..origin/main`. `scripts/release.sh` releases `main`
    as it is, so everything merged since the last tag ships with the hotfix.
    Revert anything that isn't ready.
-5. Cut the release with `scripts/release.sh` and comment on the issue with the
-   published version.
+5. Cut the release with `scripts/release.sh`. There is no local publish: no
+   `npm publish` and no image push from a checkout. If a publish step fails,
+   retry it as described in [How publishing works](#how-publishing-works).
+6. Comment on the issue with the published version.
 
 ## Approval
 
@@ -147,13 +149,13 @@ A pre-release skips them; see [Pre-release builds](#pre-release-builds-next).
 - **`mcpb-release.yml`** packs the Claude Desktop bundle and uploads
   `gitlab-mcp.mcpb` to the GitHub release.
 
-To retry a failed step, re-run the failed workflow run, or dispatch
-`docker-publish.yml`, `mcp-registry-publish.yml`, `mcpb-release.yml`, or
-`homebrew-formula.yml` by hand. Re-running a release's Docker Publish run
-starts the registry publish again once it passes. To dispatch
-`mcp-registry-publish.yml`, set `ref` to the release tag. Don't use
-`manual-release.yml`: it skips the version sync in `scripts/release.sh`, and a
-release it creates with `GITHUB_TOKEN` doesn't start the publish workflows.
+Retry a failed step in GitHub Actions, not from a local checkout: re-run the
+failed workflow run, or dispatch `docker-publish.yml`,
+`mcp-registry-publish.yml`, `mcpb-release.yml`, or `homebrew-formula.yml` by
+hand. `npm-publish.yml` has no manual trigger, so a failed npm publish is
+retried by re-running its run. Re-running a release's Docker Publish run starts
+the registry publish again once it passes. To dispatch
+`mcp-registry-publish.yml`, set `ref` to the release tag.
 
 After a release:
 
