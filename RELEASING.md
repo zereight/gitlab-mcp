@@ -105,20 +105,27 @@ a `v2` maintenance branch and a script change when v3.0 ships.
 
 ## How publishing works
 
-`scripts/release.sh` (`npm run release`) cuts a release:
+`scripts/release.sh` (`npm run release`) cuts a release. Its optional argument
+is the version bump: `patch` (default), `minor`, or `major`, as in
+`scripts/release.sh minor` or `npm run release -- minor`. Any other argument,
+or more than one, prints the usage and stops the script before it checks
+anything.
 
 1. It checks that `gh` is installed, the working tree is clean, the branch is
    `main`, and `HEAD` matches `origin/main`. It refuses to release when no
    commit since the last tag references a PR (`#123`), and exits without a
    release when `HEAD` is already the current tag.
-2. It bumps the patch version (`npm version patch`). If the current version is
-   tagged locally but not on the remote, it releases that tag instead; a minor
-   or major release uses this path. That path skips step 3, so the PR that
-   bumps `package.json` must also bump `server.json` (`version`, the npm
-   package `version`, and the image tag; the MCP Registry publish fails on a
-   mismatch), regenerate `.well-known/mcp/server-card.json`
-   (`npx tsx scripts/generate-server-card.ts`), and pin the `npx` examples to
-   the previous release.
+2. It bumps the version (`npm version patch`, `minor`, or `major`). If the
+   current version is tagged locally but not on the remote, it releases that
+   tag instead, without a bump, and ignores the argument. That path skips the
+   PR-reference check, step 3, and the commit and tag in step 4. Use `minor` or
+   `major` rather than tagging a version by hand: a hand-made tag's commit must
+   also bump `server.json` (`version`, the npm package `version`, and the image
+   tag; the MCP Registry publish fails on a mismatch), regenerate
+   `.well-known/mcp/server-card.json`
+   (`npx tsx scripts/generate-server-card.ts`), pin the `npx` examples to the
+   previous release, regenerate `docs/tools/*.md` with `make docs`, and pass
+   `npm run release:mcp-registry -- --check`.
 3. It syncs the version into `server.json` and
    `.well-known/mcp/server-card.json`, and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good

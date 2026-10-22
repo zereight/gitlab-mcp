@@ -1,6 +1,24 @@
 #!/bin/bash
 set -e
 
+# The optional first argument is the `npm version` bump: patch (default),
+# minor, or major. It is checked first, so a typo never starts a release.
+require_release_type() {
+  if [ "$#" -gt 1 ]; then
+    echo "❌ Expected at most one argument: patch, minor or major"
+  else
+    case "${1-patch}" in
+      patch|minor|major) return 0 ;;
+    esac
+    echo "❌ Unknown release type: $1"
+  fi
+  echo "   Usage: scripts/release.sh [patch|minor|major] (default: patch)"
+  exit 1
+}
+
+require_release_type "$@"
+RELEASE_TYPE="${1-patch}"
+
 # Check if gh CLI is available
 if ! command -v gh >/dev/null 2>&1; then
   echo "❌ gh CLI is required. Install with: brew install gh"
@@ -534,6 +552,9 @@ REMOTE_TAG_EXISTS=$(git ls-remote --tags origin "v$CURRENT_VERSION" 2>/dev/null 
 PREV_TAG=""
 if [ -n "$LOCAL_TAG_EXISTS" ] && [ -z "$REMOTE_TAG_EXISTS" ]; then
   # Local tag exists but not on remote - push it first
+  if [ "$#" -gt 0 ]; then
+    echo "⚠️  Releasing the existing tag v$CURRENT_VERSION; ignoring release type $RELEASE_TYPE."
+  fi
   echo "⚠️  Tag v$CURRENT_VERSION exists locally but not on remote. Pushing..."
   git push origin "v$CURRENT_VERSION"
   NEW_VERSION="$CURRENT_VERSION"
@@ -541,11 +562,11 @@ if [ -n "$LOCAL_TAG_EXISTS" ] && [ -z "$REMOTE_TAG_EXISTS" ]; then
   
 elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   # Tag already exists on remote. Only bump when HEAD actually moved past it —
-  # otherwise a second release.sh run creates an empty patch (blank notes).
+  # otherwise a second release.sh run creates an empty release (blank notes).
   COMMITS_SINCE_TAG=$(git rev-list --count "v${CURRENT_VERSION}..HEAD" 2>/dev/null || echo 0)
   if [ "$COMMITS_SINCE_TAG" = "0" ]; then
     echo "✅ Tag v$CURRENT_VERSION already exists on remote and HEAD has no new commits."
-    echo "   Refusing empty patch bump (would produce blank release notes)."
+    echo "   Refusing empty $RELEASE_TYPE bump (would produce blank release notes)."
     exit 0
   fi
   if ! commits_mention_prs "v${CURRENT_VERSION}"; then
@@ -554,10 +575,10 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
     exit 1
   fi
 
-  echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Bumping patch version..."
+  echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Bumping $RELEASE_TYPE version..."
   PREV_TAG="v$CURRENT_VERSION"
 
-  npm version patch --no-git-tag-version
+  npm version "$RELEASE_TYPE" --no-git-tag-version
 
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
@@ -587,7 +608,7 @@ else
     exit 1
   fi
 
-  npm version patch --no-git-tag-version
+  npm version "$RELEASE_TYPE" --no-git-tag-version
 
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
