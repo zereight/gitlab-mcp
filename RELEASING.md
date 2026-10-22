@@ -142,9 +142,10 @@ A pre-release skips them; see [Pre-release builds](#pre-release-builds-next).
   token. Its `sync-homebrew` job then opens an
   `automation/homebrew-formula` PR that updates
   `Formula/zereight-mcp-gitlab.rb`.
-- **`docker-publish.yml`** builds `linux/amd64` and `linux/arm64` images, pushes
-  `zereight050/gitlab-mcp:<version>` and `latest` to Docker Hub with the
-  `DOCKERHUB_*` secrets, and updates the Docker Hub README.
+- **`docker-publish.yml`** builds `linux/amd64` and `linux/arm64` images with
+  provenance and SBOM attestations, pushes `zereight050/gitlab-mcp:<version>`
+  and `latest` to Docker Hub with the `DOCKERHUB_*` secrets, and updates the
+  Docker Hub README.
 - **`mcp-registry-publish.yml`** starts when the release's Docker Publish run
   succeeds (`workflow_run`), not on the release itself. It checks out the
   release commit, waits until the npm version and the Docker tag are visible,
