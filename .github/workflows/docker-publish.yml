@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Docker image tag (e.g., 2.3.6 or latest)'
+        description: 'Docker image tag without v (e.g., 2.3.6) or latest. Run from the matching release tag.'
         required: true
         default: 'latest'
 
