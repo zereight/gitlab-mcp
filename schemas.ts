@@ -979,7 +979,7 @@ export const GetPipelineJobOutputSchema = z.object({
     .max(500)
     .optional()
     .describe(
-      "Substring to search for in the full job log. When set, the full log is searched and limit and offset are ignored. Empty is treated as omitted. Maximum 500 characters."
+      "Substring to search for in the full job log. When set, the full log (only its last 10,000,000 characters when longer) is searched and limit and offset are ignored. Empty is treated as omitted. Maximum 500 characters."
     ),
   regex: z
     .boolean()

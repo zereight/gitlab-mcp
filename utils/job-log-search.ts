@@ -9,9 +9,13 @@ export const JOB_LOG_MAX_LINE_LENGTH = 4000;
 export const JOB_LOG_SEARCH_BUDGET_MS = 1000;
 // Per-IP rate limits do not cap workers. This does, for the whole process.
 export const JOB_LOG_MAX_ACTIVE_SEARCHES = 2;
+// GitLab Runner cuts traces at output_limit (4 MiB by default), so most logs
+// fit. GitLab accepts logs up to 100 MB; only the end of a longer log is
+// handed to the worker.
+export const JOB_LOG_MAX_SEARCH_CHARS = 10_000_000;
 
-// Headroom for a ~100MB trace and its cleaned copies, still a hard heap cap.
-const JOB_LOG_WORKER_MAX_OLD_GENERATION_MB = 1024;
+// Headroom for a JOB_LOG_MAX_SEARCH_CHARS trace and its cleaned copies.
+const JOB_LOG_WORKER_MAX_OLD_GENERATION_MB = 256;
 const ANSI_ESCAPE_CHARACTER = String.fromCharCode(0x1b);
 const ANSI_ESCAPE_PATTERN = new RegExp(
   `${ANSI_ESCAPE_CHARACTER}(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~])`,
@@ -104,18 +108,20 @@ const SEARCH_WORKER_SOURCE = [
   "  const fragments = merged.windows.map(matchWindow => {",
   "    const lines = [];",
   "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
-  "      lines.push({ lineNumber: offset + 1, text: cleaned[offset] });",
+  "      lines.push({ lineNumber: data.lineOffset + offset + 1, text: cleaned[offset] });",
   "    }",
   "    return {",
-  "      startLine: matchWindow.start + 1,",
-  "      endLine: matchWindow.end + 1,",
-  "      matchLines: matchWindow.matchLines,",
+  "      startLine: data.lineOffset + matchWindow.start + 1,",
+  "      endLine: data.lineOffset + matchWindow.end + 1,",
+  "      matchLines: matchWindow.matchLines.map(lineNumber => data.lineOffset + lineNumber),",
   "      lines,",
   "    };",
   "  });",
   "  return {",
   "    result: {",
-  "      totalLines: cleaned.length,",
+  "      totalLines: data.lineOffset + cleaned.length,",
+  "      firstSearchedLine: data.lineOffset + 1,",
+  "      skippedChars: data.skippedChars,",
   "      totalMatches: matchIndexes.length,",
   "      shownMatches: merged.shownMatches,",
   "      truncated: matchIndexes.length > merged.shownMatches,",
@@ -161,6 +167,9 @@ export interface JobLogFragment {
 
 export interface JobLogSearchResult {
   readonly totalLines: number;
+  // 1 unless the log was over JOB_LOG_MAX_SEARCH_CHARS and only its end was searched.
+  readonly firstSearchedLine: number;
+  readonly skippedChars: number;
   readonly totalMatches: number;
   readonly shownMatches: number;
   readonly truncated: boolean;
@@ -243,6 +252,8 @@ function isSearchResult(value: unknown): value is JobLogSearchResult {
   const fragments = value.fragments;
   return (
     typeof value.totalLines === "number" &&
+    typeof value.firstSearchedLine === "number" &&
+    typeof value.skippedChars === "number" &&
     typeof value.totalMatches === "number" &&
     typeof value.shownMatches === "number" &&
     typeof value.truncated === "boolean" &&
@@ -268,8 +279,44 @@ function releaseSearchWorkerSlot(): void {
   activeSearchWorkers -= 1;
 }
 
+interface BoundedJobLog {
+  readonly text: string;
+  readonly lineOffset: number;
+  readonly skippedChars: number;
+}
+
+function countNewlines(text: string, end: number): number {
+  let count = 0;
+  let index = text.indexOf("\n");
+  while (index !== -1 && index < end) {
+    count += 1;
+    index = text.indexOf("\n", index + 1);
+  }
+  return count;
+}
+
+// Keeps at most JOB_LOG_MAX_SEARCH_CHARS from the end, starting at a line
+// boundary when there is one, so an oversized trace is never cloned into a
+// worker. Skipped lines are counted so line numbers stay absolute.
+function boundJobLog(log: string): BoundedJobLog {
+  if (log.length <= JOB_LOG_MAX_SEARCH_CHARS) {
+    return { text: log, lineOffset: 0, skippedChars: 0 };
+  }
+  const earliestStart = log.length - JOB_LOG_MAX_SEARCH_CHARS;
+  const newline = log.indexOf("\n", earliestStart - 1);
+  // Without a newline that leaves text to search, start mid-line instead.
+  const start = newline === -1 || newline >= log.length - 1 ? earliestStart : newline + 1;
+  return {
+    text: log.slice(start),
+    lineOffset: countNewlines(log, start),
+    skippedChars: start,
+  };
+}
+
 interface JobLogWorkerInput {
   readonly log: string;
+  readonly lineOffset: number;
+  readonly skippedChars: number;
   readonly pattern: string;
   readonly regex: boolean;
   readonly caseSensitive: boolean;
@@ -287,6 +334,8 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
       },
       workerData: {
         log: input.log,
+        lineOffset: input.lineOffset,
+        skippedChars: input.skippedChars,
         pattern: input.pattern,
         regex: input.regex,
         caseSensitive: input.caseSensitive,
@@ -381,10 +430,13 @@ export async function searchJobLog(
     compileRegExp(input.pattern, flags);
   }
 
+  const bounded = boundJobLog(log);
   acquireSearchWorkerSlot();
   try {
     return await executeJobLogSearch({
-      log,
+      log: bounded.text,
+      lineOffset: bounded.lineOffset,
+      skippedChars: bounded.skippedChars,
       pattern: input.pattern,
       regex,
       caseSensitive,
@@ -406,6 +458,11 @@ export function formatJobLogSearch(
   const header = [
     `[Search pattern=${JSON.stringify(input.pattern)} regex=${regex} case_sensitive=${caseSensitive} context_lines=${result.contextLines}; total_lines=${result.totalLines}; total_matches=${result.totalMatches}; shown_matches=${result.shownMatches}; truncated=${result.truncated}. limit and offset are ignored when pattern is set. Line numbers are 1-based from the start of the log.]`,
   ];
+  if (result.skippedChars > 0) {
+    header.push(
+      `[Log is longer than ${JOB_LOG_MAX_SEARCH_CHARS} characters: only the end was searched, from line ${result.firstSearchedLine}; the first ${result.skippedChars} characters were skipped.]`
+    );
+  }
   if (result.linesTruncated) {
     header.push(
       `[Some lines were truncated to ${JOB_LOG_MAX_LINE_LENGTH} characters before matching.]`

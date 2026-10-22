@@ -5,6 +5,7 @@ import {
   JOB_LOG_MAX_ACTIVE_SEARCHES,
   JOB_LOG_MAX_LINE_LENGTH,
   JOB_LOG_MAX_PATTERN_LENGTH,
+  JOB_LOG_MAX_SEARCH_CHARS,
   JOB_LOG_SEARCH_BUDGET_MS,
   JobLogSearchError,
   searchJobLog,
@@ -21,6 +22,15 @@ function nestedQuantifierPattern(): string {
   // Same catastrophic pattern as a literal, spelled at runtime so CodeQL does not flag it.
   const source = [94, 40, 97, 43, 41, 43, 36].map(code => String.fromCharCode(code)).join("");
   return new RegExp(source).source;
+}
+
+// "NEEDLE early", then 100-character filler lines worth exactly the search
+// limit, then "NEEDLE late". Lines 1 and 2 fall before the searched end.
+const OVERSIZED_LOG_LINES = JOB_LOG_MAX_SEARCH_CHARS / 100 + 2;
+
+function oversizedLog(): string {
+  const filler = `${"x".repeat(99)}\n`.repeat(JOB_LOG_MAX_SEARCH_CHARS / 100);
+  return `NEEDLE early\n${filler}NEEDLE late`;
 }
 
 function isTimeLimitError(error: unknown): boolean {
@@ -247,9 +257,68 @@ describe("When searching a job log", () => {
       assert.equal(result.linesTruncated, true);
     });
   });
+
+  describe("with a log exactly at the search character limit", () => {
+    it("should search the whole log", async () => {
+      const log = `NEEDLE\n${"x".repeat(JOB_LOG_MAX_SEARCH_CHARS - "NEEDLE\n".length)}`;
+      const result = await searchJobLog(log, { pattern: "NEEDLE", contextLines: 0 });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [1]);
+      assert.equal(result.firstSearchedLine, 1);
+      assert.equal(result.skippedChars, 0);
+    });
+  });
+
+  describe("with a log over the search character limit", () => {
+    it("should search only the end and keep line numbers from the start of the log", async () => {
+      const log = oversizedLog();
+      const result = await searchJobLog(log, { pattern: "NEEDLE", contextLines: 0 });
+
+      assert.equal(result.totalMatches, 1);
+      assert.deepEqual(result.fragments[0]?.matchLines, [OVERSIZED_LOG_LINES]);
+      assert.equal(result.totalLines, OVERSIZED_LOG_LINES);
+      assert.equal(result.firstSearchedLine, 3);
+      assert.equal(result.skippedChars, "NEEDLE early\n".length + 100);
+      assert.ok(log.length - result.skippedChars <= JOB_LOG_MAX_SEARCH_CHARS);
+    });
+
+    it("should apply the same limit to a regular expression", async () => {
+      const result = await searchJobLog(oversizedLog(), {
+        pattern: "^needle",
+        regex: true,
+        contextLines: 0,
+      });
+
+      assert.equal(result.totalMatches, 1);
+      assert.deepEqual(result.fragments[0]?.matchLines, [OVERSIZED_LOG_LINES]);
+      assert.equal(result.firstSearchedLine, 3);
+    });
+  });
+
+  describe("with a last line longer than the search character limit", () => {
+    it("should start mid-line and keep that line's number", async () => {
+      const log = `head\n${"x".repeat(JOB_LOG_MAX_SEARCH_CHARS + 5)}`;
+      const result = await searchJobLog(log, { pattern: "x", contextLines: 0 });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [2]);
+      assert.equal(result.totalLines, 2);
+      assert.equal(result.firstSearchedLine, 2);
+      assert.equal(result.skippedChars, log.length - JOB_LOG_MAX_SEARCH_CHARS);
+    });
+  });
 });
 
 describe("When formatting a job log search", () => {
+  describe("with a log over the search character limit", () => {
+    it("should say where the search started", async () => {
+      const result = await searchJobLog(oversizedLog(), { pattern: "NEEDLE", contextLines: 0 });
+      const text = formatJobLogSearch(result, { pattern: "NEEDLE" });
+
+      assert.match(text, /only the end was searched, from line 3;/);
+      assert.match(text, new RegExp(`${OVERSIZED_LOG_LINES}\\|NEEDLE late`));
+    });
+  });
+
   describe("with one match", () => {
     it("should include the 1-based line prefix and match totals", async () => {
       const result = await searchJobLog(numberedLog(["a", "b", "c", "ERROR here", "e"]), {
