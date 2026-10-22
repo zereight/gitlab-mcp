@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Docker image tag (e.g., v2.0.19 or latest)'
+        description: 'Docker image tag (e.g., 2.3.6 or latest)'
         required: true
         default: 'latest'
 
