@@ -296,7 +296,7 @@ Then restart the MCP server and invoke any GitLab tool to go through the OAuth f
 
 To revoke the MCP server's access to your GitLab account:
 
-1. Go to your GitLab **Settings** → **Applications**
+1. Go to your GitLab **User Settings** → **Applications**
 2. Find the **Authorized applications** section
 3. Find "GitLab MCP Server" (or whatever name you used)
 4. Click **Revoke**

@@ -412,8 +412,9 @@ flag: `--oauth-disable-refresh-token`.
 Requires `GITLAB_MCP_OAUTH=true`. It applies to every MCP OAuth proxy mode:
 passthrough and callback proxy (`GITLAB_OAUTH_CALLBACK_PROXY=true`), with or
 without `OAUTH_STATELESS_MODE`. It does not affect `GITLAB_USE_OAUTH` (local
-OAuth) or `REMOTE_AUTHORIZATION`. Only callback proxy mode keeps clients from
-getting refresh tokens elsewhere; see [What the flag cannot enforce](#what-the-flag-cannot-enforce).
+OAuth) or `REMOTE_AUTHORIZATION`. The flag is a re-authorization policy for
+standard MCP clients, not a security boundary; see
+[What the flag cannot enforce](#what-the-flag-cannot-enforce).
 
 When enabled:
 
@@ -426,6 +427,9 @@ When enabled:
   then start a new authorization.
 - `/.well-known/oauth-authorization-server` lists only `authorization_code` in
   `grant_types_supported`.
+- Dynamic client registration (`POST /register`) responses drop
+  `refresh_token` from `grant_types` (`authorization_code` when nothing else
+  was requested).
 - One line is logged at startup. Token values are never logged.
 
 When users have to re-authorize: when the GitLab access token expires
@@ -459,16 +463,20 @@ access tokens obtained that way.
 
 - Refresh tokens that GitLab issued before the flag was turned on stay valid at
   GitLab. To cut them off, revoke the application in GitLab under
-  **Settings → Applications → Authorized applications → Revoke** (see
+  **User Settings → Applications → Authorized applications → Revoke** (see
   [Revoking Access](../auth/oauth-setup.md#revoking-access)).
 - In passthrough mode (`GITLAB_OAUTH_CALLBACK_PROXY` unset) the client holds
   the PKCE verifier, and GitLab sends the authorization code to the client's
   own redirect URI. The client can redeem that code at GitLab itself and get a
   refresh token on every authorization, with or without `OAUTH_STATELESS_MODE`.
-  To enforce re-authorization, use callback proxy mode
-  (`GITLAB_OAUTH_CALLBACK_PROXY=true`): the server uses its own PKCE verifier
-  and receives the GitLab code at `/callback`, so the client never sees a
-  GitLab refresh token.
+  In callback proxy mode (`GITLAB_OAUTH_CALLBACK_PROXY=true`) the server uses
+  its own PKCE verifier and receives the GitLab code at `/callback`, so an MCP
+  client that follows this server's flow never gets a GitLab refresh token.
+- In every mode the GitLab application is public, so a signed-in user can run
+  their own PKCE flow against it with one of its redirect URIs (in callback
+  proxy mode, this server's `/callback`) and redeem the code at GitLab. Treat
+  the flag as a re-authorization policy for standard MCP clients, not a
+  security boundary.
 
 ### `ENABLE_DYNAMIC_API_URL`
 
@@ -680,10 +688,10 @@ inactivity window for sealed sids.
 
 This TTL does not make users re-authorize in GitLab: after a sid expires the
 client opens a new session with its current access token, and refresh tokens
-keep that token renewed. To require a new browser authorization when the GitLab
-access token expires, set
-[`OAUTH_DISABLE_REFRESH_TOKEN`](#oauth_disable_refresh_token) with callback
-proxy mode (see [What the flag cannot enforce](#what-the-flag-cannot-enforce)).
+keep that token renewed. To make MCP clients authorize in the browser again
+when the GitLab access token expires, set
+[`OAUTH_DISABLE_REFRESH_TOKEN`](#oauth_disable_refresh_token) (see
+[What the flag cannot enforce](#what-the-flag-cannot-enforce)).
 
 ## Core GitLab Configuration
 
