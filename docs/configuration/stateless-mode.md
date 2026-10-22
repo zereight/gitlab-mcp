@@ -251,6 +251,21 @@ access token expires ──> 401 on /mcp ──> browser authorization again
 A session TTL longer than the token lifetime does not delay the prompt, and a
 shorter one only adds silent re-initializations.
 
+The flag is enforced only at this server's `/token`, with or without stateless
+mode. Two cases get around it, because the client calls GitLab's
+`/oauth/token` directly and this server accepts the access tokens it gets back:
+
+- Refresh tokens that GitLab issued before the flag was turned on stay valid at
+  GitLab until they are revoked under **Settings → Applications → Authorized
+  applications → Revoke**. The flag only rejects them when they are sent to
+  this server, and clients start a new authorization only if they discard
+  their stored tokens on `invalid_grant` (the MCP TypeScript SDK does).
+- Without `GITLAB_OAUTH_CALLBACK_PROXY=true` (passthrough), the client holds
+  the PKCE verifier and receives the GitLab code itself, so it can get a
+  refresh token from GitLab on every authorization. Enforcement requires
+  callback proxy mode. See
+  [What the flag cannot enforce](environment-variables.md#what-the-flag-cannot-enforce).
+
 A sid-only request skips the bearer check (`/oauth/token/info`). After the
 sealed token expires, a client that sends only the sid gets GitLab `401` errors
 in tool results until it sends a Bearer token again (for example after a `404`

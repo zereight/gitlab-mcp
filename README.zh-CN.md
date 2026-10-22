@@ -579,7 +579,7 @@ node build/index.js
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
-| `OAUTH_DISABLE_REFRESH_TOKEN`               | 否   | 设置 `true` 时 `/token` 响应不含 `refresh_token`，refresh grant 以 `invalid_grant` 拒绝；GitLab access token 过期后用户需在浏览器中重新授权。默认 `false`。 |
+| `OAUTH_DISABLE_REFRESH_TOKEN`               | 否   | 设置 `true` 时 `/token` 响应不含 `refresh_token`，refresh grant 以 `invalid_grant` 拒绝；GitLab access token 过期后用户需在浏览器中重新授权。默认 `false`。仅在回调代理模式下强制生效（passthrough 模式下客户端可直接从 GitLab 获取 refresh token）；启用前已发放的 refresh token 在 GitLab **User Settings > Applications** 中撤销前仍然有效。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 
 **重要说明：**

@@ -335,6 +335,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     const resourceName = this._resourceName;
     const stateless = this._stateless;
     const redirectPolicy = this._redirectPolicy;
+    const disableRefreshToken = this._disableRefreshToken;
 
     return {
       getClient: async (clientId: string) => {
@@ -378,7 +379,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       registerClient: async (
         client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">
       ) => {
-        const grantTypes = client.grant_types ?? ["authorization_code"];
+        let grantTypes = client.grant_types ?? ["authorization_code"];
+        if (disableRefreshToken) {
+          // OAUTH_DISABLE_REFRESH_TOKEN: match grant_types_supported in the metadata.
+          const withoutRefresh = grantTypes.filter((gt) => gt !== "refresh_token");
+          grantTypes = withoutRefresh.length > 0 ? withoutRefresh : ["authorization_code"];
+        }
         const redirectUris = client.redirect_uris ?? [];
 
         // Callback proxy mode: GitLab never sees the client's redirect_uri, so
@@ -1026,7 +1032,13 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         return;
       }
 
-      const tokens = OAuthTokensSchema.parse(await tokenResponse.json());
+      let tokens = OAuthTokensSchema.parse(await tokenResponse.json());
+      if (this._disableRefreshToken) {
+        // Drop the refresh_token before it is stored in the LRU or sealed into
+        // the proxy code that travels through the browser.
+        const { refresh_token: _refreshToken, ...withoutRefresh } = tokens;
+        tokens = withoutRefresh;
+      }
 
       // Generate a proxy auth code for the MCP client. Sealed in stateless
       // mode; random UUID + LRU entry in legacy mode.

@@ -16936,7 +16936,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       );
     }
 
-    // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
+    // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set
+    //        or OAUTH_DISABLE_REFRESH_TOKEN is on),
     //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
     // Some proxies include the port in X-Forwarded-For (e.g. "1.2.3.4:5678" or
     // "[2001:db8::1]:5678"), which makes express-rate-limit throw

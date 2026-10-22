@@ -2,9 +2,10 @@
  * OAUTH_DISABLE_REFRESH_TOKEN (#890).
  *
  * With the flag on, the MCP OAuth proxy never renews a GitLab token with a
- * refresh token: issued tokens carry no refresh_token, and the refresh_token
- * grant fails with invalid_grant before GitLab is contacted. With the flag
- * off, both paths behave as before.
+ * refresh token: issued tokens carry no refresh_token (callback proxy mode
+ * drops it before storing or sealing the proxy code), the refresh_token grant
+ * fails with invalid_grant before GitLab is contacted, and DCR responses leave
+ * refresh_token out of grant_types. With the flag off, all paths behave as before.
  *
  * GitLab is stubbed by patching fetch. config.ts reads env and argv at module
  * load, so config parsing runs in child processes (see test/cli/boolean-flags.test.ts).
@@ -21,10 +22,13 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import express from "express";
 import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import { tokenHandler } from "@modelcontextprotocol/sdk/server/auth/handlers/token.js";
-import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type {
+  OAuthClientInformationFull,
+  OAuthTokens,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 
 import { createGitLabOAuthProvider } from "../oauth-proxy.js";
-import { loadKeyMaterialFromEnv } from "../stateless/index.js";
+import { loadKeyMaterialFromEnv, openStoredTokensCode } from "../stateless/index.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.resolve(__dirname, "cli/load-config-snapshot.ts");
@@ -43,14 +47,20 @@ const GITLAB_TOKENS = {
 const MODES = ["passthrough", "callback-proxy", "callback-proxy-stateless"] as const;
 type Mode = (typeof MODES)[number];
 
-function makeProvider(disableRefreshToken: boolean, mode: Mode = "passthrough") {
+const STORED_TTL_SECONDS = 600;
+
+function makeMaterial() {
+  return loadKeyMaterialFromEnv(true, {
+    OAUTH_STATELESS_SECRET: randomBytes(32).toString("base64url"),
+  });
+}
+
+function makeProvider(
+  disableRefreshToken: boolean,
+  mode: Mode = "passthrough",
+  material = mode === "callback-proxy-stateless" ? makeMaterial() : null
+) {
   const callbackProxy = mode !== "passthrough";
-  const material =
-    mode === "callback-proxy-stateless"
-      ? loadKeyMaterialFromEnv(true, {
-          OAUTH_STATELESS_SECRET: randomBytes(32).toString("base64url"),
-        })
-      : null;
   return createGitLabOAuthProvider(
     GITLAB_BASE,
     "gitlab-app-id",
@@ -61,7 +71,12 @@ function makeProvider(disableRefreshToken: boolean, mode: Mode = "passthrough") 
     callbackProxy,
     callbackProxy ? CALLBACK_URL : "",
     material
-      ? { material, clientTtlSeconds: 86400, pendingTtlSeconds: 600, storedTtlSeconds: 600 }
+      ? {
+          material,
+          clientTtlSeconds: 86400,
+          pendingTtlSeconds: 600,
+          storedTtlSeconds: STORED_TTL_SECONDS,
+        }
       : null,
     [CLIENT_REDIRECT],
     disableRefreshToken
@@ -80,7 +95,7 @@ beforeEach(() => {
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const target =
       typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (!target.startsWith(GITLAB_BASE)) {
+    if (new URL(target).origin !== GITLAB_BASE) {
       return originalFetch(input, init);
     }
     const body: Record<string, string> = {};
@@ -148,17 +163,8 @@ function makeCallbackRes() {
   return r;
 }
 
-/** Returns what the MCP client gets back from POST /token (authorization_code). */
-async function issueTokens(provider: Provider, mode: Mode) {
-  if (mode === "passthrough") {
-    const client: OAuthClientInformationFull = {
-      client_id: "mcp-client",
-      redirect_uris: [CLIENT_REDIRECT],
-      token_endpoint_auth_method: "none",
-    };
-    return provider.exchangeAuthorizationCode(client, "gitlab-code", "verifier", CLIENT_REDIRECT);
-  }
-
+/** Runs /authorize and /callback; returns the proxy code sent to the client. */
+async function runCallback(provider: Provider) {
   const registered = await provider.clientsStore.registerClient!({
     redirect_uris: [CLIENT_REDIRECT],
     token_endpoint_auth_method: "none",
@@ -183,6 +189,21 @@ async function issueTokens(provider: Provider, mode: Mode) {
   );
   assert.equal(callbackRes.statusCode, 302, "callback should redirect to the client");
   const proxyCode = new URL(callbackRes.redirectedTo!).searchParams.get("code")!;
+  return { registered, verifier, proxyCode };
+}
+
+/** Returns what the MCP client gets back from POST /token (authorization_code). */
+async function issueTokens(provider: Provider, mode: Mode) {
+  if (mode === "passthrough") {
+    const client: OAuthClientInformationFull = {
+      client_id: "mcp-client",
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    };
+    return provider.exchangeAuthorizationCode(client, "gitlab-code", "verifier", CLIENT_REDIRECT);
+  }
+
+  const { registered, verifier, proxyCode } = await runCallback(provider);
   return provider.exchangeAuthorizationCode(registered, proxyCode, verifier, CLIENT_REDIRECT);
 }
 
@@ -232,6 +253,78 @@ describe("OAUTH_DISABLE_REFRESH_TOKEN — issued tokens", () => {
       const { refresh_token: _refreshToken, ...expected } = GITLAB_TOKENS;
       assert.deepEqual(tokens, expected);
       assert.equal("refresh_token" in tokens, false);
+    });
+  }
+});
+
+describe("OAUTH_DISABLE_REFRESH_TOKEN — tokens held after /callback", () => {
+  // What the proxy code carries before the client redeems it at /token.
+  type StoredTokensView = {
+    _storedTokens: { get(code: string): { tokens: OAuthTokens } | undefined };
+  };
+
+  async function heldTokens(disableRefreshToken: boolean, stateless: boolean) {
+    if (!stateless) {
+      const provider = makeProvider(disableRefreshToken, "callback-proxy");
+      const { proxyCode } = await runCallback(provider);
+      return (provider as unknown as StoredTokensView)._storedTokens.get(proxyCode)?.tokens;
+    }
+    const material = makeMaterial()!;
+    const provider = makeProvider(disableRefreshToken, "callback-proxy-stateless", material);
+    const { proxyCode } = await runCallback(provider);
+    return openStoredTokensCode(material, proxyCode, STORED_TTL_SECONDS)?.t;
+  }
+
+  for (const stateless of [false, true]) {
+    const where = stateless ? "sealed proxy code" : "in-memory LRU";
+
+    test(`off: ${where} keeps GitLab's refresh_token`, async () => {
+      assert.deepEqual(await heldTokens(false, stateless), GITLAB_TOKENS);
+    });
+
+    test(`on: ${where} holds no refresh_token`, async () => {
+      const tokens = await heldTokens(true, stateless);
+      const { refresh_token: _refreshToken, ...expected } = GITLAB_TOKENS;
+      assert.deepEqual(tokens, expected);
+    });
+  }
+});
+
+describe("OAUTH_DISABLE_REFRESH_TOKEN — DCR grant_types", () => {
+  async function register(
+    disableRefreshToken: boolean,
+    mode: Mode,
+    grantTypes: string[] | undefined
+  ) {
+    const provider = makeProvider(disableRefreshToken, mode);
+    const registered = await provider.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+      ...(grantTypes ? { grant_types: grantTypes } : {}),
+    });
+    const stored = await provider.clientsStore.getClient(registered.client_id);
+    return { returned: registered.grant_types, stored: stored?.grant_types };
+  }
+
+  // passthrough uses the in-memory client cache, stateless signs grant_types into client_id.
+  for (const mode of ["passthrough", "callback-proxy-stateless"] as const) {
+    test(`off (${mode}): requested grant_types are kept`, async () => {
+      const both = ["authorization_code", "refresh_token"];
+      assert.deepEqual(await register(false, mode, both), { returned: both, stored: both });
+      assert.deepEqual(await register(false, mode, ["refresh_token"]), {
+        returned: ["refresh_token"],
+        stored: ["refresh_token"],
+      });
+    });
+
+    test(`on (${mode}): refresh_token is removed from grant_types`, async () => {
+      const codeOnly = { returned: ["authorization_code"], stored: ["authorization_code"] };
+      assert.deepEqual(
+        await register(true, mode, ["authorization_code", "refresh_token"]),
+        codeOnly
+      );
+      assert.deepEqual(await register(true, mode, ["refresh_token"]), codeOnly);
+      assert.deepEqual(await register(true, mode, undefined), codeOnly);
     });
   }
 });

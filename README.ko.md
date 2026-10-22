@@ -580,7 +580,7 @@ node build/index.js
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
-| `OAUTH_DISABLE_REFRESH_TOKEN`               | 아니오 | `true`면 `/token` 응답에서 `refresh_token`을 빼고 refresh grant를 `invalid_grant`로 거부합니다. GitLab access token이 만료되면 브라우저에서 다시 인가해야 합니다. 기본 `false`. |
+| `OAUTH_DISABLE_REFRESH_TOKEN`               | 아니오 | `true`면 `/token` 응답에서 `refresh_token`을 빼고 refresh grant를 `invalid_grant`로 거부합니다. GitLab access token이 만료되면 브라우저에서 다시 인가해야 합니다. 기본 `false`. 강제력은 콜백 프록시 모드에서만 보장됩니다(passthrough에서는 클라이언트가 GitLab에서 직접 refresh token을 받을 수 있음). 켜기 전에 발급된 refresh token은 GitLab **User Settings > Applications**에서 revoke할 때까지 유효합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 
 **중요 사항:**
