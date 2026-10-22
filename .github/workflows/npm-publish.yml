@@ -44,12 +44,27 @@ jobs:
         with:
           node-version: "22.22.2"
           registry-url: "https://registry.npmjs.org/"
+      # A re-run of a run that already published must not fail on the
+      # existing version, so the Homebrew sync still runs.
+      - name: Check npm for this version
+        id: published
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if npm view "@zereight/mcp-gitlab@${version}" version >/dev/null 2>&1; then
+            echo "@zereight/mcp-gitlab@${version} is already on npm. Skipping publish."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install dependencies
+        if: steps.published.outputs.exists != 'true'
         run: npm ci --ignore-scripts
       - name: Build
+        if: steps.published.outputs.exists != 'true'
         run: npm run build
       # Trusted publishing needs npm >= 11.5. Avoid `npm install -g` (breaks arborist on this image).
       - name: Publish to npm
+        if: steps.published.outputs.exists != 'true'
         run: npx --yes npm@11.5.2 publish --access public --provenance
 
   sync-homebrew:

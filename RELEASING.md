@@ -153,8 +153,9 @@ Retry a failed step in GitHub Actions, not from a local checkout: re-run the
 failed workflow run, or dispatch `docker-publish.yml`,
 `mcp-registry-publish.yml`, `mcpb-release.yml`, or `homebrew-formula.yml` by
 hand. `npm-publish.yml` has no manual trigger, so a failed npm publish is
-retried by re-running its run. Re-running a release's Docker Publish run starts
-the registry publish again once it passes. To dispatch
+retried by re-running its run; the re-run skips the publish when the version is
+already on npm. Re-running a release's Docker Publish run starts the registry
+publish again once it passes. To dispatch
 `mcp-registry-publish.yml`, set `ref` to the release tag.
 
 After a release:
