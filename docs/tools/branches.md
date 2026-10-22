@@ -14,6 +14,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 - [`list_protected_branches`](#list_protected_branches) — 📖 Read-only
 - [`get_protected_branch`](#get_protected_branch) — 📖 Read-only
 - [`protect_branch`](#protect_branch) — ✏️ Writes
+- [`update_protected_branch`](#update_protected_branch) — ✏️ Writes
 - [`unprotect_branch`](#unprotect_branch) — ✏️ Writes
 - [`update_default_branch`](#update_default_branch) — ✏️ Writes
 - [`list_commits`](#list_commits) — 📖 Read-only
@@ -112,7 +113,7 @@ Get details of a single protected branch (access levels, force push settings). T
 
 *✏️ Writes*
 
-Protect a repository branch (set push/merge/unprotect access levels). Use this to create or update protection rules for a branch or wildcard; use `get_protected_branch` to inspect existing rules first. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission error.
+Protect a repository branch (set push/merge/unprotect access levels). Use this to create a protection rule for a branch or wildcard that has none; it does not update an existing rule (GitLab returns 409 Conflict), so use `get_protected_branch` to check first and `update_protected_branch` to change a rule. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission/conflict error.
 
 **Parameters**
 
@@ -127,11 +128,29 @@ Protect a repository branch (set push/merge/unprotect access levels). Use this t
 | `allow_force_push` | boolean |  | Allow force push to the protected branch. Default: false |
 | `code_owner_approval_required` | boolean |  | Require code owner approval before merging (PREMIUM). Default: false |
 
+### `update_protected_branch`
+
+*✏️ Writes*
+
+Update an existing protected branch rule in place (access levels, force push, code owner approval). Use this to change an existing protection rule for a branch or wildcard in place, so the branch is never left unprotected; use `protect_branch` to create a rule and `get_protected_branch` to read the access level record `id`s first. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add an entry with one of `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change a record with its `id` and the new value; remove one with `{id, _destroy: true}`. For example, `allowed_to_push: [{id: 12, access_level: 0}]` sets that push record to No access. GitLab documents these arrays and `code_owner_approval_required` as Premium and Ultimate; check the returned rule. The operation changes repository security controls, requires maintainer-level permission, and returns the updated rule or a validation, missing-rule, or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `branch_name` | string | ✓ | Name or wildcard pattern of the existing protected branch |
+| `allow_force_push` | boolean |  | Allow users who can push to the branch to force push |
+| `code_owner_approval_required` | boolean |  | Require code owner approval before merging (PREMIUM) |
+| `allowed_to_push` | array<object> |  | Push access entries to add, change, or remove (PREMIUM) |
+| `allowed_to_merge` | array<object> |  | Merge access entries to add, change, or remove (PREMIUM) |
+| `allowed_to_unprotect` | array<object> |  | Unprotect access entries to add, change, or remove; 0 is not allowed (PREMIUM) |
+
 ### `unprotect_branch`
 
 *✏️ Writes*
 
-Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `protect_branch` to change access levels without removing the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.
+Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `update_protected_branch` to change access levels or force push while keeping the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.
 
 **Parameters**
 

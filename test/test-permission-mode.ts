@@ -146,6 +146,7 @@ const MODIFY_SAMPLE_TOOLS = [
   "merge_merge_request",
   "rebase_merge_request",
   "protect_branch",
+  "update_protected_branch",
   "protect_tag",
 ];
 
@@ -663,6 +664,16 @@ describe("Permission Mode", { concurrency: 1 }, () => {
           () => client.callTool("protect_tag", { project_id: "1", tag_name: "v*" }),
           (error: Error) => error.message.includes("not allowed in read-only mode"),
           "protect_tag should be rejected in readonly mode"
+        );
+        await assert.rejects(
+          () =>
+            client.callTool("update_protected_branch", {
+              project_id: "1",
+              branch_name: "main",
+              allow_force_push: false,
+            }),
+          (error: Error) => error.message.includes("not allowed in read-only mode"),
+          "update_protected_branch should be rejected in readonly mode"
         );
         await assert.rejects(
           () => client.callTool("unprotect_tag", { project_id: "1", tag_name: "v*" }),

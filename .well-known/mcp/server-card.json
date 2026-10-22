@@ -765,7 +765,7 @@
     },
     {
       "name": "protect_branch",
-      "description": "Protect a repository branch (set push/merge/unprotect access levels). Use this to create or update protection rules for a branch or wildcard; use `get_protected_branch` to inspect existing rules first. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission error.",
+      "description": "Protect a repository branch (set push/merge/unprotect access levels). Use this to create a protection rule for a branch or wildcard that has none; it does not update an existing rule (GitLab returns 409 Conflict), so use `get_protected_branch` to check first and `update_protected_branch` to change a rule. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission/conflict error.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -815,8 +815,166 @@
       }
     },
     {
+      "name": "update_protected_branch",
+      "description": "Update an existing protected branch rule in place (access levels, force push, code owner approval). Use this to change an existing protection rule for a branch or wildcard in place, so the branch is never left unprotected; use `protect_branch` to create a rule and `get_protected_branch` to read the access level record `id`s first. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add an entry with one of `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change a record with its `id` and the new value; remove one with `{id, _destroy: true}`. For example, `allowed_to_push: [{id: 12, access_level: 0}]` sets that push record to No access. GitLab documents these arrays and `code_owner_approval_required` as Premium and Ultimate; check the returned rule. The operation changes repository security controls, requires maintainer-level permission, and returns the updated rule or a validation, missing-rule, or permission error.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project ID or complete URL-encoded path to project"
+          },
+          "branch_name": {
+            "type": "string",
+            "description": "Name or wildcard pattern of the existing protected branch"
+          },
+          "allow_force_push": {
+            "description": "Allow users who can push to the branch to force push",
+            "type": "boolean"
+          },
+          "code_owner_approval_required": {
+            "description": "Require code owner approval before merging (PREMIUM)",
+            "type": "boolean"
+          },
+          "allowed_to_push": {
+            "description": "Push access entries to add, change, or remove (PREMIUM)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "ID of an existing access level record (from get_protected_branch). Required with _destroy; with a new value it changes that record in place.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "access_level": {
+                  "description": "Role access level (0=No access, 30=Developer, 40=Maintainer, 60=Admin)",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "user_id": {
+                  "description": "ID of a user to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "group_id": {
+                  "description": "ID of a group to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "deploy_key_id": {
+                  "description": "ID of a deploy key to grant push access (allowed_to_push only)",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "_destroy": {
+                  "description": "Set true with id to remove that access level record",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "allowed_to_merge": {
+            "description": "Merge access entries to add, change, or remove (PREMIUM)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "ID of an existing access level record (from get_protected_branch). Required with _destroy; with a new value it changes that record in place.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "access_level": {
+                  "description": "Role access level (0=No access, 30=Developer, 40=Maintainer, 60=Admin)",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "user_id": {
+                  "description": "ID of a user to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "group_id": {
+                  "description": "ID of a group to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "deploy_key_id": {
+                  "description": "ID of a deploy key to grant push access (allowed_to_push only)",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "_destroy": {
+                  "description": "Set true with id to remove that access level record",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "allowed_to_unprotect": {
+            "description": "Unprotect access entries to add, change, or remove; 0 is not allowed (PREMIUM)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "ID of an existing access level record (from get_protected_branch). Required with _destroy; with a new value it changes that record in place.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "access_level": {
+                  "description": "Role access level (0=No access, 30=Developer, 40=Maintainer, 60=Admin)",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "user_id": {
+                  "description": "ID of a user to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "group_id": {
+                  "description": "ID of a group to grant access",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "deploy_key_id": {
+                  "description": "ID of a deploy key to grant push access (allowed_to_push only)",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "_destroy": {
+                  "description": "Set true with id to remove that access level record",
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "branch_name"
+        ]
+      }
+    },
+    {
       "name": "unprotect_branch",
-      "description": "Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `protect_branch` to change access levels without removing the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.",
+      "description": "Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `update_protected_branch` to change access levels or force push while keeping the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.",
       "inputSchema": {
         "type": "object",
         "properties": {

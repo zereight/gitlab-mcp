@@ -2360,6 +2360,107 @@ export const ProtectBranchSchema = z.preprocess(
   })
 );
 
+// null → undefined, so entries copied from get_protected_branch (user_id: null, ...) still parse.
+const optionalProtectedBranchRecordId = z.preprocess(
+  val => (val == null ? undefined : val),
+  z.coerce.number().int().positive().optional()
+);
+
+// One allowed_to_push / allowed_to_merge / allowed_to_unprotect entry for PATCH.
+// Add: one of access_level, user_id, group_id, deploy_key_id (push only).
+// Change an existing record: its id plus the new value. Remove: { id, _destroy: true }.
+const protectedBranchAccessEntry = z.object({
+  id: optionalProtectedBranchRecordId.describe(
+    "ID of an existing access level record (from get_protected_branch). Required with _destroy; with a new value it changes that record in place."
+  ),
+  access_level: z
+    .preprocess(val => (val == null ? undefined : val), protectedBranchAccessLevel.optional())
+    .describe("Role access level (0=No access, 30=Developer, 40=Maintainer, 60=Admin)"),
+  user_id: optionalProtectedBranchRecordId.describe("ID of a user to grant access"),
+  group_id: optionalProtectedBranchRecordId.describe("ID of a group to grant access"),
+  deploy_key_id: optionalProtectedBranchRecordId.describe(
+    "ID of a deploy key to grant push access (allowed_to_push only)"
+  ),
+  _destroy: stringBoolean.describe("Set true with id to remove that access level record"),
+});
+
+const PROTECTED_BRANCH_ACCESS_FIELDS = [
+  "allowed_to_push",
+  "allowed_to_merge",
+  "allowed_to_unprotect",
+] as const;
+
+export const UpdateProtectedBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name or wildcard pattern of the existing protected branch"),
+  allow_force_push: stringBoolean.describe(
+    "Allow users who can push to the branch to force push"
+  ),
+  code_owner_approval_required: stringBoolean.describe(
+    "Require code owner approval before merging (PREMIUM)"
+  ),
+  allowed_to_push: z
+    .array(protectedBranchAccessEntry)
+    .optional()
+    .describe("Push access entries to add, change, or remove (PREMIUM)"),
+  allowed_to_merge: z
+    .array(protectedBranchAccessEntry)
+    .optional()
+    .describe("Merge access entries to add, change, or remove (PREMIUM)"),
+  allowed_to_unprotect: z
+    .array(protectedBranchAccessEntry)
+    .optional()
+    .describe("Unprotect access entries to add, change, or remove; 0 is not allowed (PREMIUM)"),
+})
+  .refine(
+    args =>
+      args.allow_force_push !== undefined ||
+      args.code_owner_approval_required !== undefined ||
+      PROTECTED_BRANCH_ACCESS_FIELDS.some(field => (args[field]?.length ?? 0) > 0),
+    { message: "Provide at least one protected branch setting to update" }
+  )
+  .superRefine((args, ctx) => {
+    for (const field of PROTECTED_BRANCH_ACCESS_FIELDS) {
+      args[field]?.forEach((entry, index) => {
+        const path = [field, index];
+        const targets = (["access_level", "user_id", "group_id", "deploy_key_id"] as const).filter(
+          key => entry[key] !== undefined
+        );
+        if (entry._destroy === true && entry.id === undefined) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path, message: "_destroy requires id" });
+        }
+        if (entry._destroy !== true && targets.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path,
+            message:
+              "Set one of access_level, user_id, group_id, deploy_key_id, or id with _destroy: true",
+          });
+        }
+        if (targets.length > 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path,
+            message: `Set only one of access_level, user_id, group_id, deploy_key_id (got ${targets.join(", ")})`,
+          });
+        }
+        if (entry.deploy_key_id !== undefined && field !== "allowed_to_push") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path,
+            message: "deploy_key_id is only valid in allowed_to_push",
+          });
+        }
+        if (entry.access_level === 0 && field === "allowed_to_unprotect") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path,
+            message: "access_level 0 (No access) is not valid for allowed_to_unprotect",
+          });
+        }
+      });
+    }
+  });
+
 export const UnprotectBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the protected branch to unprotect"),
 });
@@ -2370,8 +2471,11 @@ export const UpdateDefaultBranchSchema = ProjectParamsSchema.extend({
 });
 
 export const GitLabProtectedBranchAccessLevelSchema = z.object({
+  // Record id: update_protected_branch takes it to change or remove this entry
+  id: z.number().optional(),
   access_level: z.number().nullable().optional(),
   access_level_description: z.string().optional(),
+  deploy_key_id: z.number().nullable().optional(),
   // GitLab returns null for role-based access levels (not user-/group-specific)
   user_id: z.number().nullable().optional(),
   group_id: z.number().nullable().optional(),
