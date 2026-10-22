@@ -163,7 +163,10 @@ retried by re-running its run; the re-run skips the publish when the version is
 already on npm. A release runs the workflow file at its tag, so the skip only
 applies to releases tagged after it was added. Re-running a release's Docker
 Publish run starts the registry publish again once it passes. To dispatch
-`mcp-registry-publish.yml`, set `ref` to the release tag.
+`docker-publish.yml` or `mcp-registry-publish.yml`, set `ref` to the release
+tag, as in `gh workflow run docker-publish.yml --ref v2.3.6 -f tag=2.3.6`.
+Dispatched from `main`, Docker Publish builds `main` and overwrites the release
+image.
 
 After a release:
 
