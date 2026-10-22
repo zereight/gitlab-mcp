@@ -45,11 +45,19 @@ jobs:
           node-version: "22.22.2"
           registry-url: "https://registry.npmjs.org/"
       # A re-run of a run that already published must not fail on the
-      # existing version, so the Homebrew sync still runs.
+      # existing version, so the Homebrew sync still runs. The tag must match
+      # package.json first: a tag on an unbumped commit would otherwise find
+      # the previous version on npm and skip the publish.
       - name: Check npm for this version
         id: published
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           version="$(node -p 'require("./package.json").version')"
+          if [ "$version" != "${RELEASE_TAG#v}" ]; then
+            echo "::error::package.json version ${version} does not match release tag ${RELEASE_TAG}."
+            exit 1
+          fi
           if npm view "@zereight/mcp-gitlab@${version}" version >/dev/null 2>&1; then
             echo "@zereight/mcp-gitlab@${version} is already on npm. Skipping publish."
             echo "exists=true" >> "$GITHUB_OUTPUT"
