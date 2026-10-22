@@ -113,7 +113,11 @@ a `v2` maintenance branch and a script change when v3.0 ships.
    release when `HEAD` is already the current tag.
 2. It bumps the patch version (`npm version patch`). If the current version is
    tagged locally but not on the remote, it releases that tag instead; a minor
-   or major release uses this path.
+   or major release uses this path. That path skips step 3, so the PR that
+   bumps `package.json` must also bump `server.json` (`version`, the npm
+   package `version`, and the image tag; the MCP Registry publish fails on a
+   mismatch) and regenerate `.well-known/mcp/server-card.json`
+   (`npx tsx scripts/generate-server-card.ts`).
 3. It syncs the version into `server.json` and
    `.well-known/mcp/server-card.json`, and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good
@@ -154,8 +158,9 @@ failed workflow run, or dispatch `docker-publish.yml`,
 `mcp-registry-publish.yml`, `mcpb-release.yml`, or `homebrew-formula.yml` by
 hand. `npm-publish.yml` has no manual trigger, so a failed npm publish is
 retried by re-running its run; the re-run skips the publish when the version is
-already on npm. Re-running a release's Docker Publish run starts the registry
-publish again once it passes. To dispatch
+already on npm. A release runs the workflow file at its tag, so the skip only
+applies to releases tagged after it was added. Re-running a release's Docker
+Publish run starts the registry publish again once it passes. To dispatch
 `mcp-registry-publish.yml`, set `ref` to the release tag.
 
 After a release:
