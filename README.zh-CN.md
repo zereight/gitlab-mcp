@@ -313,6 +313,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | 可选 | 回调代理模式允许重定向的客户端 callback URL 列表（默认：Claude、ChatGPT、Cursor 和环回地址 callback；用 `defaults,<url>` 追加） |
 | `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）                                                          |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可使用服务器（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
+| `OAUTH_DISABLE_REFRESH_TOKEN` | 可选 | 设置为 `true` 时不发放 refresh token：每当 GitLab access token 过期（2 小时）用户都需在浏览器中重新授权，与会话 TTL 无关 |
 
 当 `STREAMABLE_HTTP=true` 时，服务端 GitLab 凭据（`GITLAB_PERSONAL_ACCESS_TOKEN`、`GITLAB_JOB_TOKEN`、`GITLAB_AUTH_COOKIE_PATH` 或 `GITLAB_USE_OAUTH`）需要 `REMOTE_AUTHORIZATION=true`、`GITLAB_MCP_OAUTH=true` 或 `STREAMABLE_HTTP_AUTH_TOKEN`。
 
@@ -417,6 +418,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
+- `OAUTH_DISABLE_REFRESH_TOKEN`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
 
@@ -577,6 +579,7 @@ node build/index.js
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
+| `OAUTH_DISABLE_REFRESH_TOKEN`               | 否   | 设置 `true` 时 `/token` 响应不含 `refresh_token`，refresh grant 以 `invalid_grant` 拒绝；GitLab access token 过期后用户需在浏览器中重新授权。默认 `false`。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 
 **重要说明：**

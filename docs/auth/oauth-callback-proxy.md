@@ -179,7 +179,13 @@ GITLAB_OAUTH_APP_ID=<app-id>
 # OAUTH_REGISTER_RATE_LIMIT_PER_HOUR=50
 # Optional: client callback URLs to accept in addition to the built-in list
 # GITLAB_OAUTH_ALLOWED_REDIRECT_URIS=defaults,https://mcp.example.com/oauth/callback
+# Optional: no refresh tokens; users re-authorize in the browser when the GitLab access token expires
+# OAUTH_DISABLE_REFRESH_TOKEN=true
 ```
+
+With `OAUTH_DISABLE_REFRESH_TOKEN=true`, the `/token` responses in both diagrams
+above carry no `refresh_token`, and the refresh grant fails with `invalid_grant`.
+See [Environment Variables](../configuration/environment-variables.md#oauth_disable_refresh_token).
 
 In GitLab Admin → Applications:
 - Set the redirect URI to `https://mcp-server.example.com/callback`

@@ -167,6 +167,13 @@ export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
     .filter(Boolean);
   return groups.length > 0 ? groups : undefined;
 })();
+/**
+ * MCP OAuth proxy: reject the refresh_token grant (invalid_grant) and omit
+ * refresh_token from issued tokens, so clients must redo the browser
+ * authorization once the GitLab access token expires.
+ */
+export const OAUTH_DISABLE_REFRESH_TOKEN =
+  getConfig("oauth-disable-refresh-token", "OAUTH_DISABLE_REFRESH_TOKEN") === "true";
 export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 export const ENABLE_DYNAMIC_PROJECT_SCOPE =

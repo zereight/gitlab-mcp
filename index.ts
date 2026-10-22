@@ -33,6 +33,7 @@ import {
   MCP_SERVER_URL,
   NODE_TLS_REJECT_UNAUTHORIZED,
   NO_PROXY,
+  OAUTH_DISABLE_REFRESH_TOKEN,
   OAUTH_STATELESS_CLIENT_TTL_SECONDS,
   OAUTH_STATELESS_MODE,
   OAUTH_STATELESS_PENDING_TTL_SECONDS,
@@ -16198,6 +16199,8 @@ async function startStreamableHTTPServer(): Promise<void> {
     ipKeyGenerator,
     StreamableHTTPServerTransport,
     mcpAuthRouter,
+    createOAuthMetadata,
+    metadataHandler,
     requireBearerAuth,
   } = await loadRemoteHttpStack();
   const app = express();
@@ -16844,9 +16847,13 @@ async function startStreamableHTTPServer(): Promise<void> {
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
       statelessOptions,
-      parseAllowedRedirectUris(GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW)
+      parseAllowedRedirectUris(GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW),
+      OAUTH_DISABLE_REFRESH_TOKEN
     );
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
+    const grantTypesSupported = OAUTH_DISABLE_REFRESH_TOKEN
+      ? ["authorization_code"]
+      : ["authorization_code", "refresh_token"];
 
     // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
     // advertises root-level endpoints. Override to use path-prefixed endpoints.
@@ -16862,7 +16869,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         response_types_supported: ["code"],
         code_challenge_methods_supported: ["S256"],
         token_endpoint_auth_methods_supported: ["client_secret_post", "none"],
-        grant_types_supported: ["authorization_code", "refresh_token"],
+        grant_types_supported: grantTypesSupported,
         scopes_supported: scopesSupported,
         revocation_endpoint_auth_methods_supported: ["client_secret_post"],
       };
@@ -16910,6 +16917,23 @@ async function startStreamableHTTPServer(): Promise<void> {
           resource_name: "GitLab MCP Server",
         });
       });
+    }
+
+    // The SDK's root metadata always lists refresh_token; shadow it with the
+    // same document minus that grant (CORS + GET/OPTIONS kept by metadataHandler).
+    if (!issuerPath && OAUTH_DISABLE_REFRESH_TOKEN) {
+      app.use(
+        "/.well-known/oauth-authorization-server",
+        metadataHandler({
+          ...createOAuthMetadata({
+            provider: oauthProvider,
+            issuerUrl,
+            baseUrl: issuerUrl,
+            scopesSupported,
+          }),
+          grant_types_supported: grantTypesSupported,
+        })
+      );
     }
 
     // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),

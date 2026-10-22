@@ -100,6 +100,9 @@ Cryptography:
 
 CLI arguments take the same names with dashes (e.g. `--oauth-stateless-mode=true`).
 
+None of these TTLs makes users authorize in GitLab again. For that, see
+[Session TTL and GitLab re-authorization](#session-ttl-and-gitlab-re-authorization).
+
 ## Secret rotation
 
 1. Generate `S_new`.
@@ -222,6 +225,37 @@ runs — so refreshed OAuth tokens are validated, and malformed /
 expired sids without an `Authorization` header still reach the
 handler and get `404 Session not found` rather than being masked
 by a `401`.
+
+#### Session TTL and GitLab re-authorization
+
+`OAUTH_STATELESS_SESSION_TTL_SECONDS` limits how long a sid stays usable
+without traffic. It does not make users authorize in GitLab again: after the
+sid expires the client re-initializes with its access token, and when the
+access token expires the client renews it with its refresh token. Neither step
+opens the browser.
+
+To require a new browser authorization, set `OAUTH_DISABLE_REFRESH_TOKEN=true`
+(see [Environment Variables](environment-variables.md#oauth_disable_refresh_token)).
+`POST /token` then returns no `refresh_token` and rejects the refresh grant with
+`invalid_grant`. Users re-authorize when the GitLab access token expires
+(`expires_in`, 2 hours on GitLab), whatever the session TTL is:
+
+```text
+browser authorization ──> access token (expires_in), no refresh_token
+        │
+sid expires (session TTL) ──> 404 ──> re-initialize with the same token, no prompt
+        │
+access token expires ──> 401 on /mcp ──> browser authorization again
+```
+
+A session TTL longer than the token lifetime does not delay the prompt, and a
+shorter one only adds silent re-initializations.
+
+A sid-only request skips the bearer check (`/oauth/token/info`). After the
+sealed token expires, a client that sends only the sid gets GitLab `401` errors
+in tool results until it sends a Bearer token again (for example after a `404`
+or a restart). MCP SDK clients send the Bearer token on every request, so they get
+the `401` from `/mcp` and re-authorize right away.
 
 #### `DELETE /mcp` authentication
 

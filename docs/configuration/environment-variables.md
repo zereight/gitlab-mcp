@@ -402,6 +402,51 @@ Notes:
 - No additional service account credentials are needed.
 - Leave unset to allow any authenticated GitLab user (default behaviour).
 
+### `OAUTH_DISABLE_REFRESH_TOKEN`
+
+Set to `true` to make users authorize in the browser again each time their
+GitLab access token expires, instead of letting the MCP client renew the token
+silently with a refresh token. Default `false`: refresh works as before. CLI
+flag: `--oauth-disable-refresh-token`.
+
+Requires `GITLAB_MCP_OAUTH=true`. It applies to every MCP OAuth proxy mode:
+passthrough and callback proxy (`GITLAB_OAUTH_CALLBACK_PROXY=true`), with or
+without `OAUTH_STATELESS_MODE`. It does not affect `GITLAB_USE_OAUTH` (local
+OAuth) or `REMOTE_AUTHORIZATION`.
+
+When enabled:
+
+- `POST /token` (authorization code grant) returns GitLab's `access_token`,
+  `token_type`, and `expires_in` without `refresh_token`.
+- `POST /token` with `grant_type=refresh_token` fails with `400 invalid_grant`
+  and GitLab is not called. Refresh tokens issued before the flag was turned on
+  are rejected the same way, and MCP clients then start a new authorization.
+- `/.well-known/oauth-authorization-server` lists only `authorization_code` in
+  `grant_types_supported`.
+- One line is logged at startup. Token values are never logged.
+
+When users have to re-authorize: when the GitLab access token expires
+(`expires_in`; GitLab OAuth access tokens are valid for 2 hours). The next
+`/mcp` request with the expired token gets `401`, and the client opens the
+browser authorization again. `OAUTH_STATELESS_SESSION_TTL_SECONDS` and
+`SESSION_TIMEOUT_SECONDS` do not set this interval: after a session expires,
+the client opens a new session with its access token, without a prompt, as
+long as that token is still valid.
+
+Notes:
+
+- GitLab decides whether its own Authorize page is shown again. It can approve
+  the request without a click, for example for applications an administrator
+  marked as trusted. The user always needs a signed-in GitLab browser session.
+- In callback proxy mode the MCP server's consent page is remembered for 30
+  days (see `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`), so it is not shown on every
+  re-authorization.
+- In stateless mode, requests that carry only the `Mcp-Session-Id` (no
+  `Authorization` header) skip the bearer check. For a client that does this,
+  an expired token shows up as GitLab `401` errors in tool results until it
+  sends its Bearer token again. MCP SDK clients send the
+  Bearer token on every request.
+
 ### `ENABLE_DYNAMIC_API_URL`
 
 Set to `true` to allow the GitLab API URL to be supplied per request.
@@ -609,6 +654,12 @@ positive integer, otherwise to the hardcoded default of `3600` seconds.
 Misconfigurations never produce `NaN` — this guarantees the TTL check in
 the stateless codec (`ttlSec > 0` in `checkIat`) always enforces an
 inactivity window for sealed sids.
+
+This TTL does not make users re-authorize in GitLab: after a sid expires the
+client opens a new session with its current access token, and refresh tokens
+keep that token renewed. To require a new browser authorization when the GitLab
+access token expires, set
+[`OAUTH_DISABLE_REFRESH_TOKEN`](#oauth_disable_refresh_token).
 
 ## Core GitLab Configuration
 

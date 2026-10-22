@@ -31,6 +31,8 @@ interface RemoteHttpStack {
   readonly SSEServerTransport: typeof import("@modelcontextprotocol/sdk/server/sse.js").SSEServerTransport;
   readonly StreamableHTTPServerTransport: typeof import("@modelcontextprotocol/sdk/server/streamableHttp.js").StreamableHTTPServerTransport;
   readonly mcpAuthRouter: typeof import("@modelcontextprotocol/sdk/server/auth/router.js").mcpAuthRouter;
+  readonly createOAuthMetadata: typeof import("@modelcontextprotocol/sdk/server/auth/router.js").createOAuthMetadata;
+  readonly metadataHandler: typeof import("@modelcontextprotocol/sdk/server/auth/handlers/metadata.js").metadataHandler;
   readonly requireBearerAuth: typeof import("@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js").requireBearerAuth;
 }
 
@@ -47,6 +49,7 @@ export async function loadRemoteHttpStack(): Promise<RemoteHttpStack> {
     sseModule,
     streamableModule,
     authRouterModule,
+    metadataModule,
     bearerModule,
   ] = await Promise.all([
     import("express"),
@@ -54,6 +57,7 @@ export async function loadRemoteHttpStack(): Promise<RemoteHttpStack> {
     import("@modelcontextprotocol/sdk/server/sse.js"),
     import("@modelcontextprotocol/sdk/server/streamableHttp.js"),
     import("@modelcontextprotocol/sdk/server/auth/router.js"),
+    import("@modelcontextprotocol/sdk/server/auth/handlers/metadata.js"),
     import("@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js"),
   ]);
 
@@ -64,6 +68,8 @@ export async function loadRemoteHttpStack(): Promise<RemoteHttpStack> {
     SSEServerTransport: sseModule.SSEServerTransport,
     StreamableHTTPServerTransport: streamableModule.StreamableHTTPServerTransport,
     mcpAuthRouter: authRouterModule.mcpAuthRouter,
+    createOAuthMetadata: authRouterModule.createOAuthMetadata,
+    metadataHandler: metadataModule.metadataHandler,
     requireBearerAuth: bearerModule.requireBearerAuth,
   };
   return remoteHttpStackCache.current;
