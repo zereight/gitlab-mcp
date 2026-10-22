@@ -59,7 +59,14 @@ describe("release.sh release type", () => {
   });
 
   test("rejects other release types and extra arguments with the usage", () => {
-    for (const args of [["Minor"], ["prerelease"], ["2.4.0"], ["--dry-run"], ["minor", "major"]]) {
+    for (const args of [
+      [""],
+      ["Minor"],
+      ["prerelease"],
+      ["2.4.0"],
+      ["--dry-run"],
+      ["minor", "major"],
+    ]) {
       const result = check(...args);
       assert.strictEqual(result.status, 1, `accepted [${args.join(" ")}]`);
       assert.ok(result.stdout.includes(usage), result.stdout);

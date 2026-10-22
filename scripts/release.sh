@@ -5,7 +5,7 @@ set -e
 # minor, or major. It is checked first, so a typo never starts a release.
 require_release_type() {
   if [ "$#" -le 1 ]; then
-    case "${1:-patch}" in
+    case "${1-patch}" in
       patch|minor|major) return ;;
     esac
   fi
@@ -15,7 +15,7 @@ require_release_type() {
 }
 
 require_release_type "$@"
-RELEASE_TYPE="${1:-patch}"
+RELEASE_TYPE="${1-patch}"
 
 # Check if gh CLI is available
 if ! command -v gh >/dev/null 2>&1; then
