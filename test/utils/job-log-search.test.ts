@@ -10,6 +10,9 @@ import {
   searchJobLog,
 } from "../../utils/job-log-search.js";
 
+// Long enough that even compiled V8 regex code cannot finish inside the budget.
+const NESTED_QUANTIFIER_LOG = `${"a".repeat(34)}!`;
+
 function numberedLog(lines: readonly string[]): string {
   return lines.join("\n");
 }
@@ -18,6 +21,10 @@ function nestedQuantifierPattern(): string {
   // Same catastrophic pattern as a literal, spelled at runtime so CodeQL does not flag it.
   const source = [94, 40, 97, 43, 41, 43, 36].map(code => String.fromCharCode(code)).join("");
   return new RegExp(source).source;
+}
+
+function isTimeLimitError(error: unknown): boolean {
+  return error instanceof JobLogSearchError && error.message.includes("exceeded the time limit");
 }
 
 describe("When searching a job log", () => {
@@ -73,19 +80,44 @@ describe("When searching a job log", () => {
       const pattern = nestedQuantifierPattern();
       const startedAt = Date.now();
       await assert.rejects(
-        () => searchJobLog(`${"a".repeat(26)}X`, { pattern, regex: true }),
-        (error: unknown) => error instanceof JobLogSearchError
+        () => searchJobLog(NESTED_QUANTIFIER_LOG, { pattern, regex: true }),
+        isTimeLimitError
       );
       assert.ok(Date.now() - startedAt < 5000);
+    });
+
+    it("should keep the event loop free for a concurrent search", async () => {
+      let slowSettled = false;
+      const slow = searchJobLog(NESTED_QUANTIFIER_LOG, {
+        pattern: nestedQuantifierPattern(),
+        regex: true,
+      }).then(
+        () => "resolved",
+        (error: unknown) => (isTimeLimitError(error) ? "timed out" : "failed")
+      );
+      void slow.then(() => {
+        slowSettled = true;
+      });
+      try {
+        const startedAt = Date.now();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        const timerDelay = Date.now() - startedAt;
+        const other = await searchJobLog("ready", { pattern: "ready", contextLines: 0 });
+
+        assert.ok(timerDelay < JOB_LOG_SEARCH_BUDGET_MS / 2);
+        assert.equal(other.totalMatches, 1);
+        assert.equal(slowSettled, false);
+      } finally {
+        assert.equal(await slow, "timed out");
+      }
     });
   });
 
   describe("with every search worker busy", () => {
     it("should reject before cloning another log", async () => {
       const pattern = nestedQuantifierPattern();
-      const log = `${"a".repeat(26)}X`;
       const inFlight = Array.from({ length: JOB_LOG_MAX_ACTIVE_SEARCHES }, () =>
-        searchJobLog(log, { pattern, regex: true })
+        searchJobLog(NESTED_QUANTIFIER_LOG, { pattern, regex: true })
       );
       try {
         const startedAt = Date.now();
@@ -103,7 +135,7 @@ describe("When searching a job log", () => {
 
   describe("with an invalid regular expression", () => {
     it("should throw a job log search error", async () => {
-      await await assert.rejects(
+      await assert.rejects(
         () => searchJobLog("log", { pattern: "(", regex: true }),
         (error: unknown) =>
           error instanceof JobLogSearchError &&

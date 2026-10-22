@@ -6,8 +6,10 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 const MOCK_TOKEN = "glpat-mock-token-job-output";
 const TEST_PROJECT_ID = "123";
 const TEST_JOB_ID = "456";
+const BACKTRACKING_JOB_ID = "457";
 const ESC = String.fromCharCode(0x1b);
 const TRACE = [`${ESC}[32mUNIQUE_HEAD${ESC}[0m token`, "middle", "tail only"].join("\n");
+const BACKTRACKING_TRACE = ["start", `${"a".repeat(34)}!`, "end"].join("\n");
 
 interface ToolCallResult {
   readonly isError?: boolean;
@@ -124,6 +126,13 @@ describe("When get_pipeline_job_output reads a job trace", () => {
         res.type("text/plain").send(TRACE);
       }
     );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/jobs/${BACKTRACKING_JOB_ID}/trace`,
+      (_req, res) => {
+        res.type("text/plain").send(BACKTRACKING_TRACE);
+      }
+    );
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
   });
@@ -191,6 +200,24 @@ describe("When get_pipeline_job_output reads a job trace", () => {
 
       assert.equal(result.isError, true);
       assert.match(readToolText(result), /Invalid regular expression/);
+    });
+  });
+
+  describe("with a catastrophically backtracking regular expression", () => {
+    it("should return a time-limit tool error", async () => {
+      const result = await callTool(
+        "get_pipeline_job_output",
+        {
+          project_id: TEST_PROJECT_ID,
+          job_id: BACKTRACKING_JOB_ID,
+          pattern: "(a+)+$",
+          regex: true,
+        },
+        toolEnv()
+      );
+
+      assert.equal(result.isError, true);
+      assert.match(readToolText(result), /Job log search exceeded the time limit/);
     });
   });
 });
