@@ -17,6 +17,7 @@ export const BOOLEAN_CLI_FLAG_NAMES = new Set([
   "allow-unauthenticated-tool-discovery",
   "mcp-trust-proxy",
   "oauth-callback-proxy",
+  "oauth-disable-refresh-token",
   "enable-dynamic-api-url",
   "enable-dynamic-project-scope",
   "enable-strict-project-scope",

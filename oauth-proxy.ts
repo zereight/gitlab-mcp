@@ -122,6 +122,8 @@ const CLIENT_CACHE_MAX_SIZE = 1000;
 const GROUP_MEMBERSHIP_CACHE_MAX_SIZE = 1000;
 const GROUP_MEMBERSHIP_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const GROUP_ACCESS_DENIED_MESSAGE = "Access denied: user is not a member of an allowed group";
+const REFRESH_TOKEN_DISABLED_MESSAGE =
+  "Refresh tokens are disabled on this server (OAUTH_DISABLE_REFRESH_TOKEN); start a new authorization";
 
 function singleQueryParam(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -258,6 +260,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _redirectPolicy: RedirectUriPolicy | null = null;
   private readonly _consent: ConsentGate | null = null;
 
+  // OAUTH_DISABLE_REFRESH_TOKEN: issued tokens carry no refresh_token and the
+  // refresh_token grant is rejected, so the client re-runs the browser
+  // authorization once the GitLab access token expires.
+  private readonly _disableRefreshToken: boolean;
+
   constructor(
     gitlabBaseUrl: string,
     gitlabAppId: string,
@@ -268,7 +275,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     callbackProxyEnabled = false,
     callbackUrl = "",
     stateless: StatelessOAuthOptions | null = null,
-    allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
+    allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS,
+    disableRefreshToken = false
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -283,6 +291,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     this._callbackProxyEnabled = callbackProxyEnabled;
     this._callbackUrl = callbackUrl;
     this._stateless = stateless;
+    this._disableRefreshToken = disableRefreshToken;
 
     if (callbackProxyEnabled && !callbackUrl) {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
@@ -311,6 +320,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           `stored TTL: ${stateless.storedTtlSeconds}s)`
       );
     }
+    if (disableRefreshToken) {
+      logger.info(
+        "OAUTH_DISABLE_REFRESH_TOKEN enabled — refresh_token grant rejected; " +
+          "clients must re-authorize in the browser when the GitLab access token expires"
+      );
+    }
   }
 
   // ---- Client store (local DCR) ------------------------------------------
@@ -320,6 +335,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     const resourceName = this._resourceName;
     const stateless = this._stateless;
     const redirectPolicy = this._redirectPolicy;
+    const disableRefreshToken = this._disableRefreshToken;
 
     return {
       getClient: async (clientId: string) => {
@@ -363,7 +379,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       registerClient: async (
         client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">
       ) => {
-        const grantTypes = client.grant_types ?? ["authorization_code"];
+        let grantTypes = client.grant_types ?? ["authorization_code"];
+        if (disableRefreshToken) {
+          // OAUTH_DISABLE_REFRESH_TOKEN: match grant_types_supported in the metadata.
+          const withoutRefresh = grantTypes.filter((gt) => gt !== "refresh_token");
+          grantTypes = withoutRefresh.length > 0 ? withoutRefresh : ["authorization_code"];
+        }
         const redirectUris = client.redirect_uris ?? [];
 
         // Callback proxy mode: GitLab never sees the client's redirect_uri, so
@@ -723,6 +744,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         reservedProxyCode = null;
       }
 
+      if (this._disableRefreshToken) {
+        // Without a refresh_token the client cannot renew silently and has to
+        // restart authorization once the access token expires.
+        const { refresh_token: _refreshToken, ...withoutRefresh } = tokens;
+        return withoutRefresh;
+      }
       return tokens;
     } catch (err) {
       if (legacyRestorable) {
@@ -808,6 +835,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     scopes?: string[],
     resource?: URL
   ): Promise<OAuthTokens> {
+    if (this._disableRefreshToken) {
+      // invalid_grant makes MCP clients drop stored tokens and restart the
+      // authorization_code flow; GitLab is not contacted.
+      throw new InvalidGrantError(REFRESH_TOKEN_DISABLED_MESSAGE);
+    }
+
     const params = new URLSearchParams({
       grant_type: "refresh_token",
       client_id: this._gitlabAppId,
@@ -999,7 +1032,13 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         return;
       }
 
-      const tokens = OAuthTokensSchema.parse(await tokenResponse.json());
+      let tokens = OAuthTokensSchema.parse(await tokenResponse.json());
+      if (this._disableRefreshToken) {
+        // Drop the refresh_token before it is stored in the LRU or sealed into
+        // the proxy code that travels through the browser.
+        const { refresh_token: _refreshToken, ...withoutRefresh } = tokens;
+        tokens = withoutRefresh;
+      }
 
       // Generate a proxy auth code for the MCP client. Sealed in stateless
       // mode; random UUID + LRU entry in legacy mode.
@@ -1089,6 +1128,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  *                        instead of an in-memory cache, enabling multi-pod deploys.
  * @param allowedRedirectUris  Callback proxy mode only: client redirect URIs that
  *                        may register and receive codes (see oauth-consent.ts).
+ * @param disableRefreshToken  When true, issued tokens omit refresh_token and the
+ *                        refresh_token grant fails with invalid_grant, so clients
+ *                        re-authorize in the browser after access-token expiry.
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
@@ -1100,7 +1142,8 @@ export function createGitLabOAuthProvider(
   callbackProxyEnabled = false,
   callbackUrl = "",
   stateless: StatelessOAuthOptions | null = null,
-  allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS
+  allowedRedirectUris: readonly string[] = DEFAULT_ALLOWED_REDIRECT_URIS,
+  disableRefreshToken = false
 ): GitLabOAuthServerProvider {
   return new GitLabOAuthServerProvider(
     gitlabBaseUrl,
@@ -1112,6 +1155,7 @@ export function createGitLabOAuthProvider(
     callbackProxyEnabled,
     callbackUrl,
     stateless,
-    allowedRedirectUris
+    allowedRedirectUris,
+    disableRefreshToken
   );
 }

@@ -155,6 +155,7 @@ describe("MCP OAuth — Discovery Endpoints", () => {
     assert.ok(body.authorization_endpoint, "Should have authorization_endpoint");
     assert.ok(body.token_endpoint, "Should have token_endpoint");
     assert.ok(body.registration_endpoint, "Should have registration_endpoint");
+    assert.deepStrictEqual(body.grant_types_supported, ["authorization_code", "refresh_token"]);
     console.log("  ✓ AS metadata returned with all required fields");
   });
 
@@ -239,6 +240,10 @@ describe("MCP OAuth — Discovery Endpoints", () => {
       assert.strictEqual(authMetadata.token_endpoint, `${prefixedServerUrl}/token`);
       assert.strictEqual(authMetadata.registration_endpoint, `${prefixedServerUrl}/register`);
       assert.strictEqual(authMetadata.revocation_endpoint, `${prefixedServerUrl}/revoke`);
+      assert.deepStrictEqual(authMetadata.grant_types_supported, [
+        "authorization_code",
+        "refresh_token",
+      ]);
 
       const resourceMetadataRes = await fetch(
         `${mcpBaseUrl}/.well-known/oauth-protected-resource${issuerPath}/mcp`
@@ -254,6 +259,96 @@ describe("MCP OAuth — Discovery Endpoints", () => {
       cleanupServers(scopedServers);
       await prefixedMockGitLab.stop();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test suite: OAUTH_DISABLE_REFRESH_TOKEN on a launched server
+// ---------------------------------------------------------------------------
+
+describe("MCP OAuth — OAUTH_DISABLE_REFRESH_TOKEN", () => {
+  async function withServer(
+    portBase: number,
+    issuerPath: string,
+    run: (mcpBaseUrl: string, serverUrl: string) => Promise<void>
+  ): Promise<void> {
+    const mockGitLab = new MockGitLabServer({
+      port: await findMockServerPort(),
+      validTokens: [MOCK_OAUTH_TOKEN],
+    });
+    await mockGitLab.start();
+    const scopedServers: ServerInstance[] = [];
+    try {
+      const mockGitLabUrl = mockGitLab.getUrl();
+      addOAuthEndpoints(mockGitLab, MOCK_OAUTH_TOKEN, MOCK_CLIENT_ID, mockGitLabUrl);
+      const mcpPort = await findAvailablePort(portBase);
+      const mcpBaseUrl = `http://${HOST}:${mcpPort}`;
+      const serverUrl = `${mcpBaseUrl}${issuerPath}`;
+      scopedServers.push(
+        await launchServer({
+          mode: TransportMode.STREAMABLE_HTTP,
+          port: mcpPort,
+          timeout: 5000,
+          env: {
+            STREAMABLE_HTTP: "true",
+            GITLAB_MCP_OAUTH: "true",
+            GITLAB_OAUTH_APP_ID: "test-oauth-app-id",
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            MCP_SERVER_URL: serverUrl,
+            MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL: "true",
+            OAUTH_DISABLE_REFRESH_TOKEN: "true",
+          },
+        })
+      );
+      await run(mcpBaseUrl, serverUrl);
+    } finally {
+      cleanupServers(scopedServers);
+      await mockGitLab.stop();
+    }
+  }
+
+  test("root MCP_SERVER_URL: AS metadata omits refresh_token, keeps the SDK fields and CORS", async () => {
+    await withServer(MCP_SERVER_PORT_BASE + 75, "", async mcpBaseUrl => {
+      const res = await fetch(`${mcpBaseUrl}/.well-known/oauth-authorization-server`, {
+        headers: { Origin: "https://client.example.com" },
+      });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.headers.get("access-control-allow-origin"), "*");
+      const body = (await res.json()) as Record<string, unknown>;
+      assert.deepStrictEqual(body.grant_types_supported, ["authorization_code"]);
+      assert.strictEqual(body.issuer, `${mcpBaseUrl}/`);
+      assert.strictEqual(body.authorization_endpoint, `${mcpBaseUrl}/authorize`);
+      assert.strictEqual(body.token_endpoint, `${mcpBaseUrl}/token`);
+      assert.strictEqual(body.registration_endpoint, `${mcpBaseUrl}/register`);
+      assert.deepStrictEqual(body.code_challenge_methods_supported, ["S256"]);
+    });
+  });
+
+  test("root MCP_SERVER_URL: refresh_token grant → 400 invalid_grant", async () => {
+    await withServer(MCP_SERVER_PORT_BASE + 75, "", async mcpBaseUrl => {
+      const res = await fetch(`${mcpBaseUrl}/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          client_id: MOCK_CLIENT_ID,
+          refresh_token: "stale-refresh-token",
+        }).toString(),
+      });
+      assert.strictEqual(res.status, 400);
+      const body = (await res.json()) as Record<string, unknown>;
+      assert.strictEqual(body.error, "invalid_grant");
+    });
+  });
+
+  test("path-prefixed MCP_SERVER_URL: AS metadata omits refresh_token", async () => {
+    await withServer(MCP_SERVER_PORT_BASE + 100, "/gitlab-mcp", async (mcpBaseUrl, serverUrl) => {
+      const res = await fetch(`${mcpBaseUrl}/.well-known/oauth-authorization-server/gitlab-mcp`);
+      assert.strictEqual(res.status, 200);
+      const body = (await res.json()) as Record<string, unknown>;
+      assert.deepStrictEqual(body.grant_types_supported, ["authorization_code"]);
+      assert.strictEqual(body.token_endpoint, `${serverUrl}/token`);
+    });
   });
 });
 

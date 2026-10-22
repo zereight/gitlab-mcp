@@ -336,6 +336,7 @@ exchanging credentials with GitLab on behalf of the client.
 | `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS` | optional | Client callback URLs that callback proxy mode will redirect to (default: Claude, ChatGPT, Cursor and loopback callbacks; `defaults,<url>` to add one) |
 | `GITLAB_OAUTH_SCOPES`         | optional | Comma-separated scopes (default: `api,read_api,read_user`)                                                                              |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may use the server (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |
+| `OAUTH_DISABLE_REFRESH_TOKEN` | optional | Set to `true` to issue no refresh tokens: users re-authorize in the browser each time the GitLab access token expires (2 h), regardless of the session TTL |
 
 When `STREAMABLE_HTTP=true`, server-side GitLab credentials (`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, or `GITLAB_USE_OAUTH`) require `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`, or `STREAMABLE_HTTP_AUTH_TOKEN`.
 
@@ -454,6 +455,7 @@ Commonly referenced variables:
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `GITLAB_OAUTH_ALLOWED_REDIRECT_URIS`
 - `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
+- `OAUTH_DISABLE_REFRESH_TOKEN`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
 
@@ -620,6 +622,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | `STREAMABLE_HTTP`                           | Yes      | Must be `true` (SSE is not supported)                                                                                                                                                                               |
 | `GITLAB_OAUTH_SCOPES`                       | No       | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when the effective permission mode is `readonly`). The pre-registered application must be configured with at least these scopes. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | No       | Per-IP rolling limit for Dynamic Client Registration (`POST /register`). Default `20`/hour; range `1`–`1000`. Raise when clients (e.g. multiple IDE windows) hit registration throttling. Not a GitLab API limit. |
+| `OAUTH_DISABLE_REFRESH_TOKEN`               | No       | Set `true` to drop `refresh_token` from `/token` responses and reject the refresh grant with `invalid_grant`, so users re-authorize in the browser when the GitLab access token expires. Default `false`. In callback proxy mode, MCP clients that follow this server's flow never receive a GitLab refresh token (in passthrough the client can get one from GitLab directly). This is a re-authorization policy for standard MCP clients, not a security boundary. Refresh tokens issued before enabling stay valid until revoked in GitLab under **User Settings → Applications → Authorized applications → Revoke**. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No       | Set `true` for local HTTP dev only                                                                                                                                                                                  |
 
 **Important Notes:**

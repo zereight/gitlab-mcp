@@ -37,6 +37,7 @@ run_mock_tests 4 \
   -o -path 'test/oauth-device-flow-tests.ts' \
   -o -path 'test/personal-access-token-file.test.ts' \
   -o -path 'test/config-allowed-groups.test.ts' \
+  -o -path 'test/oauth-disable-refresh-token.test.ts' \
   -o -path 'test/no-proxy-test.ts' \
   -o -path 'test/cli/*.test.ts' \)
 
@@ -63,6 +64,7 @@ run_mock_tests 1 \
   ! -path 'test/oauth-device-flow-tests.ts' \
   ! -path 'test/personal-access-token-file.test.ts' \
   ! -path 'test/config-allowed-groups.test.ts' \
+  ! -path 'test/oauth-disable-refresh-token.test.ts' \
   ! -path 'test/no-proxy-test.ts' \
   ! -path 'test/cli/*'
 
