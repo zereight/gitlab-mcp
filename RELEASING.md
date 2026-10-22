@@ -107,8 +107,9 @@ a `v2` maintenance branch and a script change when v3.0 ships.
 
 `scripts/release.sh` (`npm run release`) cuts a release. Its optional argument
 is the version bump: `patch` (default), `minor`, or `major`, as in
-`scripts/release.sh minor` or `npm run release -- minor`. Any other argument
-prints the usage and stops the script before it checks anything.
+`scripts/release.sh minor` or `npm run release -- minor`. Any other argument,
+or more than one, prints the usage and stops the script before it checks
+anything.
 
 1. It checks that `gh` is installed, the working tree is clean, the branch is
    `main`, and `HEAD` matches `origin/main`. It refuses to release when no
