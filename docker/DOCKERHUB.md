@@ -79,7 +79,7 @@ Full list:
 
 Release images are multi-platform (`linux/amd64`, `linux/arm64`) and carry a
 build provenance attestation and an SBOM for each platform. Inspect them with
-Docker Buildx:
+Docker Buildx 0.10.0 or later:
 
 ```bash
 docker buildx imagetools inspect zereight050/gitlab-mcp:<version> --format '{{ json .Provenance }}'
