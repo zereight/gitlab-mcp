@@ -123,7 +123,8 @@ prints the usage and stops the script before it checks anything.
    tag; the MCP Registry publish fails on a mismatch), regenerate
    `.well-known/mcp/server-card.json`
    (`npx tsx scripts/generate-server-card.ts`), pin the `npx` examples to the
-   previous release, and pass `npm run release:mcp-registry -- --check`.
+   previous release, regenerate `docs/tools/*.md` with `make docs`, and pass
+   `npm run release:mcp-registry -- --check`.
 3. It syncs the version into `server.json` and
    `.well-known/mcp/server-card.json`, and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good

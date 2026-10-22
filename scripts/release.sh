@@ -4,12 +4,14 @@ set -e
 # The optional first argument is the `npm version` bump: patch (default),
 # minor, or major. It is checked first, so a typo never starts a release.
 require_release_type() {
-  if [ "$#" -le 1 ]; then
+  if [ "$#" -gt 1 ]; then
+    echo "❌ Expected at most one argument: patch, minor or major"
+  else
     case "${1-patch}" in
-      patch|minor|major) return ;;
+      patch|minor|major) return 0 ;;
     esac
+    echo "❌ Unknown release type: $1"
   fi
-  echo "❌ Unknown release type: $*"
   echo "   Usage: scripts/release.sh [patch|minor|major] (default: patch)"
   exit 1
 }

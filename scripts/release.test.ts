@@ -58,18 +58,26 @@ describe("release.sh release type", () => {
     }
   });
 
-  test("rejects other release types and extra arguments with the usage", () => {
+  test("rejects other release types with the usage", () => {
+    for (const arg of ["", "Minor", "prerelease", "2.4.0", "--dry-run"]) {
+      const result = check(arg);
+      assert.strictEqual(result.status, 1, `accepted [${arg}]`);
+      assert.ok(result.stdout.startsWith(`❌ Unknown release type: ${arg}\n`), result.stdout);
+      assert.ok(result.stdout.includes(usage), result.stdout);
+    }
+  });
+
+  test("rejects more than one argument with the usage", () => {
     for (const args of [
-      [""],
-      ["Minor"],
-      ["prerelease"],
-      ["2.4.0"],
-      ["--dry-run"],
       ["minor", "major"],
+      ["patch", "patch"],
     ]) {
       const result = check(...args);
       assert.strictEqual(result.status, 1, `accepted [${args.join(" ")}]`);
-      assert.ok(result.stdout.includes(usage), result.stdout);
+      assert.strictEqual(
+        result.stdout,
+        `❌ Expected at most one argument: patch, minor or major\n   ${usage} (default: patch)\n`
+      );
     }
   });
 
