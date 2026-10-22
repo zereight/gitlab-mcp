@@ -15817,6 +15817,34 @@ async function handleToolCall(params: any) {
         if (args.allowed_to_unprotect?.length)
           body.allowed_to_unprotect = args.allowed_to_unprotect;
 
+        // GitLab docs: keep at least one unprotect grant, or the rule can no longer be
+        // changed or removed. Only requests that destroy an unprotect record pay for this GET.
+        if (args.allowed_to_unprotect?.some(entry => entry._destroy === true)) {
+          const destroyedIds = new Set(
+            args.allowed_to_unprotect
+              .filter(entry => entry._destroy === true)
+              .map(entry => entry.id)
+          );
+          const currentResponse = await fetch(url.toString(), {
+            ...getFetchConfig(),
+          });
+          await handleGitLabError(currentResponse);
+          const current = GitLabProtectedBranchSchema.parse(await currentResponse.json());
+          // Records without an id cannot be destroyed by id, so they stay.
+          const kept = (current.unprotect_access_levels ?? []).filter(
+            record => record.id === undefined || !destroyedIds.has(record.id)
+          ).length;
+          // Entries with an id change an existing record; only entries without one add a grant.
+          const added = args.allowed_to_unprotect.filter(
+            entry => entry._destroy !== true && entry.id === undefined
+          ).length;
+          if (kept + added === 0) {
+            throw new ToolInputError(
+              `Refusing to update protected branch '${args.branch_name}': this request would remove every allowed_to_unprotect record, and GitLab advises keeping at least one so the rule can still be changed or removed. Keep one existing record or add a replacement entry in the same request.`
+            );
+          }
+        }
+
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
           method: "PATCH",

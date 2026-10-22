@@ -121,6 +121,9 @@ describe("protected branch tools", () => {
   let existingBranchPosts = 0;
   let existingBranchPatches = 0;
   let existingBranchPatchBody: unknown;
+  let existingBranchGets = 0;
+  // unprotect_access_levels that GET returns for EXISTING_BRANCH; tests set it.
+  let existingUnprotectLevels: Array<Record<string, unknown>> = [];
   let unprotectedBranchPatches = 0;
 
   before(async () => {
@@ -171,6 +174,20 @@ describe("protected branch tools", () => {
     );
 
     mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/protected_branches/${EXISTING_BRANCH}`,
+      (_req, res) => {
+        existingBranchGets += 1;
+        res.json(
+          buildProtectedBranch({
+            name: EXISTING_BRANCH,
+            unprotect_access_levels: existingUnprotectLevels,
+          })
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler(
       "patch",
       `/projects/${TEST_PROJECT_ID}/protected_branches/${EXISTING_BRANCH}`,
       (req, res) => {
@@ -206,6 +223,14 @@ describe("protected branch tools", () => {
           allowed_to_unprotect: [{ group_id: 9 }],
         });
         res.json(buildProtectedBranch({ name: WILDCARD_BRANCH, allow_force_push: true }));
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/protected_branches/${encodeURIComponent(UNPROTECTED_BRANCH)}`,
+      (_req, res) => {
+        res.status(404).json({ message: "404 Not found" });
       }
     );
 
@@ -317,6 +342,7 @@ describe("protected branch tools", () => {
 
   test("update_protected_branch PATCHes an existing rule that protect_branch cannot recreate", async () => {
     const before = existingBranchPosts;
+    const getsBefore = existingBranchGets;
     const result = await callTool(
       "update_protected_branch",
       {
@@ -341,6 +367,7 @@ describe("protected branch tools", () => {
       allowed_to_push: [{ id: 101, _destroy: true }, { access_level: 0 }],
     });
     assert.strictEqual(existingBranchPosts, before, "update must not POST a new rule");
+    assert.strictEqual(existingBranchGets, getsBefore, "a push _destroy needs no unprotect check");
     assert.strictEqual(result.name, EXISTING_BRANCH);
     assert.strictEqual(result.push_access_levels[0].id, 102);
     assert.strictEqual(result.push_access_levels[0].access_level, 0);
@@ -375,6 +402,95 @@ describe("protected branch tools", () => {
       /404[\s\S]*404 Not found/
     );
     assert.strictEqual(unprotectedBranchPatches, 1, "the 404 must come from the PATCH");
+  });
+
+  const unprotectLevel = (id: number) => ({
+    id,
+    access_level: 40,
+    access_level_description: "Maintainers",
+    user_id: null,
+    group_id: null,
+  });
+
+  test("update_protected_branch refuses to destroy the last unprotect record without a PATCH", async () => {
+    existingUnprotectLevels = [unprotectLevel(301)];
+    const getsBefore = existingBranchGets;
+    const patchesBefore = existingBranchPatches;
+    await expectToolError(
+      callTool(
+        "update_protected_branch",
+        {
+          project_id: TEST_PROJECT_ID,
+          branch_name: EXISTING_BRANCH,
+          allowed_to_unprotect: [{ id: 301, _destroy: true }],
+        },
+        env()
+      ),
+      /would remove every allowed_to_unprotect record/
+    );
+    assert.strictEqual(existingBranchGets, getsBefore + 1);
+    assert.strictEqual(existingBranchPatches, patchesBefore, "no PATCH may be sent");
+  });
+
+  for (const [label, levels, unprotect] of [
+    ["destroying one of two unprotect records", [301, 302], [{ id: 301, _destroy: true }]],
+    [
+      "destroying the last unprotect record with a replacement",
+      [301],
+      [{ id: 301, _destroy: true }, { access_level: 40 }],
+    ],
+  ] as const) {
+    test(`update_protected_branch allows ${label}`, async () => {
+      existingUnprotectLevels = levels.map(unprotectLevel);
+      const getsBefore = existingBranchGets;
+      const patchesBefore = existingBranchPatches;
+      await callTool(
+        "update_protected_branch",
+        {
+          project_id: TEST_PROJECT_ID,
+          branch_name: EXISTING_BRANCH,
+          allowed_to_unprotect: unprotect,
+        },
+        env()
+      );
+      assert.strictEqual(existingBranchGets, getsBefore + 1);
+      assert.strictEqual(existingBranchPatches, patchesBefore + 1);
+      assert.deepStrictEqual(existingBranchPatchBody, { allowed_to_unprotect: unprotect });
+    });
+  }
+
+  test("update_protected_branch skips the unprotect check when nothing is destroyed", async () => {
+    existingUnprotectLevels = [unprotectLevel(301)];
+    const getsBefore = existingBranchGets;
+    const patchesBefore = existingBranchPatches;
+    await callTool(
+      "update_protected_branch",
+      {
+        project_id: TEST_PROJECT_ID,
+        branch_name: EXISTING_BRANCH,
+        allowed_to_unprotect: [{ id: 301, access_level: 60 }, { group_id: 9 }],
+      },
+      env()
+    );
+    assert.strictEqual(existingBranchGets, getsBefore, "no GET without an unprotect _destroy");
+    assert.strictEqual(existingBranchPatches, patchesBefore + 1);
+  });
+
+  test("update_protected_branch surfaces a failed rule lookup and sends no PATCH", async () => {
+    const patchesBefore = unprotectedBranchPatches;
+    await expectToolError(
+      callTool(
+        "update_protected_branch",
+        {
+          project_id: TEST_PROJECT_ID,
+          branch_name: UNPROTECTED_BRANCH,
+          allowed_to_unprotect: [{ id: 301, _destroy: true }],
+        },
+        env()
+      ),
+      /404[\s\S]*404 Not found/
+    );
+    assert.strictEqual(unprotectedBranchPatches, patchesBefore, "no PATCH may be sent");
   });
 
   for (const [label, args, pattern] of [
