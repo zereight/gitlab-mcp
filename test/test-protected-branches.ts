@@ -10,6 +10,8 @@ const TEST_BRANCH = "main";
 // Already protected: POST returns 409, so only PATCH can change it.
 const EXISTING_BRANCH = "stable";
 const WILDCARD_BRANCH = "release/*";
+// No protection rule: PATCH returns 404.
+const UNPROTECTED_BRANCH = "feature/unprotected";
 
 function buildProtectedBranch(overrides: Record<string, unknown> = {}) {
   return {
@@ -117,7 +119,9 @@ describe("protected branch tools", () => {
   let mockGitLab: MockGitLabServer;
   let mockGitLabUrl: string;
   let existingBranchPosts = 0;
+  let existingBranchPatches = 0;
   let existingBranchPatchBody: unknown;
+  let unprotectedBranchPatches = 0;
 
   before(async () => {
     const mockPort = await findMockServerPort();
@@ -170,6 +174,7 @@ describe("protected branch tools", () => {
       "patch",
       `/projects/${TEST_PROJECT_ID}/protected_branches/${EXISTING_BRANCH}`,
       (req, res) => {
+        existingBranchPatches += 1;
         existingBranchPatchBody = req.body;
         res.json(
           buildProtectedBranch({
@@ -201,6 +206,15 @@ describe("protected branch tools", () => {
           allowed_to_unprotect: [{ group_id: 9 }],
         });
         res.json(buildProtectedBranch({ name: WILDCARD_BRANCH, allow_force_push: true }));
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "patch",
+      `/projects/${TEST_PROJECT_ID}/protected_branches/${encodeURIComponent(UNPROTECTED_BRANCH)}`,
+      (_req, res) => {
+        unprotectedBranchPatches += 1;
+        res.status(404).json({ message: "404 Not found" });
       }
     );
 
@@ -351,6 +365,18 @@ describe("protected branch tools", () => {
     assert.strictEqual(result.allow_force_push, true);
   });
 
+  test("update_protected_branch surfaces GitLab's 404 for a branch with no rule", async () => {
+    await expectToolError(
+      callTool(
+        "update_protected_branch",
+        { project_id: TEST_PROJECT_ID, branch_name: UNPROTECTED_BRANCH, allow_force_push: true },
+        env()
+      ),
+      /404[\s\S]*404 Not found/
+    );
+    assert.strictEqual(unprotectedBranchPatches, 1, "the 404 must come from the PATCH");
+  });
+
   for (const [label, args, pattern] of [
     ["no setting", {}, /at least one protected branch setting/],
     ["_destroy without id", { allowed_to_push: [{ _destroy: true }] }, /_destroy requires id/],
@@ -369,8 +395,11 @@ describe("protected branch tools", () => {
       { allowed_to_push: [{ access_level: 40, user_id: 5 }] },
       /Set only one of/,
     ],
+    // member_role_id is not supported, so the entry has no target left.
+    ["member_role_id", { allowed_to_push: [{ member_role_id: 5 }] }, /Set one of/],
   ] as const) {
     test(`update_protected_branch rejects ${label} before calling GitLab`, async () => {
+      const patchesBefore = existingBranchPatches;
       await expectToolError(
         callTool(
           "update_protected_branch",
@@ -379,6 +408,7 @@ describe("protected branch tools", () => {
         ),
         pattern
       );
+      assert.strictEqual(existingBranchPatches, patchesBefore, "no PATCH may be sent");
     });
   }
 

@@ -72,7 +72,7 @@ Group names mirror toolset IDs in kebab-case. `mr` is the only short alias.
 | `issue` | `issues` (24 tools) | 1 reads, 2 writes |
 | `pipeline` | `pipelines` (58 tools) | 1 reads, 2 writes |
 | `project` | `projects` (11 tools) | 1 |
-| `branch` | `branches` (15 tools) | 1 |
+| `branch` | `branches` (16 tools) | 1 |
 | `user` | `users` (7 tools) | 1 (`whoami`) |
 | `repo` | `repositories` (7 tools) | 2 |
 | `label` | `labels` (5 tools) | 2 |

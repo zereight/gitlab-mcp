@@ -2369,6 +2369,8 @@ const optionalProtectedBranchRecordId = z.preprocess(
 // One allowed_to_push / allowed_to_merge / allowed_to_unprotect entry for PATCH.
 // Add: one of access_level, user_id, group_id, deploy_key_id (push only).
 // Change an existing record: its id plus the new value. Remove: { id, _destroy: true }.
+// member_role_id (Ultimate custom roles) is not supported: z.object drops it, so an entry
+// with only member_role_id fails with "Set one of ...".
 const protectedBranchAccessEntry = z.object({
   id: optionalProtectedBranchRecordId.describe(
     "ID of an existing access level record (from get_protected_branch). Required with _destroy; with a new value it changes that record in place."
@@ -2401,7 +2403,9 @@ export const UpdateProtectedBranchSchema = ProjectParamsSchema.extend({
   allowed_to_push: z
     .array(protectedBranchAccessEntry)
     .optional()
-    .describe("Push access entries to add, change, or remove (PREMIUM)"),
+    .describe(
+      "Push access entries to add, change, or remove. deploy_key_id entries work on Free from GitLab 18.10; access_level, user_id, and group_id entries need PREMIUM"
+    ),
   allowed_to_merge: z
     .array(protectedBranchAccessEntry)
     .optional()
@@ -2471,6 +2475,7 @@ export const UpdateDefaultBranchSchema = ProjectParamsSchema.extend({
 });
 
 export const GitLabProtectedBranchAccessLevelSchema = z.object({
+  // member_role_id (Ultimate custom roles) is not kept, and update_protected_branch does not accept it.
   // Record id: update_protected_branch takes it to change or remove this entry
   id: z.number().optional(),
   access_level: z.number().nullable().optional(),

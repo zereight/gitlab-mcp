@@ -132,7 +132,7 @@ Protect a repository branch (set push/merge/unprotect access levels). Use this t
 
 *✏️ Writes*
 
-Update an existing protected branch rule in place (access levels, force push, code owner approval). Use this to change an existing protection rule for a branch or wildcard in place, so the branch is never left unprotected; use `protect_branch` to create a rule and `get_protected_branch` to read the access level record `id`s first. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add an entry with one of `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change a record with its `id` and the new value; remove one with `{id, _destroy: true}`. For example, `allowed_to_push: [{id: 12, access_level: 0}]` sets that push record to No access. GitLab documents these arrays and `code_owner_approval_required` as Premium and Ultimate; check the returned rule. The operation changes repository security controls, requires maintainer-level permission, and returns the updated rule or a validation, missing-rule, or permission error.
+Update an existing protected branch rule in place (access levels, force push, code owner approval). Use this to change an existing protection rule for a branch or wildcard in place, so the branch is never left unprotected; use `protect_branch` to create a rule and `get_protected_branch` to read the access level record `id`s first. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add an entry with one of `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change a record with its `id` and the new value; remove one with `{id, _destroy: true}`. `member_role_id` (custom roles) is not supported; an entry with only that key is rejected. For example, `allowed_to_push: [{id: 12, access_level: 0}]` sets that push record to No access. On Free, GitLab applies only `allow_force_push` and `deploy_key_id` push entries (18.10+); the other entries and `code_owner_approval_required` need Premium or Ultimate, so check the returned rule. The operation changes repository security controls, requires maintainer-level permission, and returns the updated rule or a validation, missing-rule, or permission error.
 
 **Parameters**
 
@@ -142,7 +142,7 @@ Update an existing protected branch rule in place (access levels, force push, co
 | `branch_name` | string | ✓ | Name or wildcard pattern of the existing protected branch |
 | `allow_force_push` | boolean |  | Allow users who can push to the branch to force push |
 | `code_owner_approval_required` | boolean |  | Require code owner approval before merging (PREMIUM) |
-| `allowed_to_push` | array<object> |  | Push access entries to add, change, or remove (PREMIUM) |
+| `allowed_to_push` | array<object> |  | Push access entries to add, change, or remove. deploy_key_id entries work on Free from GitLab 18.10; access_level, user_id, and group_id entries need PREMIUM |
 | `allowed_to_merge` | array<object> |  | Merge access entries to add, change, or remove (PREMIUM) |
 | `allowed_to_unprotect` | array<object> |  | Unprotect access entries to add, change, or remove; 0 is not allowed (PREMIUM) |
 
