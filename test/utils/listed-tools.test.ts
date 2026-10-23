@@ -71,6 +71,34 @@ describe("When decorating a tool for tools/list", () => {
       assert.equal(listed.annotations.readOnlyHint, true);
     });
   });
+
+  describe("with a list tool", () => {
+    it("should add the opt-in summary argument", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_issues", { project_id: { type: "string" } }),
+        CONTEXT
+      );
+
+      assert.equal(
+        listed.inputSchema?.properties && "summary" in listed.inputSchema.properties,
+        true
+      );
+    });
+  });
+
+  describe("with list_webhook_events", () => {
+    it("should keep the native summary field", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_webhook_events", { summary: { type: "boolean" } }),
+        CONTEXT
+      );
+
+      assert.equal(
+        listed.inputSchema?.properties && "summary" in listed.inputSchema.properties,
+        true
+      );
+    });
+  });
 });
 
 interface NamedTool {

@@ -36,6 +36,21 @@ GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_
 
 CLI: `--compact-tools`
 
+## List and attachment summaries
+
+List tools accept an opt-in `summary` argument (`true`/`false`, default `false`).
+When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
+`state`, and `web_url` and drops long bodies. Existing clients that omit
+`summary` still receive the full GitLab JSON. `list_webhook_events` already had
+its own `summary` flag; that native behavior is unchanged.
+
+`get_pipeline_job_output` still defaults to the last 1000 lines (`limit` /
+`offset`). Pass those arguments instead of fetching a whole job trace.
+
+`download_attachment` accepts opt-in `metadata_only=true` to return filename,
+mime type, and byte length without inline image bytes or a saved file. Default
+`false` keeps the existing download behavior.
+
 ## Response masking
 
 ### `GITLAB_MASKING_ENABLED`

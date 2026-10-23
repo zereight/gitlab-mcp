@@ -149,7 +149,7 @@ describe("When explaining an unavailable tool", () => {
           excludedBySlimProfile: false,
           enabledByCurrentToolsets: false,
         }),
-        'Tool "list_pipelines" is not available on this server. It belongs to the "pipelines" toolset, which is not enabled: call discover_tools with category "pipelines" or add "pipelines" to GITLAB_TOOLSETS.'
+        'Tool "list_pipelines" is not available on this server. It belongs to the "pipelines" toolset, which is not enabled: call discover_tools with category "pipelines" or add "pipelines" to GITLAB_TOOLSETS.\nNext: call discover_tools with the category, or add it to GITLAB_TOOLSETS.'
       );
     });
   });
