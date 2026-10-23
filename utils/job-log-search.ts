@@ -27,10 +27,11 @@ const SEARCH_BUDGET_MESSAGE =
 const SEARCH_CAPACITY_MESSAGE = "Job log search is already running at capacity. Retry shortly.";
 const SEARCH_FAILED_MESSAGE = "Job log search failed.";
 
-// The parent is ESM, so this program is ESM too. Pattern and log arrive in
-// workerData and are never interpolated into the source.
+// Eval workers run as classic CommonJS unless Node detects module syntax
+// (default only from 20.19 / 22.7), so worker_threads is loaded with require.
+// Pattern and log arrive in workerData and are never interpolated into the source.
 const SEARCH_WORKER_SOURCE = [
-  'import { parentPort, workerData } from "node:worker_threads";',
+  'const { parentPort, workerData } = require("node:worker_threads");',
   "if (parentPort === null) {",
   '  throw new Error("job log search worker has no parent port");',
   "}",
