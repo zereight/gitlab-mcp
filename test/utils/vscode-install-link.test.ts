@@ -5,32 +5,55 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-// The README badges and docs/clients/vscode.md embed the URL printed by
-// scripts/generate-vscode-install-link.mjs. VS Code stops the server with
+// The README badges, docs/clients/vscode.md, and docs/clients/cursor.md embed the URLs
+// printed by scripts/generate-vscode-install-link.mjs. VS Code stops the server with
 // "Undefined input variable" when a ${input:...} has no matching inputs entry.
+// The install entries leave GITLAB_PERMISSION_MODE unset so the server default applies.
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const VSCODE_BADGE_LINK = /\[!\[Install in VS Code\]\([^)]*\)\]\(([^)]+)\)/g;
+const CURSOR_BADGE_LINK = /\[!\[Install in Cursor\]\([^)]*\)\]\(([^)]+)\)/g;
 const INPUT_VARIABLE = /\$\{input:([^}]+)\}/g;
 const RAW_URL_PREFIX = "vscode:mcp/install?";
 
 type InstallInput = { id: string; type: string; password?: boolean };
 
-function generatedUrls(): { httpsUrl: string; rawUrl: string } {
+function generatedUrls(): { httpsUrl: string; rawUrl: string; cursorUrl: string } {
   const output = execFileSync(
     process.execPath,
     [path.join(REPO_ROOT, "scripts/generate-vscode-install-link.mjs")],
     { encoding: "utf8" }
   );
-  const [httpsUrl, rawUrl] = output.split("\n");
-  return { httpsUrl, rawUrl };
+  const [httpsUrl, rawUrl, , , cursorUrl] = output.split("\n");
+  return { httpsUrl, rawUrl, cursorUrl };
+}
+
+function readmeFiles(): string[] {
+  return readdirSync(REPO_ROOT)
+    .filter(name => /^README(\.[\w-]+)?\.md$/.test(name))
+    .sort();
 }
 
 function badgeFiles(): string[] {
-  const readmes = readdirSync(REPO_ROOT)
-    .filter(name => /^README(\.[\w-]+)?\.md$/.test(name))
-    .sort();
-  return [...readmes, "docs/clients/vscode.md"];
+  return [...readmeFiles(), "docs/clients/vscode.md"];
+}
+
+function cursorBadgeFiles(): string[] {
+  return [...readmeFiles(), "docs/clients/cursor.md"];
+}
+
+function badgeLinks(file: string, pattern: RegExp): string[] {
+  const content = readFileSync(path.join(REPO_ROOT, file), "utf8");
+  return [...content.matchAll(pattern)].map(match => match[1]);
+}
+
+function envOf(config: Record<string, unknown>): Record<string, unknown> {
+  return (config.env ?? {}) as Record<string, unknown>;
+}
+
+function parseCursorUrl(cursorUrl: string): Record<string, unknown> {
+  const encoded = new URL(cursorUrl).searchParams.get("config") ?? "";
+  return JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
 }
 
 function inputVariableIds(value: unknown): string[] {
@@ -55,10 +78,17 @@ describe("When the VS Code install badges are read", () => {
 
   for (const file of badgeFiles()) {
     test(`${file} should embed the generated URL exactly once`, () => {
-      const content = readFileSync(path.join(REPO_ROOT, file), "utf8");
-      const links = [...content.matchAll(VSCODE_BADGE_LINK)].map(match => match[1]);
+      assert.deepEqual(badgeLinks(file, VSCODE_BADGE_LINK), [httpsUrl]);
+    });
+  }
+});
 
-      assert.deepEqual(links, [httpsUrl]);
+describe("When the Cursor install badges are read", () => {
+  const { cursorUrl } = generatedUrls();
+
+  for (const file of cursorBadgeFiles()) {
+    test(`${file} should embed the generated Cursor URL exactly once`, () => {
+      assert.deepEqual(badgeLinks(file, CURSOR_BADGE_LINK), [cursorUrl]);
     });
   }
 });
@@ -82,6 +112,19 @@ describe("When the generated https install URL is parsed", () => {
     assert.equal(name, "zereight.gitlab-mcp");
     assert.equal(tokenInput?.type, "promptString");
     assert.equal(tokenInput?.password, true);
+  });
+
+  test("should leave GITLAB_PERMISSION_MODE unset", () => {
+    assert.ok(!("GITLAB_PERMISSION_MODE" in envOf(config)));
+  });
+});
+
+describe("When the generated Cursor install URL is parsed", () => {
+  test("should leave GITLAB_PERMISSION_MODE unset", () => {
+    const config = parseCursorUrl(generatedUrls().cursorUrl);
+
+    assert.equal(envOf(config).GITLAB_PERSONAL_ACCESS_TOKEN, "${env:GITLAB_PERSONAL_ACCESS_TOKEN}");
+    assert.ok(!("GITLAB_PERMISSION_MODE" in envOf(config)));
   });
 });
 
