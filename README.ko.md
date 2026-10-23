@@ -10,7 +10,7 @@
 
 `@zereight/mcp-gitlab`의 권장 로컬 PAT 설치입니다. 명령 인자는 [Claude Code](./docs/clients/claude-code.md)와 [Codex](./docs/clients/codex.md) 가이드와 같습니다.
 
-`zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
+`zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
 토큰을 화면에 표시하지 않고 읽은 다음 export 하세요. 셸 기록에는 변수 이름만 남습니다.
 

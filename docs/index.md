@@ -42,6 +42,8 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
+Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
+
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
 No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.6`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production.
@@ -143,7 +145,8 @@ authentication methods.
 - **[Features](features/resolve-issue-thread.md)** — feature-specific guides
   such as resolving issue threads.
 - **[Reference](reference/setup-github-secrets.md)** — repository setup
-  guides and design specs.
+  guides and design specs, including [OpenTelemetry MCP semantics](reference/opentelemetry-mcp.md)
+  (docs-only; local stdio is not instrumented).
 
 ---
 
