@@ -213,7 +213,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 
 > [!CAUTION]
 > `gitlab_api_request` (toolset `api`) ignora `GITLAB_ALLOWED_GROUPS` e outras restrições de grupo, allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
-> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). `GITLAB_ALLOWED_PROJECT_IDS` vale só para caminhos `/projects/:id`. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` não são restringidos. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
+> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
 

@@ -586,7 +586,7 @@ describe("When executing gitlab_api_request", () => {
         args: { path: "projects/5" },
         apiBaseUrl: API_BASE,
         permissionMode: "full",
-        allowedProjectIds: ["5"],
+        allowedProjectIds: [],
         fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
         fetchImpl,
         unauthenticatedFetchImpl: fetchImpl,
@@ -878,6 +878,306 @@ describe("When executing gitlab_api_request", () => {
           return true;
         }
       );
+    });
+  });
+});
+
+const NOT_PROJECT_SCOPED =
+  /^Access denied: .*not scoped to a project in the allowed project list: 5\b/;
+
+function fetchMustNotRun(): ValidatedRedirectFetch {
+  return async () => {
+    throw new Error("fetch should not run");
+  };
+}
+
+function okFetch(requested: string[]): ValidatedRedirectFetch {
+  return async url => {
+    requested.push(String(url));
+    return new UndiciResponse(JSON.stringify({ ok: true }), { status: 200 });
+  };
+}
+
+describe("When a project allowlist is in effect for gitlab_api_request", () => {
+  describe("with a path that names no project", () => {
+    const cases: ReadonlyArray<{
+      readonly path: string;
+      readonly method?: "GET" | "POST";
+      readonly query?: Record<string, string>;
+      readonly body?: unknown;
+    }> = [
+      { path: "groups/1/projects" },
+      { path: "groups/group%2Fsub/variables" },
+      { path: "users" },
+      { path: "user" },
+      { path: "search", query: { scope: "blobs", search: "password" } },
+      { path: "projects" },
+      { path: "/projects/" },
+      { path: "projects", method: "POST", body: { name: "outside" } },
+      { path: "runners/all" },
+      { path: "admin/ci/variables" },
+      { path: "application/settings" },
+      { path: "namespaces" },
+      { path: "snippets/1" },
+      { path: "version" },
+      { path: "%67roups/1" },
+      { path: "%2567roups/1" },
+      { path: "projects%2F9" },
+      { path: "projects%252F9" },
+      { path: "Projects/9" },
+      { path: "PROJECTS/5" },
+    ];
+    for (const { path, method, query, body } of cases) {
+      it(`should reject ${method ?? "GET"} ${path} before fetch`, async () => {
+        await assert.rejects(
+          () =>
+            executeGitLabApiRequestAsync({
+              args: { path, method, query, body },
+              apiBaseUrl: API_BASE,
+              permissionMode: "full",
+              allowedProjectIds: ["5"],
+              fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+              fetchImpl: fetchMustNotRun(),
+            }),
+          (error: unknown) => {
+            assert.ok(error instanceof GitLabApiRequestInputError);
+            assert.match(error.message, NOT_PROJECT_SCOPED);
+            return true;
+          }
+        );
+      });
+    }
+  });
+
+  describe("with a malformed path that could hide another route", () => {
+    const paths = [
+      "projects//9",
+      "projects/5//issues",
+      "//groups/1",
+      "projects/%2F9",
+      "projects/5/../../groups/1",
+      "projects/5/%2e%2e/%2e%2e/groups/1",
+      "projects/5%2F..%2F..%2Fgroups%2F1",
+      "projects/5/%252e%252e/%252e%252e/users",
+    ];
+    for (const path of paths) {
+      it(`should reject ${path} before fetch`, async () => {
+        await assert.rejects(
+          () =>
+            executeGitLabApiRequestAsync({
+              args: { path },
+              apiBaseUrl: API_BASE,
+              permissionMode: "full",
+              allowedProjectIds: ["5"],
+              fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+              fetchImpl: fetchMustNotRun(),
+            }),
+          GitLabApiRequestInputError
+        );
+      });
+    }
+  });
+
+  describe("with a project id that only resembles an allowed one", () => {
+    const cases: ReadonlyArray<{ readonly path: string; readonly projectId: string }> = [
+      { path: "projects/5?private=1", projectId: "5?private=1" },
+      { path: "projects/9%2Fissues", projectId: "9/issues" },
+      { path: "projects/05", projectId: "05" },
+    ];
+    for (const { path, projectId } of cases) {
+      it(`should reject ${path} before fetch`, async () => {
+        await assert.rejects(
+          () =>
+            executeGitLabApiRequestAsync({
+              args: { path },
+              apiBaseUrl: API_BASE,
+              permissionMode: "full",
+              allowedProjectIds: ["5"],
+              fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+              fetchImpl: fetchMustNotRun(),
+            }),
+          (error: unknown) => {
+            assert.ok(error instanceof GitLabApiRequestInputError);
+            assert.equal(
+              error.message,
+              `Access denied: Project ${projectId} is not in the allowed project list: 5`
+            );
+            return true;
+          }
+        );
+      });
+    }
+  });
+
+  describe("with a path under an allowed project", () => {
+    const cases: ReadonlyArray<{ readonly path: string; readonly expected: string }> = [
+      { path: "projects/5", expected: `${API_BASE}/projects/5` },
+      { path: "/projects/5/", expected: `${API_BASE}/projects/5` },
+      { path: "projects/5/issues", expected: `${API_BASE}/projects/5/issues?state=opened` },
+      { path: "%70rojects/5/merge_requests", expected: `${API_BASE}/projects/5/merge_requests` },
+    ];
+    for (const { path, expected } of cases) {
+      it(`should request ${path}`, async () => {
+        const requested: string[] = [];
+        await executeGitLabApiRequestAsync({
+          args: { path, query: path.endsWith("issues") ? { state: "opened" } : undefined },
+          apiBaseUrl: API_BASE,
+          permissionMode: "full",
+          allowedProjectIds: ["5"],
+          fetchConfig: () => ({ headers: {} }),
+          fetchImpl: okFetch(requested),
+        });
+        assert.deepEqual(requested, [expected]);
+      });
+    }
+
+    it("should request a namespace path listed in the allowlist", async () => {
+      const requested: string[] = [];
+      await executeGitLabApiRequestAsync({
+        args: { path: "projects/group%2Fproj/issues" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5", "group/proj"],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl: okFetch(requested),
+      });
+      assert.deepEqual(requested, [`${API_BASE}/projects/group%2Fproj/issues`]);
+    });
+  });
+
+  describe("with readonly mode", () => {
+    it("should still reject POST to an allowed project", async () => {
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { method: "POST", path: "projects/5/issues", body: { title: "x" } },
+            apiBaseUrl: API_BASE,
+            permissionMode: "readonly",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl: fetchMustNotRun(),
+          }),
+        /allows only GET/
+      );
+    });
+
+    it("should reject GET to a path that names no project", async () => {
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "groups/1" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "readonly",
+            allowedProjectIds: ["5"],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl: fetchMustNotRun(),
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestInputError);
+          assert.match(error.message, NOT_PROJECT_SCOPED);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe("with a credentialed redirect to a path that names no project", () => {
+    const locations = [
+      "/api/v4/groups/1",
+      "/api/v4/users",
+      "/api/v4/search?scope=blobs&search=password",
+      "/api/v4/projects",
+      "/api/v4/",
+      "/api/v4//groups/1",
+      "/api/v4/%67roups/1",
+      "/api/v4/projects%2F9",
+      "https://gitlab-alias.example/api/v4/groups/1",
+      "https://gitlab-alias.example/api/v4/",
+    ];
+    for (const location of locations) {
+      it(`should refuse ${location} before requesting it`, async () => {
+        const calls: RecordedHop[] = [];
+        const fetchImpl = redirectFetch(location, calls);
+        await assert.rejects(
+          () =>
+            executeGitLabApiRequestAsync({
+              args: { path: "projects/5" },
+              apiBaseUrl: API_BASE,
+              permissionMode: "full",
+              allowedProjectIds: ["5"],
+              fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+              fetchImpl,
+              unauthenticatedFetchImpl: fetchImpl,
+              isTrustedRedirectHost: host => host === "gitlab-alias.example",
+            }),
+          (error: unknown) => {
+            assert.ok(error instanceof GitLabApiRequestInputError);
+            assert.match(error.message, NOT_PROJECT_SCOPED);
+            return true;
+          }
+        );
+        assert.equal(calls.length, 1);
+      });
+    }
+  });
+
+  describe("with an untrusted cross-origin redirect to a path that names no project", () => {
+    it("should follow the hop without credential headers", async () => {
+      const calls: RecordedHop[] = [];
+      const location = `http://${PUBLIC_REDIRECT_HOST}/api/v4/groups/1`;
+      const fetchImpl = redirectFetch(location, calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5/jobs/7/artifacts" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: ["5"],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, location);
+      assert.equal(calls[1]?.headers["Private-Token"], undefined);
+      assert.match(result.content[0].text, /followed/);
+    });
+  });
+});
+
+describe("When no project allowlist is in effect for gitlab_api_request", () => {
+  describe("with a path that names no project", () => {
+    for (const path of ["groups/1/projects", "users", "search", "projects", "version"]) {
+      it(`should request ${path}`, async () => {
+        const requested: string[] = [];
+        await executeGitLabApiRequestAsync({
+          args: { path },
+          apiBaseUrl: API_BASE,
+          permissionMode: "full",
+          allowedProjectIds: [],
+          fetchConfig: () => ({ headers: {} }),
+          fetchImpl: okFetch(requested),
+        });
+        assert.deepEqual(requested, [`${API_BASE}/${path}`]);
+      });
+    }
+  });
+
+  describe("with a same-origin redirect to a path that names no project", () => {
+    it("should follow the hop and keep the credential headers", async () => {
+      const calls: RecordedHop[] = [];
+      const fetchImpl = redirectFetch("/api/v4/groups/1", calls);
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: CREDENTIAL_HEADERS }),
+        fetchImpl,
+        unauthenticatedFetchImpl: fetchImpl,
+      });
+
+      assert.equal(calls[1]?.url, `${API_BASE}/groups/1`);
+      assert.equal(calls[1]?.headers["Private-Token"], "pat-secret");
+      assert.match(result.content[0].text, /followed/);
     });
   });
 });

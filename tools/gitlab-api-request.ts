@@ -168,8 +168,12 @@ function assertRedirectedApiPathAllowed(
   if (allowlist.length === 0) {
     return;
   }
-  if (relative === undefined || relative.length === 0) {
+  // Only an untrusted cross-origin hop is left here, and it carries no credentials.
+  if (relative === undefined) {
     return;
+  }
+  if (relative.length === 0) {
+    throw notProjectScopedError(allowlist);
   }
   let normalized: string;
   try {
@@ -181,6 +185,18 @@ function assertRedirectedApiPathAllowed(
   assertProjectAllowlist(normalized, allowlist);
 }
 
+function notProjectScopedError(allowlist: readonly string[]): GitLabApiRequestInputError {
+  return new GitLabApiRequestInputError(
+    `Access denied: gitlab_api_request path is not scoped to a project in the allowed project list: ${allowlist.join(", ")}. ` +
+      "Only /projects/:id and /projects/:id/... paths are allowed while a project allowlist is in effect"
+  );
+}
+
+/**
+ * With an allowlist, the path must be `projects/:id` or `projects/:id/...` for an
+ * allowed project. Any other path (groups, users, search, admin, the projects
+ * collection, or a route this parser does not recognize) is refused.
+ */
 function assertProjectAllowlist(relativePath: string, allowlist: readonly string[]): void {
   if (allowlist.length === 0) {
     return;
@@ -193,7 +209,7 @@ function assertProjectAllowlist(relativePath: string, allowlist: readonly string
     throw new GitLabApiRequestInputError(message);
   }
   if (projectId === undefined) {
-    return;
+    throw notProjectScopedError(allowlist);
   }
   const rawSegment = relativePath.split("/")[1] ?? projectId;
   if (!projectAllowed(projectId, rawSegment, allowlist)) {

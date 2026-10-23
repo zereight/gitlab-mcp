@@ -583,7 +583,7 @@ Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of
 
 | Tool | What it does | R/W |
 |---|---|:-:|
-| [`gitlab_api_request`](api.md#gitlab_api_request) | DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed. Send one GitLab REST call under /api/v4. Readonly mode allows GET only, and modify mode rejects DELETE. Enable it only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. GITLAB_ALLOWED_PROJECT_IDS is enforced only for /projects/:id paths; other endpoints are not constrained. | 📖✏️ |
+| [`gitlab_api_request`](api.md#gitlab_api_request) | DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed. Send one GitLab REST call under /api/v4. Readonly mode allows GET only, and modify mode rejects DELETE. Enable it only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. With GITLAB_ALLOWED_PROJECT_IDS or a session project scope, only /projects/:id paths for an allowed project are accepted and every other path is rejected; body and query parameters that name another project are not checked. | 📖✏️ |
 
 ### [Meta & GraphQL](meta.md)
 

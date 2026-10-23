@@ -361,7 +361,7 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
     );
     lines.push("    ");
     lines.push(
-      `    \`GITLAB_ALLOWED_PROJECT_IDS\` and a session project scope are checked only for \`/projects/:id\` and \`/projects/:id/...\`. Endpoints such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, and the \`/projects\` collection are not constrained. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
+      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
     );
     lines.push("");
   }
