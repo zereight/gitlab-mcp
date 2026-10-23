@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { HelpInputSchema } from "../server/mcp-help.js";
 import * as schemas from "../schemas.js";
 import { GitLabApiRequestSchema } from "../tools/gitlab-api-request.js";
 
@@ -159,7 +160,11 @@ describe("When guarding tool input schemas against z.coerce.boolean", () => {
       "expected to find the tool input schemas in tools/registry.ts"
     );
 
-    const exported: Record<string, unknown> = { ...schemas, GitLabApiRequestSchema };
+    const exported: Record<string, unknown> = {
+      ...schemas,
+      GitLabApiRequestSchema,
+      HelpInputSchema,
+    };
     const hits: string[] = [];
     for (const name of schemaNames) {
       const schema = exported[name];
