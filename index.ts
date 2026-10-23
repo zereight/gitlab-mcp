@@ -245,7 +245,13 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
-import { formatJobLogSearch, JobLogSearchError, searchJobLog } from "./utils/job-log-search.js";
+import {
+  formatJobLogSearch,
+  JobLogSearchError,
+  readJobLogTail,
+  searchJobLog,
+  type JobLogTail,
+} from "./utils/job-log-search.js";
 import {
   classifyHealthCheckTransportError,
   describeFetchTransportError,
@@ -8455,12 +8461,14 @@ async function getPipelineJobOutput(
   }
 
   await handleGitLabError(response);
-  const fullTrace = await response.text();
   const pattern = query.pattern;
   if (pattern !== undefined && pattern.length > 0) {
-    return `${JOB_TRACE_NOTICE}\n\n${await formatPipelineJobSearch(fullTrace, query, pattern)}`;
+    const trace =
+      response.body === null ? await response.text() : await readJobLogTail(response.body);
+    return `${JOB_TRACE_NOTICE}\n\n${await formatPipelineJobSearch(trace, query, pattern)}`;
   }
 
+  const fullTrace = await response.text();
   const { limit, offset } = query;
   const lines = fullTrace.split("\n");
   const startOffset = offset || 0;
@@ -8487,12 +8495,12 @@ async function getPipelineJobOutput(
 }
 
 async function formatPipelineJobSearch(
-  fullTrace: string,
+  trace: string | JobLogTail,
   query: PipelineJobTraceQuery,
   pattern: string
 ): Promise<string> {
   try {
-    const search = await searchJobLog(fullTrace, {
+    const search = await searchJobLog(trace, {
       pattern,
       regex: query.regex,
       caseSensitive: query.caseSensitive,

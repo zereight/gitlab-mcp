@@ -12,6 +12,7 @@ import {
   JOB_LOG_MAX_SEARCH_CHARS,
   JOB_LOG_SEARCH_BUDGET_MS,
   JobLogSearchError,
+  readJobLogTail,
   searchJobLog,
 } from "../../utils/job-log-search.js";
 
@@ -35,6 +36,20 @@ const OVERSIZED_LOG_LINES = JOB_LOG_MAX_SEARCH_CHARS / 100 + 2;
 function oversizedLog(): string {
   const filler = `${"x".repeat(99)}\n`.repeat(JOB_LOG_MAX_SEARCH_CHARS / 100);
   return `NEEDLE early\n${filler}NEEDLE late`;
+}
+
+// oversizedLog() behind multi-byte lines worth several 64 KiB chunks, so whole
+// chunks are dropped while the stream is read.
+function streamedOversizedLog(): string {
+  return `${"✓ dropped\n".repeat(50_000)}${oversizedLog()}`;
+}
+
+// Cuts the UTF-8 bytes without regard to character boundaries, like a network body.
+async function* byteChunks(text: string, chunkBytes = 65_536): AsyncGenerator<Uint8Array> {
+  const bytes = new TextEncoder().encode(text);
+  for (let start = 0; start < bytes.length; start += chunkBytes) {
+    yield bytes.subarray(start, start + chunkBytes);
+  }
 }
 
 const FULL_LENGTH_MATCH_LINE = `NEEDLE${"x".repeat(JOB_LOG_MAX_LINE_LENGTH - "NEEDLE".length)}`;
@@ -441,6 +456,35 @@ describe("When searching a job log", () => {
       assert.equal(result.totalLines, 2);
       assert.equal(result.firstSearchedLine, 2);
       assert.equal(result.skippedChars, log.length - JOB_LOG_MAX_SEARCH_CHARS);
+    });
+  });
+});
+
+describe("When reading a job log stream to search", () => {
+  describe("with a log several chunks over the search character limit", () => {
+    it("should keep no more than one character past the search limit", async () => {
+      const tail = await readJobLogTail(byteChunks(streamedOversizedLog()));
+
+      assert.ok(tail.text.length <= JOB_LOG_MAX_SEARCH_CHARS + 1);
+    });
+
+    it("should report the same skipped characters and line numbers as the whole log", async () => {
+      const log = streamedOversizedLog();
+      const input = { pattern: "NEEDLE", contextLines: 0 };
+
+      const fromStream = await searchJobLog(await readJobLogTail(byteChunks(log)), input);
+
+      assert.deepEqual(fromStream, await searchJobLog(log, input));
+    });
+  });
+
+  describe("with multi-byte characters split across chunks", () => {
+    it("should decode the whole log", async () => {
+      const log = "ok\nnaïve ✓ done";
+
+      const tail = await readJobLogTail(byteChunks(log, 1));
+
+      assert.deepEqual(tail, { text: log, lineOffset: 0, skippedChars: 0 });
     });
   });
 });

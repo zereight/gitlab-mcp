@@ -348,11 +348,16 @@ function releaseSearchWorkerSlot(): void {
   activeSearchWorkers -= 1;
 }
 
-interface BoundedJobLog {
+// The end of a job log. lineOffset and skippedChars count what came before text.
+export interface JobLogTail {
   readonly text: string;
   readonly lineOffset: number;
   readonly skippedChars: number;
 }
+
+// One character more than the search limit, so boundJobLog can still see
+// whether the searched end starts right after a newline.
+const JOB_LOG_TAIL_CHARS = JOB_LOG_MAX_SEARCH_CHARS + 1;
 
 function countNewlines(text: string, end: number): number {
   let count = 0;
@@ -367,18 +372,54 @@ function countNewlines(text: string, end: number): number {
 // Keeps at most JOB_LOG_MAX_SEARCH_CHARS from the end, starting at a line
 // boundary when there is one, so an oversized trace is never cloned into a
 // worker. Skipped lines are counted so line numbers stay absolute.
-function boundJobLog(log: string): BoundedJobLog {
-  if (log.length <= JOB_LOG_MAX_SEARCH_CHARS) {
-    return { text: log, lineOffset: 0, skippedChars: 0 };
+function boundJobLog(log: JobLogTail): JobLogTail {
+  const { text } = log;
+  if (text.length <= JOB_LOG_MAX_SEARCH_CHARS) {
+    return log;
   }
-  const earliestStart = log.length - JOB_LOG_MAX_SEARCH_CHARS;
-  const newline = log.indexOf("\n", earliestStart - 1);
+  const earliestStart = text.length - JOB_LOG_MAX_SEARCH_CHARS;
+  const newline = text.indexOf("\n", earliestStart - 1);
   // Without a newline that leaves text to search, start mid-line instead.
-  const start = newline === -1 || newline >= log.length - 1 ? earliestStart : newline + 1;
+  const start = newline === -1 || newline >= text.length - 1 ? earliestStart : newline + 1;
   return {
-    text: log.slice(start),
-    lineOffset: countNewlines(log, start),
-    skippedChars: start,
+    text: text.slice(start),
+    lineOffset: log.lineOffset + countNewlines(text, start),
+    skippedChars: log.skippedChars + start,
+  };
+}
+
+async function* decodeChunks(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<string> {
+  const decoder = new TextDecoder();
+  for await (const chunk of chunks) {
+    yield decoder.decode(chunk, { stream: true });
+  }
+  yield decoder.decode();
+}
+
+// Reads a job log stream but holds only its last JOB_LOG_TAIL_CHARS (plus one
+// chunk), so a trace of any size never sits whole in this process.
+export async function readJobLogTail(chunks: AsyncIterable<Uint8Array>): Promise<JobLogTail> {
+  const kept: string[] = [];
+  let keptChars = 0;
+  let lineOffset = 0;
+  let skippedChars = 0;
+  for await (const decoded of decodeChunks(chunks)) {
+    kept.push(decoded);
+    keptChars += decoded.length;
+    while (kept.length > 1 && keptChars - kept[0].length >= JOB_LOG_TAIL_CHARS) {
+      const dropped = kept[0];
+      kept.shift();
+      keptChars -= dropped.length;
+      lineOffset += countNewlines(dropped, dropped.length);
+      skippedChars += dropped.length;
+    }
+  }
+  const text = kept.join("");
+  const excess = Math.max(0, text.length - JOB_LOG_TAIL_CHARS);
+  return {
+    text: text.slice(excess),
+    lineOffset: lineOffset + countNewlines(text, excess),
+    skippedChars: skippedChars + excess,
   };
 }
 
@@ -474,7 +515,7 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
 }
 
 export async function searchJobLog(
-  log: string,
+  log: string | JobLogTail,
   input: JobLogSearchInput
 ): Promise<JobLogSearchResult> {
   if (input.pattern.length === 0) {
@@ -501,7 +542,9 @@ export async function searchJobLog(
     compileRegExp(input.pattern, flags);
   }
 
-  const bounded = boundJobLog(log);
+  const bounded = boundJobLog(
+    typeof log === "string" ? { text: log, lineOffset: 0, skippedChars: 0 } : log
+  );
   acquireSearchWorkerSlot();
   try {
     return await executeJobLogSearch({
