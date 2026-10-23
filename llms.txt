@@ -1,0 +1,34 @@
+# GitLab MCP Server
+
+> Agent-workflow-optimized GitLab MCP. Default list: 39 tools (38 `core` + `discover_tools`). 277 tools exist in total. Activate more at runtime with `discover_tools`.
+
+Package: `@zereight/mcp-gitlab` · Binary: `zereight-mcp-gitlab` · License: MIT
+Docs: https://zereight.github.io/gitlab-mcp/ · Full text: ./llms-full.txt
+
+## Install
+
+- Local IDE (stdio + PAT): Claude Code / Codex one-liners in README.md; Cursor deeplink in README.md
+- Shared HTTP: Streamable HTTP at `https://mcp.example.com/mcp`
+- Claude.ai: public HTTPS + `GITLAB_MCP_OAUTH`
+- Equal non-MCP path: `npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill` + `zereight-mcp-gitlab` CLI
+
+## Docs
+
+- [Getting Started](https://zereight.github.io/gitlab-mcp/getting-started/): auth and transport
+- [CLI without MCP](https://zereight.github.io/gitlab-mcp/getting-started/cli-without-mcp/): Skill + CLI
+- [Claude Code](https://zereight.github.io/gitlab-mcp/clients/claude-code/)
+- [Cursor](https://zereight.github.io/gitlab-mcp/clients/cursor/)
+- [VS Code](https://zereight.github.io/gitlab-mcp/clients/vscode/)
+- [Codex](https://zereight.github.io/gitlab-mcp/clients/codex/)
+- [JSON clients](https://zereight.github.io/gitlab-mcp/clients/json-clients/)
+- [OAuth2](https://zereight.github.io/gitlab-mcp/auth/oauth-setup/)
+- [Environment variables](https://zereight.github.io/gitlab-mcp/configuration/environment-variables/)
+- [Tools](https://zereight.github.io/gitlab-mcp/tools/): generated reference
+- [Skill](https://github.com/zereight/gitlab-mcp/blob/main/skills/gitlab-mcp/SKILL.md)
+
+## Agent rules
+
+- `project_id` is a numeric ID or URL-encoded path (`group%2Fproject`). MR `!123` → `merge_request_iid=123`.
+- MR review: `list_merge_request_changed_files` then batched `get_merge_request_file_diff`. Do not dump full `get_merge_request_diffs`.
+- Shrink results with `jmespath` or `GITLAB_MCP_COMPACT_RESULTS`. Paginate job logs. Use the CLI for full payloads.
+- Do not enable the `api` toolset unless you accept that `gitlab_api_request` bypasses allowlists and tool filters.
