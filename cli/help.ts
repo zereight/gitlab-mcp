@@ -10,6 +10,8 @@ export function globalHelpText(): string {
 
 Usage:
   ${BINARY} auth [options]
+  ${BINARY} setup --cursor|--claude [options]
+  ${BINARY} doctor [--probe]
   ${BINARY} tool <tool-name> [options]
   ${BINARY} <group> <action> [options]
   ${BINARY} --help

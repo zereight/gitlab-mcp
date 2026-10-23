@@ -25,9 +25,14 @@ import {
   toolIndexHelpText,
 } from "./help.js";
 
+import { doctorHelpText } from "./doctor.js";
+import { readSetupOptions, setupHelpText, type SetupOptions } from "./setup.js";
+
 export type CliResolution =
   | { readonly kind: "server" }
   | { readonly kind: "auth" }
+  | { readonly kind: "setup"; readonly options: SetupOptions }
+  | { readonly kind: "doctor"; readonly probe: boolean }
   | { readonly kind: "help"; readonly text: string }
   | { readonly kind: "usage"; readonly message: string }
   | { readonly kind: "refused"; readonly message: string }
@@ -90,6 +95,26 @@ function resolveCliUnsafe(
 
   if (head === "auth") {
     return { kind: "auth" };
+  }
+
+  if (head === "setup") {
+    if (action !== undefined) {
+      return { kind: "usage", message: `Unexpected extra arguments: ${parsed.positionals.slice(1).join(" ")}` };
+    }
+    if (parsed.help) {
+      return { kind: "help", text: setupHelpText() };
+    }
+    return { kind: "setup", options: readSetupOptions(parsed.toolFlags) };
+  }
+
+  if (head === "doctor") {
+    if (action !== undefined) {
+      return { kind: "usage", message: `Unexpected extra arguments: ${parsed.positionals.slice(1).join(" ")}` };
+    }
+    if (parsed.help) {
+      return { kind: "help", text: doctorHelpText() };
+    }
+    return { kind: "doctor", probe: parsed.toolFlags.probe === "true" };
   }
 
   if (head === "tool") {

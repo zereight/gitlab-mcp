@@ -229,7 +229,13 @@ export function canonicalGroup(name: string): string | undefined {
 }
 
 export function isKnownCliCommand(name: string): boolean {
-  return name === "auth" || name === "tool" || canonicalGroup(name) !== undefined;
+  return (
+    name === "auth" ||
+    name === "tool" ||
+    name === "setup" ||
+    name === "doctor" ||
+    canonicalGroup(name) !== undefined
+  );
 }
 
 export function findCuratedCommand(group: string, action: string): CuratedCommand | undefined {
