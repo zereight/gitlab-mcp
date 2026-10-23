@@ -61,6 +61,16 @@ describe("When a GitLab tool error is returned", () => {
     });
   });
 
+  describe("with an access-denied note that says was not found", () => {
+    it("should leave the precise denial unchanged", () => {
+      const message =
+        "Access denied: Note gid://gitlab/Note/9001 was not found on work item #1 in group/allowed";
+
+      assert.equal(recoveryHintFor(message), undefined);
+      assert.equal(appendRecoveryHint(message), message);
+    });
+  });
+
   describe("with an unrelated 500 body", () => {
     it("should leave the message unchanged", () => {
       const message = "GitLab API error: 500 Internal Server Error";

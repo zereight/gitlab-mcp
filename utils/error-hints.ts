@@ -5,6 +5,9 @@ export function hasRecoveryHint(message: string): boolean {
 }
 
 export function recoveryHintFor(message: string): string | undefined {
+  if (/^Access denied:/i.test(message)) {
+    return undefined;
+  }
   if (/is not available on this server/i.test(message)) {
     if (/slim tool profile/i.test(message) || /cannot activate/i.test(message)) {
       return undefined;
@@ -26,7 +29,7 @@ export function recoveryHintFor(message: string): string | undefined {
   ) {
     return "check token scopes and GITLAB_PERMISSION_MODE; grant read_user or User:Read for whoami.";
   }
-  if (/\b404\b/.test(message) || /not found/i.test(message)) {
+  if (/\b404\b/.test(message) || /404 not found/i.test(message)) {
     return "check project_id (numeric ID or group%2Fproject) and the resource iid.";
   }
   return undefined;
