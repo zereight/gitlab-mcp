@@ -20,7 +20,6 @@ site/
 /.github/copilot-instructions.md
 /.github/prompts/quick-fix.prompt.md
 /.github/prompts/quick-plan.prompt.md
-/.well-known/mcp/server-card.json
 /CHANGELOG.md
 /cli-command.ts
 /cli/args.ts

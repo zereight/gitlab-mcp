@@ -105,27 +105,6 @@ fs.writeFileSync("server.json", `${JSON.stringify(serverJson, null, 2)}\n`);
 NODE
 }
 
-SERVER_CARD_FILE=".well-known/mcp/server-card.json"
-
-# Regenerate the MCP server card so serverInfo.version tracks package.json.
-# Must run after `npm version`; tsx resolves tools/registry.ts directly, so no
-# prior build is needed.
-sync_server_card_version() {
-  local version="$1"
-
-  if ! npx tsx scripts/generate-server-card.ts; then
-    echo "❌ Failed to regenerate $SERVER_CARD_FILE."
-    exit 1
-  fi
-
-  local card_version
-  card_version=$(node -p "require('./$SERVER_CARD_FILE').serverInfo.version")
-  if [ "$card_version" != "$version" ]; then
-    echo "❌ $SERVER_CARD_FILE has version $card_version, expected $version."
-    exit 1
-  fi
-}
-
 # Pin README/docs npx examples to the PREVIOUS stable release, not the version
 # being cut right now: a freshly released version has not been proven in the
 # wild yet, so new users get the last known-good release by default. Users who
@@ -584,7 +563,6 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
-  sync_server_card_version "$NEW_VERSION"
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
@@ -593,7 +571,6 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   if [ -f server.json ]; then
     git add server.json
   fi
-  git add "$SERVER_CARD_FILE"
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"
@@ -614,7 +591,6 @@ else
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
-  sync_server_card_version "$NEW_VERSION"
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
@@ -623,7 +599,6 @@ else
   if [ -f server.json ]; then
     git add server.json
   fi
-  git add "$SERVER_CARD_FILE"
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"
