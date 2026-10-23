@@ -4,6 +4,7 @@ import {
   formatJobLogSearch,
   JOB_LOG_CUT_MARKER,
   JOB_LOG_MAX_ACTIVE_SEARCHES,
+  JOB_LOG_MAX_CONTEXT_LINES,
   JOB_LOG_MAX_LINE_LENGTH,
   JOB_LOG_MAX_MATCHES,
   JOB_LOG_MAX_OUTPUT_CHARS,
@@ -478,6 +479,22 @@ describe("When formatting a job log search", () => {
 
       assert.match(text, /truncated=true; output_truncated=true/);
       assert.match(text, /Use a more specific pattern or fewer context_lines/);
+    });
+  });
+
+  describe("with context lines that reach the output limit before the first match", () => {
+    it("should say matches were found but none could be shown", async () => {
+      const context = Array.from({ length: JOB_LOG_MAX_CONTEXT_LINES }, () =>
+        "y".repeat(JOB_LOG_MAX_LINE_LENGTH)
+      );
+      const result = await searchJobLog(numberedLog([...context, "NEEDLE"]), {
+        pattern: "NEEDLE",
+        contextLines: JOB_LOG_MAX_CONTEXT_LINES,
+      });
+      const text = formatJobLogSearch(result, { pattern: "NEEDLE" });
+
+      assert.match(text, /none could be shown because the output size limit was reached/);
+      assert.doesNotMatch(text, /No matches\./);
     });
   });
 

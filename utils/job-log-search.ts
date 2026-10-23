@@ -545,7 +545,11 @@ export function formatJobLogSearch(
     );
   }
   if (result.fragments.length === 0) {
-    return `${header.join("\n")}\n\nNo matches.`;
+    const emptyMessage =
+      result.totalMatches > 0
+        ? "Matches were found, but none could be shown because the output size limit was reached. Use a more specific pattern or fewer context_lines."
+        : "No matches.";
+    return `${header.join("\n")}\n\n${emptyMessage}`;
   }
 
   const blocks = result.fragments.map(fragment => {
