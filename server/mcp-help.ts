@@ -44,7 +44,7 @@ function assertNever(value: never): never {
 
 const GUIDES: Record<HelpTopic, string> = {
   overview: [
-    "GitLab MCP workflow guide. Default tools/list is 38 core tools plus discover_tools.",
+    "GitLab MCP workflow guide. Default tools/list is 38 core tools plus discover_tools and help (40).",
     "Call help with topic: code-review, merge-requests, issues, pipelines, search, token-saving.",
     "Activate more categories with discover_tools. api is explicit-only (GITLAB_TOOLSETS=api).",
     "project_id is a numeric ID or URL-encoded path (group%2Fproject). MR !123 → merge_request_iid=123.",
@@ -72,7 +72,7 @@ const GUIDES: Record<HelpTopic, string> = {
   pipelines: [
     "Pipelines: discover_tools with category pipelines if those tools are hidden.",
     "list_pipelines / get_pipeline, then list_pipeline_jobs / get_pipeline_job.",
-    "Logs: get_pipeline_job_output with pagination (page / per_page). Do not pull a whole trace.",
+    "Logs: get_pipeline_job_output with pagination (limit / offset). Do not pull a whole trace.",
     "Create/retry/cancel: create_pipeline, retry_pipeline, cancel_pipeline (destructive).",
   ].join("\n"),
   search: [

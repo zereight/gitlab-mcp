@@ -6,7 +6,7 @@
 export const MCP_INSTRUCTIONS_MAX_BYTES = 2048;
 
 export const MCP_INSTRUCTIONS = [
-  "GitLab MCP. Default list: 38 core tools plus discover_tools (39). Call help for workflows.",
+  "GitLab MCP. Default list: 38 core tools plus discover_tools and help (40). Call help for workflows.",
   "MR review: list_merge_request_changed_files, then get_merge_request_file_diff for 3-5 files. Do not dump get_merge_request_diffs.",
   "project_id: numeric ID or URL-encoded path (group%2Fproject). MR !123 uses merge_request_iid=123.",
   "discover_tools: omit category to list; pass a category to activate for this session. api is explicit-only (GITLAB_TOOLSETS=api).",
