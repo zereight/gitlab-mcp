@@ -32,7 +32,6 @@
 /Dockerfile                         @zereight
 /server.json                        @zereight
 /manifest.json                      @zereight
-/.well-known/mcp/server-card.json   @zereight
 /Formula/                           @zereight
 
 # Authentication, OAuth, and token handling
