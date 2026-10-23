@@ -2373,7 +2373,11 @@ if (
   // This exit runs before runServer(), so warnings have to be printed here too.
   emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
+  logger.info(
+    "Either set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), " +
+      "GITLAB_JOB_TOKEN, or GITLAB_AUTH_COOKIE_PATH, or enable OAuth with GITLAB_USE_OAUTH=true. " +
+      `Setup guide: ${SERVER_WEBSITE_URL}getting-started/`
+  );
   exitAfterFlush(1);
 }
 

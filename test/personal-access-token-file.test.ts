@@ -307,4 +307,24 @@ describe("When the server starts", () => {
       );
     });
   });
+
+  describe("with no credentials", () => {
+    it("should list the credential options and the setup guide", async () => {
+      const run = await runServerAsync({});
+      assert.equal(run.code, 1);
+      assert.ok(
+        run.stderr.includes("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set")
+      );
+      for (const hint of [
+        "--token",
+        "GITLAB_PERSONAL_ACCESS_TOKEN_FILE",
+        "GITLAB_JOB_TOKEN",
+        "GITLAB_AUTH_COOKIE_PATH",
+        "GITLAB_USE_OAUTH=true",
+        "https://zereight.github.io/gitlab-mcp/getting-started/",
+      ]) {
+        assert.ok(run.stderr.includes(hint), `missing ${hint}`);
+      }
+    });
+  });
 });
