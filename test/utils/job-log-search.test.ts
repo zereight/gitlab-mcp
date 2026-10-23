@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   formatJobLogSearch,
+  JOB_LOG_CUT_MARKER,
   JOB_LOG_MAX_ACTIVE_SEARCHES,
   JOB_LOG_MAX_LINE_LENGTH,
   JOB_LOG_MAX_PATTERN_LENGTH,
@@ -249,13 +250,74 @@ describe("When searching a job log", () => {
   });
 
   describe("with a match past the line length cap", () => {
-    it("should find the match and truncate the returned line", async () => {
-      const visible = "x".repeat(JOB_LOG_MAX_LINE_LENGTH);
-      const result = await searchJobLog(`${visible}NEEDLE`, { pattern: "NEEDLE", contextLines: 0 });
+    it("should return the end of the line with the match and a leading marker", async () => {
+      const line = `${"x".repeat(JOB_LOG_MAX_LINE_LENGTH)}NEEDLE`;
+      const result = await searchJobLog(line, { pattern: "NEEDLE", contextLines: 0 });
+      const text = result.fragments[0]?.lines[0]?.text ?? "";
 
       assert.equal(result.totalMatches, 1);
       assert.deepEqual(result.fragments[0]?.matchLines, [1]);
-      assert.equal(result.fragments[0]?.lines[0]?.text, visible);
+      assert.equal(text, `${JOB_LOG_CUT_MARKER}${line.slice(-(JOB_LOG_MAX_LINE_LENGTH - 1))}`);
+      assert.ok(text.endsWith("NEEDLE"));
+      assert.equal(result.linesTruncated, true);
+    });
+  });
+
+  describe("with a match in the middle of a long line", () => {
+    it("should return an excerpt with the match and markers at both ends", async () => {
+      const line = `${"x".repeat(10_000)}NEEDLE${"y".repeat(10_000)}`;
+      const result = await searchJobLog(line, { pattern: "NEEDLE", contextLines: 0 });
+      const text = result.fragments[0]?.lines[0]?.text ?? "";
+
+      assert.ok(text.includes("NEEDLE"));
+      assert.ok(text.startsWith(JOB_LOG_CUT_MARKER));
+      assert.ok(text.endsWith(JOB_LOG_CUT_MARKER));
+      assert.equal(text.length, JOB_LOG_MAX_LINE_LENGTH);
+    });
+
+    it("should position a regular expression match the same way", async () => {
+      const line = `${"x".repeat(10_000)}NEEDLE${"y".repeat(10_000)}`;
+      const result = await searchJobLog(line, { pattern: "nee+dle", regex: true, contextLines: 0 });
+      const text = result.fragments[0]?.lines[0]?.text ?? "";
+
+      assert.ok(text.includes("NEEDLE"));
+      assert.equal(text.length, JOB_LOG_MAX_LINE_LENGTH);
+    });
+
+    it("should find the match after characters that lengthen when lowercased", async () => {
+      const line = `${"İ".repeat(6000)}NEEDLE${"x".repeat(6000)}`;
+      const result = await searchJobLog(line, { pattern: "needle", contextLines: 0 });
+      const text = result.fragments[0]?.lines[0]?.text ?? "";
+
+      assert.ok(text.includes("NEEDLE"));
+      assert.equal(text.length, JOB_LOG_MAX_LINE_LENGTH);
+    });
+  });
+
+  describe("with a match near the start of a long line", () => {
+    it("should keep the start of the line and add a trailing marker", async () => {
+      const line = `NEEDLE${"x".repeat(10_000)}`;
+      const result = await searchJobLog(line, { pattern: "NEEDLE", contextLines: 0 });
+
+      assert.equal(
+        result.fragments[0]?.lines[0]?.text,
+        `${line.slice(0, JOB_LOG_MAX_LINE_LENGTH - 1)}${JOB_LOG_CUT_MARKER}`
+      );
+    });
+  });
+
+  describe("with a long context line", () => {
+    it("should keep the start of the context line and add a trailing marker", async () => {
+      const context = "y".repeat(10_000);
+      const result = await searchJobLog(numberedLog(["ERROR", context]), {
+        pattern: "ERROR",
+        contextLines: 1,
+      });
+
+      assert.equal(
+        result.fragments[0]?.lines[1]?.text,
+        `${context.slice(0, JOB_LOG_MAX_LINE_LENGTH - 1)}${JOB_LOG_CUT_MARKER}`
+      );
       assert.equal(result.linesTruncated, true);
     });
   });
@@ -331,6 +393,19 @@ describe("When formatting a job log search", () => {
 
       assert.match(text, /total_lines=5; total_matches=1; shown_matches=1; truncated=false/);
       assert.match(text, /4\|ERROR here/);
+    });
+  });
+
+  describe("with a match past the line length cap", () => {
+    it("should show the match after the cut marker and explain the cut", async () => {
+      const result = await searchJobLog(`${"x".repeat(JOB_LOG_MAX_LINE_LENGTH)}NEEDLE`, {
+        pattern: "NEEDLE",
+        contextLines: 0,
+      });
+      const text = formatJobLogSearch(result, { pattern: "NEEDLE" });
+
+      assert.match(text, new RegExp(`\\n1\\|${JOB_LOG_CUT_MARKER}x+NEEDLE$`));
+      assert.match(text, /cut to 4000 characters; … marks omitted text/);
     });
   });
 });

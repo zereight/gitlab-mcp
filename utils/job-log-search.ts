@@ -6,6 +6,8 @@ export const JOB_LOG_MAX_CONTEXT_LINES = 50;
 export const JOB_LOG_DEFAULT_MAX_MATCHES = 20;
 export const JOB_LOG_MAX_MATCHES = 100;
 export const JOB_LOG_MAX_LINE_LENGTH = 4000;
+// Marks where text was cut from a returned line that is longer than JOB_LOG_MAX_LINE_LENGTH.
+export const JOB_LOG_CUT_MARKER = "…";
 export const JOB_LOG_SEARCH_BUDGET_MS = 1000;
 // Per-IP rate limits do not cap workers. This does, for the whole process.
 export const JOB_LOG_MAX_ACTIVE_SEARCHES = 2;
@@ -66,6 +68,50 @@ const SEARCH_WORKER_SOURCE = [
   "  }",
   "  return { windows, shownMatches: limited.length };",
   "}",
+  // toLowerCase can lengthen a line (U+0130 becomes two code units), so an
+  // offset into the lowercased copy is mapped back one code point at a time.
+  "function lineOffsetOf(line, lowerOffset) {",
+  "  let lowerIndex = 0;",
+  "  let lineIndex = 0;",
+  "  for (const character of line) {",
+  "    lowerIndex += character.toLowerCase().length;",
+  "    if (lowerIndex > lowerOffset) {",
+  "      return lineIndex;",
+  "    }",
+  "    lineIndex += character.length;",
+  "  }",
+  "  return line.length;",
+  "}",
+  "function firstMatchStart(line, expression, needle, caseSensitive) {",
+  "  if (expression !== null) {",
+  "    expression.lastIndex = 0;",
+  "    const found = expression.exec(line);",
+  "    return found === null ? -1 : found.index;",
+  "  }",
+  "  const haystack = caseSensitive ? line : line.toLowerCase();",
+  "  const start = haystack.indexOf(needle);",
+  "  if (start === -1 || haystack.length === line.length) {",
+  "    return start;",
+  "  }",
+  "  return lineOffsetOf(line, start);",
+  "}",
+  // A long line keeps maxLineLength characters, markers included. The excerpt
+  // starts a quarter of the way before matchStart (0 for context lines).
+  "function excerptLine(line, matchStart, maxLength, marker) {",
+  "  if (line.length <= maxLength) {",
+  "    return line;",
+  "  }",
+  "  const room = maxLength - 2 * marker.length;",
+  "  const lead = Math.floor(room / 4);",
+  "  const from = Math.max(0, Math.min(matchStart - lead, line.length - room));",
+  "  if (from === 0) {",
+  "    return line.slice(0, maxLength - marker.length) + marker;",
+  "  }",
+  "  if (from + room >= line.length) {",
+  "    return marker + line.slice(line.length - (maxLength - marker.length));",
+  "  }",
+  "  return marker + line.slice(from, from + room) + marker;",
+  "}",
   "function runSearch(data) {",
   "  const startedAt = Date.now();",
   '  const rawLines = data.log.split("\\n");',
@@ -79,21 +125,18 @@ const SEARCH_WORKER_SOURCE = [
   "  const expression = data.regex ? new RegExp(data.pattern, data.flags) : null;",
   "  const needle = data.caseSensitive ? data.pattern : data.pattern.toLowerCase();",
   "  const matchIndexes = [];",
+  "  const longLineMatchStarts = new Map();",
   "  for (let index = 0; index < cleaned.length; index += 1) {",
   "    if (overBudget(startedAt, data.budgetMs)) {",
   "      return { timeout: true };",
   "    }",
   "    const line = cleaned[index];",
-  "    let matched = false;",
-  "    if (expression !== null) {",
-  "      expression.lastIndex = 0;",
-  "      matched = expression.test(line);",
-  "    } else {",
-  "      const haystack = data.caseSensitive ? line : line.toLowerCase();",
-  "      matched = haystack.includes(needle);",
-  "    }",
-  "    if (matched) {",
+  "    const matchStart = firstMatchStart(line, expression, needle, data.caseSensitive);",
+  "    if (matchStart !== -1) {",
   "      matchIndexes.push(index);",
+  "      if (line.length > data.maxLineLength) {",
+  "        longLineMatchStarts.set(index, matchStart);",
+  "      }",
   "    }",
   "  }",
   "  const merged = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
@@ -102,11 +145,12 @@ const SEARCH_WORKER_SOURCE = [
   "  const fragments = merged.windows.map(matchWindow => {",
   "    const lines = [];",
   "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
-  "      let text = cleaned[offset];",
-  "      if (text.length > data.maxLineLength) {",
-  "        text = text.slice(0, data.maxLineLength);",
+  "      const line = cleaned[offset];",
+  "      if (line.length > data.maxLineLength) {",
   "        linesTruncated = true;",
   "      }",
+  "      const matchStart = longLineMatchStarts.get(offset) ?? 0;",
+  "      const text = excerptLine(line, matchStart, data.maxLineLength, data.cutMarker);",
   "      lines.push({ lineNumber: data.lineOffset + offset + 1, text });",
   "    }",
   "    return {",
@@ -343,6 +387,7 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
         maxMatches: input.maxMatches,
         budgetMs: JOB_LOG_SEARCH_BUDGET_MS,
         maxLineLength: JOB_LOG_MAX_LINE_LENGTH,
+        cutMarker: JOB_LOG_CUT_MARKER,
         ansiSource: ANSI_ESCAPE_PATTERN.source,
         ansiFlags: ANSI_ESCAPE_PATTERN.flags,
         sectionSource: SECTION_MARKER_PATTERN.source,
@@ -464,7 +509,7 @@ export function formatJobLogSearch(
   }
   if (result.linesTruncated) {
     header.push(
-      `[Some returned lines were truncated to ${JOB_LOG_MAX_LINE_LENGTH} characters; matching used the full line.]`
+      `[Some returned lines were cut to ${JOB_LOG_MAX_LINE_LENGTH} characters; ${JOB_LOG_CUT_MARKER} marks omitted text. A matching line is cut around its first match. Matching used the full line.]`
     );
   }
   if (result.fragments.length === 0) {
