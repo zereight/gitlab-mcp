@@ -10,7 +10,7 @@
 
 Instalação local recomendada com PAT para `@zereight/mcp-gitlab`. Os argumentos são os mesmos dos guias de [Claude Code](./docs/clients/claude-code.md) e [Codex](./docs/clients/codex.md).
 
-Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
+Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
 Leia o token sem eco e exporte. O histórico do shell fica só com o nome da variável.
 

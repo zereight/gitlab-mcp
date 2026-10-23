@@ -33,11 +33,11 @@ Full guides:
 
 ## 2. Pick a transport
 
-| Transport           | When to use it                                                       |
-| ------------------- | -------------------------------------------------------------------- |
-| **stdio**           | Local MCP clients (Claude Code, VS Code, Cursor, etc.). The default. |
-| **SSE**             | Legacy MCP clients that only speak Server-Sent Events.               |
-| **Streamable HTTP** | Modern remote deployments (recommended for hosted servers).          |
+| Transport           | When to use it                                                                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **stdio**           | Local MCP clients (Claude Code, VS Code, Cursor, etc.). The default. OpenTelemetry is not enabled on this path; see [OpenTelemetry MCP](../reference/opentelemetry-mcp.md). |
+| **SSE**             | Legacy MCP clients that only speak Server-Sent Events.                                                                                                                      |
+| **Streamable HTTP** | Modern remote deployments (recommended for hosted servers).                                                                                                                 |
 
 ## 3. Connect your client
 
