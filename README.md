@@ -60,7 +60,17 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | **Node.js**    | >=18.17                                                           | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
 
-[Full comparison with GitLab MCP A →](./docs/comparison/community-gitlab-mcp-a.md)
+### tools/list size (measured 2026-10-23)
+
+A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4.
+
+| Profile | Tools | JSON bytes | Est. tokens |
+| ------- | ----: | ---------: | ----------: |
+| Default (`core` + `discover_tools`) | 39 | 48,069 | 12,018 |
+| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
+| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+
+Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
 GitLab also ships an [official MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/).
 

@@ -17,7 +17,7 @@ Code search across all visible projects, a specific project, or a specific group
 
 *📖 Read-only*
 
-Search for code across all projects (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors.
+Search for code across all projects (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool.
 
 **Parameters**
 
@@ -34,7 +34,7 @@ Search for code across all projects (requires advanced search or Zoekt). If the 
 
 *📖 Read-only*
 
-Search for code within a specific project (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Search for code within a specific project (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool.
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Search for code within a specific project (requires advanced search or Zoekt). I
 
 *📖 Read-only*
 
-Search for code within a specific group (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Search for code within a specific group (requires advanced search or Zoekt). If the identifier is known, use a typed get or list tool.
 
 **Parameters**
 

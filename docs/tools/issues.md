@@ -38,7 +38,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions.
 
 *✏️ Writes*
 
-Create a new issue. Use this to open a new issue; use `update_issue` for an existing issue and `create_issue_note` to add discussion without changing issue fields. The operation creates remote project data, requires issue creation permission, and returns the new issue or a validation, permission, or duplicate-related error.
+Create a new issue. Open a new issue. Use `update_issue` for an existing issue and `create_issue_note` for discussion.
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Create a new issue. Use this to open a new issue; use `update_issue` for an exis
 
 *📖 Read-only*
 
-List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the issue iid is already known and `my_issues` for issues assigned to the current user. It is read-only and paginated, requires issue read permission, and returns issue records or GitLab errors for invalid identifiers, missing resources, or rate limits.
+List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments.
 
 **Parameters**
 
@@ -89,7 +89,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. Resolving the current user requires classic read_user or fine-grained User:Read. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
+List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.
 
 **Parameters**
 
@@ -111,7 +111,7 @@ List issues assigned to the authenticated user. Use this for issue management: l
 
 *📖 Read-only*
 
-Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.
+Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first.
 
 **Parameters**
 
@@ -125,7 +125,7 @@ Get details of a specific issue. Returns the issue with a slim nested milestone 
 
 *✏️ Writes*
 
-Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Use this to change fields on an existing issue; use `update_issue_description_patch` for a targeted description edit that avoids sending the full body, and use `create_issue_note` for discussion. The operation mutates issue state, requires issue-edit permission, and returns the updated issue or a validation/permission/conflict error.
+Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion.
 
 **Parameters**
 
@@ -150,7 +150,7 @@ Update an issue. Returns a slim confirmation by default; set full_response=true 
 
 *✏️ Writes*
 
-Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. Use this for a targeted search/replace or unified-diff change to an issue description; use `dry_run` before applying an uncertain patch and `create_note` when an audit summary is wanted. It changes the issue description when not dry-running, requires issue-edit permission, and returns the patch result or a mismatch/validation/permission error.
+Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
 
 **Parameters**
 
@@ -168,7 +168,7 @@ Apply a patch (search/replace or unified diff) to an issue description. Reduces 
 
 *✏️ Writes*
 
-Delete an issue. Use this only after confirming the issue and intended permanent removal; use `update_issue` to close or edit an issue without deleting it. The operation permanently removes issue data, requires delete permission, and returns the deletion result or a missing-resource, permission, or policy error.
+Delete an issue. Permanently delete an issue. Use `update_issue` to close or edit without deleting.
 
 **Parameters**
 
@@ -181,7 +181,7 @@ Delete an issue. Use this only after confirming the issue and intended permanent
 
 *📖 Read-only*
 
-List GitLab to-do items for the current user. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List GitLab to-do items for the current user.
 
 **Parameters**
 
@@ -200,7 +200,7 @@ List GitLab to-do items for the current user. Read-only; missing resources, deni
 
 *✏️ Writes*
 
-Mark a GitLab to-do item as done. Changes GitLab data; needs permission and returns validation or conflict errors.
+Mark a GitLab to-do item as done.
 
 **Parameters**
 
@@ -212,7 +212,7 @@ Mark a GitLab to-do item as done. Changes GitLab data; needs permission and retu
 
 *✏️ Writes*
 
-Mark all pending GitLab to-do items as done for the current user. Changes GitLab data; needs permission and returns validation or conflict errors.
+Mark all pending GitLab to-do items as done for the current user.
 
 **Parameters**
 
@@ -222,7 +222,7 @@ _No parameters._
 
 *✏️ Writes*
 
-Add a note to an issue, optionally replying to a discussion thread. Use this to add a note to an existing issue, optionally as a reply to a discussion; use `update_issue` for issue fields and `create_note` only when the generic endpoint is required. The operation creates remote discussion content, requires note permission, and returns the note or a missing-issue/thread/permission error.
+Add a note to an issue, optionally replying to a discussion thread. Add a note to an existing issue, optionally as a reply. Use `update_issue` for issue fields.
 
 **Parameters**
 
@@ -238,7 +238,7 @@ Add a note to an issue, optionally replying to a discussion thread. Use this to 
 
 *✏️ Writes*
 
-Modify an existing issue thread note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Modify an existing issue thread note. Use the create tool for new resources.
 
 **Parameters**
 
@@ -255,7 +255,7 @@ Modify an existing issue thread note. Use the create tool for new resources. Cha
 
 *📖 Read-only*
 
-List all issue links for a specific issue. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all issue links for a specific issue. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -268,7 +268,7 @@ List all issue links for a specific issue. For one known resource, use the match
 
 *📖 Read-only*
 
-List discussions for an issue. Use this to inspect threaded discussions for an issue; use `list_issues` for issue records and `get_issue` for one issue's fields. It is read-only and returns discussion items, while invalid identifiers, missing issues, and permission failures are reported as errors.
+List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records.
 
 **Parameters**
 
@@ -283,7 +283,7 @@ List discussions for an issue. Use this to inspect threaded discussions for an i
 
 *📖 Read-only*
 
-Get a specific issue link. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a specific issue link. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Get a specific issue link. To find resources, use the matching list or search to
 
 *✏️ Writes*
 
-Create an issue link between two issues. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create an issue link between two issues.
 
 **Parameters**
 
@@ -313,7 +313,7 @@ Create an issue link between two issues. Changes GitLab data; needs permission a
 
 *✏️ Writes*
 
-Delete an issue link. Use this to remove an existing relationship between two issues; use `list_issue_links` or `get_issue_link` to verify the link first. The operation changes issue relationships, requires issue-edit permission, and returns the result or an error when the link is missing or access is denied.
+Delete an issue link. Remove a relationship between two issues. Verify first with `list_issue_links` or `get_issue_link`.
 
 **Parameters**
 
@@ -327,7 +327,7 @@ Delete an issue link. Use this to remove an existing relationship between two is
 
 *✏️ Writes*
 
-Create a new note (comment) to an issue or merge request. Use this for a top-level comment on an issue or merge request when no typed discussion operation is needed; use `create_merge_request_thread` or `create_issue_note` for threaded replies. The operation creates remote discussion content, requires note permission, and returns the created note or a target/permission/validation error.
+Create a new note (comment) to an issue or merge request. Add a top-level comment on an issue or merge request. Use `create_merge_request_thread` or `create_issue_note` for typed discussion.
 
 **Parameters**
 
@@ -342,7 +342,7 @@ Create a new note (comment) to an issue or merge request. Use this for a top-lev
 
 *📖 Read-only*
 
-List all emoji reactions on an issue. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on an issue.
 
 **Parameters**
 
@@ -355,7 +355,7 @@ List all emoji reactions on an issue. Read-only; missing resources, denied acces
 
 *📖 Read-only*
 
-List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies.
 
 **Parameters**
 
@@ -370,7 +370,7 @@ List all emoji reactions on an issue note. Pass discussion_id for discussion thr
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes).
 
 **Parameters**
 
@@ -384,7 +384,7 @@ Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes). Changes GitLab 
 
 *✏️ Writes*
 
-Remove an emoji reaction from an issue. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from an issue. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -398,7 +398,7 @@ Remove an emoji reaction from an issue. Verify the target first with a get or li
 
 *✏️ Writes*
 
-Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies.
 
 **Parameters**
 
@@ -414,7 +414,7 @@ Add an emoji reaction to an issue note. Pass discussion_id for discussion thread
 
 *✏️ Writes*
 
-Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies. Verify the target first with a get or list tool.
 
 **Parameters**
 

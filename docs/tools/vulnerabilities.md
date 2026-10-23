@@ -18,7 +18,7 @@ AI-assisted vulnerability triage — list findings, inspect details, dismiss wit
 
 *📖 Read-only*
 
-List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination).
 
 **Parameters**
 
@@ -35,7 +35,7 @@ List vulnerabilities for a project with optional state, severity, and report typ
 
 *📖 Read-only*
 
-Get full details of a specific vulnerability. Read-only; missing resources, denied access, and rate limits return errors.
+Get full details of a specific vulnerability.
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Get full details of a specific vulnerability. Read-only; missing resources, deni
 
 *✏️ Writes*
 
-Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment. Changes GitLab data; needs permission and returns validation or conflict errors.
+Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment.
 
 **Parameters**
 
@@ -61,7 +61,7 @@ Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_
 
 *✏️ Writes*
 
-Confirm a vulnerability as a real finding requiring remediation. Changes GitLab data; needs permission and returns validation or conflict errors.
+Confirm a vulnerability as a real finding requiring remediation.
 
 **Parameters**
 

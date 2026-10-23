@@ -21,7 +21,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 *📖 Read-only*
 
-Get GitLab user details by usernames. Read-only; missing resources, denied access, and rate limits return errors.
+Get GitLab user details by usernames.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ Get GitLab user details by usernames. Read-only; missing resources, denied acces
 
 *📖 Read-only*
 
-Get user details by ID. Read-only; missing resources, denied access, and rate limits return errors.
+Get user details by ID.
 
 **Parameters**
 
@@ -45,7 +45,7 @@ Get user details by ID. Read-only; missing resources, denied access, and rate li
 
 *📖 Read-only*
 
-Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It requires classic read_user or fine-grained User:Read. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.
+Get current authenticated user details. Requires classic read_user or fine-grained User:Read. Use `get_user` or `get_users` to look up another user.
 
 **Parameters**
 
@@ -55,7 +55,7 @@ _No parameters._
 
 *📖 Read-only*
 
-List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors.
+List events for the authenticated user (before/after: YYYY-MM-DD).
 
 **Parameters**
 
@@ -74,7 +74,7 @@ List events for the authenticated user (before/after: YYYY-MM-DD). Read-only; mi
 
 *📖 Read-only*
 
-List events for a project (before/after: YYYY-MM-DD). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List events for a project (before/after: YYYY-MM-DD).
 
 **Parameters**
 
@@ -93,7 +93,7 @@ List events for a project (before/after: YYYY-MM-DD). Read-only; missing resourc
 
 *✏️ Writes*
 
-Upload a file for use in markdown content. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Upload a file for use in markdown content.
 
 **Parameters**
 
@@ -106,7 +106,7 @@ Upload a file for use in markdown content. Changes GitLab data; needs permission
 
 *📖✏️ Reads and writes*
 
-Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode saves the file as a new file under the download directory (GITLAB_DOWNLOAD_DIR, default .gitlab-mcp-downloads). It is read-only with respect to GitLab but creates a local file in stdio mode (readonly mode returns images inline and rejects everything else), never replaces an existing file, requires project access, and returns the file content or an attachment/permission error.
+Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory). Retrieve a project attachment. Remote HTTP returns inline base64 or a URL; local stdio saves under GITLAB_DOWNLOAD_DIR and never overwrites.
 
 **Parameters**
 

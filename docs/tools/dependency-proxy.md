@@ -18,7 +18,7 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 
 *📖 Read-only*
 
-Get dependency proxy settings for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get dependency proxy settings for a group.
 
 **Parameters**
 
@@ -30,7 +30,7 @@ Get dependency proxy settings for a group. Read-only; missing resources, denied 
 
 *✏️ Writes*
 
-Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls).
 
 **Parameters**
 
@@ -45,7 +45,7 @@ Update dependency proxy settings for a group (enable/disable, credentials for au
 
 *📖 Read-only*
 
-List cached dependency proxy blobs for a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List cached dependency proxy blobs for a group.
 
 **Parameters**
 
@@ -59,7 +59,7 @@ List cached dependency proxy blobs for a group. Read-only; missing resources, de
 
 *✏️ Writes*
 
-Schedule purge of all cached dependency proxy blobs for a group. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Schedule purge of all cached dependency proxy blobs for a group.
 
 **Parameters**
 

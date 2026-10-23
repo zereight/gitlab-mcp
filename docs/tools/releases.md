@@ -21,7 +21,7 @@ Release lifecycle, release evidence, and asset download.
 
 *📖 Read-only*
 
-List all releases for a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all releases for a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -38,7 +38,7 @@ List all releases for a project. For one known resource, use the matching get to
 
 *📖 Read-only*
 
-Get a release by tag name. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a release by tag name. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -52,7 +52,7 @@ Get a release by tag name. To find resources, use the matching list or search to
 
 *✏️ Writes*
 
-Create a new release. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new release. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -72,7 +72,7 @@ Create a new release. If the resource already exists, use the update tool. Chang
 
 *✏️ Writes*
 
-Update an existing release. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing release. Use the create tool for new resources.
 
 **Parameters**
 
@@ -89,7 +89,7 @@ Update an existing release. Use the create tool for new resources. Changes GitLa
 
 *✏️ Writes*
 
-Delete a release (does not delete the tag). Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a release (does not delete the tag). Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -102,7 +102,7 @@ Delete a release (does not delete the tag). Verify the target first with a get o
 
 *✏️ Writes*
 
-Create release evidence (Premium/Ultimate). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create release evidence (Premium/Ultimate).
 
 **Parameters**
 
@@ -115,7 +115,7 @@ Create release evidence (Premium/Ultimate). Changes GitLab data; needs permissio
 
 *📖 Read-only*
 
-Download a release asset file by direct asset path. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Download a release asset file by direct asset path.
 
 **Parameters**
 

@@ -25,7 +25,7 @@ Project/namespace listing, member queries, group iterations, and server health.
 
 *📖 Read-only*
 
-Get details of a specific project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific project. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -37,7 +37,7 @@ Get details of a specific project. To find resources, use the matching list or s
 
 *📖 Read-only*
 
-List projects accessible by the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
+List projects accessible by the current user. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -63,7 +63,7 @@ List projects accessible by the current user. For one known resource, use the ma
 
 *✏️ Writes*
 
-Update project settings such as description, visibility, default branch, and feature access levels. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update project settings such as description, visibility, default branch, and feature access levels.
 
 **Parameters**
 
@@ -97,7 +97,7 @@ Update project settings such as description, visibility, default branch, and fea
 
 *📖 Read-only*
 
-List members of a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab project. Search project members by name or username. Use `list_group_members` for a group.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ List members of a GitLab project. Read-only; missing resources, denied access, a
 
 *📖 Read-only*
 
-List members of a GitLab group with optional name or username search. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab group with optional name or username search.
 
 **Parameters**
 
@@ -133,7 +133,7 @@ List members of a GitLab group with optional name or username search. Read-only;
 
 *📖 Read-only*
 
-List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
+List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -148,7 +148,7 @@ List all namespaces (users and groups) available to the current user. Filter by 
 
 *📖 Read-only*
 
-Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
+Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -173,7 +173,7 @@ Verify if a namespace path exists. Use parent_id to scope the check to a specifi
 
 *📖 Read-only*
 
-List projects in a group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List projects in a group.
 
 **Parameters**
 
@@ -202,7 +202,7 @@ List projects in a group. Read-only; missing resources, denied access, and rate 
 
 *📖 Read-only*
 
-List group iterations with filtering options. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List group iterations with filtering options.
 
 **Parameters**
 
@@ -223,7 +223,7 @@ List group iterations with filtering options. Read-only; missing resources, deni
 
 *📖 Read-only*
 
-Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. A 403 from GET /user with an insufficient_scope error means the token is accepted but User API scope is missing (read_user or fine-grained User:Read); the check stays ok, sets user_api_warning, and omits version metadata. Rate-limit and authentication-ban 403 responses stay unauthenticated. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available. Connection failures with no HTTP response return status error, authenticated false, and an error object (kind tls, dns, timeout, or network, plus code and message) instead of a protocol error.
+Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
 
 **Parameters**
 
