@@ -5,6 +5,7 @@
  * That redirect opens vscode:mcp/install with the same server entry.
  * Cursor does not expand ${input:...}, so its badge reads the token from the environment.
  * Both VS Code URLs also carry the `gitlab-token` input, so VS Code prompts for the token.
+ * The entry leaves GITLAB_PERMISSION_MODE unset, so the server default applies.
  * See docs/clients/vscode.md and docs/clients/cursor.md.
  */
 
@@ -27,7 +28,6 @@ function serverConfig(tokenPlaceholder) {
     env: {
       GITLAB_PERSONAL_ACCESS_TOKEN: tokenPlaceholder,
       GITLAB_API_URL: "https://gitlab.com/api/v4",
-      GITLAB_PERMISSION_MODE: "full",
     },
   };
 }
