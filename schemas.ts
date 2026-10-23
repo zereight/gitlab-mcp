@@ -4119,6 +4119,12 @@ export const DownloadAttachmentSchema = z.object({
     .describe(
       "Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected"
     ),
+  metadata_only: z
+    .boolean()
+    .optional()
+    .describe(
+      "If true, return filename, mime type, and byte length without inline image bytes or a saved file. Default false keeps the existing download behavior."
+    ),
 });
 
 export const DownloadAttachmentRemoteSchema = z.object({

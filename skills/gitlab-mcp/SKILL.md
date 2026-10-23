@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 277 tools: 275 tools across 24 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 278 tools: 275 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -40,7 +40,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 Enable all discoverable toolsets: `GITLAB_TOOLSETS=all` (does **not** enable `api`). Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset, except explicit-only tools such as `gitlab_api_request`. `discover_tools` can list and activate opt-in categories for the current session, except `api`. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` are deprecated (removed in next major (v3.0.0)). If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
 
-`gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. `GITLAB_ALLOWED_PROJECT_IDS` is checked only for `/projects/:id` paths; `/search`, `/users`, `/groups/:id`, and `/runners` are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
+`gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
 The per-toolset counts above sum to 315 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
@@ -117,6 +117,12 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - Read: `get_file_contents`, `get_repository_tree`
 - Write: `create_or_update_file` (single file), `push_files` (multiple files in one commit)
 
+## Token-saving rules
+
+- Do not dump a full `get_merge_request_diffs` payload into the conversation. List paths with `list_merge_request_changed_files`, then fetch 3–5 files per `get_merge_request_file_diff` call.
+- Prefer a `jmespath` filter or `GITLAB_MCP_COMPACT_RESULTS` / `--compact-results` before asking the model to read a large JSON reply.
+- Paginate `get_pipeline_job_output` with `limit` and `offset` instead of fetching an entire job log in one call.
+
 ## Parameter Hints
 
 - **project_id**: numeric ID or URL-encoded path (`group%2Fsubgroup%2Fproject`)
@@ -138,6 +144,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 ## Advanced
 
 - **Dynamic discovery**: `discover_tools` lists and activates opt-in toolsets at runtime. It cannot activate `api`
+- **Workflow guide**: `help` returns on-demand guides (code-review, pipelines, issues, token-saving). Omit topic for the overview
 - **Raw API**: `gitlab_api_request` only when `GITLAB_TOOLSETS` lists `api`. Readonly is GET-only; modify rejects DELETE
 - **GraphQL**: `execute_graphql` for queries not covered by REST tools
 - **Tool docs**: `docs/tools/` is generated from `tools/registry.ts`; prefer it for exact schemas

@@ -19,7 +19,7 @@ Project label CRUD.
 
 *📖 Read-only*
 
-List labels for a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List labels for a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -36,7 +36,7 @@ List labels for a project. For one known resource, use the matching get tool. Re
 
 *📖 Read-only*
 
-Get a single label from a project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a single label from a project. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -50,7 +50,7 @@ Get a single label from a project. To find resources, use the matching list or s
 
 *✏️ Writes*
 
-Create a new label in a project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new label in a project. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -66,7 +66,7 @@ Create a new label in a project. If the resource already exists, use the update 
 
 *✏️ Writes*
 
-Update an existing label in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing label in a project. Use the create tool for new resources.
 
 **Parameters**
 
@@ -83,7 +83,7 @@ Update an existing label in a project. Use the create tool for new resources. Ch
 
 *✏️ Writes*
 
-Delete a label from a project. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a label from a project. Verify the target first with a get or list tool.
 
 **Parameters**
 

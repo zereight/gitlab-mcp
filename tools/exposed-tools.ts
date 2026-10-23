@@ -1,5 +1,8 @@
 import { isExcludedBySlimProfile } from "./tool-profile.js";
 
+/** Meta tools re-added after every toolset filter so progressive disclosure stays available. */
+export const ALWAYS_LISTED_META_TOOLS: readonly string[] = ["discover_tools", "help"];
+
 export interface ExposedToolSelection<T extends { readonly name: string }> {
   readonly tools: readonly T[];
   readonly isInEnabledToolset: (toolName: string) => boolean;
@@ -50,12 +53,16 @@ export function selectExposedTools<T extends { readonly name: string }>(
     : [...toolsAfterPermission];
 
   const filteredToolNames = new Set(toolsAfterRegex.map(tool => tool.name));
-  const discoverTool = input.tools.find(tool => tool.name === "discover_tools");
-  if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    const passesPermissionMode = input.isAllowedByPermissionMode("discover_tools");
-    const passesRegex = deniedToolsRegex ? !deniedToolsRegex.test("discover_tools") : true;
+  for (const metaName of ALWAYS_LISTED_META_TOOLS) {
+    const metaTool = input.tools.find(tool => tool.name === metaName);
+    if (!metaTool || filteredToolNames.has(metaName)) {
+      continue;
+    }
+    const passesPermissionMode = input.isAllowedByPermissionMode(metaName);
+    const passesRegex = deniedToolsRegex ? !deniedToolsRegex.test(metaName) : true;
     if (passesPermissionMode && passesRegex) {
-      toolsAfterRegex.push(discoverTool);
+      toolsAfterRegex.push(metaTool);
+      filteredToolNames.add(metaName);
     }
   }
 

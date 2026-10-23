@@ -85,9 +85,9 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
     return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, legacy \`USE_*\` flags, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
   }
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
-  // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
+  // discover_tools and help are always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
   if ((id as string) === "meta") {
-    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
+    return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
@@ -361,7 +361,7 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
     );
     lines.push("    ");
     lines.push(
-      `    \`GITLAB_ALLOWED_PROJECT_IDS\` and a session project scope are checked only for \`/projects/:id\` and \`/projects/:id/...\`. Endpoints such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, and the \`/projects\` collection are not constrained. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
+      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
     );
     lines.push("");
   }
@@ -431,7 +431,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
       : []),
     ...(meta.length > 0
       ? [
-          `| **Not a toolset** — \`discover_tools\` is always exposed; \`execute_graphql\` needs \`GITLAB_TOOLS\` | ${formatList(meta)} |`,
+          `| **Not a toolset** — \`discover_tools\` and \`help\` are always exposed; \`execute_graphql\` needs \`GITLAB_TOOLS\` | ${formatList(meta)} |`,
         ]
       : []),
     "",

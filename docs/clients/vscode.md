@@ -4,20 +4,22 @@ This guide explains how to configure `@zereight/mcp-gitlab` in VS Code using `mc
 
 ## One-click install
 
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=zereight.gitlab-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agitlab-token%7D%22%2C%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%2C%22GITLAB_PERMISSION_MODE%22%3A%22full%22%7D%7D)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=zereight.gitlab-mcp&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22gitlab-token%22%2C%22description%22%3A%22GitLab%20Personal%20Access%20Token%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agitlab-token%7D%22%2C%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%7D%7D)
 
-Click the badge to add the server via `npx`. The badge uses an https redirect so GitHub keeps the link. VS Code receives the **server entry** only (VS Code limitation). It pre-fills:
+Click the badge to add the server via `npx`. The badge uses an https redirect so GitHub keeps the link. VS Code receives the server entry and the `gitlab-token` input, so it asks for your PAT when the server first starts. It pre-fills:
 
 | Variable | Value |
 |----------|-------|
 | `GITLAB_PERSONAL_ACCESS_TOKEN` | `${input:gitlab-token}` |
 | `GITLAB_API_URL` | `https://gitlab.com/api/v4` |
-| `GITLAB_PERMISSION_MODE` | `full` |
 
-### After one-click install — add `inputs`
+It does not set `GITLAB_PERMISSION_MODE`, so the server default (`full`) applies unless the
+deprecated `GITLAB_READ_ONLY_MODE=true` is set.
 
-The token prompt needs a top-level `inputs` block in the same `mcp.json`. Merge this
-**alongside** the `servers` object VS Code created:
+### Same setup by hand
+
+The badge creates this configuration. To add it yourself, or to fix an entry from an
+older badge that shows `Undefined input variable 'gitlab-token'`, merge this into your `mcp.json`:
 
 ```json
 {
@@ -36,8 +38,7 @@ The token prompt needs a top-level `inputs` block in the same `mcp.json`. Merge 
       "args": ["-y", "@zereight/mcp-gitlab@latest"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_PERMISSION_MODE": "full"
+        "GITLAB_API_URL": "https://gitlab.com/api/v4"
       }
     }
   }
@@ -49,7 +50,7 @@ then restart the server. VS Code prompts for the PAT on first start and stores i
 
 Self-hosted GitLab: change `GITLAB_API_URL` to `https://your-host.example.com/api/v4`.
 
-Read-only: set `GITLAB_PERMISSION_MODE` to `readonly` (or `modify` to block delete and teardown tools).
+Read-only: add `"GITLAB_PERMISSION_MODE": "readonly"` to `env` (or `modify` to block delete and teardown tools). Without it, the server uses `full`, or `readonly` when the deprecated `GITLAB_READ_ONLY_MODE=true` is set.
 
 Regenerate the badge URL: `node scripts/generate-vscode-install-link.mjs`
 
@@ -97,8 +98,7 @@ A secure workspace example using input prompts:
       "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_PERMISSION_MODE": "full"
+        "GITLAB_API_URL": "https://gitlab.com/api/v4"
       }
     }
   }

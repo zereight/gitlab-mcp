@@ -4,11 +4,21 @@
  * GitHub drops non-http links, so the VS Code badge uses the https redirect.
  * That redirect opens vscode:mcp/install with the same server entry.
  * Cursor does not expand ${input:...}, so its badge reads the token from the environment.
- * Install URLs only embed the server entry (not the top-level `inputs` array).
+ * Both VS Code URLs also carry the `gitlab-token` input, so VS Code prompts for the token.
+ * The entry leaves GITLAB_PERMISSION_MODE unset, so the server default applies.
  * See docs/clients/vscode.md and docs/clients/cursor.md.
  */
 
 const SERVER_NAME = "zereight.gitlab-mcp";
+
+const VSCODE_INPUTS = [
+  {
+    type: "promptString",
+    id: "gitlab-token",
+    description: "GitLab Personal Access Token",
+    password: true,
+  },
+];
 
 function serverConfig(tokenPlaceholder) {
   return {
@@ -18,7 +28,6 @@ function serverConfig(tokenPlaceholder) {
     env: {
       GITLAB_PERSONAL_ACCESS_TOKEN: tokenPlaceholder,
       GITLAB_API_URL: "https://gitlab.com/api/v4",
-      GITLAB_PERMISSION_MODE: "full",
     },
   };
 }
@@ -26,10 +35,10 @@ function serverConfig(tokenPlaceholder) {
 const vscodeConfig = serverConfig("${input:gitlab-token}");
 const cursorConfig = serverConfig("${env:GITLAB_PERSONAL_ACCESS_TOKEN}");
 
-const httpsInstallUrl = `https://vscode.dev/redirect/mcp/install?name=${encodeURIComponent(SERVER_NAME)}&config=${encodeURIComponent(JSON.stringify(vscodeConfig))}`;
+const httpsInstallUrl = `https://vscode.dev/redirect/mcp/install?name=${encodeURIComponent(SERVER_NAME)}&inputs=${encodeURIComponent(JSON.stringify(VSCODE_INPUTS))}&config=${encodeURIComponent(JSON.stringify(vscodeConfig))}`;
 
 const rawInstallUrl = `vscode:mcp/install?${encodeURIComponent(
-  JSON.stringify({ name: SERVER_NAME, ...vscodeConfig })
+  JSON.stringify({ name: SERVER_NAME, ...vscodeConfig, inputs: VSCODE_INPUTS })
 )}`;
 
 const cursorConfigBase64 = Buffer.from(JSON.stringify(cursorConfig), "utf8").toString("base64");

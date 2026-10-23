@@ -101,9 +101,9 @@ describe("Search Code Tools", () => {
     if (mockGitLab) await mockGitLab.stop();
   });
 
-  // ---- 1. search toolset exposes exactly 4 tools ----
+  // ---- 1. search toolset exposes exactly 5 tools (3 search + discover_tools + help) ----
 
-  describe("search toolset exposes exactly 4 tools", () => {
+  describe("search toolset exposes exactly 5 tools", () => {
     let server: ServerInstance;
     let tools: string[];
 
@@ -117,8 +117,12 @@ describe("Search Code Tools", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns exactly 4 tools", () => {
-      assert.strictEqual(tools.length, 4, `Expected 4 tools but got ${tools.length}: ${tools.join(", ")}`);
+    test("returns exactly 5 tools", () => {
+      assert.strictEqual(
+        tools.length,
+        5,
+        `Expected 5 tools but got ${tools.length}: ${tools.join(", ")}`
+      );
     });
 
     test("includes search_code", () => {
@@ -135,6 +139,10 @@ describe("Search Code Tools", () => {
 
     test("includes discover_tools", () => {
       assert.ok(tools.includes("discover_tools"), "Expected discover_tools to be present");
+    });
+
+    test("includes help", () => {
+      assert.ok(tools.includes("help"), "Expected help to be present");
     });
   });
 

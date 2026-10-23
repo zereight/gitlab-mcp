@@ -3,12 +3,13 @@
 Tools the MCP exposes that aren't tied to a specific GitLab feature group — server diagnostics and the GraphQL escape hatch.
 
 !!! note "Feature toggle"
-    Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
+    Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
 
 ## Tools in this group
 
 - [`execute_graphql`](#execute_graphql) — 📖✏️ Reads and writes
 - [`discover_tools`](#discover_tools) — 📖 Read-only
+- [`help`](#help) — 📖 Read-only
 
 ---
 
@@ -16,7 +17,7 @@ Tools the MCP exposes that aren't tied to a specific GitLab feature group — se
 
 *📖✏️ Reads and writes*
 
-Execute a GitLab GraphQL query. Use this only when a supported GitLab REST tool does not cover the requested operation; prefer a typed tool when one exists. The query is sent directly to GitLab and can include mutations when permission allows, so callers must treat it as potentially state-changing and handle GraphQL errors in the returned response.
+Execute a GitLab GraphQL query. Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations.
 
 **Parameters**
 
@@ -29,10 +30,22 @@ Execute a GitLab GraphQL query. Use this only when a supported GitLab REST tool 
 
 *📖 Read-only*
 
-Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.
+Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `category` | string |  | Toolset category to activate (e.g. 'pipelines', 'wiki'). Omit to list available categories. |
+
+### `help`
+
+*📖 Read-only*
+
+Return a short GitLab workflow guide. Omit topic for the overview and topic list. Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `topic` | enum (`overview` \| `code-review` \| `merge-requests` \| `issues` \| `pipelines` \| `search` \| `token-saving`) |  | Guide to return. Omit for the overview and the list of topics. Values: overview, code-review, merge-requests, issues, pipelines, search, token-saving. |

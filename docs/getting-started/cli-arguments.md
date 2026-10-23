@@ -19,7 +19,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.5 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.6 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -118,6 +118,43 @@ zereight-mcp-gitlab tool get_merge_request --help
 ```
 
 See [Human CLI Design](../reference/cli-usage-design.md) for the command catalog and phase list.
+
+### `setup`
+
+Print a Cursor `mcp.json` snippet or a Claude Code one-liner. Tokens stay in
+the environment (`${env:GITLAB_PERSONAL_ACCESS_TOKEN}` or `$GITLAB_PERSONAL_ACCESS_TOKEN`).
+Dry-run is the default. `--write` merges `.cursor/mcp.json`.
+
+```bash
+zereight-mcp-gitlab setup --cursor
+zereight-mcp-gitlab setup --cursor --write --dir .
+zereight-mcp-gitlab setup --claude --oauth
+zereight-mcp-gitlab setup --cursor --skill
+```
+
+### `doctor`
+
+Check that a token (or OAuth), API URL, permission mode, toolset list, and
+package version are present. Secret values are never printed. `--probe` adds
+`GET /user` with the configured credentials.
+
+```bash
+zereight-mcp-gitlab doctor
+zereight-mcp-gitlab doctor --probe
+```
+
+Exit `0` when every check passes, `1` when a check fails.
+
+### stdio stderr discipline
+
+The MCP server path must keep **stdout** as JSON-RPC only. Logs, deprecation
+warnings, version notices, and diagnostics go to **stderr** (`createLogger`
+writes to file descriptor 2). Human CLI commands (`setup`, `doctor`, `auth`,
+`tool`, curated groups) print their payload on stdout and errors on stderr so
+`zereight-mcp-gitlab doctor | cat` stays clean.
+
+Do not `console.log` on the MCP server path. That would corrupt the client
+handshake.
 
 ### `auth`
 

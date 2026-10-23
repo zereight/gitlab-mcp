@@ -4,16 +4,25 @@
   "title": "GitLab MCP Server",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more.",
   "websiteUrl": "https://zereight.github.io/gitlab-mcp/",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/zereight/gitlab-mcp/main/assets/logo.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": [
+        "any"
+      ]
+    }
+  ],
   "repository": {
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
   },
-  "version": "2.3.6",
+  "version": "2.3.7",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zereight/mcp-gitlab",
-      "version": "2.3.6",
+      "version": "2.3.7",
       "transport": {
         "type": "stdio"
       },
@@ -176,7 +185,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.6",
+      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.7",
       "transport": {
         "type": "stdio"
       },

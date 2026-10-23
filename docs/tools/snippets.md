@@ -19,7 +19,7 @@ Snippet CRUD — list, get (with optional file content), create, update, and del
 
 *📖 Read-only*
 
-List snippets — project snippets when project_id is given, otherwise personal snippets. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List snippets — project snippets when project_id is given, otherwise personal snippets. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ List snippets — project snippets when project_id is given, otherwise personal 
 
 *📖 Read-only*
 
-Get a snippet's metadata. Set include_content=true to also fetch the raw file content. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a snippet's metadata. Set include_content=true to also fetch the raw file content. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -48,7 +48,7 @@ Get a snippet's metadata. Set include_content=true to also fetch the raw file co
 
 *✏️ Writes*
 
-Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
+Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -66,7 +66,7 @@ Create a snippet — project-scoped when project_id is given, otherwise a person
 
 *✏️ Writes*
 
-Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
+Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement. Use the create tool for new resources.
 
 **Parameters**
 
@@ -85,7 +85,7 @@ Update an existing snippet (provide at least one field to change). For multi-fil
 
 *✏️ Writes*
 
-Delete a snippet. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a snippet. Verify the target first with a get or list tool.
 
 **Parameters**
 

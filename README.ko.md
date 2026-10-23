@@ -1,30 +1,132 @@
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=zereight.gitlab-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agitlab-token%7D%22%2C%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%2C%22GITLAB_PERMISSION_MODE%22%3A%22full%22%7D%7D)
-[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=zereight.gitlab-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB6ZXJlaWdodC9tY3AtZ2l0bGFiQGxhdGVzdCJdLCJlbnYiOnsiR0lUTEFCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6IiR7ZW52OkdJVExBQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU59IiwiR0lUTEFCX0FQSV9VUkwiOiJodHRwczovL2dpdGxhYi5jb20vYXBpL3Y0IiwiR0lUTEFCX1BFUk1JU1NJT05fTU9ERSI6ImZ1bGwifX0%3D)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
-📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** 설정 가이드, 환경 변수, 전체 도구 레퍼런스는 호스팅된 문서 사이트에서 확인할 수 있습니다.
+📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-`@zereight/mcp-gitlab`의 권장 로컬 PAT 설치입니다. 명령 인자는 [Claude Code](./docs/clients/claude-code.md)와 [Codex](./docs/clients/codex.md) 가이드와 같습니다.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 278개(toolset 275개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
-`zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`.
+`zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
-토큰을 화면에 표시하지 않고 읽은 다음 export 하세요. 셸 기록에는 변수 이름만 남습니다.
+### Without → With
+
+| 이 MCP 없이 | 이 MCP로 |
+| ----------- | -------- |
+| MR URL과 diff를 채팅에 붙여넣기 | `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff` |
+| GitLab UI에서 job 로그 찾기 | 페이지네이션과 함께 `get_pipeline_job_output` |
+| 매 턴마다 프로젝트 경로를 다시 설명 | `project_id=group%2Fproject`, `merge_request_iid=123` |
+
+### 설치 3경로
+
+| 경로 | 언제 | 어떻게 |
+| ---- | ---- | ------ |
+| 로컬 IDE | 내 머신의 Cursor, Claude Code, Codex | stdio + PAT 또는 로컬 OAuth |
+| 공유 HTTP | 팀 / 호스팅 MCP | Streamable HTTP URL + 원격 인증 또는 MCP OAuth |
+| Claude.ai | Claude 웹 커넥터 | 공개 HTTPS + `GITLAB_MCP_OAUTH` |
+
+### 설치
+
+[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=zereight.gitlab-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB6ZXJlaWdodC9tY3AtZ2l0bGFiQGxhdGVzdCJdLCJlbnYiOnsiR0lUTEFCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6IiR7ZW52OkdJVExBQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU59IiwiR0lUTEFCX0FQSV9VUkwiOiJodHRwczovL2dpdGxhYi5jb20vYXBpL3Y0In19)
+
+바이너리를 먼저 설치하세요 (`npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`). 토큰은 화면에 표시하지 않고 읽으세요:
 
 ```bash
 read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 ```
 
-| 클라이언트      | 설치                                                                                                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Claude Code     | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
-| Codex           | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
-| Cursor          | [Cursor 설정 가이드](./docs/clients/cursor.md)                                                                                                                                    |
-| VS Code         | [VS Code 설정 가이드](./docs/clients/vscode.md)                                                                                                                                   |
-| JSON 클라이언트 | [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)                                                                                                            |
+```bash
+# Claude Code
+claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+
+# Codex
+codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+```
+
+다른 클라이언트: [VS Code](./docs/clients/vscode.md) · [GitHub Copilot](./docs/clients/copilot.md) · [JSON 클라이언트](./docs/clients/json-clients.md) · [Cursor 상세](./docs/clients/cursor.md)
+
+### 에이전트용 붙여넣기 프롬프트
+
+MCP 설정을 고칠 수 있는 에이전트에 그대로 붙여넣으세요:
+
+```
+이 워크스페이스에 GitLab MCP 서버(@zereight/mcp-gitlab)를 설치하세요.
+바이너리: zereight-mcp-gitlab (npm i -g @zereight/mcp-gitlab, 또는 npx -y @zereight/mcp-gitlab@latest).
+인증: GITLAB_PERSONAL_ACCESS_TOKEN 과 GITLAB_API_URL=https://gitlab.com/api/v4 (또는 GITLAB_USE_OAUTH=true).
+로컬: claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+또는: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+Cursor: README deeplink 또는 docs/clients/cursor.md.
+원격 HTTP: 클라이언트를 https://mcp.example.com/mcp (Streamable HTTP)로 연결. Claude.ai는 그 호스트에 GITLAB_MCP_OAUTH가 필요합니다.
+기본 목록: 40개 도구(core 38 + discover_tools + help). 확장은 discover_tools. api toolset은 우회 위험을 받아들일 때만.
+MCP 없는 동등 경로: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 와 zereight-mcp-gitlab CLI.
+```
+
+### 원격 HTTP
+
+호스팅/셀프호스트 서버의 1순위 옵션입니다. 클라이언트를 Streamable HTTP URL로 연결하세요:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    }
+  }
+}
+```
+
+- 호스팅 / Claude.ai: 서버에서 `GITLAB_MCP_OAUTH=true` ([MCP OAuth](#mcp-oauth-프록시-사용하기-gitlab_mcp_oauth) 참고)
+- 사용자별 PAT 헤더: `REMOTE_AUTHORIZATION=true` ([원격 인증](#원격-인증-사용하기-remote_authorization) 참고)
+- 로컬 Docker 예시는 [사용법](#사용법)에 있습니다
+
+### Skill + CLI (MCP 불필요)
+
+Skill + CLI는 폴백이 아니라 동등한 경로입니다. 같은 워크플로우, 터미널의 전체 페이로드, MCP 등록 없음.
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+zereight-mcp-gitlab user whoami
+zereight-mcp-gitlab mr list
+```
+
+[MCP 없이 CLI](./docs/getting-started/cli-without-mcp.md)와 [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)를 보세요.
+
+### MCP vs Human CLI
+
+| MCP를 쓸 때 | CLI를 쓸 때 |
+| ----------- | ----------- |
+| 채팅에서 구조화된 도구가 필요할 때 | 전체 페이로드(diff, 로그, 아티팩트)가 필요할 때 |
+| `jmespath`나 compact 결과로 충분할 때 | `GITLAB_MCP_COMPACT_RESULTS`가 켜져 있고 나머지는 터미널에서 볼 때 |
+| 이미 MCP 서버를 등록했을 때 | PAT가 있거나 `auth`를 했고 MCP가 필요 없을 때 |
+
+Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다.
+
+### Tips
+
+`project_id`는 숫자 ID 또는 URL 인코딩된 경로입니다. 예: 그룹 `group`, 프로젝트 `project`, MR `!123` → `project_id=group%2Fproject`, `merge_request_iid=123`. 중첩 그룹은 세그먼트마다 `%2F`를 씁니다 (`group%2Fsubgroup%2Fproject`).
+
+### FAQ
+
+**인증은 어떻게 하나요?** 로컬 데스크톱은 `GITLAB_PERSONAL_ACCESS_TOKEN`(또는 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`)이 가장 단순합니다. 로컬 OAuth는 `GITLAB_USE_OAUTH=true`. 원격 Claude.ai는 `GITLAB_MCP_OAUTH`. 멀티유저 HTTP는 `REMOTE_AUTHORIZATION`과 요청별 토큰 헤더입니다.
+
+**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. `GITLAB_TOOLSETS=all`도 `api`는 켜지 않습니다.
+
+**로컬 OAuth / MCP OAuth / 원격 인증 차이는?** 로컬 OAuth는 서버와 같은 머신에서 브라우저를 엽니다. MCP OAuth는 공개 HTTPS 서버와 Claude.ai 같은 클라이언트용입니다. 원격 인증은 호출자의 PAT 또는 job token을 전달하며 OAuth 흐름이 없습니다.
+
+**큰 응답을 줄이려면?** 도구 호출에 `jmespath`를 넘기세요. 또는 `GITLAB_MCP_COMPACT_RESULTS=true`로 큰 MCP 응답을 미리보기 + CLI 명령으로 바꿉니다. 전체 페이로드가 필요하면 CLI를 쓰세요.
+
+**`api` toolset이 위험한 이유는?** `gitlab_api_request`는 그룹/프로젝트 허용 목록, 다른 도구 필터, 도구별 안전 검사를 우회합니다. 프롬프트 인젝션이 이 도구를 구동할 수 있습니다. `GITLAB_TOOLSETS`에 `api`를 직접 넣을 때만 켜세요. `all`, `discover_tools`, `GITLAB_TOOLS`는 켜지 않습니다.
+
+### Cursor rule / CLAUDE.md 스니펫
+
+```
+GitLab 머지 리퀘스트, 이슈, 파이프라인은 이 MCP(@zereight/mcp-gitlab)로 처리하세요.
+기본 core 도구로 시작하고, 확장은 discover_tools를 호출하세요.
+list_merge_request_changed_files 다음 배치 get_merge_request_file_diff를 우선하세요.
+결과는 jmespath 또는 compact를 쓰고, 전체 diff와 job 로그는 CLI를 쓰세요.
+```
 
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
@@ -36,7 +138,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **277개 도구: toolset 275개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 278개** — 작게 시작하고, `discover_tools`로 세션에서 확장
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -50,12 +152,22 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 277개 도구: toolset 275개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 278개 도구: toolset 275개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-[GitLab MCP A 전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)
+### tools/list 크기 (2026-10-23 실측)
+
+클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 토큰 추정은 UTF-8 바이트 / 4입니다.
+
+| 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
+| ------ | ------: | ----------: | --------: |
+| 기본값 (`core` + `discover_tools`) | 39 | 48,069 | 12,018 |
+| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
+| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+
+설명이나 스키마를 바꾼 뒤에는 `npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
 GitLab은 [공식 MCP 서버](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)도 제공합니다.
 
@@ -140,7 +252,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.5`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.6`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -192,7 +304,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 `zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
-같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
+같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude`는 클라이언트 설정을 출력하고, `doctor`는 토큰·API URL·toolset·버전을 점검합니다. 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
@@ -213,7 +325,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 > [!CAUTION]
 > `gitlab_api_request`(`api` 툴셋)는 `GITLAB_ALLOWED_GROUPS`와 그 밖의 그룹 제한, 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
-> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, 레거시 `USE_*`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`는 `/projects/:id` 경로만 검사합니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 제한되지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
+> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, 레거시 `USE_*`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`나 세션 프로젝트 범위가 있으면 허용된 프로젝트의 `/projects/:id` 경로만 받습니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 거부됩니다. 본문과 쿼리 파라미터가 가리키는 다른 프로젝트는 검사하지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
 
 - sse
 
@@ -593,7 +705,7 @@ node build/index.js
 
 ## Agent Skill Files
 
-AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, GitHub Copilot, Cursor 등), [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)에 미리 작성된 skill 파일을 사용할 수 있습니다.
+Skill + CLI는 MCP와 동등한 경로입니다([Skill + CLI](#skill--cli-mcp-불필요) 참고). AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, GitHub Copilot, Cursor 등), [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)에 미리 작성된 skill 파일을 사용할 수 있습니다.
 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 도구셋 개요, 핵심 워크플로우, 파라미터 힌트를 담은 핵심 가이드
 - **[reference/](./skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인, 취약점 트리아지용 상세 워크플로우 문서

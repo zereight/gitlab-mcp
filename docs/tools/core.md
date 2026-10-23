@@ -49,7 +49,7 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 
 *📖 Read-only*
 
-List merge requests (without project_id: user's MRs; with project_id: project MRs). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge requests (without project_id: user's MRs; with project_id: project MRs). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -85,7 +85,7 @@ List merge requests (without project_id: user's MRs; with project_id: project MR
 
 *📖 Read-only*
 
-Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -100,7 +100,7 @@ Get details of a merge request (merge_request_iid or source_branch required). Se
 
 *📖 Read-only*
 
-Get merge request approval details including approvers. Use this to inspect approval rules and approvers before deciding whether a merge request can be merged; use `approve_merge_request` to change approval state. It is read-only and returns the approval-state response, while missing requests, unsupported GitLab versions, and permission failures are reported as errors.
+Get merge request approval details including approvers. Inspect approval rules and approvers before merging. Use `approve_merge_request` to change approval state.
 
 **Parameters**
 
@@ -113,7 +113,7 @@ Get merge request approval details including approvers. Use this to inspect appr
 
 *📖 Read-only*
 
-List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List changed file paths in a merge request without diff content (merge_request_iid or source_branch required).
 
 **Parameters**
 
@@ -128,7 +128,7 @@ List changed file paths in a merge request without diff content (merge_request_i
 
 *📖 Read-only*
 
-Get diffs for specific files from a merge request (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs for specific files from a merge request (merge_request_iid or source_branch required).
 
 **Parameters**
 
@@ -144,7 +144,7 @@ Get diffs for specific files from a merge request (merge_request_iid or source_b
 
 *📖 Read-only*
 
-List merge request diffs with pagination (merge_request_iid or source_branch required). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge request diffs with pagination (merge_request_iid or source_branch required). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -161,7 +161,7 @@ List merge request diffs with pagination (merge_request_iid or source_branch req
 
 *📖 Read-only*
 
-Get the changes/diffs of a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get the changes/diffs of a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -177,7 +177,7 @@ Get the changes/diffs of a merge request (merge_request_iid or source_branch req
 
 *📖 Read-only*
 
-List discussion items for a merge request. Use this to list complete discussion threads for a merge request; use `get_merge_request_notes` when only flat notes are needed. It is read-only and returns threaded discussion items, while invalid merge request identifiers, missing resources, and permission failures are reported as errors.
+List discussion items for a merge request. List complete discussion threads. Use `get_merge_request_notes` for flat notes.
 
 **Parameters**
 
@@ -192,7 +192,7 @@ List discussion items for a merge request. Use this to list complete discussion 
 
 *📖 Read-only*
 
-Get a single discussion item for a merge request. Use this to fetch one known merge request discussion by discussion identifier; use `mr_discussions` for a collection and `get_merge_request_note` for a flat note. It is read-only and returns the discussion item or an error for an invalid identifier, missing discussion, or insufficient permission.
+Get a single discussion item for a merge request. Fetch one discussion by id. Use `mr_discussions` for a collection and `get_merge_request_note` for a flat note.
 
 **Parameters**
 
@@ -206,7 +206,7 @@ Get a single discussion item for a merge request. Use this to fetch one known me
 
 *📖 Read-only*
 
-Get a specific note for a merge request. Use this to fetch one known merge request note by note identifier; use `get_merge_request_notes` for a collection and `mr_discussions` for threaded context. It is read-only and returns the note object or an error for an invalid identifier, missing note, or insufficient permission.
+Get a specific note for a merge request. Fetch one note by id. Use `get_merge_request_notes` for a collection and `mr_discussions` for threads.
 
 **Parameters**
 
@@ -220,7 +220,7 @@ Get a specific note for a merge request. Use this to fetch one known merge reque
 
 *📖 Read-only*
 
-List notes for a merge request. Use this to list flat notes on a merge request; use `mr_discussions` when thread structure and resolution state are required. It is read-only and returns note records, while invalid identifiers, missing resources, and pagination or permission errors are reported by GitLab.
+List notes for a merge request. List flat notes. Use `mr_discussions` when thread structure and resolution state are required.
 
 **Parameters**
 
@@ -237,7 +237,7 @@ List notes for a merge request. Use this to list flat notes on a merge request; 
 
 *✏️ Writes*
 
-Create a new merge request. Use this to open a new merge request from an existing source branch to a target branch; use `update_merge_request` after it exists. The operation creates remote review state, requires project access, and returns the new merge request or a validation, permission, branch, or duplicate-related error.
+Create a new merge request. Open a merge request from an existing source branch to a target. Use `update_merge_request` after it exists.
 
 **Parameters**
 
@@ -261,7 +261,7 @@ Create a new merge request. Use this to open a new merge request from an existin
 
 *✏️ Writes*
 
-Create a new thread on a merge request. Use this to start a review thread on a merge request; use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply to an existing thread. The operation creates remote review content, requires note permission, and returns the discussion or a position/permission/validation error.
+Create a new thread on a merge request. Start a review thread. Use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply.
 
 **Parameters**
 
@@ -277,7 +277,7 @@ Create a new thread on a merge request. Use this to start a review thread on a m
 
 *✏️ Writes*
 
-Resolve a thread on a merge request. Use this to mark an existing merge request review thread resolved; use `update_merge_request_discussion_note` when the note text itself must change. The operation changes review state, requires permission to resolve discussions, and returns the updated discussion or a missing-thread/permission error.
+Resolve a thread on a merge request. Mark an existing review thread resolved. Use `update_merge_request_discussion_note` to change note text.
 
 **Parameters**
 
@@ -292,7 +292,7 @@ Resolve a thread on a merge request. Use this to mark an existing merge request 
 
 *✏️ Writes*
 
-Update a merge request (merge_request_iid or source_branch required). Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a merge request (merge_request_iid or source_branch required). Use the create tool for new resources and a note tool for comments.
 
 **Parameters**
 
@@ -317,7 +317,7 @@ Update a merge request (merge_request_iid or source_branch required). Use the cr
 
 *📖 Read-only*
 
-List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the issue iid is already known and `my_issues` for issues assigned to the current user. It is read-only and paginated, requires issue read permission, and returns issue records or GitLab errors for invalid identifiers, missing resources, or rate limits.
+List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments.
 
 **Parameters**
 
@@ -349,7 +349,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. Resolving the current user requires classic read_user or fine-grained User:Read. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
+List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.
 
 **Parameters**
 
@@ -371,7 +371,7 @@ List issues assigned to the authenticated user. Use this for issue management: l
 
 *📖 Read-only*
 
-Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.
+Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first.
 
 **Parameters**
 
@@ -385,7 +385,7 @@ Get details of a specific issue. Returns the issue with a slim nested milestone 
 
 *✏️ Writes*
 
-Create a new issue. Use this to open a new issue; use `update_issue` for an existing issue and `create_issue_note` to add discussion without changing issue fields. The operation creates remote project data, requires issue creation permission, and returns the new issue or a validation, permission, or duplicate-related error.
+Create a new issue. Open a new issue. Use `update_issue` for an existing issue and `create_issue_note` for discussion.
 
 **Parameters**
 
@@ -404,7 +404,7 @@ Create a new issue. Use this to open a new issue; use `update_issue` for an exis
 
 *✏️ Writes*
 
-Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Use this to change fields on an existing issue; use `update_issue_description_patch` for a targeted description edit that avoids sending the full body, and use `create_issue_note` for discussion. The operation mutates issue state, requires issue-edit permission, and returns the updated issue or a validation/permission/conflict error.
+Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion.
 
 **Parameters**
 
@@ -429,7 +429,7 @@ Update an issue. Returns a slim confirmation by default; set full_response=true 
 
 *✏️ Writes*
 
-Add a note to an issue, optionally replying to a discussion thread. Use this to add a note to an existing issue, optionally as a reply to a discussion; use `update_issue` for issue fields and `create_note` only when the generic endpoint is required. The operation creates remote discussion content, requires note permission, and returns the note or a missing-issue/thread/permission error.
+Add a note to an issue, optionally replying to a discussion thread. Add a note to an existing issue, optionally as a reply. Use `update_issue` for issue fields.
 
 **Parameters**
 
@@ -445,7 +445,7 @@ Add a note to an issue, optionally replying to a discussion thread. Use this to 
 
 *📖 Read-only*
 
-List discussions for an issue. Use this to inspect threaded discussions for an issue; use `list_issues` for issue records and `get_issue` for one issue's fields. It is read-only and returns discussion items, while invalid identifiers, missing issues, and permission failures are reported as errors.
+List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records.
 
 **Parameters**
 
@@ -460,7 +460,7 @@ List discussions for an issue. Use this to inspect threaded discussions for an i
 
 *✏️ Writes*
 
-Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. Use this for a targeted search/replace or unified-diff change to an issue description; use `dry_run` before applying an uncertain patch and `create_note` when an audit summary is wanted. It changes the issue description when not dry-running, requires issue-edit permission, and returns the patch result or a mismatch/validation/permission error.
+Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
 
 **Parameters**
 
@@ -478,7 +478,7 @@ Apply a patch (search/replace or unified diff) to an issue description. Reduces 
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get contents of a file or directory from a GitLab project.
 
 **Parameters**
 
@@ -493,7 +493,7 @@ Get contents of a file or directory from a GitLab project. Read-only; missing re
 
 *📖 Read-only*
 
-List files and directories in a repository. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List files and directories in a repository.
 
 **Parameters**
 
@@ -511,7 +511,7 @@ List files and directories in a repository. Read-only; missing resources, denied
 
 *📖 Read-only*
 
-Search for GitLab projects. If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors.
+Search for GitLab projects. If the identifier is known, use a typed get or list tool.
 
 **Parameters**
 
@@ -526,7 +526,7 @@ Search for GitLab projects. If the identifier is known, use a typed get or list 
 
 *📖 Read-only*
 
-Get branch details (commit, protection status). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get branch details (commit, protection status). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -539,7 +539,7 @@ Get branch details (commit, protection status). To find resources, use the match
 
 *📖 Read-only*
 
-List branches in project with search filter. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List branches in project with search filter. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -554,7 +554,7 @@ List branches in project with search filter. For one known resource, use the mat
 
 *📖 Read-only*
 
-List repository commits with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List repository commits with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -578,7 +578,7 @@ List repository commits with filtering options. For one known resource, use the 
 
 *📖 Read-only*
 
-Get details of a specific commit. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific commit. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -592,7 +592,7 @@ Get details of a specific commit. To find resources, use the matching list or se
 
 *📖 Read-only*
 
-Get changes/diffs of a specific commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get changes/diffs of a specific commit. Return the file diffs for one commit. Use `get_commit` for metadata without the patch.
 
 **Parameters**
 
@@ -622,7 +622,7 @@ Get git blame for a file at a given ref. Each entry maps a contiguous range of s
 
 *📖 Read-only*
 
-Get details of a specific project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific project. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -634,7 +634,7 @@ Get details of a specific project. To find resources, use the matching list or s
 
 *📖 Read-only*
 
-List projects accessible by the current user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
+List projects accessible by the current user. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -660,7 +660,7 @@ List projects accessible by the current user. For one known resource, use the ma
 
 *📖 Read-only*
 
-List members of a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List members of a GitLab project. Search project members by name or username. Use `list_group_members` for a group.
 
 **Parameters**
 
@@ -678,7 +678,7 @@ List members of a GitLab project. Read-only; missing resources, denied access, a
 
 *📖 Read-only*
 
-List labels for a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List labels for a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -695,7 +695,7 @@ List labels for a project. For one known resource, use the matching get tool. Re
 
 *📖 Read-only*
 
-Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It requires classic read_user or fine-grained User:Read. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.
+Get current authenticated user details. Requires classic read_user or fine-grained User:Read. Use `get_user` or `get_users` to look up another user.
 
 **Parameters**
 
@@ -705,7 +705,7 @@ _No parameters._
 
 *📖 Read-only*
 
-Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. A 403 from GET /user with an insufficient_scope error means the token is accepted but User API scope is missing (read_user or fine-grained User:Read); the check stays ok, sets user_api_warning, and omits version metadata. Rate-limit and authentication-ban 403 responses stay unauthenticated. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available. Connection failures with no HTTP response return status error, authenticated false, and an error object (kind tls, dns, timeout, or network, plus code and message) instead of a protocol error.
+Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
 
 **Parameters**
 

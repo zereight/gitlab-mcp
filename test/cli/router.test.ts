@@ -40,6 +40,8 @@ describe("When resolveCli classifies argv", () => {
       if (resolved.kind === "help") {
         assert.match(resolved.text, /tool <tool-name>/);
         assert.match(resolved.text, /auth/);
+        assert.match(resolved.text, /setup/);
+        assert.match(resolved.text, /doctor/);
       }
     });
   });
@@ -150,6 +152,31 @@ describe("When permission mode blocks a write", () => {
       assert.equal(resolved.kind, "refused");
       if (resolved.kind === "refused") {
         assert.match(resolved.message, /read-only/);
+      }
+    });
+  });
+});
+
+describe("When setup or doctor is requested", () => {
+  describe("with setup --cursor", () => {
+    it("should resolve a dry-run Cursor setup", () => {
+      const resolved = resolve(argv("setup", "--cursor"));
+
+      assert.equal(resolved.kind, "setup");
+      if (resolved.kind === "setup") {
+        assert.equal(resolved.options.client, "cursor");
+        assert.equal(resolved.options.write, false);
+      }
+    });
+  });
+
+  describe("with doctor --probe", () => {
+    it("should resolve a doctor run that may call GitLab", () => {
+      const resolved = resolve(argv("doctor", "--probe"));
+
+      assert.equal(resolved.kind, "doctor");
+      if (resolved.kind === "doctor") {
+        assert.equal(resolved.probe, true);
       }
     });
   });

@@ -120,6 +120,7 @@ nav:
       - GitHub Secrets Setup: reference/setup-github-secrets.md
       - Dependency Proxy Design: reference/dependency-proxy-design.md
       - Human CLI Design: reference/cli-usage-design.md
+      - OpenTelemetry MCP: reference/opentelemetry-mcp.md
       - GitHub Pages Setup: reference/github-pages-setup.md
   - Contributing: contributing.md
 

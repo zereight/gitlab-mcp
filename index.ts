@@ -170,6 +170,12 @@ import { createGitLabOAuthClient, ensureOAuthToken, GitLabOAuth } from "./oauth.
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { isCliInvocation, resolveCli } from "./cli/router.js";
+import {
+  runDoctorWithOptionalProbe,
+  packageVersion,
+  type DoctorProbeResult,
+} from "./cli/doctor.js";
+import { runSetup } from "./cli/setup.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
@@ -193,6 +199,12 @@ import {
   readMcpResource,
 } from "./server/mcp-resources.js";
 import { getMcpPrompt, listMcpPrompts } from "./server/mcp-prompts.js";
+import { MCP_INSTRUCTIONS } from "./server/mcp-instructions.js";
+import {
+  formatUnknownHelpTopic,
+  getWorkflowGuide,
+  readHelpTopic,
+} from "./server/mcp-help.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
@@ -254,6 +266,15 @@ import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
 import { fetchStatusBeforeDeadline } from "./utils/poll-deadline.js";
 import {
+  getUniqueApprovalUsers,
+  inferMergeRequestApproved,
+  MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT,
+  parseApprovalsResponse,
+  sortDeploymentsByCreatedAtDesc,
+  toMergeRequestDeploymentSummaryRecord,
+  type GitLabMergeRequestWithDeploymentSummary,
+} from "./utils/merge-request-summary.js";
+import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
 } from "./utils/gitlab-instance-version.js";
@@ -279,6 +300,13 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
+import { appendRecoveryHint } from "./utils/error-hints.js";
+import {
+  applyListSummaryToToolResult,
+  omitListSummaryArgument,
+  readListSummaryRequested,
+  toolAcceptsDecoratedSummary,
+} from "./utils/list-summary.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -640,9 +668,7 @@ import {
   RebaseMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
   GetMergeRequestConflictsSchema,
-  GitLabMergeRequestApprovalsResponseSchema,
   GitLabMergeRequestApprovalStateSchema,
-  type GitLabApprovalUser,
   type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
   type MyIssuesOptions,
@@ -833,6 +859,7 @@ function createServer(): McpServer {
         prompts: {},
         resources: {},
       },
+      instructions: MCP_INSTRUCTIONS,
     }
   );
 
@@ -863,9 +890,15 @@ function createServer(): McpServer {
     const toolName = request.params.name;
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
+    const requestArguments = readOwnRecord(request.params.arguments);
     const jmespathExpression = readJmespathExpression(
-      request.params.arguments as Record<string, unknown> | undefined
+      requestArguments === undefined ? undefined : { ...requestArguments }
     );
+    const listSummaryRequested =
+      toolAcceptsDecoratedSummary(toolName) &&
+      readListSummaryRequested(
+        requestArguments === undefined ? undefined : { ...requestArguments }
+      );
 
     const logCompletion = (result: any, completionOptions?: { skipJmespath?: boolean }) => {
       const durationMs = Date.now() - start;
@@ -877,8 +910,12 @@ function createServer(): McpServer {
         toolName === "get_pipeline_job_output" ||
         toolName === "get_job_artifact_file" ||
         (toolName === "download_release_asset" && !IS_REMOTE);
-      const filtered = applyJmespathToToolResult(
+      const summarized = applyListSummaryToToolResult(
         redactErrorResultUrls(result),
+        listSummaryRequested
+      );
+      const filtered = applyJmespathToToolResult(
+        summarized,
         jmespathExpression,
         {
           ...completionOptions,
@@ -997,6 +1034,24 @@ function createServer(): McpServer {
         !filteredTools.some(t => t.name === toolName)
       ) {
         throw new Error(buildToolUnavailableMessage(toolName));
+      }
+
+      if (toolName === "help") {
+        const topic = readHelpTopic(request.params.arguments?.topic);
+        if (topic === "invalid") {
+          return logCompletion({
+            content: [
+              {
+                type: "text",
+                text: formatUnknownHelpTopic(request.params.arguments?.topic),
+              },
+            ],
+            isError: true,
+          });
+        }
+        return logCompletion({
+          content: [{ type: "text", text: getWorkflowGuide(topic) }],
+        });
       }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
@@ -1170,10 +1225,13 @@ function createServer(): McpServer {
         request.params.arguments = cleanArgs;
       }
 
-      if (request.params.arguments && typeof request.params.arguments === "object") {
-        request.params.arguments = omitJmespathArgument(
-          request.params.arguments as Record<string, unknown>
-        );
+      const ownedArguments = readOwnRecord(request.params.arguments);
+      if (ownedArguments) {
+        let cleanedArguments = omitJmespathArgument({ ...ownedArguments });
+        if (toolAcceptsDecoratedSummary(toolName)) {
+          cleanedArguments = omitListSummaryArgument(cleanedArguments);
+        }
+        request.params.arguments = cleanedArguments;
       }
 
       if (sessionContext) {
@@ -1198,7 +1256,9 @@ function createServer(): McpServer {
           content: [
             {
               type: "text",
-              text: safeError instanceof Error ? safeError.message : String(safeError),
+              text: appendRecoveryHint(
+                safeError instanceof Error ? safeError.message : String(safeError)
+              ),
             },
           ],
           isError: true,
@@ -2177,71 +2237,6 @@ if (ignoredExplicitTools.length > 0) {
   );
 }
 
-const MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT = 10;
-
-type GitLabMergeRequestDeploymentSummaryRecord = {
-  id: string;
-  status: string;
-  ref?: string;
-  sha: string;
-  created_at: string;
-  updated_at?: string;
-  finished_at?: string | null;
-  web_url?: string;
-  environment?: {
-    id?: string;
-    name: string;
-    slug?: string;
-    external_url?: string | null;
-    state?: string;
-    tier?: string;
-  };
-  deployable?: {
-    id?: string;
-    name?: string;
-    status?: string;
-    stage?: string;
-    web_url?: string;
-    pipeline?: {
-      id?: string;
-      status?: string;
-      ref?: string;
-      sha?: string;
-      web_url?: string;
-    };
-  } | null;
-};
-
-type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
-  deployment_summary: {
-    lookup_sha: string | null;
-    sort: "created_at_desc";
-    limit: number;
-    total_count: number;
-    returned_count: number;
-    records: GitLabMergeRequestDeploymentSummaryRecord[];
-    unavailable_reason?: string;
-  };
-  commit_addition_summary: {
-    target_branch: string;
-    source_commits_count: number | null;
-    merge_method: string | null;
-    merge_commit_count: number | null;
-    summary: string | null;
-    unavailable_reason?: string;
-  };
-  approval_summary: {
-    approved: boolean | null;
-    user_has_approved: boolean | null;
-    user_can_approve: boolean | null;
-    approved_by: GitLabApprovalUser[];
-    approved_by_usernames: string[];
-    rules_count: number | null;
-    source_endpoint: "approval_state" | "approvals" | null;
-    unavailable_reason?: string;
-  };
-};
-
 function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -2374,7 +2369,11 @@ if (
   // This exit runs before runServer(), so warnings have to be printed here too.
   emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
+  logger.info(
+    "Either set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), " +
+      "GITLAB_JOB_TOKEN, or GITLAB_AUTH_COOKIE_PATH, or enable OAuth with GITLAB_USE_OAUTH=true. " +
+      `Setup guide: ${SERVER_WEBSITE_URL}getting-started/`
+  );
   exitAfterFlush(1);
 }
 
@@ -2418,12 +2417,16 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       // before the common tool-call boundary returns/logs it.
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
-      const error = new GitLabApiError(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      const error = new GitLabApiError(
+        appendRecoveryHint(`GitLab API Rate Limit Exceeded: ${errorBody}`)
+      );
       throw error;
     } else {
       // Handle other API errors
       const error = new GitLabApiError(
-        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+        appendRecoveryHint(
+          `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+        )
       );
       throw error;
     }
@@ -6033,65 +6036,6 @@ async function buildMergeRequestApprovalSummary(
   }
 }
 
-function toMergeRequestDeploymentSummaryRecord(
-  deployment: GitLabDeployment
-): GitLabMergeRequestDeploymentSummaryRecord {
-  return {
-    id: deployment.id,
-    status: deployment.status,
-    ref: deployment.ref,
-    sha: deployment.sha,
-    created_at: deployment.created_at,
-    updated_at: deployment.updated_at,
-    finished_at: deployment.finished_at,
-    web_url: deployment.web_url,
-    environment: deployment.environment
-      ? {
-          id: deployment.environment.id,
-          name: deployment.environment.name,
-          slug: deployment.environment.slug,
-          external_url: deployment.environment.external_url,
-          state: deployment.environment.state,
-          tier: deployment.environment.tier,
-        }
-      : undefined,
-    deployable:
-      deployment.deployable === null
-        ? null
-        : deployment.deployable
-          ? {
-              id: deployment.deployable.id,
-              name: deployment.deployable.name,
-              status: deployment.deployable.status,
-              stage: deployment.deployable.stage,
-              web_url: deployment.deployable.web_url,
-              pipeline: deployment.deployable.pipeline
-                ? {
-                    id: deployment.deployable.pipeline.id,
-                    status: deployment.deployable.pipeline.status,
-                    ref: deployment.deployable.pipeline.ref,
-                    sha: deployment.deployable.pipeline.sha,
-                    web_url: deployment.deployable.pipeline.web_url,
-                  }
-                : undefined,
-            }
-          : undefined,
-  };
-}
-
-function sortDeploymentsByCreatedAtDesc(deployments: GitLabDeployment[]): GitLabDeployment[] {
-  return [...deployments].sort((a, b) => {
-    const aTime = Date.parse(a.created_at);
-    const bTime = Date.parse(b.created_at);
-
-    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-      return b.created_at.localeCompare(a.created_at);
-    }
-
-    return bTime - aTime;
-  });
-}
-
 async function buildMergeRequestDeploymentSummary(
   projectId: string,
   mergeRequest: GitLabMergeRequest
@@ -6721,55 +6665,6 @@ async function getMergeRequestApprovalsFallback(
 
   await handleGitLabError(approvalsResponse);
   return parseApprovalsResponse(await approvalsResponse.json());
-}
-
-/**
- * Parse the response from POST /approve and POST /unapprove endpoints.
- * These endpoints return the approvals format (approved_by contains nested
- * { user: {...} } objects), which must be converted to the flat format
- * used by GitLabMergeRequestApprovalStateSchema.
- */
-function parseApprovalsResponse(responseJson: unknown): GitLabMergeRequestApprovalState {
-  const parsedApprovals = GitLabMergeRequestApprovalsResponseSchema.parse(responseJson);
-  const approvedByUsers = getUniqueApprovalUsers(
-    (parsedApprovals.approved_by || []).map(approvedByEntry => approvedByEntry.user)
-  );
-  const approvedByUsernames = approvedByUsers.map(user => user.username);
-
-  return GitLabMergeRequestApprovalStateSchema.parse({
-    approved: parsedApprovals.approved,
-    user_has_approved: parsedApprovals.user_has_approved,
-    user_can_approve: parsedApprovals.user_can_approve,
-    approved_by: approvedByUsers,
-    approved_by_usernames: approvedByUsernames,
-    source_endpoint: "approvals",
-  });
-}
-
-function getUniqueApprovalUsers(users: GitLabApprovalUser[]): GitLabApprovalUser[] {
-  const uniqueUsers = new Map<string, GitLabApprovalUser>();
-
-  for (const user of users) {
-    if (!uniqueUsers.has(user.id)) {
-      uniqueUsers.set(user.id, user);
-    }
-  }
-
-  return [...uniqueUsers.values()];
-}
-
-function inferMergeRequestApproved(
-  rules: GitLabMergeRequestApprovalState["rules"]
-): boolean | null {
-  if (!rules || rules.length === 0) {
-    return null;
-  }
-
-  if (rules.some(rule => typeof rule.approved !== "boolean")) {
-    return null;
-  }
-
-  return rules.every(rule => rule.approved === true);
 }
 
 /**
@@ -11208,13 +11103,15 @@ interface DownloadAttachmentResult {
   filename: string;
   mimeType: string | null;
   savedPath?: string;
+  byteLength?: number;
 }
 
 async function downloadAttachment(
   projectId: string,
   secret: string,
   filename: string,
-  localPath?: string
+  localPath?: string,
+  metadataOnly = false
 ): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const safeFilename = getSafeAttachmentFilename(filename);
@@ -11230,6 +11127,19 @@ async function downloadAttachment(
   }
 
   const mimeType = getImageMimeType(safeFilename);
+
+  if (metadataOnly) {
+    const headerLength = Number(response.headers.get("content-length"));
+    if (response.body) {
+      await response.body.cancel();
+    }
+    return {
+      buffer: Buffer.alloc(0),
+      filename: safeFilename,
+      mimeType,
+      byteLength: Number.isFinite(headerLength) ? headerLength : undefined,
+    };
+  }
 
   // Non-image files, and images with local_path, are saved as new files under the
   // download directory. Upload names and local_path come from untrusted content, so
@@ -15220,7 +15130,11 @@ async function handleToolCall(params: any) {
         }
 
         // Readonly mode never writes to disk: images still come back inline.
-        if (GITLAB_PERMISSION_MODE === "readonly" && (!mimeType || args.local_path)) {
+        if (
+          GITLAB_PERMISSION_MODE === "readonly" &&
+          !args.metadata_only &&
+          (!mimeType || args.local_path)
+        ) {
           throw new Error(
             "download_attachment saves this file to disk, which readonly mode does not allow. Only images without local_path can be downloaded in readonly mode."
           );
@@ -15230,8 +15144,25 @@ async function handleToolCall(params: any) {
           args.project_id,
           args.secret,
           args.filename,
-          args.local_path
+          args.local_path,
+          args.metadata_only === true
         );
+
+        if (args.metadata_only) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  filename: result.filename,
+                  mimeType: result.mimeType,
+                  byte_length: result.byteLength ?? result.buffer.byteLength,
+                  metadata_only: true,
+                }),
+              },
+            ],
+          };
+        }
 
         if (result.mimeType && !args.local_path) {
           // Return image inline as base64 so the AI can see it
@@ -17940,6 +17871,41 @@ async function main(): Promise<void> {
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
+  if (cli.kind === "setup") {
+    try {
+      const result = runSetup({
+        ...cli.options,
+        apiUrl: getConfig("api-url", "GITLAB_API_URL", cli.options.apiUrl),
+      });
+      process.stdout.write(result.text);
+      process.exit(0);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(2);
+    }
+  }
+  if (cli.kind === "doctor") {
+    try {
+      const report = await runDoctorWithOptionalProbe({
+        credentials: {
+          hasPersonalAccessToken: Boolean(GITLAB_PERSONAL_ACCESS_TOKEN),
+          hasJobToken: Boolean(GITLAB_JOB_TOKEN),
+          hasCookie: Boolean(GITLAB_AUTH_COOKIE_PATH),
+          useOAuth: USE_OAUTH,
+        },
+        apiUrl: GITLAB_API_URL,
+        permissionMode: GITLAB_PERMISSION_MODE,
+        toolsetsRaw: GITLAB_TOOLSETS_RAW,
+        version: packageVersion(),
+        probe: cli.probe ? probeGitLabUser : undefined,
+      });
+      process.stdout.write(report.text);
+      process.exit(report.ok ? 0 : 1);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(1);
+    }
+  }
   if (cli.kind === "auth" || getPositionalCliCommand(process.argv) === "auth") {
     try {
       await runAuthCommandAsync();
@@ -17991,6 +17957,31 @@ function hasCliCredentials(): boolean {
   return Boolean(
     GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN || GITLAB_AUTH_COOKIE_PATH || USE_OAUTH
   );
+}
+
+async function probeGitLabUser(apiUrl: string): Promise<DoctorProbeResult> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+    headers["PRIVATE-TOKEN"] = GITLAB_PERSONAL_ACCESS_TOKEN;
+  } else if (GITLAB_JOB_TOKEN) {
+    headers["JOB-TOKEN"] = GITLAB_JOB_TOKEN;
+  }
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/user`, { headers });
+    if (response.ok) {
+      return { ok: true, status: response.status, detail: `GET /user ${response.status}` };
+    }
+    return {
+      ok: false,
+      status: response.status,
+      detail: `GET /user ${response.status} ${response.statusText}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

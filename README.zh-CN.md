@@ -1,30 +1,132 @@
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=zereight.gitlab-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agitlab-token%7D%22%2C%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%2C%22GITLAB_PERMISSION_MODE%22%3A%22full%22%7D%7D)
-[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=zereight.gitlab-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB6ZXJlaWdodC9tY3AtZ2l0bGFiQGxhdGVzdCJdLCJlbnYiOnsiR0lUTEFCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6IiR7ZW52OkdJVExBQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU59IiwiR0lUTEFCX0FQSV9VUkwiOiJodHRwczovL2dpdGxhYi5jb20vYXBpL3Y0IiwiR0lUTEFCX1BFUk1JU1NJT05fTU9ERSI6ImZ1bGwifX0%3D)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
-📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** 设置指南、环境变量和完整工具参考请查看托管文档站点。
+📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-下面是 `@zereight/mcp-gitlab` 的推荐本地 PAT 安装。命令参数与 [Claude Code](./docs/clients/claude-code.md) 和 [Codex](./docs/clients/codex.md) 指南相同。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 278 个（toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
-先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。
+先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
-先不回显地读取令牌，再 export。shell 历史里只保留变量名。
+### Without → With
+
+| 没有此 MCP | 有此 MCP |
+| ---------- | -------- |
+| 把 MR URL 和 diff 粘贴进聊天 | `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff` |
+| 在 GitLab UI 里翻 job 日志 | 带分页的 `get_pipeline_job_output` |
+| 每一轮都重新说明项目路径 | `project_id=group%2Fproject` 和 `merge_request_iid=123` |
+
+### 三条安装路径
+
+| 路径 | 适用 | 方式 |
+| ---- | ---- | ---- |
+| 本地 IDE | 本机上的 Cursor、Claude Code、Codex | stdio + PAT 或本地 OAuth |
+| 共享 HTTP | 团队 / 托管 MCP | Streamable HTTP URL + 远程授权或 MCP OAuth |
+| Claude.ai | Claude 网页连接器 | 公网 HTTPS + `GITLAB_MCP_OAUTH` |
+
+### 安装
+
+[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=zereight.gitlab-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB6ZXJlaWdodC9tY3AtZ2l0bGFiQGxhdGVzdCJdLCJlbnYiOnsiR0lUTEFCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6IiR7ZW52OkdJVExBQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU59IiwiR0lUTEFCX0FQSV9VUkwiOiJodHRwczovL2dpdGxhYi5jb20vYXBpL3Y0In19)
+
+先安装二进制（`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`）。不回显地读取令牌：
 
 ```bash
 read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 ```
 
-| 客户端      | 安装                                                                                                                                                                                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Claude Code | `claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab` |
-| Codex       | `codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab`                                  |
-| Cursor      | [Cursor 设置指南](./docs/clients/cursor.md)                                                                                                                                       |
-| VS Code     | [VS Code 设置指南](./docs/clients/vscode.md)                                                                                                                                      |
-| JSON 客户端 | [基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)                                                                                                                 |
+```bash
+# Claude Code
+claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+
+# Codex
+codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+```
+
+其他客户端：[VS Code](./docs/clients/vscode.md) · [GitHub Copilot](./docs/clients/copilot.md) · [JSON 客户端](./docs/clients/json-clients.md) · [Cursor 详情](./docs/clients/cursor.md)
+
+### 代理粘贴提示
+
+把下面内容粘贴给能改 MCP 配置的代理：
+
+```
+为此工作区安装 GitLab MCP 服务器（@zereight/mcp-gitlab）。
+二进制：zereight-mcp-gitlab（npm i -g @zereight/mcp-gitlab，或 npx -y @zereight/mcp-gitlab@latest）。
+认证：GITLAB_PERSONAL_ACCESS_TOKEN 和 GITLAB_API_URL=https://gitlab.com/api/v4（或 GITLAB_USE_OAUTH=true）。
+本地：claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+或：codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+Cursor：使用 README deeplink 或 docs/clients/cursor.md。
+远程 HTTP：将客户端指向 https://mcp.example.com/mcp（Streamable HTTP）。Claude.ai 需要该主机启用 GITLAB_MCP_OAUTH。
+默认列表：40 个工具（38 个 core + discover_tools + help）。用 discover_tools 扩展。除非接受绕过风险，否则不要启用 api toolset。
+同等非 MCP 路径：npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 加上 zereight-mcp-gitlab CLI。
+```
+
+### 远程 HTTP
+
+托管或自建服务器的一等选项。把客户端指向 Streamable HTTP URL：
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    }
+  }
+}
+```
+
+- 托管 / Claude.ai：服务器上设置 `GITLAB_MCP_OAUTH=true`（见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)）
+- 每用户 PAT 头：`REMOTE_AUTHORIZATION=true`（见 [远程授权](#使用远程授权remote_authorization)）
+- 本地 Docker 示例见 [使用方法](#使用方法)
+
+### Skill + CLI（不需要 MCP）
+
+Skill + CLI 是同等路径，不是备选。同样的工作流，终端里拿完整载荷，无需注册 MCP。
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+zereight-mcp-gitlab user whoami
+zereight-mcp-gitlab mr list
+```
+
+见 [不使用 MCP 的 CLI](./docs/getting-started/cli-without-mcp.md) 和 [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)。
+
+### MCP vs Human CLI
+
+| 使用 MCP 当 | 使用 CLI 当 |
+| ----------- | ----------- |
+| 代理需要聊天里的结构化工具 | 需要完整载荷（diff、日志、产物） |
+| `jmespath` 或 compact 结果已够用 | 已开 `GITLAB_MCP_COMPACT_RESULTS`，其余要在终端看 |
+| 已经注册了 MCP 服务器 | 已有 PAT 或跑过 `auth`，不想要 MCP |
+
+Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。
+
+### Tips
+
+`project_id` 是数字 ID 或 URL 编码路径。例如：组 `group`、项目 `project`、合并请求 `!123` → `project_id=group%2Fproject`，`merge_request_iid=123`。嵌套组的每一段之间用 `%2F`（`group%2Fsubgroup%2Fproject`）。
+
+### FAQ
+
+**如何认证？** 本地桌面最简单的是 `GITLAB_PERSONAL_ACCESS_TOKEN`（或 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`）。本地 OAuth 用 `GITLAB_USE_OAUTH=true`。远程 Claude.ai 用 `GITLAB_MCP_OAUTH`。多用户 HTTP 用 `REMOTE_AUTHORIZATION` 和每请求令牌头。
+
+**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。`GITLAB_TOOLSETS=all` 仍然**不会**启用 `api`。
+
+**本地 OAuth、MCP OAuth 和远程授权有何区别？** 本地 OAuth 在服务器同一台机器上打开浏览器。MCP OAuth 用于公网 HTTPS 服务器和 Claude.ai 这类客户端。远程授权转发调用者的 PAT 或 job token，没有 OAuth 流程。
+
+**如何缩小巨大响应？** 在任意工具调用上传递 `jmespath`。或设置 `GITLAB_MCP_COMPACT_RESULTS=true`，把过大的 MCP 回复变成预览加 CLI 命令。需要完整载荷时用 CLI。
+
+**为什么 `api` toolset 危险？** `gitlab_api_request` 会绕过组/项目允许列表、其他工具过滤和单工具安全检查。提示注入可以驱动它。只有在 `GITLAB_TOOLSETS` 中列出 `api` 时才启用。`all`、`discover_tools` 和 `GITLAB_TOOLS` 都不会启用它。
+
+### Cursor rule / CLAUDE.md 片段
+
+```
+GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
+从默认 core 工具开始，用 discover_tools 扩展。
+优先 list_merge_request_changed_files，再批量 get_merge_request_file_diff。
+结果用 jmespath 或 compact；完整 diff 和 job 日志用 CLI。
+```
 
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
@@ -36,7 +138,7 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 
 ### 为什么使用这个 GitLab MCP？
 
-- **277 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 278 个** — 先精简，再用 `discover_tools` 在本会话扩展
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -50,12 +152,22 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 277 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 278 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-[与 GitLab MCP A 的完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)
+### tools/list 体积（2026-10-23 实测）
+
+客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
+
+| 配置 | 工具数 | JSON 字节 | 估算 token |
+| ---- | -----: | --------: | ---------: |
+| 默认（`core` + `discover_tools`） | 39 | 48,069 | 12,018 |
+| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
+| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+
+更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
 GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)。
 
@@ -140,7 +252,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.5`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.6`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -192,7 +304,7 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
-同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
+同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。`setup --cursor` / `setup --claude` 会打印客户端配置；`doctor` 检查 token、API URL、toolset 和版本。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
@@ -212,7 +324,7 @@ CLI 参数优先于环境变量。
 
 > [!CAUTION]
 > `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
-> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。`GITLAB_ALLOWED_PROJECT_IDS` 只检查 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点不受约束。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
+> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
 
@@ -592,7 +704,7 @@ node build/index.js
 
 ## Agent Skill Files
 
-对于支持 skill/instruction 加载的 AI 代理（Claude Code、GitHub Copilot、Cursor 等），[`skills/gitlab-mcp/`](./skills/gitlab-mcp/) 中提供了预构建 skill 文件。
+Skill + CLI 与 MCP 同等（见 [Skill + CLI](#skill--cli不需要-mcp)）。对于支持 skill/instruction 加载的 AI 代理（Claude Code、GitHub Copilot、Cursor 等），[`skills/gitlab-mcp/`](./skills/gitlab-mcp/) 中提供了预构建 skill 文件。
 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 核心指南，包含工具集概览、关键工作流和参数提示
 - **[reference/](./skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题、流水线和漏洞分类的详细工作流文档

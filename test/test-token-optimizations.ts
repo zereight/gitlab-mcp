@@ -529,8 +529,8 @@ describe("Policy Edge Cases", { concurrency: 1 }, () => {
     }
   });
 
-  // Edge case 5: hide all tools in toolset - only discover_tools survives
-  test("hiding all toolset tools leaves only discover_tools", async () => {
+  // Edge case 5: hide all tools in toolset - always-listed meta tools survive
+  test("hiding all toolset tools leaves only always-listed meta tools", async () => {
     const allIssueTools = [
       "create_issue", "list_issues", "my_issues", "get_issue",
       "update_issue", "update_issue_description_patch", "delete_issue", "list_todos", "mark_todo_done", "mark_all_todos_done", "create_issue_note", "update_issue_note",
@@ -549,9 +549,12 @@ describe("Policy Edge Cases", { concurrency: 1 }, () => {
       const client = await getClient(server.port ?? 0);
       const result = await client.listTools();
       const names = result.tools.map((t: any) => t.name);
-      // Only discover_tools should remain (always injected)
-      assert.strictEqual(names.length, 1, `Expected only discover_tools, got: ${names.join(", ")}`);
-      assert.strictEqual(names[0], "discover_tools");
+      // Always-listed meta tools remain (discover_tools and help)
+      assert.deepEqual(
+        names.slice().sort(),
+        ["discover_tools", "help"],
+        `Expected discover_tools and help, got: ${names.join(", ")}`
+      );
       await client.disconnect();
     } finally {
       cleanupServers([server]);

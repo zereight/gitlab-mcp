@@ -23,7 +23,7 @@ Tag listing, creation, deletion, signature inspection, and protected tag rules.
 
 *📖 Read-only*
 
-List repository tags for a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List repository tags for a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -40,7 +40,7 @@ List repository tags for a project. For one known resource, use the matching get
 
 *📖 Read-only*
 
-Get a repository tag by name. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a repository tag by name. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Get a repository tag by name. To find resources, use the matching list or search
 
 *✏️ Writes*
 
-Create a new repository tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new repository tag.
 
 **Parameters**
 
@@ -68,7 +68,7 @@ Create a new repository tag. Changes GitLab data; needs permission and returns v
 
 *✏️ Writes*
 
-Delete a repository tag. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a repository tag. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -81,7 +81,7 @@ Delete a repository tag. Verify the target first with a get or list tool. Change
 
 *📖 Read-only*
 
-Get the X.509 signature of a signed tag (404 if unsigned). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get the X.509 signature of a signed tag (404 if unsigned).
 
 **Parameters**
 
@@ -94,7 +94,7 @@ Get the X.509 signature of a signed tag (404 if unsigned). Read-only; missing re
 
 *📖 Read-only*
 
-List protected tags in a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List protected tags in a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -108,7 +108,7 @@ List protected tags in a project. For one known resource, use the matching get t
 
 *📖 Read-only*
 
-Get details of a single protected tag or wildcard (create access levels). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a single protected tag or wildcard (create access levels). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -121,7 +121,7 @@ Get details of a single protected tag or wildcard (create access levels). To fin
 
 *✏️ Writes*
 
-Protect a repository tag or wildcard (set who can create it). Use this to protect a tag or wildcard such as `v*` so protected CI/CD variables reach tag pipelines; use `get_protected_tag` or `list_protected_tags` to inspect existing rules first. The operation changes who may create matching tags, requires maintainer-level permission, and returns the protection rule or a validation/permission error.
+Protect a repository tag or wildcard (set who can create it). Protect a tag or wildcard such as `v*` so protected CI/CD variables reach tag pipelines. Inspect first with `get_protected_tag` or `list_protected_tags`.
 
 **Parameters**
 
@@ -136,7 +136,7 @@ Protect a repository tag or wildcard (set who can create it). Use this to protec
 
 *✏️ Writes*
 
-Remove protection from a previously protected tag or wildcard. Use this to remove protection from an existing tag or wildcard. To change the create access level, use `unprotect_tag` first, then `protect_tag`; `protect_tag` creates a rule and does not update an existing rule. This change is unavailable in `modify` mode because `unprotect_tag` is blocked there. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.
+Remove protection from a previously protected tag or wildcard. Remove tag protection. To change create access, `unprotect_tag` then `protect_tag`. Blocked in `modify` mode.
 
 **Parameters**
 

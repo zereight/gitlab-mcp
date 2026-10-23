@@ -1,3 +1,9 @@
+import {
+  LIST_SUMMARY_ARGUMENT,
+  LIST_SUMMARY_ARGUMENT_DESCRIPTION,
+  toolAcceptsDecoratedSummary,
+} from "../utils/list-summary.js";
+
 export interface ListedToolAnnotations {
   readOnlyHint?: boolean;
   destructiveHint?: boolean;
@@ -64,6 +70,28 @@ function withJmespathArgument(
   return { ...schema, properties };
 }
 
+function withSummaryArgument(
+  schema: Record<string, unknown>,
+  toolName: string
+): Record<string, unknown> {
+  if (!toolAcceptsDecoratedSummary(toolName) || !isRecord(schema.properties)) {
+    return schema;
+  }
+  if (LIST_SUMMARY_ARGUMENT in schema.properties) {
+    return schema;
+  }
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      [LIST_SUMMARY_ARGUMENT]: {
+        type: "boolean",
+        description: LIST_SUMMARY_ARGUMENT_DESCRIPTION,
+      },
+    },
+  };
+}
+
 function decorateInputSchema(
   schema: unknown,
   toolName: string,
@@ -72,9 +100,9 @@ function decorateInputSchema(
   if (!isRecord(schema)) {
     return undefined;
   }
-  return withJmespathArgument(
-    withConfirmedArgument(cloneSchema(schema), toolName, context),
-    context
+  return withSummaryArgument(
+    withJmespathArgument(withConfirmedArgument(cloneSchema(schema), toolName, context), context),
+    toolName
   );
 }
 

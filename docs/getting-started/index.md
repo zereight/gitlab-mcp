@@ -1,7 +1,9 @@
 # Getting Started
 
 This page helps you pick the right **authentication method** and the right
-**transport** for your environment.
+**transport** for your environment. The default tool list is **40 tools**
+(38 `core` + `discover_tools` + `help`); call `discover_tools` to expand. Skill + CLI
+is an equal path with no MCP registration — see [CLI without MCP](cli-without-mcp.md).
 
 ## 1. Pick an authentication method
 
@@ -13,6 +15,8 @@ The server supports four ways to authenticate against GitLab.
 | **OAuth2 — Local Browser** | Better security for local clients (Claude Desktop, VS Code).       | `GITLAB_USE_OAUTH=true`                                               |
 | **OAuth2 — MCP Proxy**     | Remote MCP clients such as Claude.ai.                              | `GITLAB_MCP_OAUTH=true`                                               |
 | **Remote Authorization**   | Multi-user deployments where each caller provides their own token. | `REMOTE_AUTHORIZATION=true`                                           |
+
+For local stdio use, set any one credential: a Personal Access Token, `GITLAB_USE_OAUTH=true`, a GitLab CI job token ([`GITLAB_JOB_TOKEN`](../configuration/environment-variables.md#gitlab_job_token)), or a cookie file ([`GITLAB_AUTH_COOKIE_PATH`](../configuration/environment-variables.md#gitlab_auth_cookie_path)). None of them is required on its own.
 
 ### Decision flow
 
@@ -31,11 +35,11 @@ Full guides:
 
 ## 2. Pick a transport
 
-| Transport           | When to use it                                                       |
-| ------------------- | -------------------------------------------------------------------- |
-| **stdio**           | Local MCP clients (Claude Code, VS Code, Cursor, etc.). The default. |
-| **SSE**             | Legacy MCP clients that only speak Server-Sent Events.               |
-| **Streamable HTTP** | Modern remote deployments (recommended for hosted servers).          |
+| Transport           | When to use it                                                                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **stdio**           | Local MCP clients (Claude Code, VS Code, Cursor, etc.). The default. OpenTelemetry is not enabled on this path; see [OpenTelemetry MCP](../reference/opentelemetry-mcp.md). |
+| **SSE**             | Legacy MCP clients that only speak Server-Sent Events.                                                                                                                      |
+| **Streamable HTTP** | Modern remote deployments (recommended for hosted servers).                                                                                                                 |
 
 ## 3. Connect your client
 

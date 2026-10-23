@@ -1,3 +1,5 @@
+import { appendRecoveryHint } from "../utils/error-hints.js";
+
 export interface DiscoverActivationSkip {
   readonly allowedByPermissionMode: boolean;
   readonly deniedByRegex: boolean;
@@ -39,15 +41,21 @@ export function buildUnavailableToolMessage(input: UnavailableToolMessageInput):
   const base = `Tool "${input.toolName}" is not available on this server`;
   const toolset = input.toolset;
   if (toolset === undefined || input.deniedByRegex) {
-    return base;
+    return appendRecoveryHint(base);
   }
   if (input.excludedBySlimProfile) {
-    return `${base}. ${slimExclusionGuidance(input.toolName, toolset, input.enabledByCurrentToolsets)}`;
+    return appendRecoveryHint(
+      `${base}. ${slimExclusionGuidance(input.toolName, toolset, input.enabledByCurrentToolsets)}`
+    );
   }
   if (input.explicitToolsetOnly) {
-    return `${base}. The "${toolset}" toolset is not enabled. discover_tools cannot activate it. Add "${toolset}" to GITLAB_TOOLSETS. GITLAB_TOOLSETS=all, GITLAB_TOOLS, and GITLAB_TOOL_PROFILE do not enable it.`;
+    return appendRecoveryHint(
+      `${base}. The "${toolset}" toolset is not enabled. discover_tools cannot activate it. Add "${toolset}" to GITLAB_TOOLSETS. GITLAB_TOOLSETS=all, GITLAB_TOOLS, and GITLAB_TOOL_PROFILE do not enable it.`
+    );
   }
-  return `${base}. It belongs to the "${toolset}" toolset, which is not enabled: call discover_tools with category "${toolset}" or add "${toolset}" to GITLAB_TOOLSETS.`;
+  return appendRecoveryHint(
+    `${base}. It belongs to the "${toolset}" toolset, which is not enabled: call discover_tools with category "${toolset}" or add "${toolset}" to GITLAB_TOOLSETS.`
+  );
 }
 
 function slimExclusionGuidance(

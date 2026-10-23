@@ -31,7 +31,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 *📖 Read-only*
 
-List milestones with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List milestones with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -52,7 +52,7 @@ List milestones with filtering options. For one known resource, use the matching
 
 *📖 Read-only*
 
-Get details of a specific milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific milestone. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -65,7 +65,7 @@ Get details of a specific milestone. To find resources, use the matching list or
 
 *✏️ Writes*
 
-Create a new milestone. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new milestone. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -81,7 +81,7 @@ Create a new milestone. If the resource already exists, use the update tool. Cha
 
 *✏️ Writes*
 
-Edit an existing milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Edit an existing milestone. Use the create tool for new resources.
 
 **Parameters**
 
@@ -99,7 +99,7 @@ Edit an existing milestone. Use the create tool for new resources. Changes GitLa
 
 *✏️ Writes*
 
-Delete a milestone. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a milestone. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -112,7 +112,7 @@ Delete a milestone. Verify the target first with a get or list tool. Changes or 
 
 *📖 Read-only*
 
-Get issues associated with a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get issues associated with a specific milestone.
 
 **Parameters**
 
@@ -127,7 +127,7 @@ Get issues associated with a specific milestone. Read-only; missing resources, d
 
 *📖 Read-only*
 
-Get merge requests associated with a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get merge requests associated with a specific milestone.
 
 **Parameters**
 
@@ -142,7 +142,7 @@ Get merge requests associated with a specific milestone. Read-only; missing reso
 
 *✏️ Writes*
 
-Promote a milestone to the next stage. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Promote a milestone to the next stage.
 
 **Parameters**
 
@@ -155,7 +155,7 @@ Promote a milestone to the next stage. Changes GitLab data; needs permission and
 
 *📖 Read-only*
 
-Get burndown events for a specific milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get burndown events for a specific milestone.
 
 **Parameters**
 
@@ -170,7 +170,7 @@ Get burndown events for a specific milestone. Read-only; missing resources, deni
 
 *📖 Read-only*
 
-List group milestones with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List group milestones with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -192,7 +192,7 @@ List group milestones with filtering options. For one known resource, use the ma
 
 *📖 Read-only*
 
-Get details of a specific group milestone. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific group milestone. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -205,7 +205,7 @@ Get details of a specific group milestone. To find resources, use the matching l
 
 *✏️ Writes*
 
-Create a new group milestone. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new group milestone. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -221,7 +221,7 @@ Create a new group milestone. If the resource already exists, use the update too
 
 *✏️ Writes*
 
-Edit an existing group milestone. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Edit an existing group milestone. Use the create tool for new resources.
 
 **Parameters**
 
@@ -239,7 +239,7 @@ Edit an existing group milestone. Use the create tool for new resources. Changes
 
 *✏️ Writes*
 
-Delete a group milestone. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a group milestone. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -252,7 +252,7 @@ Delete a group milestone. Verify the target first with a get or list tool. Chang
 
 *📖 Read-only*
 
-Get issues associated with a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get issues associated with a specific group milestone.
 
 **Parameters**
 
@@ -267,7 +267,7 @@ Get issues associated with a specific group milestone. Read-only; missing resour
 
 *📖 Read-only*
 
-Get merge requests associated with a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get merge requests associated with a specific group milestone.
 
 **Parameters**
 
@@ -282,7 +282,7 @@ Get merge requests associated with a specific group milestone. Read-only; missin
 
 *📖 Read-only*
 
-Get burndown events for a specific group milestone. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get burndown events for a specific group milestone.
 
 **Parameters**
 

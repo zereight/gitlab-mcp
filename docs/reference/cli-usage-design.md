@@ -30,10 +30,10 @@ Non-goals for this design:
 
 - `package.json` exposes two bin aliases (`mcp-gitlab`, `zereight-mcp-gitlab`) pointing at `build/index.js`.
 - `Formula/zereight-mcp-gitlab.rb` wraps the npm tarball and symlinks the bins, so the Homebrew install is already a shell-runnable binary.
-- `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
+- `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `setup`, `doctor`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`. Boolean MCP flags accept `--flag`, `--flag=true`, or `--flag false`; they do not swallow the next positional command.
 - Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS` / legacy flags, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
-- Tool inventory: 277 tools in `allTools` (275 toolset tools plus `execute_graphql` and `discover_tools`), grouped into 24 toolsets in `TOOLSET_DEFINITIONS`. The `api` toolset is explicit-only (`GITLAB_TOOLSETS=all` does not enable it). Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
+- Tool inventory: 278 tools in `allTools` (275 toolset tools plus `execute_graphql`, `discover_tools`, and `help`), grouped into 24 toolsets in `TOOLSET_DEFINITIONS`. The `api` toolset is explicit-only (`GITLAB_TOOLSETS=all` does not enable it). Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
 
 ---
 
@@ -43,7 +43,9 @@ Two layers. The generic layer guarantees full coverage with zero per-tool code. 
 
 ```text
 zereight-mcp-gitlab auth ...                        # unchanged
-zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 277 tools
+zereight-mcp-gitlab setup --cursor|--claude [...]   # print or write client config
+zereight-mcp-gitlab doctor [--probe]                # token, API URL, toolset, version
+zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 278 tools
 zereight-mcp-gitlab <group> <action> [options]      # curated, phased rollout
 zereight-mcp-gitlab --help | <group> --help         # generated help
 ```

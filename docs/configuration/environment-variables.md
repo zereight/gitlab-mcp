@@ -36,6 +36,21 @@ GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_
 
 CLI: `--compact-tools`
 
+## List and attachment summaries
+
+List tools accept an opt-in `summary` argument (`true`/`false`, default `false`).
+When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
+`state`, and `web_url` and drops long bodies. Existing clients that omit
+`summary` still receive the full GitLab JSON. `list_webhook_events` already had
+its own `summary` flag; that native behavior is unchanged.
+
+`get_pipeline_job_output` still defaults to the last 1000 lines (`limit` /
+`offset`). Pass those arguments instead of fetching a whole job trace.
+
+`download_attachment` accepts opt-in `metadata_only=true` to return filename,
+mime type, and byte length without inline image bytes or a saved file. Default
+`false` keeps the existing download behavior.
+
 ## Response masking
 
 ### `GITLAB_MASKING_ENABLED`
@@ -508,7 +523,8 @@ Notes:
   session: a single id acts as the default project, tools that cannot be project
   scoped (`execute_graphql`, `create_repository`, `create_group`,
   `fork_repository`, the group variable and dependency proxy tools) are refused,
-  and `group:<id-or-path>` targets are refused.
+  `group:<id-or-path>` targets are refused, and `gitlab_api_request` accepts only
+  `/projects/:id` paths for an allowed project.
 - The scope is fixed for the session. A later request without the header keeps
   it; a later request with a different value (wider or narrower) is rejected with
   `401`. This also holds when the request carries a new token. Re-initialize the
@@ -746,6 +762,8 @@ Behavior:
 
 - One project ID: acts like a default locked project
 - Multiple project IDs: restricts access to those projects only
+- `gitlab_api_request` (opt-in `api` toolset) accepts only `/projects/:id` and
+  `/projects/:id/...` paths for an allowed project and rejects every other path
 
 This is process-level and fixed at startup. To let a caller narrow the scope
 per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
@@ -862,7 +880,7 @@ Special values:
 
     `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
+    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
     When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 

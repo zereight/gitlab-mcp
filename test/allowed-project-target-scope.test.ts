@@ -35,6 +35,18 @@ function noteDeniedMessage(noteId: string): string {
   return `Access denied: Note ${noteId} was not found on work item #${WORK_ITEM_IID} in ${ALLOWED_PROJECT_PATH}`;
 }
 
+function assertScopeDenied(
+  result: Awaited<ReturnType<Client["callTool"]>>,
+  expected: string
+): void {
+  const text = resultText(result);
+  assert.equal(result.isError, true, text);
+  assert.ok(
+    text === expected || text.startsWith(`${expected}\nNext: `),
+    `expected denial ${JSON.stringify(expected)}, got ${JSON.stringify(text)}`
+  );
+}
+
 interface RecordedRequest {
   method: string;
   path: string;
@@ -297,8 +309,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
         },
       });
 
-      assert.equal(denied.isError, true, resultText(denied));
-      assert.equal(resultText(denied), DENIED_MESSAGE);
+      assertScopeDenied(denied, DENIED_MESSAGE);
       assert.deepEqual(
         postsTo(server.requests, `/api/v4/projects/${ALLOWED_PROJECT_ID}/issues/1/links`),
         []
@@ -346,8 +357,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
         arguments: { ...baseArgs, target_project_id: DENIED_PROJECT_ID },
       });
 
-      assert.equal(denied.isError, true, resultText(denied));
-      assert.equal(resultText(denied), DENIED_MESSAGE);
+      assertScopeDenied(denied, DENIED_MESSAGE);
       assert.deepEqual(postsTo(server.requests, mergeRequestsPath), []);
       assert.equal(deniedProjectWasRequested(server.requests), false);
     });
@@ -396,8 +406,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
           },
         });
 
-        assert.equal(denied.isError, true, resultText(denied));
-        assert.equal(resultText(denied), noteDeniedMessage(FOREIGN_ISSUE_NOTE_GID));
+        assertScopeDenied(denied, noteDeniedMessage(FOREIGN_ISSUE_NOTE_GID));
         assert.deepEqual(awardRequests(server.requests), []);
       });
 
@@ -414,8 +423,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
           },
         });
 
-        assert.equal(denied.isError, true, resultText(denied));
-        assert.equal(resultText(denied), DENIED_MESSAGE);
+        assertScopeDenied(denied, DENIED_MESSAGE);
         assert.deepEqual(awardRequests(server.requests), []);
         assert.equal(deniedProjectWasRequested(server.requests), false);
       });
@@ -460,8 +468,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
 
       const denied = await callWithNote(server, MERGE_REQUEST_NOTE_GID);
 
-      assert.equal(denied.isError, true, resultText(denied));
-      assert.equal(resultText(denied), noteDeniedMessage(MERGE_REQUEST_NOTE_GID));
+      assertScopeDenied(denied, noteDeniedMessage(MERGE_REQUEST_NOTE_GID));
       assert.deepEqual(awardRequests(server.requests), []);
     });
 
@@ -470,8 +477,7 @@ describe("When GITLAB_ALLOWED_PROJECT_IDS is set", () => {
 
       const denied = await callWithNote(server, MISSING_NOTE_GID);
 
-      assert.equal(denied.isError, true, resultText(denied));
-      assert.equal(resultText(denied), noteDeniedMessage(MISSING_NOTE_GID));
+      assertScopeDenied(denied, noteDeniedMessage(MISSING_NOTE_GID));
       assert.deepEqual(awardRequests(server.requests), []);
     });
 

@@ -90,9 +90,13 @@ resolve_merge_request_thread
 
 ## Alternative: Full Diff Methods
 
+Do not dump a full `get_merge_request_diffs` payload into the conversation.
+Prefer `list_merge_request_changed_files` plus batched `get_merge_request_file_diff`.
+When a larger payload is unavoidable, add a jmespath filter or enable compact results.
+
 For small MRs where batching is unnecessary:
 
-- `get_merge_request_diffs` - all diffs at once (can be large)
+- `get_merge_request_diffs` - all diffs at once (can be large; avoid as the default)
 - `list_merge_request_diffs` - paginated diffs
 
 For comparing arbitrary refs:
