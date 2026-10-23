@@ -80,6 +80,10 @@ node --import tsx/esm --test --experimental-test-isolation=none --test-concurren
 
 Description edits do not change the fixture. A refactor that moves code without changing behavior should leave it unchanged. If a change is meant to alter `tools/list` (a new parameter, a permission-mode change, a dependency bump that changes the generated schema), run `npm run test:tools-list:update` and commit the fixture with the change.
 
+## Default `tools/list` budget
+
+`test/tools-list-budget.test.ts` (pass 3) starts `build/index.js` over stdio with the default configuration and fails when `JSON.stringify({ tools })` is over `DEFAULT_TOOLS_LIST_MAX_BYTES` (70,000 bytes; 54,887 measured on 2026-10-23). Clients send this payload to the model in every session. The failure message lists the five largest tools. Raise the ceiling only for an intended change to the default tools, and give the reason in the PR.
+
 ## Mock GitLab server
 
 Integration suites start `MockGitLabServer` on a free port (`findMockServerPort`), then point the server at `${mockUrl}/api/v4` with a fake token. Stdio suites spawn `node build/index.js` and send a JSON-RPC `tools/call`. HTTP suites use `launchServer` from `test/utils/server-launcher.ts` (`sse` or `streamable-http`) and a client under `test/clients/`. `addMockHandler` stubs a path relative to `/api/v4`. The suite stops the mock server when it finishes.
