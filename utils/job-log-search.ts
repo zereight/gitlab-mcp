@@ -8,6 +8,8 @@ export const JOB_LOG_MAX_MATCHES = 100;
 export const JOB_LOG_MAX_LINE_LENGTH = 4000;
 // Marks where text was cut from a returned line that is longer than JOB_LOG_MAX_LINE_LENGTH.
 export const JOB_LOG_CUT_MARKER = "…";
+// Total text of all returned lines, so a broad pattern cannot return most of the searched log.
+export const JOB_LOG_MAX_OUTPUT_CHARS = 100_000;
 export const JOB_LOG_SEARCH_BUDGET_MS = 1000;
 // Per-IP rate limits do not cap workers. This does, for the whole process.
 export const JOB_LOG_MAX_ACTIVE_SEARCHES = 2;
@@ -66,7 +68,7 @@ const SEARCH_WORKER_SOURCE = [
   "    }",
   "    windows.push({ start, end, matchLines: [lineNumber] });",
   "  }",
-  "  return { windows, shownMatches: limited.length };",
+  "  return windows;",
   "}",
   // toLowerCase can lengthen a line (U+0130 becomes two code units), so an
   // offset into the lowercased copy is mapped back one code point at a time.
@@ -112,6 +114,45 @@ const SEARCH_WORKER_SOURCE = [
   "  }",
   "  return marker + line.slice(from, from + room) + marker;",
   "}",
+  // Lines are matched in full; only the returned text is cut to maxLineLength.
+  // Returned text stops before the line that would pass maxOutputChars, and a
+  // window cut before its first match is left out.
+  "function collectFragments(cleaned, windows, longLineMatchStarts, data) {",
+  "  const collected = { fragments: [], shownMatches: 0, linesTruncated: false, outputTruncated: false };",
+  "  let outputChars = 0;",
+  "  for (const matchWindow of windows) {",
+  "    const lines = [];",
+  "    let linesTruncated = false;",
+  "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
+  "      const line = cleaned[offset];",
+  "      const matchStart = longLineMatchStarts.get(offset) ?? 0;",
+  "      const text = excerptLine(line, matchStart, data.maxLineLength, data.cutMarker);",
+  "      if (outputChars + text.length > data.maxOutputChars) {",
+  "        collected.outputTruncated = true;",
+  "        break;",
+  "      }",
+  "      outputChars += text.length;",
+  "      linesTruncated = linesTruncated || line.length > data.maxLineLength;",
+  "      lines.push({ lineNumber: data.lineOffset + offset + 1, text });",
+  "    }",
+  "    const endLine = matchWindow.start + lines.length;",
+  "    const matchLines = matchWindow.matchLines.filter(lineNumber => lineNumber <= endLine);",
+  "    if (matchLines.length > 0) {",
+  "      collected.fragments.push({",
+  "        startLine: data.lineOffset + matchWindow.start + 1,",
+  "        endLine: data.lineOffset + endLine,",
+  "        matchLines: matchLines.map(lineNumber => data.lineOffset + lineNumber),",
+  "        lines,",
+  "      });",
+  "      collected.shownMatches += matchLines.length;",
+  "      collected.linesTruncated = collected.linesTruncated || linesTruncated;",
+  "    }",
+  "    if (collected.outputTruncated) {",
+  "      break;",
+  "    }",
+  "  }",
+  "  return collected;",
+  "}",
   "function runSearch(data) {",
   "  const startedAt = Date.now();",
   '  const rawLines = data.log.split("\\n");',
@@ -139,38 +180,20 @@ const SEARCH_WORKER_SOURCE = [
   "      }",
   "    }",
   "  }",
-  "  const merged = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
-  // Lines are matched in full; only the returned text is cut to maxLineLength.
-  "  let linesTruncated = false;",
-  "  const fragments = merged.windows.map(matchWindow => {",
-  "    const lines = [];",
-  "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
-  "      const line = cleaned[offset];",
-  "      if (line.length > data.maxLineLength) {",
-  "        linesTruncated = true;",
-  "      }",
-  "      const matchStart = longLineMatchStarts.get(offset) ?? 0;",
-  "      const text = excerptLine(line, matchStart, data.maxLineLength, data.cutMarker);",
-  "      lines.push({ lineNumber: data.lineOffset + offset + 1, text });",
-  "    }",
-  "    return {",
-  "      startLine: data.lineOffset + matchWindow.start + 1,",
-  "      endLine: data.lineOffset + matchWindow.end + 1,",
-  "      matchLines: matchWindow.matchLines.map(lineNumber => data.lineOffset + lineNumber),",
-  "      lines,",
-  "    };",
-  "  });",
+  "  const windows = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
+  "  const collected = collectFragments(cleaned, windows, longLineMatchStarts, data);",
   "  return {",
   "    result: {",
   "      totalLines: data.lineOffset + cleaned.length,",
   "      firstSearchedLine: data.lineOffset + 1,",
   "      skippedChars: data.skippedChars,",
   "      totalMatches: matchIndexes.length,",
-  "      shownMatches: merged.shownMatches,",
-  "      truncated: matchIndexes.length > merged.shownMatches,",
+  "      shownMatches: collected.shownMatches,",
+  "      truncated: matchIndexes.length > collected.shownMatches,",
+  "      outputTruncated: collected.outputTruncated,",
   "      contextLines: data.contextLines,",
-  "      linesTruncated,",
-  "      fragments,",
+  "      linesTruncated: collected.linesTruncated,",
+  "      fragments: collected.fragments,",
   "    },",
   "  };",
   "}",
@@ -216,6 +239,8 @@ export interface JobLogSearchResult {
   readonly totalMatches: number;
   readonly shownMatches: number;
   readonly truncated: boolean;
+  // Returned lines stopped at JOB_LOG_MAX_OUTPUT_CHARS; truncated still covers every unshown match.
+  readonly outputTruncated: boolean;
   readonly contextLines: number;
   readonly linesTruncated: boolean;
   readonly fragments: readonly JobLogFragment[];
@@ -300,6 +325,7 @@ function isSearchResult(value: unknown): value is JobLogSearchResult {
     typeof value.totalMatches === "number" &&
     typeof value.shownMatches === "number" &&
     typeof value.truncated === "boolean" &&
+    typeof value.outputTruncated === "boolean" &&
     typeof value.contextLines === "number" &&
     typeof value.linesTruncated === "boolean" &&
     Array.isArray(fragments) &&
@@ -387,6 +413,7 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
         maxMatches: input.maxMatches,
         budgetMs: JOB_LOG_SEARCH_BUDGET_MS,
         maxLineLength: JOB_LOG_MAX_LINE_LENGTH,
+        maxOutputChars: JOB_LOG_MAX_OUTPUT_CHARS,
         cutMarker: JOB_LOG_CUT_MARKER,
         ansiSource: ANSI_ESCAPE_PATTERN.source,
         ansiFlags: ANSI_ESCAPE_PATTERN.flags,
@@ -500,7 +527,7 @@ export function formatJobLogSearch(
   const regex = input.regex === true;
   const caseSensitive = input.caseSensitive === true;
   const header = [
-    `[Search pattern=${JSON.stringify(input.pattern)} regex=${regex} case_sensitive=${caseSensitive} context_lines=${result.contextLines}; total_lines=${result.totalLines}; total_matches=${result.totalMatches}; shown_matches=${result.shownMatches}; truncated=${result.truncated}. limit and offset are ignored when pattern is set. Line numbers are 1-based from the start of the log.]`,
+    `[Search pattern=${JSON.stringify(input.pattern)} regex=${regex} case_sensitive=${caseSensitive} context_lines=${result.contextLines}; total_lines=${result.totalLines}; total_matches=${result.totalMatches}; shown_matches=${result.shownMatches}; truncated=${result.truncated}; output_truncated=${result.outputTruncated}. limit and offset are ignored when pattern is set. Line numbers are 1-based from the start of the log.]`,
   ];
   if (result.skippedChars > 0) {
     header.push(
@@ -510,6 +537,11 @@ export function formatJobLogSearch(
   if (result.linesTruncated) {
     header.push(
       `[Some returned lines were cut to ${JOB_LOG_MAX_LINE_LENGTH} characters; ${JOB_LOG_CUT_MARKER} marks omitted text. A matching line is cut around its first match. Matching used the full line.]`
+    );
+  }
+  if (result.outputTruncated) {
+    header.push(
+      `[Output stopped at ${JOB_LOG_MAX_OUTPUT_CHARS} characters of returned line text, so later lines and matches are not shown even within max_matches. Use a more specific pattern or fewer context_lines.]`
     );
   }
   if (result.fragments.length === 0) {

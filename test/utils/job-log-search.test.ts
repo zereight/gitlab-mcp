@@ -5,6 +5,8 @@ import {
   JOB_LOG_CUT_MARKER,
   JOB_LOG_MAX_ACTIVE_SEARCHES,
   JOB_LOG_MAX_LINE_LENGTH,
+  JOB_LOG_MAX_MATCHES,
+  JOB_LOG_MAX_OUTPUT_CHARS,
   JOB_LOG_MAX_PATTERN_LENGTH,
   JOB_LOG_MAX_SEARCH_CHARS,
   JOB_LOG_SEARCH_BUDGET_MS,
@@ -32,6 +34,38 @@ const OVERSIZED_LOG_LINES = JOB_LOG_MAX_SEARCH_CHARS / 100 + 2;
 function oversizedLog(): string {
   const filler = `${"x".repeat(99)}\n`.repeat(JOB_LOG_MAX_SEARCH_CHARS / 100);
   return `NEEDLE early\n${filler}NEEDLE late`;
+}
+
+const FULL_LENGTH_MATCH_LINE = `NEEDLE${"x".repeat(JOB_LOG_MAX_LINE_LENGTH - "NEEDLE".length)}`;
+const MATCH_LINES_WITHIN_OUTPUT_LIMIT = Math.floor(
+  JOB_LOG_MAX_OUTPUT_CHARS / JOB_LOG_MAX_LINE_LENGTH
+);
+const MATCH_LINES_PAST_OUTPUT_LIMIT = MATCH_LINES_WITHIN_OUTPUT_LIMIT + 5;
+
+function searchPastOutputLimit() {
+  const log = numberedLog(
+    Array.from({ length: MATCH_LINES_PAST_OUTPUT_LIMIT }, () => FULL_LENGTH_MATCH_LINE)
+  );
+  return searchJobLog(log, {
+    pattern: "NEEDLE",
+    contextLines: 0,
+    maxMatches: JOB_LOG_MAX_MATCHES,
+  });
+}
+
+// Each window is a short context line, a full-length match and another short
+// context line. The window that reaches the output limit fits its first
+// context line but not its match.
+function searchWindowCutBeforeItsMatch() {
+  const block = ["z", FULL_LENGTH_MATCH_LINE, "z", "z"];
+  const log = numberedLog(
+    Array.from({ length: MATCH_LINES_PAST_OUTPUT_LIMIT }, () => block).flat()
+  );
+  return searchJobLog(log, {
+    pattern: "NEEDLE",
+    contextLines: 1,
+    maxMatches: JOB_LOG_MAX_MATCHES,
+  });
 }
 
 function isTimeLimitError(error: unknown): boolean {
@@ -233,6 +267,44 @@ describe("When searching a job log", () => {
         [1, 2]
       );
     });
+
+    it("should not report an output size cut", async () => {
+      const log = numberedLog(["hit", "hit", "hit", "hit"]);
+      const result = await searchJobLog(log, { pattern: "hit", contextLines: 0, maxMatches: 2 });
+
+      assert.equal(result.outputTruncated, false);
+    });
+  });
+
+  describe("with matched lines past the output character limit", () => {
+    it("should still count every match", async () => {
+      const result = await searchPastOutputLimit();
+
+      assert.equal(result.totalMatches, MATCH_LINES_PAST_OUTPUT_LIMIT);
+    });
+
+    it("should show only the matches whose lines fit in the limit", async () => {
+      const result = await searchPastOutputLimit();
+
+      assert.equal(result.shownMatches, MATCH_LINES_WITHIN_OUTPUT_LIMIT);
+      assert.equal(result.fragments.length, MATCH_LINES_WITHIN_OUTPUT_LIMIT);
+    });
+
+    it("should report the output size cut as well as the unshown matches", async () => {
+      const result = await searchPastOutputLimit();
+
+      assert.equal(result.outputTruncated, true);
+      assert.equal(result.truncated, true);
+    });
+  });
+
+  describe("with a context window that reaches the output limit before its match", () => {
+    it("should leave out the context lines without their match", async () => {
+      const result = await searchWindowCutBeforeItsMatch();
+
+      assert.equal(result.outputTruncated, true);
+      assert.ok(result.fragments.every(fragment => fragment.matchLines.length > 0));
+    });
   });
 
   describe("with a match away from the start", () => {
@@ -391,8 +463,21 @@ describe("When formatting a job log search", () => {
       });
       const text = formatJobLogSearch(result, { pattern: "ERROR" });
 
-      assert.match(text, /total_lines=5; total_matches=1; shown_matches=1; truncated=false/);
+      assert.match(
+        text,
+        /total_lines=5; total_matches=1; shown_matches=1; truncated=false; output_truncated=false/
+      );
       assert.match(text, /4\|ERROR here/);
+    });
+  });
+
+  describe("with matched lines past the output character limit", () => {
+    it("should say the output was cut by size and how to narrow it", async () => {
+      const result = await searchPastOutputLimit();
+      const text = formatJobLogSearch(result, { pattern: "NEEDLE" });
+
+      assert.match(text, /truncated=true; output_truncated=true/);
+      assert.match(text, /Use a more specific pattern or fewer context_lines/);
     });
   });
 
