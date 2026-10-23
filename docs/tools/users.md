@@ -116,3 +116,4 @@ Download an uploaded file from a project (images returned as base64; other files
 | `secret` | string | ✓ | The 32-character secret of the upload |
 | `filename` | string | ✓ | The filename of the upload |
 | `local_path` | string |  | Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected |
+| `metadata_only` | boolean |  | If true, return filename, mime type, and byte length without inline image bytes or a saved file. Default false keeps the existing download behavior. |

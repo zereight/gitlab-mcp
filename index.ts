@@ -293,6 +293,13 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
+import { appendRecoveryHint } from "./utils/error-hints.js";
+import {
+  applyListSummaryToToolResult,
+  omitListSummaryArgument,
+  readListSummaryRequested,
+  toolAcceptsDecoratedSummary,
+} from "./utils/list-summary.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -875,9 +882,15 @@ function createServer(): McpServer {
     const toolName = request.params.name;
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
+    const requestArguments = readOwnRecord(request.params.arguments);
     const jmespathExpression = readJmespathExpression(
-      request.params.arguments as Record<string, unknown> | undefined
+      requestArguments === undefined ? undefined : { ...requestArguments }
     );
+    const listSummaryRequested =
+      toolAcceptsDecoratedSummary(toolName) &&
+      readListSummaryRequested(
+        requestArguments === undefined ? undefined : { ...requestArguments }
+      );
 
     const logCompletion = (result: any, completionOptions?: { skipJmespath?: boolean }) => {
       const durationMs = Date.now() - start;
@@ -889,8 +902,12 @@ function createServer(): McpServer {
         toolName === "get_pipeline_job_output" ||
         toolName === "get_job_artifact_file" ||
         (toolName === "download_release_asset" && !IS_REMOTE);
-      const filtered = applyJmespathToToolResult(
+      const summarized = applyListSummaryToToolResult(
         redactErrorResultUrls(result),
+        listSummaryRequested
+      );
+      const filtered = applyJmespathToToolResult(
+        summarized,
         jmespathExpression,
         {
           ...completionOptions,
@@ -1182,10 +1199,13 @@ function createServer(): McpServer {
         request.params.arguments = cleanArgs;
       }
 
-      if (request.params.arguments && typeof request.params.arguments === "object") {
-        request.params.arguments = omitJmespathArgument(
-          request.params.arguments as Record<string, unknown>
-        );
+      const ownedArguments = readOwnRecord(request.params.arguments);
+      if (ownedArguments) {
+        let cleanedArguments = omitJmespathArgument({ ...ownedArguments });
+        if (toolAcceptsDecoratedSummary(toolName)) {
+          cleanedArguments = omitListSummaryArgument(cleanedArguments);
+        }
+        request.params.arguments = cleanedArguments;
       }
 
       if (sessionContext) {
@@ -1210,7 +1230,9 @@ function createServer(): McpServer {
           content: [
             {
               type: "text",
-              text: safeError instanceof Error ? safeError.message : String(safeError),
+              text: appendRecoveryHint(
+                safeError instanceof Error ? safeError.message : String(safeError)
+              ),
             },
           ],
           isError: true,
@@ -2369,12 +2391,16 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       // before the common tool-call boundary returns/logs it.
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
-      const error = new GitLabApiError(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      const error = new GitLabApiError(
+        appendRecoveryHint(`GitLab API Rate Limit Exceeded: ${errorBody}`)
+      );
       throw error;
     } else {
       // Handle other API errors
       const error = new GitLabApiError(
-        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+        appendRecoveryHint(
+          `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+        )
       );
       throw error;
     }
@@ -11016,13 +11042,15 @@ interface DownloadAttachmentResult {
   filename: string;
   mimeType: string | null;
   savedPath?: string;
+  byteLength?: number;
 }
 
 async function downloadAttachment(
   projectId: string,
   secret: string,
   filename: string,
-  localPath?: string
+  localPath?: string,
+  metadataOnly = false
 ): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const safeFilename = getSafeAttachmentFilename(filename);
@@ -11038,6 +11066,19 @@ async function downloadAttachment(
   }
 
   const mimeType = getImageMimeType(safeFilename);
+
+  if (metadataOnly) {
+    const headerLength = Number(response.headers.get("content-length"));
+    if (response.body) {
+      await response.body.cancel();
+    }
+    return {
+      buffer: Buffer.alloc(0),
+      filename: safeFilename,
+      mimeType,
+      byteLength: Number.isFinite(headerLength) ? headerLength : undefined,
+    };
+  }
 
   // Non-image files, and images with local_path, are saved as new files under the
   // download directory. Upload names and local_path come from untrusted content, so
@@ -15012,7 +15053,11 @@ async function handleToolCall(params: any) {
         }
 
         // Readonly mode never writes to disk: images still come back inline.
-        if (GITLAB_PERMISSION_MODE === "readonly" && (!mimeType || args.local_path)) {
+        if (
+          GITLAB_PERMISSION_MODE === "readonly" &&
+          !args.metadata_only &&
+          (!mimeType || args.local_path)
+        ) {
           throw new Error(
             "download_attachment saves this file to disk, which readonly mode does not allow. Only images without local_path can be downloaded in readonly mode."
           );
@@ -15022,8 +15067,25 @@ async function handleToolCall(params: any) {
           args.project_id,
           args.secret,
           args.filename,
-          args.local_path
+          args.local_path,
+          args.metadata_only === true
         );
+
+        if (args.metadata_only) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  filename: result.filename,
+                  mimeType: result.mimeType,
+                  byte_length: result.byteLength ?? result.buffer.byteLength,
+                  metadata_only: true,
+                }),
+              },
+            ],
+          };
+        }
 
         if (result.mimeType && !args.local_path) {
           // Return image inline as base64 so the AI can see it

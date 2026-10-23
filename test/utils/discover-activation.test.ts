@@ -119,7 +119,7 @@ describe("When explaining an unavailable tool", () => {
           excludedBySlimProfile: true,
           enabledByCurrentToolsets: true,
         }),
-        'Tool "list_labels" is not available on this server. The slim tool profile excludes it. Add "list_labels" to GITLAB_TOOLS, set GITLAB_TOOL_PROFILE=full, or add "labels" to GITLAB_TOOLSETS (setting GITLAB_TOOLSETS disables the slim profile).'
+        'Tool "list_labels" is not available on this server. The slim tool profile excludes it. Add "list_labels" to GITLAB_TOOLS, set GITLAB_TOOL_PROFILE=full, or add "labels" to GITLAB_TOOLSETS (setting GITLAB_TOOLSETS disables the slim profile).\nNext: call discover_tools with the category, or add it to GITLAB_TOOLSETS.'
       );
     });
   });
@@ -134,7 +134,7 @@ describe("When explaining an unavailable tool", () => {
           excludedBySlimProfile: true,
           enabledByCurrentToolsets: false,
         }),
-        'Tool "create_label" is not available on this server. The slim tool profile excludes it. Add "create_label" to GITLAB_TOOLS, or add "labels" to GITLAB_TOOLSETS (setting GITLAB_TOOLSETS disables the slim profile).'
+        'Tool "create_label" is not available on this server. The slim tool profile excludes it. Add "create_label" to GITLAB_TOOLS, or add "labels" to GITLAB_TOOLSETS (setting GITLAB_TOOLSETS disables the slim profile).\nNext: call discover_tools with the category, or add it to GITLAB_TOOLSETS.'
       );
     });
   });
@@ -149,7 +149,7 @@ describe("When explaining an unavailable tool", () => {
           excludedBySlimProfile: false,
           enabledByCurrentToolsets: false,
         }),
-        'Tool "list_pipelines" is not available on this server. It belongs to the "pipelines" toolset, which is not enabled: call discover_tools with category "pipelines" or add "pipelines" to GITLAB_TOOLSETS.'
+        'Tool "list_pipelines" is not available on this server. It belongs to the "pipelines" toolset, which is not enabled: call discover_tools with category "pipelines" or add "pipelines" to GITLAB_TOOLSETS.\nNext: call discover_tools with the category, or add it to GITLAB_TOOLSETS.'
       );
     });
   });
