@@ -10,6 +10,7 @@ import {
   JOB_LOG_MAX_OUTPUT_CHARS,
   JOB_LOG_MAX_PATTERN_LENGTH,
   JOB_LOG_MAX_SEARCH_CHARS,
+  JOB_LOG_MIN_CHUNK_CHARS,
   JOB_LOG_SEARCH_BUDGET_MS,
   JobLogSearchError,
   readJobLogTail,
@@ -30,7 +31,8 @@ function nestedQuantifierPattern(): string {
 }
 
 // "NEEDLE early", then 100-character filler lines worth exactly the search
-// limit, then "NEEDLE late". Lines 1 and 2 fall before the searched end.
+// limit, then "NEEDLE late". Line 1 falls before the searched end, which
+// starts partway through line 2.
 const OVERSIZED_LOG_LINES = JOB_LOG_MAX_SEARCH_CHARS / 100 + 2;
 
 function oversizedLog(): string {
@@ -38,11 +40,20 @@ function oversizedLog(): string {
   return `NEEDLE early\n${filler}NEEDLE late`;
 }
 
+// The searched end starts partway through line 2, before that line's NEEDLE.
+function logCutBeforeMatchInItsLine(): string {
+  const searched = `xxNEEDLE\n${"z".repeat(JOB_LOG_MAX_SEARCH_CHARS - "xxNEEDLE\n".length)}`;
+  return `head\n${"x".repeat(10)}${searched}`;
+}
+
 // oversizedLog() behind multi-byte lines worth several 64 KiB chunks, so whole
 // chunks are dropped while the stream is read.
 function streamedOversizedLog(): string {
   return `${"✓ dropped\n".repeat(50_000)}${oversizedLog()}`;
 }
+
+// Chunks that decode to well under JOB_LOG_MIN_CHUNK_CHARS, so they are merged while read.
+const SMALL_CHUNK_BYTES = JOB_LOG_MIN_CHUNK_CHARS / 4;
 
 // Cuts the UTF-8 bytes without regard to character boundaries, like a network body.
 async function* byteChunks(text: string, chunkBytes = 65_536): AsyncGenerator<Uint8Array> {
@@ -429,9 +440,8 @@ describe("When searching a job log", () => {
       assert.equal(result.totalMatches, 1);
       assert.deepEqual(result.fragments[0]?.matchLines, [OVERSIZED_LOG_LINES]);
       assert.equal(result.totalLines, OVERSIZED_LOG_LINES);
-      assert.equal(result.firstSearchedLine, 3);
-      assert.equal(result.skippedChars, "NEEDLE early\n".length + 100);
-      assert.ok(log.length - result.skippedChars <= JOB_LOG_MAX_SEARCH_CHARS);
+      assert.equal(result.firstSearchedLine, 2);
+      assert.equal(result.skippedChars, log.length - JOB_LOG_MAX_SEARCH_CHARS);
     });
 
     it("should apply the same limit to a regular expression", async () => {
@@ -443,7 +453,18 @@ describe("When searching a job log", () => {
 
       assert.equal(result.totalMatches, 1);
       assert.deepEqual(result.fragments[0]?.matchLines, [OVERSIZED_LOG_LINES]);
-      assert.equal(result.firstSearchedLine, 3);
+      assert.equal(result.firstSearchedLine, 2);
+    });
+  });
+
+  describe("with the searched end starting partway through a line before its match", () => {
+    it("should find the match in the rest of that line", async () => {
+      const result = await searchJobLog(logCutBeforeMatchInItsLine(), {
+        pattern: "NEEDLE",
+        contextLines: 0,
+      });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [2]);
     });
   });
 
@@ -462,10 +483,10 @@ describe("When searching a job log", () => {
 
 describe("When reading a job log stream to search", () => {
   describe("with a log several chunks over the search character limit", () => {
-    it("should keep no more than one character past the search limit", async () => {
+    it("should keep no more than the search limit", async () => {
       const tail = await readJobLogTail(byteChunks(streamedOversizedLog()));
 
-      assert.ok(tail.text.length <= JOB_LOG_MAX_SEARCH_CHARS + 1);
+      assert.ok(tail.text.length <= JOB_LOG_MAX_SEARCH_CHARS);
     });
 
     it("should report the same skipped characters and line numbers as the whole log", async () => {
@@ -475,6 +496,23 @@ describe("When reading a job log stream to search", () => {
       const fromStream = await searchJobLog(await readJobLogTail(byteChunks(log)), input);
 
       assert.deepEqual(fromStream, await searchJobLog(log, input));
+    });
+  });
+
+  describe("with a log over the search character limit read in small chunks", () => {
+    it("should keep no more than the search limit", async () => {
+      const tail = await readJobLogTail(byteChunks(streamedOversizedLog(), SMALL_CHUNK_BYTES));
+
+      assert.ok(tail.text.length <= JOB_LOG_MAX_SEARCH_CHARS);
+    });
+
+    it("should report the same skipped characters and line numbers as the whole log", async () => {
+      const log = streamedOversizedLog();
+      const input = { pattern: "NEEDLE", contextLines: 0 };
+
+      const tail = await readJobLogTail(byteChunks(log, SMALL_CHUNK_BYTES));
+
+      assert.deepEqual(await searchJobLog(tail, input), await searchJobLog(log, input));
     });
   });
 
@@ -495,7 +533,7 @@ describe("When formatting a job log search", () => {
       const result = await searchJobLog(oversizedLog(), { pattern: "NEEDLE", contextLines: 0 });
       const text = formatJobLogSearch(result, { pattern: "NEEDLE" });
 
-      assert.match(text, /only the end was searched, from line 3;/);
+      assert.match(text, /only the end was searched, from line 2;/);
       assert.match(text, new RegExp(`${OVERSIZED_LOG_LINES}\\|NEEDLE late`));
     });
   });

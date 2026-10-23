@@ -355,9 +355,9 @@ export interface JobLogTail {
   readonly skippedChars: number;
 }
 
-// One character more than the search limit, so boundJobLog can still see
-// whether the searched end starts right after a newline.
-const JOB_LOG_TAIL_CHARS = JOB_LOG_MAX_SEARCH_CHARS + 1;
+// Smaller decoded chunks are merged up to this size, so a stream of tiny
+// chunks cannot grow the kept array into one that is slow to shift.
+export const JOB_LOG_MIN_CHUNK_CHARS = 4096;
 
 function countNewlines(text: string, end: number): number {
   let count = 0;
@@ -369,18 +369,15 @@ function countNewlines(text: string, end: number): number {
   return count;
 }
 
-// Keeps at most JOB_LOG_MAX_SEARCH_CHARS from the end, starting at a line
-// boundary when there is one, so an oversized trace is never cloned into a
-// worker. Skipped lines are counted so line numbers stay absolute.
+// Keeps the last JOB_LOG_MAX_SEARCH_CHARS, which can start partway through a
+// line, so an oversized trace is never cloned into a worker. Skipped lines are
+// counted so line numbers stay absolute.
 function boundJobLog(log: JobLogTail): JobLogTail {
   const { text } = log;
   if (text.length <= JOB_LOG_MAX_SEARCH_CHARS) {
     return log;
   }
-  const earliestStart = text.length - JOB_LOG_MAX_SEARCH_CHARS;
-  const newline = text.indexOf("\n", earliestStart - 1);
-  // Without a newline that leaves text to search, start mid-line instead.
-  const start = newline === -1 || newline >= text.length - 1 ? earliestStart : newline + 1;
+  const start = text.length - JOB_LOG_MAX_SEARCH_CHARS;
   return {
     text: text.slice(start),
     lineOffset: log.lineOffset + countNewlines(text, start),
@@ -396,17 +393,25 @@ async function* decodeChunks(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<
   yield decoder.decode();
 }
 
-// Reads a job log stream but holds only its last JOB_LOG_TAIL_CHARS (plus one
-// chunk), so a trace of any size never sits whole in this process.
+// Reads a job log stream but holds only its last JOB_LOG_MAX_SEARCH_CHARS (plus
+// about one chunk), so a trace of any size never sits whole in this process.
 export async function readJobLogTail(chunks: AsyncIterable<Uint8Array>): Promise<JobLogTail> {
   const kept: string[] = [];
   let keptChars = 0;
   let lineOffset = 0;
   let skippedChars = 0;
   for await (const decoded of decodeChunks(chunks)) {
-    kept.push(decoded);
+    if (decoded.length === 0) {
+      continue;
+    }
+    const last = kept.length - 1;
+    if (last >= 0 && kept[last].length < JOB_LOG_MIN_CHUNK_CHARS) {
+      kept[last] += decoded;
+    } else {
+      kept.push(decoded);
+    }
     keptChars += decoded.length;
-    while (kept.length > 1 && keptChars - kept[0].length >= JOB_LOG_TAIL_CHARS) {
+    while (kept.length > 1 && keptChars - kept[0].length >= JOB_LOG_MAX_SEARCH_CHARS) {
       const dropped = kept[0];
       kept.shift();
       keptChars -= dropped.length;
@@ -415,7 +420,7 @@ export async function readJobLogTail(chunks: AsyncIterable<Uint8Array>): Promise
     }
   }
   const text = kept.join("");
-  const excess = Math.max(0, text.length - JOB_LOG_TAIL_CHARS);
+  const excess = Math.max(0, text.length - JOB_LOG_MAX_SEARCH_CHARS);
   return {
     text: text.slice(excess),
     lineOffset: lineOffset + countNewlines(text, excess),
