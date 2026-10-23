@@ -365,6 +365,50 @@ describe("When the api toolset is listed", { timeout: 180_000 }, () => {
     });
   });
 
+  describe("with GITLAB_ALLOWED_PROJECT_IDS", () => {
+    it("should return an error for paths that name no allowed project", async () => {
+      await withClient(
+        { GITLAB_TOOLSETS: "api", GITLAB_ALLOWED_PROJECT_IDS: "5" },
+        async (client, _stderr, mock) => {
+          const hits: string[] = [];
+          mock.addMockHandler("get", "/projects/5", (_req, res) => {
+            res.json({ id: 5 });
+          });
+          for (const route of ["/users", "/groups/1", "/search", "/projects"]) {
+            mock.addMockHandler("get", route, (_req, res) => {
+              hits.push(route);
+              res.json([]);
+            });
+          }
+
+          const allowed = readToolText(
+            await client.callTool({
+              name: "gitlab_api_request",
+              arguments: { path: "projects/5" },
+            })
+          );
+          assert.equal(allowed.isError, false);
+          assert.equal(JSON.parse(allowed.text).id, 5);
+
+          for (const deniedPath of ["users", "groups/1", "search", "projects", "projects%2F9"]) {
+            const denied = readToolText(
+              await client.callTool({
+                name: "gitlab_api_request",
+                arguments: { path: deniedPath, query: { scope: "blobs", search: "x" } },
+              })
+            );
+            assert.equal(denied.isError, true, deniedPath);
+            assert.match(
+              denied.text,
+              /Access denied: gitlab_api_request path is not scoped to a project in the allowed project list: 5/
+            );
+          }
+          assert.deepEqual(hits, []);
+        }
+      );
+    });
+  });
+
   describe("with modify mode", () => {
     it("should reject DELETE", async () => {
       await withClient(
