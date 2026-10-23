@@ -4,8 +4,36 @@ A comprehensive **Model Context Protocol** server for GitLab. Manage projects,
 merge requests, issues, pipelines, wikis, releases, tags, milestones, and more
 from any MCP-compatible AI client.
 
+**Default: 39 tools** (38 `core` + `discover_tools`). 277 tools exist in total.
+Start lean; call `discover_tools` to activate more. Machine-readable index:
+[llms.txt](llms.txt) · [llms-full.txt](llms-full.txt).
+
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+
+---
+
+## Without → With
+
+| Without this MCP                       | With this MCP                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| Paste MR URLs and diffs into chat      | `list_merge_request_changed_files` → batched `get_merge_request_file_diff` |
+| Hunt job logs in the GitLab UI         | `get_pipeline_job_output` with pagination                                  |
+| Re-explain the project path every turn | `project_id=group%2Fproject` and `merge_request_iid=123`                   |
+
+## Three install paths
+
+| Path        | When                                       | How                                                       |
+| ----------- | ------------------------------------------ | --------------------------------------------------------- |
+| Local IDE   | Cursor, Claude Code, Codex on your machine | stdio + PAT or local OAuth                                |
+| Shared HTTP | Team or hosted MCP                         | Streamable HTTP URL such as `https://mcp.example.com/mcp` |
+| Claude.ai   | Claude web connectors                      | Public HTTPS + `GITLAB_MCP_OAUTH`                         |
+
+Skill + CLI is an equal path with no MCP registration: see
+[CLI without MCP](getting-started/cli-without-mcp.md).
+
+Use MCP in chat; use the CLI when you need the full payload (diffs, logs,
+artifacts). Human CLI is never compacted.
 
 ---
 

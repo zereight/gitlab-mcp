@@ -1,0 +1,119 @@
+# GitLab MCP Server
+
+> Agent-workflow-optimized GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, tags, and milestones. Transports: stdio, SSE, Streamable HTTP. Auth: PAT, local OAuth, MCP OAuth proxy, per-request remote authorization.
+
+- Package: `@zereight/mcp-gitlab`
+- Binary: `zereight-mcp-gitlab` (legacy alias: `mcp-gitlab`)
+- Node.js: >=18.17
+- License: MIT
+- Source: https://github.com/zereight/gitlab-mcp
+- Docs: https://zereight.github.io/gitlab-mcp/
+- Registry name: `io.github.zereight/gitlab-mcp`
+
+## Default exposure
+
+The default `core` toolset lists 38 tools. `discover_tools` is always re-added after every toolset filter, so a default `tools/list` has **39 tools**.
+
+277 tools exist in total: 275 in 24 toolsets + `execute_graphql` + `discover_tools`. `GITLAB_TOOLSETS=all` enables every discoverable toolset and still does **not** enable the explicit-only `api` toolset. `execute_graphql` is not in a toolset; enable it with `GITLAB_TOOLS=execute_graphql`.
+
+Call `discover_tools` with no arguments to list categories, then pass a category (`pipelines`, `wiki`, `merge_requests`, …) to activate it for the current session.
+
+Measured default `tools/list` size (2026-10-23): 39 tools, 54,887 bytes of JSON. `GITLAB_TOOLSETS=all`: 275 tools, 320,643 bytes.
+
+## Without → With
+
+Without this MCP, agents paste MR URLs and diffs into chat, hunt job logs in the GitLab UI, and re-explain `group/project` every turn.
+
+With this MCP:
+
+1. `list_merge_request_changed_files` for paths only
+2. `get_merge_request_file_diff` for 3–5 files per call
+3. `create_merge_request_thread` or draft notes for review comments
+
+`project_id` accepts a numeric ID or a URL-encoded path. Example: merge request `!123` in `group/project` → `project_id=group%2Fproject`, `merge_request_iid=123`. Nested groups use `%2F` between every segment.
+
+## Three install paths
+
+### Local IDE
+
+stdio + PAT or local OAuth (`GITLAB_USE_OAUTH=true`).
+
+```bash
+read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
+claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
+```
+
+Cursor: use the deeplink in the repository README or [Cursor setup](clients/cursor.md).
+
+Other clients: [VS Code](clients/vscode.md), [Copilot](clients/copilot.md), [JSON clients](clients/json-clients.md).
+
+### Shared HTTP
+
+Hosted or self-hosted Streamable HTTP:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    }
+  }
+}
+```
+
+Per-user PAT: `REMOTE_AUTHORIZATION=true` and `Authorization: Bearer` / `Private-Token`.
+Claude.ai / remote OAuth: `GITLAB_MCP_OAUTH=true` on a public HTTPS URL.
+
+### Claude.ai
+
+Public HTTPS MCP server + pre-registered GitLab OAuth app + `GITLAB_MCP_OAUTH=true` + `STREAMABLE_HTTP=true`. No PAT in the client config.
+
+## Skill + CLI (equal path, no MCP)
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+zereight-mcp-gitlab user whoami
+zereight-mcp-gitlab mr list
+```
+
+Human CLI is never compacted. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE` tools need `--yes`. See [CLI without MCP](getting-started/cli-without-mcp.md).
+
+## MCP vs Human CLI
+
+Use MCP when the agent needs structured tools in chat and `jmespath` / compact results are enough.
+
+Use the CLI when you need the full payload (diffs, job logs, artifacts), or when `GITLAB_MCP_COMPACT_RESULTS=true` has replaced an oversized MCP reply with a preview plus a CLI command.
+
+## Token-saving rules
+
+- Do not dump a full merge request with `get_merge_request_diffs` when file-by-file review is the goal.
+- Prefer `jmespath` on tool calls. Enable `GITLAB_MCP_COMPACT_RESULTS` to cap oversized MCP replies.
+- Paginate pipeline / job logs (`get_pipeline_job_output`).
+- Prefer typed REST tools over `execute_graphql`.
+- Do not enable `gitlab_api_request` (`api` toolset) unless you accept that it bypasses group/project allowlists, other tool filters, and per-tool safety checks. Prompt injection can drive it.
+
+## Auth FAQ
+
+- Local PAT: `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`
+- Local OAuth: `GITLAB_USE_OAUTH=true` (browser on the same machine as the server)
+- MCP OAuth: public HTTPS server, clients such as Claude.ai
+- Remote authorization: caller sends PAT or job token; no OAuth dance
+- Permission: `GITLAB_PERMISSION_MODE=readonly|modify|full` (default `full`)
+
+## Cursor / CLAUDE.md snippet
+
+```
+GitLab merge requests, issues, and pipelines go through this MCP (@zereight/mcp-gitlab).
+Start with the default core tools. Call discover_tools to expand.
+Prefer list_merge_request_changed_files, then batched get_merge_request_file_diff.
+Use jmespath or compact results; use the CLI for full diffs and job logs.
+```
+
+## Links
+
+- [Home](index.md)
+- [Environment variables](configuration/environment-variables.md)
+- [Tools](tools/index.md)
+- [Skill](https://github.com/zereight/gitlab-mcp/blob/main/skills/gitlab-mcp/SKILL.md)

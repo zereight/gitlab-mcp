@@ -5,10 +5,11 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-// The README badges, docs/clients/vscode.md, and docs/clients/cursor.md embed the URLs
-// printed by scripts/generate-vscode-install-link.mjs. VS Code stops the server with
-// "Undefined input variable" when a ${input:...} has no matching inputs entry.
-// The install entries leave GITLAB_PERMISSION_MODE unset so the server default applies.
+// READMEs keep the Cursor deeplink only. The VS Code one-click badge lives in
+// docs/clients/vscode.md. Both URLs come from scripts/generate-vscode-install-link.mjs.
+// VS Code stops the server with "Undefined input variable" when a ${input:...}
+// has no matching inputs entry. The install entries leave GITLAB_PERMISSION_MODE
+// unset so the server default applies.
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const VSCODE_BADGE_LINK = /\[!\[Install in VS Code\]\([^)]*\)\]\(([^)]+)\)/g;
@@ -34,8 +35,8 @@ function readmeFiles(): string[] {
     .sort();
 }
 
-function badgeFiles(): string[] {
-  return [...readmeFiles(), "docs/clients/vscode.md"];
+function vscodeBadgeFiles(): string[] {
+  return ["docs/clients/vscode.md"];
 }
 
 function cursorBadgeFiles(): string[] {
@@ -76,9 +77,15 @@ function parseHttpsUrl(httpsUrl: string): {
 describe("When the VS Code install badges are read", () => {
   const { httpsUrl } = generatedUrls();
 
-  for (const file of badgeFiles()) {
+  for (const file of vscodeBadgeFiles()) {
     test(`${file} should embed the generated URL exactly once`, () => {
       assert.deepEqual(badgeLinks(file, VSCODE_BADGE_LINK), [httpsUrl]);
+    });
+  }
+
+  for (const file of readmeFiles()) {
+    test(`${file} should not embed the VS Code one-click badge`, () => {
+      assert.deepEqual(badgeLinks(file, VSCODE_BADGE_LINK), []);
     });
   }
 });
