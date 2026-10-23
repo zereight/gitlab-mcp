@@ -278,6 +278,7 @@ import {
   ConfirmVulnerabilitySchema,
 } from "../schemas.js";
 import { GitLabApiRequestSchema } from "./gitlab-api-request.js";
+import { HelpInputSchema } from "../server/mcp-help.js";
 
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
@@ -1745,11 +1746,18 @@ export const allTools = [
       },
     },
   },
+  {
+    name: "help",
+    description:
+      "Return a short GitLab workflow guide. Omit topic for the overview and topic list.",
+    inputSchema: toJSONSchema(HelpInputSchema),
+  },
 ];
 
 // Define which tools are read-only
 export const readOnlyTools = new Set([
   "discover_tools",
+  "help",
   "health_check",
   "search_repositories",
   "search_code",

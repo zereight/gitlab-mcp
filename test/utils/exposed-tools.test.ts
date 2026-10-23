@@ -57,7 +57,7 @@ describe("When selecting the default tool list", () => {
   describe("with the full profile", () => {
     it("should keep core tools that slim would drop", () => {
       const exposed = new Set(names(defaultExposed(false)));
-      const kept = ["list_labels", "discover_tools"].every(name => exposed.has(name));
+      const kept = ["list_labels", "discover_tools", "help"].every(name => exposed.has(name));
 
       assert.equal(kept, true);
     });
@@ -100,6 +100,21 @@ describe("When selecting tools outside a toolset", () => {
       );
 
       assert.deepEqual(exposed, ["get_issue"]);
+    });
+  });
+
+  describe("with help omitted from toolsets", () => {
+    it("should re-add help after filtering", () => {
+      const exposed = names(
+        selectExposedTools(
+          selection({
+            tools: [{ name: "help" }, { name: "get_issue" }],
+            isInEnabledToolset: toolName => toolName === "get_issue",
+          })
+        )
+      );
+
+      assert.deepEqual(exposed, ["get_issue", "help"]);
     });
   });
 });

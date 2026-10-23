@@ -6,7 +6,7 @@
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**기본 노출: 39개 도구** (`core` 38개 + `discover_tools`). 전체는 277개(toolset 275개 + `execute_graphql` + `discover_tools`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 278개(toolset 275개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -58,7 +58,7 @@ MCP 설정을 고칠 수 있는 에이전트에 그대로 붙여넣으세요:
 또는: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: README deeplink 또는 docs/clients/cursor.md.
 원격 HTTP: 클라이언트를 https://mcp.example.com/mcp (Streamable HTTP)로 연결. Claude.ai는 그 호스트에 GITLAB_MCP_OAUTH가 필요합니다.
-기본 목록: 39개 도구(core 38 + discover_tools). 확장은 discover_tools. api toolset은 우회 위험을 받아들일 때만.
+기본 목록: 40개 도구(core 38 + discover_tools + help). 확장은 discover_tools. api toolset은 우회 위험을 받아들일 때만.
 MCP 없는 동등 경로: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 와 zereight-mcp-gitlab CLI.
 ```
 
@@ -111,7 +111,7 @@ Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY
 
 **인증은 어떻게 하나요?** 로컬 데스크톱은 `GITLAB_PERSONAL_ACCESS_TOKEN`(또는 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`)이 가장 단순합니다. 로컬 OAuth는 `GITLAB_USE_OAUTH=true`. 원격 Claude.ai는 `GITLAB_MCP_OAUTH`. 멀티유저 HTTP는 `REMOTE_AUTHORIZATION`과 요청별 토큰 헤더입니다.
 
-**도구가 39개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`가 더해집니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. `GITLAB_TOOLSETS=all`도 `api`는 켜지 않습니다.
+**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. `GITLAB_TOOLSETS=all`도 `api`는 켜지 않습니다.
 
 **로컬 OAuth / MCP OAuth / 원격 인증 차이는?** 로컬 OAuth는 서버와 같은 머신에서 브라우저를 엽니다. MCP OAuth는 공개 HTTPS 서버와 Claude.ai 같은 클라이언트용입니다. 원격 인증은 호출자의 PAT 또는 job token을 전달하며 OAuth 흐름이 없습니다.
 
@@ -138,7 +138,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 39개 도구(`core` 38 + `discover_tools`); 전체 277개** — 작게 시작하고, `discover_tools`로 세션에서 확장
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 278개** — 작게 시작하고, `discover_tools`로 세션에서 확장
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -152,7 +152,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 277개 도구: toolset 275개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 278개 도구: toolset 275개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |

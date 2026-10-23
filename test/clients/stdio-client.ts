@@ -76,6 +76,13 @@ export class StdioTestClient implements MCPClientInterface {
   }
 
   /**
+   * MCP initialize instructions, if the server sent any.
+   */
+  getInstructions(): string | undefined {
+    return this.client.getInstructions();
+  }
+
+  /**
    * List available tools from server
    */
   async listTools(): Promise<ListToolsResult> {

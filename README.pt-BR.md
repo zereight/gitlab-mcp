@@ -6,7 +6,7 @@
 
 📖 **[Documentação →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**Padrão: 39 ferramentas** (38 `core` + `discover_tools`). Existem 277 no total (275 em toolsets + `execute_graphql` + `discover_tools`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
+**Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 278 no total (275 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -58,7 +58,7 @@ Local: claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSON
 Ou: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: use o deeplink do README ou docs/clients/cursor.md.
 HTTP remoto: aponte o cliente para https://mcp.example.com/mcp (Streamable HTTP). Claude.ai precisa de GITLAB_MCP_OAUTH nesse host.
-Lista padrão: 39 ferramentas (38 core + discover_tools). Expanda com discover_tools. Não habilite o toolset api sem aceitar o risco de bypass.
+Lista padrão: 40 ferramentas (38 core + discover_tools + help). Expanda com discover_tools. Não habilite o toolset api sem aceitar o risco de bypass.
 Caminho equivalente sem MCP: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill mais a CLI zereight-mcp-gitlab.
 ```
 
@@ -111,7 +111,7 @@ A CLI humana nunca é compactada. Ferramentas destrutivas e `GITLAB_TOOL_POLICY_
 
 **Como autenticar?** No desktop local, `GITLAB_PERSONAL_ACCESS_TOKEN` (ou `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) é o mais simples. OAuth local é `GITLAB_USE_OAUTH=true`. Claude.ai remoto usa `GITLAB_MCP_OAUTH`. HTTP multi-usuário usa `REMOTE_AUTHORIZATION` e um cabeçalho de token por requisição.
 
-**Por que vejo só ~39 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` sempre ligado. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. `GITLAB_TOOLSETS=all` ainda **não** habilita `api`.
+**Por que vejo só ~40 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` e o `help` sempre ligados. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. `GITLAB_TOOLSETS=all` ainda **não** habilita `api`.
 
 **OAuth local vs MCP OAuth vs auth remota?** OAuth local abre o navegador na mesma máquina do servidor. MCP OAuth é para um servidor HTTPS público e clientes como Claude.ai. Autorização remota encaminha o PAT ou job token do chamador; não há fluxo OAuth.
 
@@ -138,7 +138,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **39 ferramentas por padrão (38 `core` + `discover_tools`); 277 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão
+- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 278 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -152,7 +152,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
-| **Modelo de ferramentas** | 277 ferramentas: 275 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Modelo de ferramentas** | 278 ferramentas: 275 em toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
 | **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
 | **Node.js**               | >=18.17                                                                 | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
