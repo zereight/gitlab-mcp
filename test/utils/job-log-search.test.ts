@@ -248,12 +248,14 @@ describe("When searching a job log", () => {
     });
   });
 
-  describe("with a line longer than the match cap", () => {
-    it("should truncate the line before matching", async () => {
+  describe("with a match past the line length cap", () => {
+    it("should find the match and truncate the returned line", async () => {
       const visible = "x".repeat(JOB_LOG_MAX_LINE_LENGTH);
       const result = await searchJobLog(`${visible}NEEDLE`, { pattern: "NEEDLE", contextLines: 0 });
 
-      assert.equal(result.totalMatches, 0);
+      assert.equal(result.totalMatches, 1);
+      assert.deepEqual(result.fragments[0]?.matchLines, [1]);
+      assert.equal(result.fragments[0]?.lines[0]?.text, visible);
       assert.equal(result.linesTruncated, true);
     });
   });

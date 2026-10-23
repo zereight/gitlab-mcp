@@ -38,17 +38,13 @@ const SEARCH_WORKER_SOURCE = [
   "const ansiPattern = new RegExp(workerData.ansiSource, workerData.ansiFlags);",
   "const sectionPattern = new RegExp(workerData.sectionSource, workerData.sectionFlags);",
   "const trailingCarriageReturn = /\\r+$/g;",
-  "function cleanLine(line, maxLineLength) {",
+  "function cleanLine(line) {",
   "  ansiPattern.lastIndex = 0;",
   "  sectionPattern.lastIndex = 0;",
   "  trailingCarriageReturn.lastIndex = 0;",
   '  const withoutAnsi = line.replace(ansiPattern, "");',
   '  const withoutMarkers = withoutAnsi.replace(sectionPattern, "");',
-  '  const normalized = withoutMarkers.replace(trailingCarriageReturn, "");',
-  "  if (normalized.length <= maxLineLength) {",
-  "    return { text: normalized, truncated: false };",
-  "  }",
-  "  return { text: normalized.slice(0, maxLineLength), truncated: true };",
+  '  return withoutMarkers.replace(trailingCarriageReturn, "");',
   "}",
   "function overBudget(startedAt, budgetMs) {",
   "  return Date.now() - startedAt > budgetMs;",
@@ -74,16 +70,11 @@ const SEARCH_WORKER_SOURCE = [
   "  const startedAt = Date.now();",
   '  const rawLines = data.log.split("\\n");',
   "  const cleaned = [];",
-  "  let linesTruncated = false;",
   "  for (let index = 0; index < rawLines.length; index += 1) {",
   "    if (overBudget(startedAt, data.budgetMs)) {",
   "      return { timeout: true };",
   "    }",
-  "    const line = cleanLine(rawLines[index], data.maxLineLength);",
-  "    if (line.truncated) {",
-  "      linesTruncated = true;",
-  "    }",
-  "    cleaned.push(line.text);",
+  "    cleaned.push(cleanLine(rawLines[index]));",
   "  }",
   "  const expression = data.regex ? new RegExp(data.pattern, data.flags) : null;",
   "  const needle = data.caseSensitive ? data.pattern : data.pattern.toLowerCase();",
@@ -106,10 +97,17 @@ const SEARCH_WORKER_SOURCE = [
   "    }",
   "  }",
   "  const merged = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
+  // Lines are matched in full; only the returned text is cut to maxLineLength.
+  "  let linesTruncated = false;",
   "  const fragments = merged.windows.map(matchWindow => {",
   "    const lines = [];",
   "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
-  "      lines.push({ lineNumber: data.lineOffset + offset + 1, text: cleaned[offset] });",
+  "      let text = cleaned[offset];",
+  "      if (text.length > data.maxLineLength) {",
+  "        text = text.slice(0, data.maxLineLength);",
+  "        linesTruncated = true;",
+  "      }",
+  "      lines.push({ lineNumber: data.lineOffset + offset + 1, text });",
   "    }",
   "    return {",
   "      startLine: data.lineOffset + matchWindow.start + 1,",
@@ -466,7 +464,7 @@ export function formatJobLogSearch(
   }
   if (result.linesTruncated) {
     header.push(
-      `[Some lines were truncated to ${JOB_LOG_MAX_LINE_LENGTH} characters before matching.]`
+      `[Some returned lines were truncated to ${JOB_LOG_MAX_LINE_LENGTH} characters; matching used the full line.]`
     );
   }
   if (result.fragments.length === 0) {
