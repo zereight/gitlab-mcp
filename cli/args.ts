@@ -21,7 +21,17 @@ export interface ParsedArgv {
 }
 
 const SCRIPT_PATH_PATTERN = /\.(cjs|mjs|js|cts|mts|ts)$/;
-const FLAGS_WITHOUT_VALUE = new Set(["help", "yes", ...BOOLEAN_CLI_FLAG_NAMES]);
+const FLAGS_WITHOUT_VALUE = new Set([
+  "help",
+  "yes",
+  "cursor",
+  "claude",
+  "write",
+  "skill",
+  "probe",
+  "oauth",
+  ...BOOLEAN_CLI_FLAG_NAMES,
+]);
 
 const GLOBAL_FLAG_NAMES = new Set([
   "help",

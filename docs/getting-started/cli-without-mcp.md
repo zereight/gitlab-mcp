@@ -39,6 +39,7 @@ export GITLAB_API_URL=https://gitlab.example.com/api/v4   # omit for gitlab.com
 3. Verify:
 
 ```bash
+zereight-mcp-gitlab doctor
 zereight-mcp-gitlab user whoami
 ```
 

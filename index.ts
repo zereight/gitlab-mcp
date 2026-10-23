@@ -170,6 +170,12 @@ import { createGitLabOAuthClient, ensureOAuthToken, GitLabOAuth } from "./oauth.
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { isCliInvocation, resolveCli } from "./cli/router.js";
+import {
+  runDoctorWithOptionalProbe,
+  packageVersion,
+  type DoctorProbeResult,
+} from "./cli/doctor.js";
+import { runSetup } from "./cli/setup.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
@@ -17726,6 +17732,41 @@ async function main(): Promise<void> {
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
+  if (cli.kind === "setup") {
+    try {
+      const result = runSetup({
+        ...cli.options,
+        apiUrl: getConfig("api-url", "GITLAB_API_URL", cli.options.apiUrl),
+      });
+      process.stdout.write(result.text);
+      process.exit(0);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(2);
+    }
+  }
+  if (cli.kind === "doctor") {
+    try {
+      const report = await runDoctorWithOptionalProbe({
+        credentials: {
+          hasPersonalAccessToken: Boolean(GITLAB_PERSONAL_ACCESS_TOKEN),
+          hasJobToken: Boolean(GITLAB_JOB_TOKEN),
+          hasCookie: Boolean(GITLAB_AUTH_COOKIE_PATH),
+          useOAuth: USE_OAUTH,
+        },
+        apiUrl: GITLAB_API_URL,
+        permissionMode: GITLAB_PERMISSION_MODE,
+        toolsetsRaw: GITLAB_TOOLSETS_RAW,
+        version: packageVersion(),
+        probe: cli.probe ? probeGitLabUser : undefined,
+      });
+      process.stdout.write(report.text);
+      process.exit(report.ok ? 0 : 1);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(1);
+    }
+  }
   if (cli.kind === "auth" || getPositionalCliCommand(process.argv) === "auth") {
     try {
       await runAuthCommandAsync();
@@ -17777,6 +17818,31 @@ function hasCliCredentials(): boolean {
   return Boolean(
     GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN || GITLAB_AUTH_COOKIE_PATH || USE_OAUTH
   );
+}
+
+async function probeGitLabUser(apiUrl: string): Promise<DoctorProbeResult> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+    headers["PRIVATE-TOKEN"] = GITLAB_PERSONAL_ACCESS_TOKEN;
+  } else if (GITLAB_JOB_TOKEN) {
+    headers["JOB-TOKEN"] = GITLAB_JOB_TOKEN;
+  }
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/user`, { headers });
+    if (response.ok) {
+      return { ok: true, status: response.status, detail: `GET /user ${response.status}` };
+    }
+    return {
+      ok: false,
+      status: response.status,
+      detail: `GET /user ${response.status} ${response.statusText}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
