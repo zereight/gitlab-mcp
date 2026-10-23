@@ -12,13 +12,13 @@
 
 ## Default exposure
 
-The default `core` toolset lists 38 tools. `discover_tools` is always re-added after every toolset filter, so a default `tools/list` has **39 tools**.
+The default `core` toolset lists 38 tools. `discover_tools` and `help` are always re-added after every toolset filter, so a default `tools/list` has **40 tools**.
 
-277 tools exist in total: 275 in 24 toolsets + `execute_graphql` + `discover_tools`. `GITLAB_TOOLSETS=all` enables every discoverable toolset and still does **not** enable the explicit-only `api` toolset. `execute_graphql` is not in a toolset; enable it with `GITLAB_TOOLS=execute_graphql`.
+278 tools exist in total: 275 in 24 toolsets + `execute_graphql` + `discover_tools` + `help`. `GITLAB_TOOLSETS=all` enables every discoverable toolset and still does **not** enable the explicit-only `api` toolset. `execute_graphql` is not in a toolset; enable it with `GITLAB_TOOLS=execute_graphql`.
 
 Call `discover_tools` with no arguments to list categories, then pass a category (`pipelines`, `wiki`, `merge_requests`, …) to activate it for the current session.
 
-Measured default `tools/list` size (2026-10-23): 39 tools, 54,887 bytes of JSON. `GITLAB_TOOLSETS=all`: 275 tools, 320,643 bytes.
+Measured default `tools/list` size (2026-10-23): 40 tools, 48,856 bytes of JSON. `GITLAB_TOOLSETS=all`: 276 tools, 275,683 bytes.
 
 ## Without → With
 

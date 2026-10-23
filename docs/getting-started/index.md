@@ -1,8 +1,8 @@
 # Getting Started
 
 This page helps you pick the right **authentication method** and the right
-**transport** for your environment. The default tool list is **39 tools**
-(38 `core` + `discover_tools`); call `discover_tools` to expand. Skill + CLI
+**transport** for your environment. The default tool list is **40 tools**
+(38 `core` + `discover_tools` + `help`); call `discover_tools` to expand. Skill + CLI
 is an equal path with no MCP registration — see [CLI without MCP](cli-without-mcp.md).
 
 ## 1. Pick an authentication method
