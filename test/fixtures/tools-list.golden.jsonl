@@ -273,3 +273,4 @@
 {"name":"get_runner","default":false,"readonly":true,"modify":true,"properties":["runner_id","project_id","jmespath"],"required":["runner_id"],"annotations":{"openWorldHint":true,"readOnlyHint":true},"shape":"f80a12cad62e"}
 {"name":"rebase_merge_request","default":false,"readonly":false,"modify":true,"properties":["project_id","merge_request_iid","skip_ci","wait","timeout_seconds","poll_interval_seconds","jmespath"],"required":["project_id","merge_request_iid"],"annotations":{"destructiveHint":true,"openWorldHint":true},"shape":"3102152e4340"}
 {"name":"discover_tools","default":true,"readonly":true,"modify":true,"properties":["category","jmespath"],"required":[],"annotations":{"openWorldHint":true,"readOnlyHint":true},"shape":"acfeaf488cb3"}
+{"name":"help","default":true,"readonly":true,"modify":true,"properties":["topic","jmespath"],"required":[],"annotations":{"openWorldHint":true,"readOnlyHint":true},"shape":"9390727f4086"}

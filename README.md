@@ -12,7 +12,7 @@
 
 📖 **[Documentation →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**Default: 39 tools** (38 `core` + `discover_tools`). 277 tools exist in total (275 in toolsets + `execute_graphql` + `discover_tools`). Start lean; call `discover_tools` to activate more for this session.
+**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 278 tools exist in total (275 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
 
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -64,7 +64,7 @@ Local: claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSON
 Or: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: use the README deeplink or docs/clients/cursor.md.
 Remote HTTP: point the client at https://mcp.example.com/mcp (Streamable HTTP). Claude.ai needs GITLAB_MCP_OAUTH on that host.
-Default list: 39 tools (38 core + discover_tools). Call discover_tools to expand. Do not enable the api toolset unless you accept its bypass risk.
+Default list: 40 tools (38 core + discover_tools + help). Call discover_tools to expand. Do not enable the api toolset unless you accept its bypass risk.
 Equal non-MCP path: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill plus the zereight-mcp-gitlab CLI.
 ```
 
@@ -117,7 +117,7 @@ Human CLI is never compacted. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE`
 
 **How do I authenticate?** Local desktop: `GITLAB_PERSONAL_ACCESS_TOKEN` (or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) is the simplest. Local OAuth is `GITLAB_USE_OAUTH=true`. Remote Claude.ai uses `GITLAB_MCP_OAUTH`. Multi-user HTTP uses `REMOTE_AUTHORIZATION` and a per-request token header.
 
-**Why do I only see ~39 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools`. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. `GITLAB_TOOLSETS=all` still does **not** enable `api`.
+**Why do I only see ~40 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools` and `help`. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. `GITLAB_TOOLSETS=all` still does **not** enable `api`.
 
 **Local OAuth vs MCP OAuth vs remote auth?** Local OAuth opens a browser on the same machine as the server. MCP OAuth is for a public HTTPS server and clients such as Claude.ai. Remote authorization forwards the caller's PAT or job token; there is no OAuth dance.
 
@@ -144,7 +144,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **Default 39 tools (38 `core` + `discover_tools`); 277 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping
+- **Default 40 tools (38 `core` + `discover_tools` + `help`); 278 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -158,7 +158,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 |                | @zereight/mcp-gitlab                                              | GitLab MCP A (community CQRS-style)          | GitLab official MCP server                                                                                                                       |
 | -------------- | ----------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Best for**   | AI agent workflows                                                | Enterprise multi-instance / grouped tools    | Built into GitLab, no separate install                                                                                                           |
-| **Tool model** | 277 tools: 275 in toolsets + `execute_graphql` + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
+| **Tool model** | 278 tools: 275 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
 | **MR review**  | 2-step batched diff                                               | Varies                                       | `get_merge_request` with diffs                                                                                                                   |
 | **Node.js**    | >=18.17                                                           | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
@@ -1053,6 +1053,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 275. `rebase_merge_request` - Rebase the source branch of a merge request onto its target branch
 276. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
 277. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+278. `help` - Return a short GitLab workflow guide. Omit topic for the overview and topic list.
 
 <!-- TOOLS-END -->
 

@@ -3,12 +3,13 @@
 Tools the MCP exposes that aren't tied to a specific GitLab feature group — server diagnostics and the GraphQL escape hatch.
 
 !!! note "Feature toggle"
-    Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
+    Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
 
 ## Tools in this group
 
 - [`execute_graphql`](#execute_graphql) — 📖✏️ Reads and writes
 - [`discover_tools`](#discover_tools) — 📖 Read-only
+- [`help`](#help) — 📖 Read-only
 
 ---
 
@@ -36,3 +37,15 @@ Discover and activate additional tool categories for this session. Available cat
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `category` | string |  | Toolset category to activate (e.g. 'pipelines', 'wiki'). Omit to list available categories. |
+
+### `help`
+
+*📖 Read-only*
+
+Return a short GitLab workflow guide. Omit topic for the overview and topic list. Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `topic` | enum (`overview` \| `code-review` \| `merge-requests` \| `issues` \| `pipelines` \| `search` \| `token-saving`) |  | Guide to return. Omit for the overview and the list of topics. Values: overview, code-review, merge-requests, issues, pipelines, search, token-saving. |

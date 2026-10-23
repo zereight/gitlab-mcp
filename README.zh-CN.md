@@ -6,7 +6,7 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 39 个工具**（38 个 `core` + `discover_tools`）。总共 277 个（toolset 中 275 个 + `execute_graphql` + `discover_tools`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 278 个（toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -58,7 +58,7 @@ codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS
 或：codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor：使用 README deeplink 或 docs/clients/cursor.md。
 远程 HTTP：将客户端指向 https://mcp.example.com/mcp（Streamable HTTP）。Claude.ai 需要该主机启用 GITLAB_MCP_OAUTH。
-默认列表：39 个工具（38 个 core + discover_tools）。用 discover_tools 扩展。除非接受绕过风险，否则不要启用 api toolset。
+默认列表：40 个工具（38 个 core + discover_tools + help）。用 discover_tools 扩展。除非接受绕过风险，否则不要启用 api toolset。
 同等非 MCP 路径：npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 加上 zereight-mcp-gitlab CLI。
 ```
 
@@ -111,7 +111,7 @@ Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工�
 
 **如何认证？** 本地桌面最简单的是 `GITLAB_PERSONAL_ACCESS_TOKEN`（或 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`）。本地 OAuth 用 `GITLAB_USE_OAUTH=true`。远程 Claude.ai 用 `GITLAB_MCP_OAUTH`。多用户 HTTP 用 `REMOTE_AUTHORIZATION` 和每请求令牌头。
 
-**为什么只看到大约 39 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools`。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。`GITLAB_TOOLSETS=all` 仍然**不会**启用 `api`。
+**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。`GITLAB_TOOLSETS=all` 仍然**不会**启用 `api`。
 
 **本地 OAuth、MCP OAuth 和远程授权有何区别？** 本地 OAuth 在服务器同一台机器上打开浏览器。MCP OAuth 用于公网 HTTPS 服务器和 Claude.ai 这类客户端。远程授权转发调用者的 PAT 或 job token，没有 OAuth 流程。
 
@@ -138,7 +138,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 39 个工具（38 个 `core` + `discover_tools`）；共 277 个** — 先精简，再用 `discover_tools` 在本会话扩展
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 278 个** — 先精简，再用 `discover_tools` 在本会话扩展
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -152,7 +152,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 277 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 278 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |

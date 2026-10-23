@@ -1,6 +1,6 @@
 # GitLab MCP Server
 
-> Agent-workflow-optimized GitLab MCP. Default list: 39 tools (38 `core` + `discover_tools`). 277 tools exist in total. Activate more at runtime with `discover_tools`.
+> Agent-workflow-optimized GitLab MCP. Default list: 40 tools (38 `core` + `discover_tools` + `help`). 278 tools exist in total. Activate more at runtime with `discover_tools`.
 
 Package: `@zereight/mcp-gitlab` · Binary: `zereight-mcp-gitlab` · License: MIT
 Docs: https://zereight.github.io/gitlab-mcp/ · Full text: ./llms-full.txt

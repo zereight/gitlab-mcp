@@ -19,8 +19,9 @@ import { StdioTestClient } from "./clients/stdio-client.js";
 const SERVER_PATH = path.resolve("build/index.js");
 
 /**
- * Default (core + discover_tools). Measured 2026-10-23 after description
- * shortening: 39 tools, 48,069 bytes (~12,018 tokens). ~16% headroom.
+ * Default (core + discover_tools + help). Measured 2026-10-23 after description
+ * shortening: 39 tools, 48,069 bytes (~12,018 tokens) before help. ~16% headroom
+ * still covers the extra help tool.
  */
 const DEFAULT_TOOLS_LIST_MAX_BYTES = 56_000;
 const DEFAULT_TOOL_COUNT_MIN = 30;

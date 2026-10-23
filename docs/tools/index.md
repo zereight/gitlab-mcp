@@ -22,7 +22,7 @@ directly from `TOOLSET_DEFINITIONS` in
 | **Default** — always exposed | [Core](core.md) |
 | **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (legacy `USE_PIPELINE=true` is deprecated; removed in next major (v3.0.0)), [Milestones](milestones.md) (legacy `USE_MILESTONE=true` is deprecated; removed in next major (v3.0.0)), [Wiki](wiki.md) (legacy `USE_GITLAB_WIKI=true` is deprecated; removed in next major (v3.0.0)), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
 | **Explicit opt-in** — not included in `all` or `discover_tools` | [Raw API](api.md) |
-| **Not a toolset** — `discover_tools` is always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
+| **Not a toolset** — `discover_tools` and `help` are always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
 
@@ -587,14 +587,15 @@ Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of
 
 ### [Meta & GraphQL](meta.md)
 
-Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
+Server diagnostics, tool discovery, and the GraphQL escape hatch. *(3 tools)*
 
-> Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
+> Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query. Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations. | 📖✏️ |
 | [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS. | 📖 |
+| [`help`](meta.md#help) | Return a short GitLab workflow guide. Omit topic for the overview and topic list. Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools. | 📖 |
 
 ---
 

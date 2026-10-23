@@ -40,8 +40,8 @@ const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + LEGACY_PIPELI
 
 const DEFAULT_TOOLSETS = TOOLSET_DEFINITIONS.filter(def => def.isDefault).map(def => def.id);
 
-// discover_tools meta-tool is always force-injected (Step 5.5)
-const DISCOVER_TOOLS_COUNT = 1;
+// discover_tools and help are always force-injected after toolset filtering
+const ALWAYS_LISTED_META_COUNT = 2;
 
 function uniqueToolCount(toolsetIds: readonly string[]): number {
   const names = new Set<string>();
@@ -53,11 +53,11 @@ function uniqueToolCount(toolsetIds: readonly string[]): number {
   return names.size;
 }
 
-const DEFAULT_TOOL_COUNT = uniqueToolCount(DEFAULT_TOOLSETS) + DISCOVER_TOOLS_COUNT;
+const DEFAULT_TOOL_COUNT = uniqueToolCount(DEFAULT_TOOLSETS) + ALWAYS_LISTED_META_COUNT;
 const BULK_TOOLSET_IDS = TOOLSET_DEFINITIONS.filter(def => def.explicitOnly !== true).map(
   def => def.id
 );
-const ALL_TOOLSET_TOOL_COUNT = uniqueToolCount(BULK_TOOLSET_IDS) + DISCOVER_TOOLS_COUNT;
+const ALL_TOOLSET_TOOL_COUNT = uniqueToolCount(BULK_TOOLSET_IDS) + ALWAYS_LISTED_META_COUNT;
 
 // Representative tools per toolset for spot-checking
 const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
@@ -254,7 +254,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns only issue tools + discover_tools", () => {
-      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + ALWAYS_LISTED_META_COUNT);
     });
 
     test("includes issue sample tools", () => {
@@ -344,7 +344,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns issue tools + 2 individual pipeline tools + discover_tools", () => {
-      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + 2 + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + 2 + ALWAYS_LISTED_META_COUNT);
     });
 
     test("includes issue tools and the two pipeline tools", () => {
@@ -377,7 +377,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     test("returns issue tools + all pipeline tools + discover_tools", () => {
       assert.strictEqual(
         tools.length,
-        TOOLSET_TOOL_COUNTS.issues + LEGACY_PIPELINE_TOOL_COUNT + DISCOVER_TOOLS_COUNT
+        TOOLSET_TOOL_COUNTS.issues + LEGACY_PIPELINE_TOOL_COUNT + ALWAYS_LISTED_META_COUNT
       );
     });
 
@@ -468,7 +468,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
 
     test("returns correct count (read-only issues + discover_tools)", () => {
-      assert.strictEqual(tools.length, readOnlyIssueTools.length + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, readOnlyIssueTools.length + ALWAYS_LISTED_META_COUNT);
     });
   });
 
@@ -565,7 +565,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns exactly pipeline tool count + discover_tools (no duplicates)", () => {
-      assert.strictEqual(tools.length, LEGACY_PIPELINE_TOOL_COUNT + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, LEGACY_PIPELINE_TOOL_COUNT + ALWAYS_LISTED_META_COUNT);
     });
   });
 
@@ -587,7 +587,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns exactly issue tool count + discover_tools (no duplicates)", () => {
-      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + ALWAYS_LISTED_META_COUNT);
     });
   });
 
@@ -608,7 +608,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns only issue tools + discover_tools (invalid toolset ignored)", () => {
-      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues + ALWAYS_LISTED_META_COUNT);
     });
   });
 

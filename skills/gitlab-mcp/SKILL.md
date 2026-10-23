@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 277 tools: 275 tools across 24 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 278 tools: 275 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -144,6 +144,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 ## Advanced
 
 - **Dynamic discovery**: `discover_tools` lists and activates opt-in toolsets at runtime. It cannot activate `api`
+- **Workflow guide**: `help` returns on-demand guides (code-review, pipelines, issues, token-saving). Omit topic for the overview
 - **Raw API**: `gitlab_api_request` only when `GITLAB_TOOLSETS` lists `api`. Readonly is GET-only; modify rejects DELETE
 - **GraphQL**: `execute_graphql` for queries not covered by REST tools
 - **Tool docs**: `docs/tools/` is generated from `tools/registry.ts`; prefer it for exact schemas

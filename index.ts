@@ -199,6 +199,12 @@ import {
   readMcpResource,
 } from "./server/mcp-resources.js";
 import { getMcpPrompt, listMcpPrompts } from "./server/mcp-prompts.js";
+import { MCP_INSTRUCTIONS } from "./server/mcp-instructions.js";
+import {
+  formatUnknownHelpTopic,
+  getWorkflowGuide,
+  readHelpTopic,
+} from "./server/mcp-help.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
@@ -852,6 +858,7 @@ function createServer(): McpServer {
         prompts: {},
         resources: {},
       },
+      instructions: MCP_INSTRUCTIONS,
     }
   );
 
@@ -1026,6 +1033,24 @@ function createServer(): McpServer {
         !filteredTools.some(t => t.name === toolName)
       ) {
         throw new Error(buildToolUnavailableMessage(toolName));
+      }
+
+      if (toolName === "help") {
+        const topic = readHelpTopic(request.params.arguments?.topic);
+        if (topic === "invalid") {
+          return logCompletion({
+            content: [
+              {
+                type: "text",
+                text: formatUnknownHelpTopic(request.params.arguments?.topic),
+              },
+            ],
+            isError: true,
+          });
+        }
+        return logCompletion({
+          content: [{ type: "text", text: getWorkflowGuide(topic) }],
+        });
       }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
