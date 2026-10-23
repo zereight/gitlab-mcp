@@ -14,6 +14,8 @@ The server supports four ways to authenticate against GitLab.
 | **OAuth2 — MCP Proxy**     | Remote MCP clients such as Claude.ai.                              | `GITLAB_MCP_OAUTH=true`                                               |
 | **Remote Authorization**   | Multi-user deployments where each caller provides their own token. | `REMOTE_AUTHORIZATION=true`                                           |
 
+For local stdio use, set any one credential: a Personal Access Token, `GITLAB_USE_OAUTH=true`, a GitLab CI job token ([`GITLAB_JOB_TOKEN`](../configuration/environment-variables.md#gitlab_job_token)), or a cookie file ([`GITLAB_AUTH_COOKIE_PATH`](../configuration/environment-variables.md#gitlab_auth_cookie_path)). None of them is required on its own.
+
 ### Decision flow
 
 !!! tip "Which one should I use?"
