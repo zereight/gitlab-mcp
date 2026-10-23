@@ -5,11 +5,13 @@ export function hasRecoveryHint(message: string): boolean {
 }
 
 export function recoveryHintFor(message: string): string | undefined {
-  if (
-    /is not available on this server/i.test(message) &&
-    /discover_tools|GITLAB_TOOLSETS|GITLAB_TOOLS/.test(message)
-  ) {
-    return "call discover_tools with the category, or add it to GITLAB_TOOLSETS.";
+  if (/is not available on this server/i.test(message)) {
+    if (/slim tool profile/i.test(message) || /cannot activate/i.test(message)) {
+      return undefined;
+    }
+    if (/discover_tools|GITLAB_TOOLSETS|GITLAB_TOOLS/.test(message)) {
+      return "call discover_tools with the category, or add it to GITLAB_TOOLSETS.";
+    }
   }
   if (/\b401\b/.test(message) || /unauthorized/i.test(message)) {
     return "set GITLAB_PERSONAL_ACCESS_TOKEN (or run `zereight-mcp-gitlab auth`) and retry.";

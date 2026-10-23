@@ -40,6 +40,17 @@ describe("When a GitLab tool error is returned", () => {
     });
   });
 
+  describe("with a slim-exclusion message", () => {
+    it("should not suggest discover_tools", () => {
+      const message =
+        'Tool "list_labels" is not available on this server. The slim tool profile excludes it. Add "list_labels" to GITLAB_TOOLS, set GITLAB_TOOL_PROFILE=full, or add "labels" to GITLAB_TOOLSETS (setting GITLAB_TOOLSETS disables the slim profile).';
+
+      assert.equal(recoveryHintFor(message), undefined);
+      assert.equal(appendRecoveryHint(message), message);
+      assert.equal(message.includes("discover_tools"), false);
+    });
+  });
+
   describe("with a message that already has a Next line", () => {
     it("should not append a second hint", () => {
       const first = appendRecoveryHint("GitLab API error: 404 Not Found");
