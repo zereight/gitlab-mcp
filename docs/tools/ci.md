@@ -18,7 +18,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs.
 
 *📖 Read-only*
 
-Validate provided GitLab CI/CD YAML content for a project. Checks without applying; create or update only after it passes. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Validate provided GitLab CI/CD YAML content for a project. Checks without applying; create or update only after it passes.
 
 **Parameters**
 
@@ -34,7 +34,7 @@ Validate provided GitLab CI/CD YAML content for a project. Checks without applyi
 
 *📖 Read-only*
 
-Validate an existing .gitlab-ci.yml configuration for a project. Checks without applying; create or update only after it passes. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Validate an existing .gitlab-ci.yml configuration for a project. Checks without applying; create or update only after it passes.
 
 **Parameters**
 
@@ -50,7 +50,7 @@ Validate an existing .gitlab-ci.yml configuration for a project. Checks without 
 
 *📖 Read-only*
 
-List GitLab CI/CD Catalog resources/components visible to the user. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors.
+List GitLab CI/CD Catalog resources/components visible to the user. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -69,7 +69,7 @@ List GitLab CI/CD Catalog resources/components visible to the user. For one know
 
 *📖 Read-only*
 
-Get details for a GitLab CI/CD Catalog resource, including versions and components. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors.
+Get details for a GitLab CI/CD Catalog resource, including versions and components. To find resources, use the matching list or search tool.
 
 **Parameters**
 

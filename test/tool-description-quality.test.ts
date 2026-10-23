@@ -8,6 +8,14 @@ function getExposedTool(name: string) {
   return tool;
 }
 
+const DEFAULT_DESCRIPTION_MIN_CHARS = 40;
+const DEFAULT_DESCRIPTION_MAX_CHARS = 320;
+const LONG_DESCRIPTION_ALLOWLIST = new Set([
+  "update_protected_branch",
+  "gitlab_api_request",
+  "get_runner",
+]);
+
 function getDefaultToolNames(): ReadonlySet<string> {
   return new Set(
     TOOLSET_DEFINITIONS.filter(definition => definition.isDefault).flatMap(definition => [
@@ -18,12 +26,32 @@ function getDefaultToolNames(): ReadonlySet<string> {
 
 describe("When MCP tool descriptions are exposed", () => {
   describe("with the default toolsets", () => {
-    it("should provide enough context for first-attempt tool selection", () => {
+    it("should stay long enough for first-attempt tool selection", () => {
       const defaultToolNames = getDefaultToolNames();
       const defaultTools = allTools.filter(tool => defaultToolNames.has(tool.name));
 
       assert.ok(defaultTools.length > 0);
-      assert.ok(defaultTools.every(tool => tool.description.length >= 120));
+      const tooShort = defaultTools.filter(
+        tool => tool.description.length < DEFAULT_DESCRIPTION_MIN_CHARS
+      );
+      assert.deepEqual(
+        tooShort.map(tool => `${tool.name}:${tool.description.length}`),
+        []
+      );
+    });
+
+    it("should stay short enough for the tools/list token budget", () => {
+      const defaultToolNames = getDefaultToolNames();
+      const defaultTools = allTools.filter(tool => defaultToolNames.has(tool.name));
+      const tooLong = defaultTools.filter(
+        tool =>
+          !LONG_DESCRIPTION_ALLOWLIST.has(tool.name) &&
+          tool.description.length > DEFAULT_DESCRIPTION_MAX_CHARS
+      );
+      assert.deepEqual(
+        tooLong.map(tool => `${tool.name}:${tool.description.length}`),
+        []
+      );
     });
   });
 

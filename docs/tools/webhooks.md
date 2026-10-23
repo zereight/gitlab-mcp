@@ -20,7 +20,7 @@ Create, update, and delete project or group webhooks, and inspect recent webhook
 
 *📖 Read-only*
 
-List webhooks for a project or group. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List webhooks for a project or group.
 
 **Parameters**
 
@@ -35,7 +35,7 @@ List webhooks for a project or group. Read-only; missing resources, denied acces
 
 *✏️ Writes*
 
-Create a webhook on a project or group. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a webhook on a project or group. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -77,7 +77,7 @@ Create a webhook on a project or group. If the resource already exists, use the 
 
 *✏️ Writes*
 
-Update an existing project or group webhook. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing project or group webhook. Use the create tool for new resources.
 
 **Parameters**
 
@@ -120,7 +120,7 @@ Update an existing project or group webhook. Use the create tool for new resourc
 
 *✏️ Writes*
 
-Delete a project or group webhook. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a project or group webhook. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -134,7 +134,7 @@ Delete a project or group webhook. Verify the target first with a get or list to
 
 *📖 Read-only*
 
-List recent webhook events (past 7 days). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List recent webhook events (past 7 days). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -152,7 +152,7 @@ List recent webhook events (past 7 days). For one known resource, use the matchi
 
 *📖 Read-only*
 
-Get full details of a specific webhook event. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get full details of a specific webhook event. To find resources, use the matching list or search tool.
 
 **Parameters**
 

@@ -55,7 +55,17 @@ read -rs GITLAB_PERSONAL_ACCESS_TOKEN && export GITLAB_PERSONAL_ACCESS_TOKEN
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-[与 GitLab MCP A 的完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)
+### tools/list 体积（2026-10-23 实测）
+
+客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
+
+| 配置 | 工具数 | JSON 字节 | 估算 token |
+| ---- | -----: | --------: | ---------: |
+| 默认（`core` + `discover_tools`） | 39 | 48,069 | 12,018 |
+| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
+| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+
+更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
 GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)。
 

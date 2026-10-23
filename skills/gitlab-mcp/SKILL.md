@@ -117,6 +117,12 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - Read: `get_file_contents`, `get_repository_tree`
 - Write: `create_or_update_file` (single file), `push_files` (multiple files in one commit)
 
+## Token-saving rules
+
+- Do not dump a full `get_merge_request_diffs` payload into the conversation. List paths with `list_merge_request_changed_files`, then fetch 3–5 files per `get_merge_request_file_diff` call.
+- Prefer a `jmespath` filter or `GITLAB_MCP_COMPACT_RESULTS` / `--compact-results` before asking the model to read a large JSON reply.
+- Paginate `get_pipeline_job_output` with `limit` and `offset` instead of fetching an entire job log in one call.
+
 ## Parameter Hints
 
 - **project_id**: numeric ID or URL-encoded path (`group%2Fsubgroup%2Fproject`)

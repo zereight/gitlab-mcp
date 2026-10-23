@@ -32,7 +32,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 *📖 Read-only*
 
-Get a work item with full details including status, hierarchy, type, and widgets. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a work item with full details including status, hierarchy, type, and widgets. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -45,7 +45,7 @@ Get a work item with full details including status, hierarchy, type, and widgets
 
 *📖 Read-only*
 
-List work items with filters (type, state, search, assignees, labels). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List work items with filters (type, state, search, assignees, labels). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -64,7 +64,7 @@ List work items with filters (type, state, search, assignees, labels). For one k
 
 *✏️ Writes*
 
-Create a work item (issue, task, incident, epic, etc.) with full field support. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a work item (issue, task, incident, epic, etc.) with full field support. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -89,7 +89,7 @@ Create a work item (issue, task, incident, epic, etc.) with full field support. 
 
 *✏️ Writes*
 
-Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use the create tool for new resources and a note tool for comments.
 
 **Parameters**
 
@@ -126,7 +126,7 @@ Update a work item (title, description, labels, assignees, state, parent, custom
 
 *✏️ Writes*
 
-Convert a work item to a different type. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Convert a work item to a different type.
 
 **Parameters**
 
@@ -140,7 +140,7 @@ Convert a work item to a different type. Changes GitLab data; needs permission a
 
 *📖 Read-only*
 
-List available statuses for a work item type (Premium/Ultimate). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List available statuses for a work item type (Premium/Ultimate).
 
 **Parameters**
 
@@ -153,7 +153,7 @@ List available statuses for a work item type (Premium/Ultimate). Read-only; miss
 
 *📖 Read-only*
 
-List custom field definitions for a work item type. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List custom field definitions for a work item type.
 
 **Parameters**
 
@@ -166,7 +166,7 @@ List custom field definitions for a work item type. Read-only; missing resources
 
 *✏️ Writes*
 
-Move a work item to a different project. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Move a work item to a different project.
 
 **Parameters**
 
@@ -180,7 +180,7 @@ Move a work item to a different project. Changes GitLab data; needs permission a
 
 *📖 Read-only*
 
-List notes and discussions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List notes and discussions on a work item.
 
 **Parameters**
 
@@ -196,7 +196,7 @@ List notes and discussions on a work item. Read-only; missing resources, denied 
 
 *✏️ Writes*
 
-Add a note to a work item (supports Markdown, internal notes, threads). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add a note to a work item (supports Markdown, internal notes, threads).
 
 **Parameters**
 
@@ -212,7 +212,7 @@ Add a note to a work item (supports Markdown, internal notes, threads). Changes 
 
 *📖 Read-only*
 
-List all emoji reactions on a work item. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a work item.
 
 **Parameters**
 
@@ -225,7 +225,7 @@ List all emoji reactions on a work item. Read-only; missing resources, denied ac
 
 *📖 Read-only*
 
-List all emoji reactions on a work item note (comment, thread, or thread reply). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a work item note (comment, thread, or thread reply).
 
 **Parameters**
 
@@ -239,7 +239,7 @@ List all emoji reactions on a work item note (comment, thread, or thread reply).
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes).
 
 **Parameters**
 
@@ -253,7 +253,7 @@ Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). Changes GitL
 
 *✏️ Writes*
 
-Remove an emoji reaction from a work item. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from a work item. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -267,7 +267,7 @@ Remove an emoji reaction from a work item. Verify the target first with a get or
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item note (comment, thread, or thread reply). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a work item note (comment, thread, or thread reply).
 
 **Parameters**
 
@@ -282,7 +282,7 @@ Add an emoji reaction to a work item note (comment, thread, or thread reply). Ch
 
 *✏️ Writes*
 
-Remove an emoji reaction from a work item note (comment, thread, or thread reply). Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from a work item note (comment, thread, or thread reply). Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Remove an emoji reaction from a work item note (comment, thread, or thread reply
 
 *📖 Read-only*
 
-List timeline events for an incident. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List timeline events for an incident.
 
 **Parameters**
 
@@ -310,7 +310,7 @@ List timeline events for an incident. Read-only; missing resources, denied acces
 
 *✏️ Writes*
 
-Create a timeline event on an incident. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a timeline event on an incident.
 
 **Parameters**
 

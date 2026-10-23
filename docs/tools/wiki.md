@@ -24,7 +24,7 @@ Project and group wiki page CRUD. Attachment uploads where supported.
 
 *📖 Read-only*
 
-List wiki pages in a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List wiki pages in a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -40,7 +40,7 @@ List wiki pages in a project. For one known resource, use the matching get tool.
 
 *📖 Read-only*
 
-Get details of a specific wiki page. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific wiki page. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -54,7 +54,7 @@ Get details of a specific wiki page. To find resources, use the matching list or
 
 *✏️ Writes*
 
-Create a wiki page in a project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a wiki page in a project. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -69,7 +69,7 @@ Create a wiki page in a project. If the resource already exists, use the update 
 
 *✏️ Writes*
 
-Update a wiki page in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a wiki page in a project. Use the create tool for new resources.
 
 **Parameters**
 
@@ -85,7 +85,7 @@ Update a wiki page in a project. Use the create tool for new resources. Changes 
 
 *✏️ Writes*
 
-Delete a wiki page from a project. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a wiki page from a project. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -98,7 +98,7 @@ Delete a wiki page from a project. Verify the target first with a get or list to
 
 *📖 Read-only*
 
-List wiki pages in a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List wiki pages in a group. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -114,7 +114,7 @@ List wiki pages in a group. For one known resource, use the matching get tool. R
 
 *📖 Read-only*
 
-Get details of a specific group wiki page. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific group wiki page. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -128,7 +128,7 @@ Get details of a specific group wiki page. To find resources, use the matching l
 
 *✏️ Writes*
 
-Create a wiki page in a group. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a wiki page in a group. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -143,7 +143,7 @@ Create a wiki page in a group. If the resource already exists, use the update to
 
 *✏️ Writes*
 
-Update a wiki page in a group. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a wiki page in a group. Use the create tool for new resources.
 
 **Parameters**
 
@@ -159,7 +159,7 @@ Update a wiki page in a group. Use the create tool for new resources. Changes Gi
 
 *✏️ Writes*
 
-Delete a wiki page from a group. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a wiki page from a group. Verify the target first with a get or list tool.
 
 **Parameters**
 

@@ -30,7 +30,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 *✏️ Writes*
 
-Create a new branch. Use this to create a branch from a branch, tag, or commit; use `get_branch` or `list_branches` to inspect branches and `protect_branch` to configure protection afterward. The operation changes remote repository state, requires branch-creation permission, and returns the new branch or a validation, missing-ref, protected-project, or already-exists error. `project_id` accepts a numeric ID or URL-encoded path, `branch` is the new name, and `ref` selects its starting revision.
+Create a new branch. Create a branch from a source branch, tag, or commit. Use `protect_branch` after creation. Returns already-exists when the name is taken.
 
 **Parameters**
 
@@ -44,7 +44,7 @@ Create a new branch. Use this to create a branch from a branch, tag, or commit; 
 
 *📖 Read-only*
 
-Get branch details (commit, protection status). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get branch details (commit, protection status). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Get branch details (commit, protection status). To find resources, use the match
 
 *📖 Read-only*
 
-List branches in project with search filter. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List branches in project with search filter. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -72,7 +72,7 @@ List branches in project with search filter. For one known resource, use the mat
 
 *✏️ Writes*
 
-Delete branch from project. Use this only after confirming the branch name and intended data loss; use `get_branch` or `list_branches` before deletion and never use it to remove branch protection. The operation permanently removes a remote branch, requires branch-delete permission, and returns the deletion result or a protected-branch, missing-resource, or permission error.
+Delete branch from project. Permanently delete a remote branch. Confirm the name first with `get_branch` or `list_branches`; this does not remove branch protection.
 
 **Parameters**
 
@@ -85,7 +85,7 @@ Delete branch from project. Use this only after confirming the branch name and i
 
 *📖 Read-only*
 
-List protected branches in a project, supports search filter. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List protected branches in a project, supports search filter. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -100,7 +100,7 @@ List protected branches in a project, supports search filter. For one known reso
 
 *📖 Read-only*
 
-Get details of a single protected branch (access levels, force push settings). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a single protected branch (access levels, force push settings). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -113,7 +113,7 @@ Get details of a single protected branch (access levels, force push settings). T
 
 *✏️ Writes*
 
-Protect a repository branch (set push/merge/unprotect access levels). Use this to create a protection rule for a branch or wildcard that has none; it does not update an existing rule (GitLab returns 409 Conflict), so use `get_protected_branch` to check first and `update_protected_branch` to change a rule. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission/conflict error.
+Protect a repository branch (set push/merge/unprotect access levels). Create a protection rule; GitLab returns 409 if one exists. Use `update_protected_branch` to change an existing rule.
 
 **Parameters**
 
@@ -132,7 +132,7 @@ Protect a repository branch (set push/merge/unprotect access levels). Use this t
 
 *✏️ Writes*
 
-Update an existing protected branch rule in place (access levels, force push, code owner approval). Use this to change an existing protection rule for a branch or wildcard in place, so the branch is never left unprotected; use `protect_branch` to create a rule and `get_protected_branch` to read the access level record `id`s first. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add an entry with one of `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change a record with its `id` and the new value; remove one with `{id, _destroy: true}`. `member_role_id` (custom roles) is not supported; an entry with only that key is rejected. For example, `allowed_to_push: [{id: 12, access_level: 0}]` sets that push record to No access. GitLab documents `access_level`, `user_id`, and `group_id` entries and `code_owner_approval_required` as Premium/Ultimate, and `deploy_key_id` push entries as Free from 18.10; check the returned rule to see what was applied. A request whose `_destroy` entries would leave `allowed_to_unprotect` with no records is refused before the update (a best-effort check; concurrent changes between the read and the update are not detected); keep one or add a replacement in the same request. GitLab may reject the update when the caller is not allowed by the rule's current `allowed_to_unprotect` settings, even as a Maintainer; check current unprotect access with `get_protected_branch` first, especially before replacing an unprotect record. The operation changes repository security controls, requires maintainer-level permission, and returns the updated rule or a validation, missing-rule, or permission error.
+Update an existing protected branch rule in place (access levels, force push, code owner approval). Change an existing protection rule in place (do not unprotect first). Read record `id`s with `get_protected_branch`. In `allowed_to_push`, `allowed_to_merge`, and `allowed_to_unprotect`, add with `access_level`, `user_id`, `group_id`, or `deploy_key_id` (push only); change with `id`; remove with `{id, _destroy: true}`. `member_role_id` is not supported. A request that would leave `allowed_to_unprotect` empty is refused. GitLab may reject the update unless the caller is on the current unprotect list.
 
 **Parameters**
 
@@ -150,7 +150,7 @@ Update an existing protected branch rule in place (access levels, force push, co
 
 *✏️ Writes*
 
-Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `update_protected_branch` to change access levels or force push while keeping the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.
+Remove protection from a previously protected branch. Remove protection. Use `update_protected_branch` to change access levels without removing the rule.
 
 **Parameters**
 
@@ -163,7 +163,7 @@ Remove protection from a previously protected branch. Use this to remove protect
 
 *✏️ Writes*
 
-Change the default branch of a project. Use this to change which branch GitLab treats as the project's default; use `create_branch` to create a branch rather than changing project defaults. The operation changes project settings and may affect clone, merge request, and CI defaults, requires project-maintainer permission, and returns the updated project or a validation/permission error.
+Change the default branch of a project. Change the project's default branch. Use `create_branch` to create a branch rather than changing defaults.
 
 **Parameters**
 
@@ -176,7 +176,7 @@ Change the default branch of a project. Use this to change which branch GitLab t
 
 *📖 Read-only*
 
-List repository commits with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List repository commits with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -200,7 +200,7 @@ List repository commits with filtering options. For one known resource, use the 
 
 *📖 Read-only*
 
-Get details of a specific commit. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific commit. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -214,7 +214,7 @@ Get details of a specific commit. To find resources, use the matching list or se
 
 *📖 Read-only*
 
-Get changes/diffs of a specific commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get changes/diffs of a specific commit. Return the file diffs for one commit. Use `get_commit` for metadata without the patch.
 
 **Parameters**
 
@@ -244,7 +244,7 @@ Get git blame for a file at a given ref. Each entry maps a contiguous range of s
 
 *📖 Read-only*
 
-List statuses for a commit. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List statuses for a commit.
 
 **Parameters**
 
@@ -266,7 +266,7 @@ List statuses for a commit. Read-only; missing resources, denied access, and rat
 
 *✏️ Writes*
 
-Create or update the status of a commit. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create or update the status of a commit.
 
 **Parameters**
 

@@ -72,7 +72,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 *📖 Read-only*
 
-List pipelines with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List pipelines with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -96,7 +96,7 @@ List pipelines with filtering options. For one known resource, use the matching 
 
 *📖 Read-only*
 
-Get details of a specific pipeline. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific pipeline. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -109,7 +109,7 @@ Get details of a specific pipeline. To find resources, use the matching list or 
 
 *📖 Read-only*
 
-Get variables configured for a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get variables configured for a pipeline.
 
 **Parameters**
 
@@ -124,7 +124,7 @@ Get variables configured for a pipeline. Read-only; missing resources, denied ac
 
 *📖 Read-only*
 
-Get pipeline test report. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get pipeline test report.
 
 **Parameters**
 
@@ -139,7 +139,7 @@ Get pipeline test report. Read-only; missing resources, denied access, and rate 
 
 *📖 Read-only*
 
-Get pipeline test report summary. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get pipeline test report summary.
 
 **Parameters**
 
@@ -154,7 +154,7 @@ Get pipeline test report summary. Read-only; missing resources, denied access, a
 
 *✏️ Writes*
 
-Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -167,7 +167,7 @@ Delete a pipeline. Requires the project Owner role, cannot be undone, and does n
 
 *✏️ Writes*
 
-Update pipeline metadata. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update pipeline metadata.
 
 **Parameters**
 
@@ -181,7 +181,7 @@ Update pipeline metadata. Changes GitLab data; needs permission and returns vali
 
 *📖 Read-only*
 
-List deployments with filtering options. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List deployments with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -203,7 +203,7 @@ List deployments with filtering options. For one known resource, use the matchin
 
 *📖 Read-only*
 
-Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -216,7 +216,7 @@ Get deployment details, including approval_summary, approvals, and pending_appro
 
 *✏️ Writes*
 
-Create a deployment. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a deployment. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -233,7 +233,7 @@ Create a deployment. If the resource already exists, use the update tool. Change
 
 *✏️ Writes*
 
-Update a deployment status. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a deployment status. Use the create tool for new resources.
 
 **Parameters**
 
@@ -247,7 +247,7 @@ Update a deployment status. Use the create tool for new resources. Changes GitLa
 
 *✏️ Writes*
 
-Delete a deployment. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a deployment. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -260,7 +260,7 @@ Delete a deployment. Verify the target first with a get or list tool. Changes or
 
 *📖 Read-only*
 
-List merge requests shipped with a deployment. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge requests shipped with a deployment.
 
 **Parameters**
 
@@ -275,7 +275,7 @@ List merge requests shipped with a deployment. Read-only; missing resources, den
 
 *✏️ Writes*
 
-Approve or reject a protected-environment deployment. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Approve or reject a protected-environment deployment.
 
 **Parameters**
 
@@ -291,7 +291,7 @@ Approve or reject a protected-environment deployment. Changes or removes GitLab 
 
 *📖 Read-only*
 
-List environments in a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List environments in a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -308,7 +308,7 @@ List environments in a project. For one known resource, use the matching get too
 
 *📖 Read-only*
 
-Get details of a specific environment. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a specific environment. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -321,7 +321,7 @@ Get details of a specific environment. To find resources, use the matching list 
 
 *✏️ Writes*
 
-Update an environment. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an environment.
 
 **Parameters**
 
@@ -337,7 +337,7 @@ Update an environment. Changes GitLab data; needs permission and returns validat
 
 *✏️ Writes*
 
-Delete a stopped environment. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a stopped environment. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -350,7 +350,7 @@ Delete a stopped environment. Verify the target first with a get or list tool. C
 
 *✏️ Writes*
 
-Stop an environment. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Stop an environment.
 
 **Parameters**
 
@@ -364,7 +364,7 @@ Stop an environment. Changes or removes GitLab data and may be irreversible; nee
 
 *✏️ Writes*
 
-Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted. Use this to stop eligible stale environments in a project. GitLab excludes protected environments, and this operation stops environments without deleting them. It requires the necessary project permission and returns the result or a validation, permission, or rate-limit error.
+Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted. Stop eligible stale environments. GitLab excludes protected environments; this does not delete them.
 
 **Parameters**
 
@@ -377,7 +377,7 @@ Stop eligible stale environments; protected environments are excluded and enviro
 
 *✏️ Writes*
 
-Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false. Use this to clean up stopped review-app environments after verifying the scope. GitLab schedules deletion one week later rather than deleting environments immediately; `dry_run` defaults to `true`, so actual scheduling requires `dry_run: false`. It requires the necessary project permission and returns the cleanup result or a validation, permission, or rate-limit error.
+Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false. Schedule deletion of stopped review-app environments one week later. `dry_run` defaults to true.
 
 **Parameters**
 
@@ -392,7 +392,7 @@ Schedule deletion of stopped review-app environments one week later; dry_run def
 
 *📖 Read-only*
 
-List project pipeline trigger tokens. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List project pipeline trigger tokens. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -404,7 +404,7 @@ List project pipeline trigger tokens. For one known resource, use the matching g
 
 *📖 Read-only*
 
-Get a project pipeline trigger. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a project pipeline trigger. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -417,7 +417,7 @@ Get a project pipeline trigger. To find resources, use the matching list or sear
 
 *✏️ Writes*
 
-Create a project pipeline trigger. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a project pipeline trigger. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -430,7 +430,7 @@ Create a project pipeline trigger. If the resource already exists, use the updat
 
 *✏️ Writes*
 
-Update a project pipeline trigger. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a project pipeline trigger. Use the create tool for new resources.
 
 **Parameters**
 
@@ -444,7 +444,7 @@ Update a project pipeline trigger. Use the create tool for new resources. Change
 
 *✏️ Writes*
 
-Delete a project pipeline trigger. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a project pipeline trigger. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -457,7 +457,7 @@ Delete a project pipeline trigger. Verify the target first with a get or list to
 
 *✏️ Writes*
 
-Trigger a pipeline with a pipeline trigger token. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Trigger a pipeline with a pipeline trigger token.
 
 **Parameters**
 
@@ -473,7 +473,7 @@ Trigger a pipeline with a pipeline trigger token. Changes GitLab data; needs per
 
 *📖 Read-only*
 
-List all jobs in a specific pipeline. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all jobs in a specific pipeline. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -490,7 +490,7 @@ List all jobs in a specific pipeline. For one known resource, use the matching g
 
 *📖 Read-only*
 
-List trigger jobs (bridges) in a pipeline. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List trigger jobs (bridges) in a pipeline.
 
 **Parameters**
 
@@ -506,7 +506,7 @@ List trigger jobs (bridges) in a pipeline. Read-only; missing resources, denied 
 
 *📖 Read-only*
 
-Get details of a GitLab pipeline job number. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a GitLab pipeline job number. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -519,7 +519,7 @@ Get details of a GitLab pipeline job number. To find resources, use the matching
 
 *📖 Read-only*
 
-Get the output/trace of a pipeline job with optional pagination. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get the output/trace of a pipeline job with optional pagination.
 
 **Parameters**
 
@@ -534,7 +534,7 @@ Get the output/trace of a pipeline job with optional pagination. Read-only; miss
 
 *✏️ Writes*
 
-Create a new pipeline for a branch or tag. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a new pipeline for a branch or tag.
 
 **Parameters**
 
@@ -549,7 +549,7 @@ Create a new pipeline for a branch or tag. Changes GitLab data; needs permission
 
 *✏️ Writes*
 
-Retry a failed or canceled pipeline. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Retry a failed or canceled pipeline.
 
 **Parameters**
 
@@ -562,7 +562,7 @@ Retry a failed or canceled pipeline. Changes GitLab data; needs permission and r
 
 *✏️ Writes*
 
-Cancel a running pipeline. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Cancel a running pipeline.
 
 **Parameters**
 
@@ -575,7 +575,7 @@ Cancel a running pipeline. Changes or removes GitLab data and may be irreversibl
 
 *📖 Read-only*
 
-List pipeline schedules in a project, optionally filtered to active or inactive. Use this to survey a project's scheduled pipelines and their `cron`, `next_run_at`, and `active` state, optionally narrowed with `scope` to `active` or `inactive`; use `list_pipelines` for pipelines that already ran and `get_pipeline_schedule` when the schedule ID is known. The list response carries no `variables` — call `get_pipeline_schedule` for those — and includes `inputs` only for Maintainers, Owners, or the schedule owner. It is read-only and paginated, requires project access, and returns schedule records or an error when the project is missing or access is denied.
+List pipeline schedules in a project, optionally filtered to active or inactive. List scheduled pipelines (`cron`, `next_run_at`, `active`). The list has no `variables` — call `get_pipeline_schedule` for those.
 
 **Parameters**
 
@@ -590,7 +590,7 @@ List pipeline schedules in a project, optionally filtered to active or inactive.
 
 *📖 Read-only*
 
-Get details of a specific pipeline schedule, including its variables and last pipeline. Use this to inspect one schedule's cron, owner, last pipeline, variables, and inputs; use `list_pipeline_schedules` to discover schedule IDs and `list_pipeline_schedule_pipelines` for the pipelines it produced. It is read-only, returns `variables` and `inputs` only to Maintainers, Owners, or the schedule owner, and returns the schedule or an error when the schedule is missing or access is denied.
+Get details of a specific pipeline schedule, including its variables and last pipeline. Inspect one schedule including variables and inputs (Maintainer/Owner/schedule owner only).
 
 **Parameters**
 
@@ -603,7 +603,7 @@ Get details of a specific pipeline schedule, including its variables and last pi
 
 *📖 Read-only*
 
-List the pipelines that a pipeline schedule has triggered. Use this to review the pipelines a schedule has actually triggered, for example to see whether the nightly run succeeded; use `get_pipeline` for one pipeline's full detail and `list_pipelines` for project-wide filtering. Narrow the result with `scope`, `status`, `sort`, and the `created_*` / `updated_*` date bounds. It is read-only and paginated, requires project access, and returns pipeline records or an error when the schedule is missing or access is denied.
+List the pipelines that a pipeline schedule has triggered. List pipelines a schedule has triggered. Use `get_pipeline` for one pipeline and `list_pipelines` for project-wide filtering.
 
 **Parameters**
 
@@ -625,7 +625,7 @@ List the pipelines that a pipeline schedule has triggered. Use this to review th
 
 *✏️ Writes*
 
-Create a new pipeline schedule for a branch or tag. Use this to add a recurring pipeline for a branch or tag; use `create_pipeline` to run a pipeline once now and `update_pipeline_schedule` once the schedule exists. `ref` accepts a short name or a full ref such as `refs/heads/main`, which you should prefer when a branch and tag share a name; `cron_timezone` defaults to `UTC` and `active` defaults to true. It creates remote CI configuration, requires the Developer, Maintainer, or Owner role plus permission to run pipelines on the target ref, and returns the new schedule or a validation, cron, ref, or permission error.
+Create a new pipeline schedule for a branch or tag. Add a recurring pipeline. Prefer a full ref such as `refs/heads/main` when a branch and tag share a name. `cron_timezone` defaults to UTC.
 
 **Parameters**
 
@@ -643,7 +643,7 @@ Create a new pipeline schedule for a branch or tag. Use this to add a recurring 
 
 *✏️ Writes*
 
-Update an existing pipeline schedule. Use this to change an existing schedule's cron, ref, description, inputs, or `active` flag; call `take_ownership_pipeline_schedule` first when the schedule belongs to another user, because GitLab rejects edits from non-owners. Every field is optional and GitLab reschedules the next run after the update. It changes remote CI configuration, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the updated schedule or a validation, cron, or permission error.
+Update an existing pipeline schedule. Change an existing schedule. Call `take_ownership_pipeline_schedule` first when the schedule belongs to another user.
 
 **Parameters**
 
@@ -662,7 +662,7 @@ Update an existing pipeline schedule. Use this to change an existing schedule's 
 
 *✏️ Writes*
 
-Delete a pipeline schedule. Use this only after confirming the schedule with `get_pipeline_schedule`; use `update_pipeline_schedule` with `active: false` to pause a schedule instead of removing it. The operation permanently removes the schedule and its variables, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns a confirmation or a missing-resource or permission error.
+Delete a pipeline schedule. Permanently remove a schedule and its variables. Pause with `update_pipeline_schedule` `active: false` instead when possible.
 
 **Parameters**
 
@@ -675,7 +675,7 @@ Delete a pipeline schedule. Use this only after confirming the schedule with `ge
 
 *✏️ Writes*
 
-Run a pipeline schedule immediately. Use this to run a schedule's pipeline immediately without waiting for its cron; it does not shift `next_run_at`, so the regular cadence continues unchanged, and it does not modify the schedule itself. Use `create_pipeline` when you want a one-off pipeline that is unrelated to a schedule. It creates a pipeline on GitLab, requires ownership of the schedule and permission to run pipelines on its ref, is rate-limited to once per minute per schedule, and returns GitLab's acknowledgement message or a permission, rate-limit, or missing-schedule error.
+Run a pipeline schedule immediately. Run a schedule immediately without shifting `next_run_at`. Rate-limited to once per minute per schedule.
 
 **Parameters**
 
@@ -688,7 +688,7 @@ Run a pipeline schedule immediately. Use this to run a schedule's pipeline immed
 
 *✏️ Writes*
 
-Take ownership of a pipeline schedule. Use this to transfer a schedule's ownership to the authenticated user, which is the prerequisite for `update_pipeline_schedule` or `delete_pipeline_schedule` on someone else's schedule; it does not otherwise change the cron, ref, or variables. It changes remote ownership, requires the Maintainer or Owner role, and returns the schedule with its new owner or a permission or missing-schedule error.
+Take ownership of a pipeline schedule. Transfer schedule ownership to the current user. Required before updating or deleting someone else's schedule.
 
 **Parameters**
 
@@ -701,7 +701,7 @@ Take ownership of a pipeline schedule. Use this to transfer a schedule's ownersh
 
 *📖 Read-only*
 
-Get a single variable of a pipeline schedule. Use this to read one variable attached to a pipeline schedule by key; use `get_pipeline_schedule` to list every variable at once and `get_project_variable` for project-level CI/CD variables, which are a separate set. It is read-only, requires the Maintainer or Owner role or ownership of the schedule (GitLab 18.7 or later exposes this endpoint), and returns the variable or an error when the schedule, key, or permission is missing.
+Get a single variable of a pipeline schedule. Read one schedule variable by key. Separate from project-level CI/CD variables.
 
 **Parameters**
 
@@ -715,7 +715,7 @@ Get a single variable of a pipeline schedule. Use this to read one variable atta
 
 *✏️ Writes*
 
-Create a variable for a pipeline schedule. Use this to attach a new variable to a pipeline schedule so its scheduled pipelines receive it; use `update_pipeline_schedule_variable` when the key already exists and `create_project_variable` for a project-wide variable. `variable_type` defaults to `env_var` and `key` is limited to 255 characters matching /[a-zA-Z0-9_]+/. It creates remote CI configuration, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the new variable or a validation, duplicate-key, or permission error.
+Create a variable for a pipeline schedule. Attach a new variable to a schedule. `variable_type` defaults to `env_var`; `key` is /[a-zA-Z0-9_]+/ up to 255 characters.
 
 **Parameters**
 
@@ -731,7 +731,7 @@ Create a variable for a pipeline schedule. Use this to attach a new variable to 
 
 *✏️ Writes*
 
-Update a variable of a pipeline schedule. Use this to change the value or type of an existing pipeline schedule variable; use `create_pipeline_schedule_variable` when the key does not exist yet. It changes remote CI configuration that scheduled pipelines consume, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the updated variable or a missing-key, validation, or permission error.
+Update a variable of a pipeline schedule. Change the value or type of an existing schedule variable.
 
 **Parameters**
 
@@ -747,7 +747,7 @@ Update a variable of a pipeline schedule. Use this to change the value or type o
 
 *✏️ Writes*
 
-Delete a variable from a pipeline schedule. Use this only after confirming the key with `get_pipeline_schedule` or `get_pipeline_schedule_variable`; use `update_pipeline_schedule_variable` to change a value without removing it. The operation permanently removes the variable from the schedule so later scheduled pipelines no longer receive it, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns a confirmation or a missing-key or permission error.
+Delete a variable from a pipeline schedule. Permanently remove a schedule variable. Later scheduled pipelines no longer receive it.
 
 **Parameters**
 
@@ -761,7 +761,7 @@ Delete a variable from a pipeline schedule. Use this only after confirming the k
 
 *✏️ Writes*
 
-Run a manual pipeline job. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Run a manual pipeline job.
 
 **Parameters**
 
@@ -776,7 +776,7 @@ Run a manual pipeline job. Changes GitLab data; needs permission and returns val
 
 *✏️ Writes*
 
-Play multiple manual pipeline jobs sequentially. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Play multiple manual pipeline jobs sequentially.
 
 **Parameters**
 
@@ -792,7 +792,7 @@ Play multiple manual pipeline jobs sequentially. Changes GitLab data; needs perm
 
 *✏️ Writes*
 
-Retry a failed or canceled pipeline job. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Retry a failed or canceled pipeline job.
 
 **Parameters**
 
@@ -806,7 +806,7 @@ Retry a failed or canceled pipeline job. Changes GitLab data; needs permission a
 
 *✏️ Writes*
 
-Cancel a running pipeline job. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Cancel a running pipeline job.
 
 **Parameters**
 
@@ -820,7 +820,7 @@ Cancel a running pipeline job. Changes or removes GitLab data and may be irrever
 
 *✏️ Writes*
 
-Erase a pipeline job log and artifacts. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Erase a pipeline job log and artifacts.
 
 **Parameters**
 
@@ -833,7 +833,7 @@ Erase a pipeline job log and artifacts. Changes or removes GitLab data and may b
 
 *📖 Read-only*
 
-Wait for a pipeline to reach a terminal status. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Wait for a pipeline to reach a terminal status.
 
 **Parameters**
 
@@ -848,7 +848,7 @@ Wait for a pipeline to reach a terminal status. Read-only; missing resources, de
 
 *📖 Read-only*
 
-Wait for a job to reach a terminal status. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Wait for a job to reach a terminal status.
 
 **Parameters**
 
@@ -863,7 +863,7 @@ Wait for a job to reach a terminal status. Read-only; missing resources, denied 
 
 *📖 Read-only*
 
-List artifact files in a job's archive. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List artifact files in a job's archive.
 
 **Parameters**
 
@@ -878,7 +878,7 @@ List artifact files in a job's archive. Read-only; missing resources, denied acc
 
 *📖✏️ Reads and writes*
 
-Download job artifact archive (zip) and save to a local path. Use this to retrieve a pipeline job's artifact archive; remote HTTP mode returns a download URL while local mode saves the archive to a local path. It is read-only on GitLab but creates a local file in stdio mode (rejected in readonly mode), requires job/project access, and returns the download result or an artifact/permission error.
+Download job artifact archive (zip) and save to a local path. Retrieve a job artifact archive. Remote HTTP returns a download URL; local stdio saves a file (rejected in readonly mode).
 
 **Parameters**
 
@@ -892,7 +892,7 @@ Download job artifact archive (zip) and save to a local path. Use this to retrie
 
 *📖 Read-only*
 
-Get content of a single file from a job's artifacts. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get content of a single file from a job's artifacts.
 
 **Parameters**
 
@@ -906,7 +906,7 @@ Get content of a single file from a job's artifacts. Read-only; missing resource
 
 *📖 Read-only*
 
-List runners available to a project. Use this when a job is stuck pending with no matching runner and you need the runners a project can use, including ancestor group runners and allowed instance runners. Filter with type, status, paused, and tag_list; the list payload includes id, description, runner_type, status, and paused (among other non-secret GitLab runner fields) but not tags — call `get_runner` for tag_list, run_untagged, locked, and access_level. It is read-only and paginated, requires Maintainer or Auditor access on the project, and never returns a runner registration token (runners_token) or runner authentication token.
+List runners available to a project. List runners a project can use, including ancestor group and allowed instance runners. Payload omits tags — call `get_runner` for tag_list. Never returns runners_token or the runner authentication token.
 
 **Parameters**
 
@@ -924,7 +924,7 @@ List runners available to a project. Use this when a job is stuck pending with n
 
 *📖 Read-only*
 
-Get one runner by ID. Use this after list_project_runners when you already have a runner ID and need tag_list, run_untagged, locked, and access_level to explain a stuck pending job. Instance runner details are visible to authenticated users; group and project runners follow GitLab's role checks for that runner. When GITLAB_ALLOWED_PROJECT_IDS or a session project scope is active, the runner must appear on an allowed project's runner list before details are returned — pass project_id when more than one project is allowed — projects outside that allowlist are omitted, and groups are omitted because a project allowlist cannot verify them. GITLAB_PROJECT_ID alone is only the default project for that membership check when project_id is omitted. It does not omit other projects or groups. It is read-only and never returns a runner registration token (runners_token) or runner authentication token. token_expires_at is expiry metadata, not the token.
+Get one runner by ID. Get tag_list, run_untagged, locked, and access_level for a runner id. With GITLAB_ALLOWED_PROJECT_IDS or a session project scope, the runner must appear on an allowed project's list — pass project_id when more than one project is allowed. Never returns runners_token or the runner authentication token; token_expires_at is expiry metadata, not the token.
 
 **Parameters**
 

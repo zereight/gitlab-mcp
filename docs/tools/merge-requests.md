@@ -60,7 +60,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 *✏️ Writes*
 
-Merge a merge request. Use this only after checking the merge request approval, conflict, and pipeline state; use `approve_merge_request` to approve rather than merge. The operation changes repository state and may squash commits, schedule auto-merge, or delete the source branch, so it requires merge permission and returns GitLab's merge result or a mergeability error. Pass `sha` from `get_merge_request` (`sha` or `diff_refs.head_sha`); GitLab 19.2+ groups may reject merges without it.
+Merge a merge request. Use this only after checking approval, conflicts, and pipeline state; use `approve_merge_request` to approve rather than merge. Pass `sha` from `get_merge_request`; GitLab 19.2+ groups may reject merges without it.
 
 **Parameters**
 
@@ -80,7 +80,7 @@ Merge a merge request. Use this only after checking the merge request approval, 
 
 *✏️ Writes*
 
-Rebase the source branch of a merge request onto its target branch. Use this when the source branch is behind its target branch; use `get_merge_request_conflicts` to inspect conflicts and `merge_merge_request` to merge. The operation rewrites the source branch history with a force push and requires permission to push to that branch. With `wait` true (default), it polls until the rebase ends and returns the merge request plus `previous_sha` (its `sha` before the rebase) and `head_changed`. `head_changed: false` means that the head did not move; `merge_error` gives the reason when GitLab sends one. `merge_error` can keep a message from an earlier attempt, so it alone does not prove that this attempt failed. If the rebase still runs after `timeout_seconds`, it returns a timeout error while GitLab continues the rebase. With `wait` false, it returns GitLab's enqueue response (`rebase_in_progress` true) at once. Set `skip_ci` to skip the CI pipeline for the rebased branch.
+Rebase the source branch of a merge request onto its target branch. Rebase the source onto the target (force-push). With `wait` true (default) it returns `previous_sha` and `head_changed`; `merge_error` can be stale. Use `get_merge_request_conflicts` for conflicts.
 
 **Parameters**
 
@@ -97,7 +97,7 @@ Rebase the source branch of a merge request onto its target branch. Use this whe
 
 *✏️ Writes*
 
-Approve a merge request. Use this to record an approval on an existing merge request; it does not merge the request or change its source branch. The operation changes review state, may require re-authentication or approval permission, and returns the updated approval result or a permission/state error.
+Approve a merge request. Record an approval on an existing merge request. It does not merge or change the source branch.
 
 **Parameters**
 
@@ -112,7 +112,7 @@ Approve a merge request. Use this to record an approval on an existing merge req
 
 *✏️ Writes*
 
-Unapprove a merge request. Use this to remove the current user's approval from an existing merge request; use `merge_merge_request` only when you intend to merge. The operation changes review state and requires approval permission, and GitLab returns the updated result or an error when the request or approval is unavailable.
+Unapprove a merge request. Remove the current user's approval. Use `merge_merge_request` only when you intend to merge.
 
 **Parameters**
 
@@ -125,7 +125,7 @@ Unapprove a merge request. Use this to remove the current user's approval from a
 
 *📖 Read-only*
 
-Get merge request approval details including approvers. Use this to inspect approval rules and approvers before deciding whether a merge request can be merged; use `approve_merge_request` to change approval state. It is read-only and returns the approval-state response, while missing requests, unsupported GitLab versions, and permission failures are reported as errors.
+Get merge request approval details including approvers. Inspect approval rules and approvers before merging. Use `approve_merge_request` to change approval state.
 
 **Parameters**
 
@@ -138,7 +138,7 @@ Get merge request approval details including approvers. Use this to inspect appr
 
 *📖 Read-only*
 
-Get branch details (commit, protection status). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get branch details (commit, protection status). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -151,7 +151,7 @@ Get branch details (commit, protection status). To find resources, use the match
 
 *📖 Read-only*
 
-List branches in project with search filter. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List branches in project with search filter. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -166,7 +166,7 @@ List branches in project with search filter. For one known resource, use the mat
 
 *📖 Read-only*
 
-Get the conflicts of a merge request. Use this to inspect merge conflicts before attempting `merge_merge_request`; it reports conflicts and does not resolve them. It is read-only, requires access to the project and merge request, and returns GitLab's conflict data or an error when the request cannot be evaluated.
+Get the conflicts of a merge request. Inspect merge conflicts before `merge_merge_request`. It reports conflicts and does not resolve them.
 
 **Parameters**
 
@@ -179,7 +179,7 @@ Get the conflicts of a merge request. Use this to inspect merge conflicts before
 
 *📖 Read-only*
 
-List pipelines for a merge request with pagination. Use this to inspect pipelines associated with one merge request; use `list_pipelines` for project-wide pipeline filtering. It is read-only and paginated, requires project access, and returns pipeline records or GitLab errors for invalid identifiers, missing resources, or rate limits.
+List pipelines for a merge request with pagination. List pipelines for one merge request. Use `list_pipelines` for project-wide filtering.
 
 **Parameters**
 
@@ -194,7 +194,7 @@ List pipelines for a merge request with pagination. Use this to inspect pipeline
 
 *📖 Read-only*
 
-Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -209,7 +209,7 @@ Get details of a merge request (merge_request_iid or source_branch required). Se
 
 *📖 Read-only*
 
-Get the changes/diffs of a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get the changes/diffs of a merge request (merge_request_iid or source_branch required). To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -225,7 +225,7 @@ Get the changes/diffs of a merge request (merge_request_iid or source_branch req
 
 *📖 Read-only*
 
-List changed file paths in a merge request without diff content (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List changed file paths in a merge request without diff content (merge_request_iid or source_branch required).
 
 **Parameters**
 
@@ -240,7 +240,7 @@ List changed file paths in a merge request without diff content (merge_request_i
 
 *📖 Read-only*
 
-List merge request diffs with pagination (merge_request_iid or source_branch required). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge request diffs with pagination (merge_request_iid or source_branch required). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -257,7 +257,7 @@ List merge request diffs with pagination (merge_request_iid or source_branch req
 
 *📖 Read-only*
 
-Get diffs for specific files from a merge request (merge_request_iid or source_branch required). Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs for specific files from a merge request (merge_request_iid or source_branch required).
 
 **Parameters**
 
@@ -273,7 +273,7 @@ Get diffs for specific files from a merge request (merge_request_iid or source_b
 
 *📖 Read-only*
 
-List all versions of a merge request. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all versions of a merge request. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -286,7 +286,7 @@ List all versions of a merge request. For one known resource, use the matching g
 
 *📖 Read-only*
 
-Get a specific version of a merge request. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a specific version of a merge request. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -301,7 +301,7 @@ Get a specific version of a merge request. To find resources, use the matching l
 
 *✏️ Writes*
 
-Update a merge request (merge_request_iid or source_branch required). Use the create tool for new resources and a note tool for comments. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a merge request (merge_request_iid or source_branch required). Use the create tool for new resources and a note tool for comments.
 
 **Parameters**
 
@@ -326,7 +326,7 @@ Update a merge request (merge_request_iid or source_branch required). Use the cr
 
 *✏️ Writes*
 
-Create a new merge request. Use this to open a new merge request from an existing source branch to a target branch; use `update_merge_request` after it exists. The operation creates remote review state, requires project access, and returns the new merge request or a validation, permission, branch, or duplicate-related error.
+Create a new merge request. Open a merge request from an existing source branch to a target. Use `update_merge_request` after it exists.
 
 **Parameters**
 
@@ -350,7 +350,7 @@ Create a new merge request. Use this to open a new merge request from an existin
 
 *📖 Read-only*
 
-List merge requests (without project_id: user's MRs; with project_id: project MRs). For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge requests (without project_id: user's MRs; with project_id: project MRs). For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -386,7 +386,7 @@ List merge requests (without project_id: user's MRs; with project_id: project MR
 
 *📖 Read-only*
 
-List merge requests across all projects of a group and its subgroups. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List merge requests across all projects of a group and its subgroups.
 
 **Parameters**
 
@@ -424,7 +424,7 @@ List merge requests across all projects of a group and its subgroups. Read-only;
 
 *📖 Read-only*
 
-Get diffs between two branches or commits. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get diffs between two branches or commits.
 
 **Parameters**
 
@@ -440,7 +440,7 @@ Get diffs between two branches or commits. Read-only; missing resources, denied 
 
 *📖 Read-only*
 
-List discussion items for a merge request. Use this to list complete discussion threads for a merge request; use `get_merge_request_notes` when only flat notes are needed. It is read-only and returns threaded discussion items, while invalid merge request identifiers, missing resources, and permission failures are reported as errors.
+List discussion items for a merge request. List complete discussion threads. Use `get_merge_request_notes` for flat notes.
 
 **Parameters**
 
@@ -455,7 +455,7 @@ List discussion items for a merge request. Use this to list complete discussion 
 
 *📖 Read-only*
 
-Get a single discussion item for a merge request. Use this to fetch one known merge request discussion by discussion identifier; use `mr_discussions` for a collection and `get_merge_request_note` for a flat note. It is read-only and returns the discussion item or an error for an invalid identifier, missing discussion, or insufficient permission.
+Get a single discussion item for a merge request. Fetch one discussion by id. Use `mr_discussions` for a collection and `get_merge_request_note` for a flat note.
 
 **Parameters**
 
@@ -469,7 +469,7 @@ Get a single discussion item for a merge request. Use this to fetch one known me
 
 *✏️ Writes*
 
-Add a new note to a merge request. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add a new note to a merge request. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -483,7 +483,7 @@ Add a new note to a merge request. If the resource already exists, use the updat
 
 *✏️ Writes*
 
-Modify an existing merge request note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Modify an existing merge request note. Use the create tool for new resources.
 
 **Parameters**
 
@@ -498,7 +498,7 @@ Modify an existing merge request note. Use the create tool for new resources. Ch
 
 *✏️ Writes*
 
-Delete an existing merge request note. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete an existing merge request note. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -512,7 +512,7 @@ Delete an existing merge request note. Verify the target first with a get or lis
 
 *📖 Read-only*
 
-Get a specific note for a merge request. Use this to fetch one known merge request note by note identifier; use `get_merge_request_notes` for a collection and `mr_discussions` for threaded context. It is read-only and returns the note object or an error for an invalid identifier, missing note, or insufficient permission.
+Get a specific note for a merge request. Fetch one note by id. Use `get_merge_request_notes` for a collection and `mr_discussions` for threads.
 
 **Parameters**
 
@@ -526,7 +526,7 @@ Get a specific note for a merge request. Use this to fetch one known merge reque
 
 *📖 Read-only*
 
-List notes for a merge request. Use this to list flat notes on a merge request; use `mr_discussions` when thread structure and resolution state are required. It is read-only and returns note records, while invalid identifiers, missing resources, and pagination or permission errors are reported by GitLab.
+List notes for a merge request. List flat notes. Use `mr_discussions` when thread structure and resolution state are required.
 
 **Parameters**
 
@@ -543,7 +543,7 @@ List notes for a merge request. Use this to list flat notes on a merge request; 
 
 *✏️ Writes*
 
-Delete a discussion note on a merge request. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a discussion note on a merge request. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -558,7 +558,7 @@ Delete a discussion note on a merge request. Verify the target first with a get 
 
 *✏️ Writes*
 
-Update a discussion note on a merge request. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update a discussion note on a merge request. Use the create tool for new resources.
 
 **Parameters**
 
@@ -575,7 +575,7 @@ Update a discussion note on a merge request. Use the create tool for new resourc
 
 *✏️ Writes*
 
-Add a new discussion note to an existing merge request thread. Use this to reply inside an existing merge request discussion; use `create_merge_request_thread` to start a new thread and `create_merge_request_note` for a top-level note. The operation creates remote review content, requires note permission, and returns the new note or a missing-discussion/position/permission error.
+Add a new discussion note to an existing merge request thread. Reply inside an existing discussion. Use `create_merge_request_thread` to start a thread and `create_merge_request_note` for a top-level note.
 
 **Parameters**
 
@@ -591,7 +591,7 @@ Add a new discussion note to an existing merge request thread. Use this to reply
 
 *📖 Read-only*
 
-Get a single draft note from a merge request. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a single draft note from a merge request. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -605,7 +605,7 @@ Get a single draft note from a merge request. To find resources, use the matchin
 
 *📖 Read-only*
 
-List draft notes for a merge request. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List draft notes for a merge request. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -618,7 +618,7 @@ List draft notes for a merge request. For one known resource, use the matching g
 
 *✏️ Writes*
 
-Create a draft note for a merge request. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a draft note for a merge request. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -635,7 +635,7 @@ Create a draft note for a merge request. If the resource already exists, use the
 
 *✏️ Writes*
 
-Update an existing draft note. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing draft note. Use the create tool for new resources.
 
 **Parameters**
 
@@ -652,7 +652,7 @@ Update an existing draft note. Use the create tool for new resources. Changes Gi
 
 *✏️ Writes*
 
-Delete a draft note. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a draft note. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -666,7 +666,7 @@ Delete a draft note. Verify the target first with a get or list tool. Changes or
 
 *✏️ Writes*
 
-Publish a single draft note. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Publish a single draft note.
 
 **Parameters**
 
@@ -680,7 +680,7 @@ Publish a single draft note. Changes GitLab data; needs permission and returns v
 
 *✏️ Writes*
 
-Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts.
 
 **Parameters**
 
@@ -696,7 +696,7 @@ Publish all draft notes for a merge request. Optionally sets reviewer_state and 
 
 *✏️ Writes*
 
-Create a new thread on a merge request. Use this to start a review thread on a merge request; use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply to an existing thread. The operation creates remote review content, requires note permission, and returns the discussion or a position/permission/validation error.
+Create a new thread on a merge request. Start a review thread. Use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply.
 
 **Parameters**
 
@@ -712,7 +712,7 @@ Create a new thread on a merge request. Use this to start a review thread on a m
 
 *✏️ Writes*
 
-Resolve a thread on a merge request. Use this to mark an existing merge request review thread resolved; use `update_merge_request_discussion_note` when the note text itself must change. The operation changes review state, requires permission to resolve discussions, and returns the updated discussion or a missing-thread/permission error.
+Resolve a thread on a merge request. Mark an existing review thread resolved. Use `update_merge_request_discussion_note` to change note text.
 
 **Parameters**
 
@@ -727,7 +727,7 @@ Resolve a thread on a merge request. Use this to mark an existing merge request 
 
 *📖 Read-only*
 
-List all emoji reactions on a merge request. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a merge request.
 
 **Parameters**
 
@@ -740,7 +740,7 @@ List all emoji reactions on a merge request. Read-only; missing resources, denie
 
 *📖 Read-only*
 
-List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies.
 
 **Parameters**
 
@@ -755,7 +755,7 @@ List all emoji reactions on a merge request note. Pass discussion_id for discuss
 
 *✏️ Writes*
 
-Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes). Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes).
 
 **Parameters**
 
@@ -769,7 +769,7 @@ Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes). Changes 
 
 *✏️ Writes*
 
-Remove an emoji reaction from a merge request. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from a merge request. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -783,7 +783,7 @@ Remove an emoji reaction from a merge request. Verify the target first with a ge
 
 *✏️ Writes*
 
-Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies.
 
 **Parameters**
 
@@ -799,7 +799,7 @@ Add an emoji reaction to a merge request note. Pass discussion_id for discussion
 
 *✏️ Writes*
 
-Remove an emoji reaction from a merge request note. Pass discussion_id for discussion thread replies. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Remove an emoji reaction from a merge request note. Pass discussion_id for discussion thread replies. Verify the target first with a get or list tool.
 
 **Parameters**
 

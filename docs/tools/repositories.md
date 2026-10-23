@@ -21,7 +21,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 *📖 Read-only*
 
-Search for GitLab projects. If the identifier is known, use a typed get or list tool. Read-only; missing resources, denied access, and rate limits return errors.
+Search for GitLab projects. If the identifier is known, use a typed get or list tool.
 
 **Parameters**
 
@@ -36,7 +36,7 @@ Search for GitLab projects. If the identifier is known, use a typed get or list 
 
 *✏️ Writes*
 
-Create a new GitLab project. Changes GitLab data; needs permission and returns validation or conflict errors.
+Create a new GitLab project.
 
 **Parameters**
 
@@ -52,7 +52,7 @@ Create a new GitLab project. Changes GitLab data; needs permission and returns v
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get contents of a file or directory from a GitLab project.
 
 **Parameters**
 
@@ -67,7 +67,7 @@ Get contents of a file or directory from a GitLab project. Read-only; missing re
 
 *✏️ Writes*
 
-Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
+Push multiple files in a single commit. Commit several file changes atomically. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`.
 
 **Parameters**
 
@@ -82,7 +82,7 @@ Push multiple files in a single commit. Use this to commit several file changes 
 
 *✏️ Writes*
 
-Create or update a file in a GitLab project. Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING` so existing callers stay unchanged. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.
+Create or update a file in a GitLab project. Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.
 
 **Parameters**
 
@@ -102,7 +102,7 @@ Create or update a file in a GitLab project. Use this for a single repository fi
 
 *✏️ Writes*
 
-Fork a project to your account or specified namespace. Use this to create a copy of an existing project in the current user's namespace or a permitted namespace; use `search_repositories` or `get_project` to inspect projects without copying them. The operation creates a new project, requires fork permission, and returns the forked project or a namespace/permission error.
+Fork a project to your account or specified namespace. Fork an existing project into the current user's namespace or a permitted namespace. Use `search_repositories` or `get_project` to inspect without copying.
 
 **Parameters**
 
@@ -115,7 +115,7 @@ Fork a project to your account or specified namespace. Use this to create a copy
 
 *📖 Read-only*
 
-List files and directories in a repository. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List files and directories in a repository.
 
 **Parameters**
 

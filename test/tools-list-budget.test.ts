@@ -1,18 +1,15 @@
 /**
- * Default tools/list size budget.
+ * tools/list size budget.
  *
  * A client sends the whole tools/list result to the model at the start of every
- * session, so its size is a fixed token cost before the first tool call. This test
- * starts build/index.js over stdio with the default configuration (no
- * GITLAB_TOOLSETS, no GITLAB_TOOLS, profile and permission mode at their defaults)
- * and fails when the JSON of the listed tools grows past DEFAULT_TOOLS_LIST_MAX_BYTES.
+ * session, so its size is a fixed token cost before the first tool call. This
+ * suite starts build/index.js over stdio and fails when the JSON of the listed
+ * tools grows past the profile budget.
  *
- * Measured on 2026-10-23: 39 tools, 54,887 bytes. GITLAB_TOOLSETS=all lists 275
- * tools and 320,643 bytes, so a tool that lands in a default toolset by mistake, or
- * a shared schema that grows on every tool, shows up here first.
+ * Raise a ceiling only for an intended change to the tool set, a description,
+ * or a schema, and say so in the PR. Prefer trimming the text first.
  *
- * Raise the ceiling only for an intended change to the default tool set, a
- * description, or a schema, and say so in the PR. Prefer trimming the text first.
+ * Token estimate is UTF-8 bytes / 4 (common MCP list-size approximation).
  */
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -21,17 +18,40 @@ import { StdioTestClient } from "./clients/stdio-client.js";
 
 const SERVER_PATH = path.resolve("build/index.js");
 
-/** About 27% headroom over the 2026-10-23 measurement (54,887 bytes). */
-const DEFAULT_TOOLS_LIST_MAX_BYTES = 70_000;
-
-/** Sanity range for the default tool count (39 on 2026-10-23, including discover_tools). */
+/**
+ * Default (core + discover_tools). Measured 2026-10-23 after description
+ * shortening: 39 tools, 48,069 bytes (~12,018 tokens). ~16% headroom.
+ */
+const DEFAULT_TOOLS_LIST_MAX_BYTES = 56_000;
 const DEFAULT_TOOL_COUNT_MIN = 30;
 const DEFAULT_TOOL_COUNT_MAX = 50;
 
+/**
+ * GITLAB_TOOL_PROFILE=slim on the default toolsets. Measured 2026-10-23:
+ * 38 tools, 47,199 bytes (~11,800 tokens). ~16% headroom.
+ */
+const SLIM_TOOLS_LIST_MAX_BYTES = 55_000;
+const SLIM_TOOL_COUNT_MIN = 25;
+const SLIM_TOOL_COUNT_MAX = 50;
+
+/**
+ * GITLAB_TOOLSETS=all (discoverable toolsets + discover_tools, not api).
+ * Measured 2026-10-23: 275 tools, 274,896 bytes (~68,724 tokens). ~16% headroom.
+ */
+const ALL_TOOLS_LIST_MAX_BYTES = 320_000;
+const ALL_TOOL_COUNT_MIN = 250;
+const ALL_TOOL_COUNT_MAX = 300;
+
 type ListedTool = Awaited<ReturnType<StdioTestClient["listTools"]>>["tools"][number];
 
+interface ToolsListMeasurement {
+  readonly tools: ListedTool[];
+  readonly bytes: number;
+  readonly tokens: number;
+}
+
 /** Same isolation as test/tools-list-golden.test.ts: unset every exposure knob. */
-function defaultServerEnv(): Record<string, string> {
+function serverEnv(overrides: Record<string, string> = {}): Record<string, string> {
   return {
     GITLAB_PERSONAL_ACCESS_TOKEN: "test-token-tools-list-budget-0000",
     GITLAB_API_URL: "https://gitlab.example.com/api/v4",
@@ -54,14 +74,19 @@ function defaultServerEnv(): Record<string, string> {
     REMOTE_AUTHORIZATION: "false",
     GITLAB_USE_OAUTH: "false",
     GITLAB_MCP_OAUTH: "false",
+    ...overrides,
   };
 }
 
-async function listDefaultTools(): Promise<ListedTool[]> {
+async function measureToolsList(
+  overrides: Record<string, string> = {}
+): Promise<ToolsListMeasurement> {
   const client = new StdioTestClient();
-  await client.connect(SERVER_PATH, defaultServerEnv());
+  await client.connect(SERVER_PATH, serverEnv(overrides));
   try {
-    return (await client.listTools()).tools;
+    const tools = (await client.listTools()).tools;
+    const bytes = jsonBytes({ tools });
+    return { tools, bytes, tokens: estimateTokens(bytes) };
   } finally {
     await client.disconnect();
   }
@@ -69,6 +94,10 @@ async function listDefaultTools(): Promise<ListedTool[]> {
 
 function jsonBytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), "utf8");
+}
+
+function estimateTokens(bytes: number): number {
+  return Math.ceil(bytes / 4);
 }
 
 function largestTools(tools: ListedTool[], count: number): string {
@@ -80,27 +109,80 @@ function largestTools(tools: ListedTool[], count: number): string {
     .join("\n");
 }
 
-describe("When the stdio server lists tools with the default configuration", () => {
-  it("should stay within the tools/list byte budget", async t => {
-    const tools = await listDefaultTools();
-    const bytes = jsonBytes({ tools });
-    t.diagnostic(`default tools/list: ${tools.length} tools, ${bytes} bytes of JSON`);
+function assertToolsListBudget(
+  measurement: ToolsListMeasurement,
+  options: {
+    readonly label: string;
+    readonly minCount: number;
+    readonly maxCount: number;
+    readonly maxBytes: number;
+  }
+): void {
+  const { tools, bytes } = measurement;
+  assert.ok(
+    tools.length >= options.minCount && tools.length <= options.maxCount,
+    `${options.label} tools/list has ${tools.length} tools, expected ` +
+      `${options.minCount}-${options.maxCount}. Check the toolsets.`
+  );
+  assert.ok(
+    tools.some(tool => tool.name === "discover_tools"),
+    `${options.label} tools/list should include discover_tools`
+  );
+  assert.ok(
+    bytes <= options.maxBytes,
+    `${options.label} tools/list is ${bytes} bytes of JSON, over the ${options.maxBytes} ` +
+      `byte budget. Largest tools:\n${largestTools(tools, 5)}\n` +
+      "Trim descriptions or schemas, or raise the budget constant " +
+      "in test/tools-list-budget.test.ts with the reason in the PR."
+  );
+}
 
-    assert.ok(
-      tools.length >= DEFAULT_TOOL_COUNT_MIN && tools.length <= DEFAULT_TOOL_COUNT_MAX,
-      `default tools/list has ${tools.length} tools, expected ` +
-        `${DEFAULT_TOOL_COUNT_MIN}-${DEFAULT_TOOL_COUNT_MAX}. Check the default toolsets.`
-    );
-    assert.ok(
-      tools.some(tool => tool.name === "discover_tools"),
-      "default tools/list should include discover_tools"
-    );
-    assert.ok(
-      bytes <= DEFAULT_TOOLS_LIST_MAX_BYTES,
-      `default tools/list is ${bytes} bytes of JSON, over the ${DEFAULT_TOOLS_LIST_MAX_BYTES} ` +
-        `byte budget. Largest tools:\n${largestTools(tools, 5)}\n` +
-        "Trim descriptions or schemas, or raise DEFAULT_TOOLS_LIST_MAX_BYTES " +
-        "in test/tools-list-budget.test.ts with the reason in the PR."
-    );
+describe("When the stdio server lists tools", () => {
+  describe("with the default configuration", () => {
+    it("should stay within the tools/list byte budget", async t => {
+      const measurement = await measureToolsList();
+      t.diagnostic(
+        `default tools/list: ${measurement.tools.length} tools, ${measurement.bytes} bytes, ` +
+          `~${measurement.tokens} tokens`
+      );
+      assertToolsListBudget(measurement, {
+        label: "default",
+        minCount: DEFAULT_TOOL_COUNT_MIN,
+        maxCount: DEFAULT_TOOL_COUNT_MAX,
+        maxBytes: DEFAULT_TOOLS_LIST_MAX_BYTES,
+      });
+    });
+  });
+
+  describe("with GITLAB_TOOL_PROFILE=slim", () => {
+    it("should stay within the slim tools/list byte budget", async t => {
+      const measurement = await measureToolsList({ GITLAB_TOOL_PROFILE: "slim" });
+      t.diagnostic(
+        `slim tools/list: ${measurement.tools.length} tools, ${measurement.bytes} bytes, ` +
+          `~${measurement.tokens} tokens`
+      );
+      assertToolsListBudget(measurement, {
+        label: "slim",
+        minCount: SLIM_TOOL_COUNT_MIN,
+        maxCount: SLIM_TOOL_COUNT_MAX,
+        maxBytes: SLIM_TOOLS_LIST_MAX_BYTES,
+      });
+    });
+  });
+
+  describe("with GITLAB_TOOLSETS=all", () => {
+    it("should stay within the all-toolsets tools/list byte budget", async t => {
+      const measurement = await measureToolsList({ GITLAB_TOOLSETS: "all" });
+      t.diagnostic(
+        `all tools/list: ${measurement.tools.length} tools, ${measurement.bytes} bytes, ` +
+          `~${measurement.tokens} tokens`
+      );
+      assertToolsListBudget(measurement, {
+        label: "all",
+        minCount: ALL_TOOL_COUNT_MIN,
+        maxCount: ALL_TOOL_COUNT_MAX,
+        maxBytes: ALL_TOOLS_LIST_MAX_BYTES,
+      });
+    });
   });
 });

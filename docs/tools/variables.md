@@ -24,7 +24,7 @@ Project and group CI/CD variable CRUD.
 
 *📖 Read-only*
 
-List CI/CD variables for a project. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List CI/CD variables for a project. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -39,7 +39,7 @@ List CI/CD variables for a project. For one known resource, use the matching get
 
 *📖 Read-only*
 
-Get a single CI/CD variable from a project. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a single CI/CD variable from a project. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Get a single CI/CD variable from a project. To find resources, use the matching 
 
 *✏️ Writes*
 
-Create a CI/CD variable for a project. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a CI/CD variable for a project. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -73,7 +73,7 @@ Create a CI/CD variable for a project. If the resource already exists, use the u
 
 *✏️ Writes*
 
-Update an existing CI/CD variable in a project. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing CI/CD variable in a project. Use the create tool for new resources.
 
 **Parameters**
 
@@ -94,7 +94,7 @@ Update an existing CI/CD variable in a project. Use the create tool for new reso
 
 *✏️ Writes*
 
-Delete a CI/CD variable from a project. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a CI/CD variable from a project. Verify the target first with a get or list tool.
 
 **Parameters**
 
@@ -108,7 +108,7 @@ Delete a CI/CD variable from a project. Verify the target first with a get or li
 
 *📖 Read-only*
 
-List CI/CD variables for a group. For one known resource, use the matching get tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+List CI/CD variables for a group. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -123,7 +123,7 @@ List CI/CD variables for a group. For one known resource, use the matching get t
 
 *📖 Read-only*
 
-Get a single CI/CD variable from a group. To find resources, use the matching list or search tool. Read-only; missing resources, denied access, and rate limits return errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Get a single CI/CD variable from a group. To find resources, use the matching list or search tool.
 
 **Parameters**
 
@@ -137,7 +137,7 @@ Get a single CI/CD variable from a group. To find resources, use the matching li
 
 *✏️ Writes*
 
-Create a CI/CD variable for a group. If the resource already exists, use the update tool. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Create a CI/CD variable for a group. If the resource already exists, use the update tool.
 
 **Parameters**
 
@@ -157,7 +157,7 @@ Create a CI/CD variable for a group. If the resource already exists, use the upd
 
 *✏️ Writes*
 
-Update an existing CI/CD variable in a group. Use the create tool for new resources. Changes GitLab data; needs permission and returns validation or conflict errors. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Update an existing CI/CD variable in a group. Use the create tool for new resources.
 
 **Parameters**
 
@@ -178,7 +178,7 @@ Update an existing CI/CD variable in a group. Use the create tool for new resour
 
 *✏️ Writes*
 
-Delete a CI/CD variable from a group. Verify the target first with a get or list tool. Changes or removes GitLab data and may be irreversible; needs permission. `project_id`/`group_id` take a numeric ID or URL-encoded path.
+Delete a CI/CD variable from a group. Verify the target first with a get or list tool.
 
 **Parameters**
 

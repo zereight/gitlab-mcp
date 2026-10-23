@@ -2667,26 +2667,10 @@ if (discoverTool) {
   discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.`;
 }
 
-function acceptsProjectOrGroupId(inputSchema: unknown): boolean {
-  const properties = (inputSchema as { properties?: unknown } | undefined)?.properties;
-  return (
-    typeof properties === "object" &&
-    properties !== null &&
-    ("project_id" in properties || "group_id" in properties)
-  );
-}
-
 const allToolNames: ReadonlySet<string> = new Set(allTools.map(tool => tool.name));
 
 for (const tool of allTools) {
-  tool.description = getToolDescription(
-    tool.name,
-    tool.description,
-    readOnlyTools.has(tool.name),
-    destructiveTools.has(tool.name),
-    acceptsProjectOrGroupId(tool.inputSchema),
-    allToolNames
-  );
+  tool.description = getToolDescription(tool.name, tool.description, allToolNames);
 }
 
 export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
