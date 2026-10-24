@@ -9,6 +9,7 @@ import {
   JOB_LOG_MAX_MATCHES,
   JOB_LOG_MAX_OUTPUT_CHARS,
   JOB_LOG_MAX_PATTERN_LENGTH,
+  JOB_LOG_MAX_REGEX_PROGRAM_SIZE,
   JOB_LOG_MAX_SEARCH_CHARS,
   JOB_LOG_MIN_CHUNK_CHARS,
   JOB_LOG_SEARCH_BUDGET_MS,
@@ -17,17 +18,30 @@ import {
   searchJobLog,
 } from "../../utils/job-log-search.js";
 
-// Long enough that even compiled V8 regex code cannot finish inside the budget.
-const NESTED_QUANTIFIER_LOG = `${"a".repeat(34)}!`;
+// A backtracking engine never finishes these on a line this long.
+const BACKTRACKING_LINE_LENGTH = 100_000;
 
 function numberedLog(lines: readonly string[]): string {
   return lines.join("\n");
 }
 
-function nestedQuantifierPattern(): string {
-  // Same catastrophic pattern as a literal, spelled at runtime so CodeQL does not flag it.
-  const source = [94, 40, 97, 43, 41, 43, 36].map(code => String.fromCharCode(code)).join("");
-  return new RegExp(source).source;
+function pseudoRandomAb(length: number): string {
+  const characters: string[] = [];
+  let state = 1;
+  for (let index = 0; index < length; index += 1) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    characters.push(state & 65536 ? "a" : "b");
+  }
+  return characters.join("");
+}
+
+// RE2's DFA gives up on this pattern over varied text, and its NFA then tracks
+// hundreds of threads per character, so the search runs past the time budget.
+const SLOW_REGEX_PATTERN = "a.{900}$";
+const SLOW_REGEX_LOG = pseudoRandomAb(1_000_000);
+
+function slowRegexSearch() {
+  return searchJobLog(SLOW_REGEX_LOG, { pattern: SLOW_REGEX_PATTERN, regex: true });
 }
 
 // "NEEDLE early", then 100-character filler lines worth exactly the search
@@ -99,6 +113,14 @@ function isTimeLimitError(error: unknown): boolean {
   return error instanceof JobLogSearchError && error.message.includes("exceeded the time limit");
 }
 
+function isUnsupportedSyntaxError(error: unknown): boolean {
+  return (
+    error instanceof JobLogSearchError &&
+    error.message.startsWith("Invalid regular expression:") &&
+    error.message.includes("RE2 syntax, which does not support backreferences or lookaround")
+  );
+}
+
 describe("When searching a job log", () => {
   describe("with a case-insensitive substring", () => {
     it("should report the 1-based line number from the start of the log", async () => {
@@ -147,23 +169,47 @@ describe("When searching a job log", () => {
     });
   });
 
-  describe("with a nested quantifier that would not finish", () => {
+  describe("with a case-sensitive regular expression", () => {
+    it("should skip a different-case line", async () => {
+      const result = await searchJobLog("err42 boom", {
+        pattern: "ERR\\d+",
+        regex: true,
+        caseSensitive: true,
+        contextLines: 0,
+      });
+
+      assert.equal(result.totalMatches, 0);
+    });
+  });
+
+  describe("with a catastrophic backtracking pattern on a long line", () => {
+    it("should report no match for a nested quantifier before a trailing character", async () => {
+      const line = `${"a".repeat(BACKTRACKING_LINE_LENGTH)}!`;
+
+      const result = await searchJobLog(line, { pattern: "(a+)+$", regex: true });
+
+      assert.equal(result.totalMatches, 0);
+    });
+
+    it("should match an overlapping alternation that ends the line", async () => {
+      const line = `${"a".repeat(BACKTRACKING_LINE_LENGTH)}b`;
+
+      const result = await searchJobLog(line, { pattern: "(a|aa)+b", regex: true });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [1]);
+    });
+  });
+
+  describe("with a regular expression that is slow even in linear time", () => {
     it("should stop within the time budget", async () => {
-      const pattern = nestedQuantifierPattern();
       const startedAt = Date.now();
-      await assert.rejects(
-        () => searchJobLog(NESTED_QUANTIFIER_LOG, { pattern, regex: true }),
-        isTimeLimitError
-      );
+      await assert.rejects(slowRegexSearch, isTimeLimitError);
       assert.ok(Date.now() - startedAt < 5000);
     });
 
     it("should keep the event loop free for a concurrent search", async () => {
       let slowSettled = false;
-      const slow = searchJobLog(NESTED_QUANTIFIER_LOG, {
-        pattern: nestedQuantifierPattern(),
-        regex: true,
-      }).then(
+      const slow = slowRegexSearch().then(
         () => "resolved",
         (error: unknown) => (isTimeLimitError(error) ? "timed out" : "failed")
       );
@@ -187,10 +233,7 @@ describe("When searching a job log", () => {
 
   describe("with every search worker busy", () => {
     it("should reject before cloning another log", async () => {
-      const pattern = nestedQuantifierPattern();
-      const inFlight = Array.from({ length: JOB_LOG_MAX_ACTIVE_SEARCHES }, () =>
-        searchJobLog(NESTED_QUANTIFIER_LOG, { pattern, regex: true })
-      );
+      const inFlight = Array.from({ length: JOB_LOG_MAX_ACTIVE_SEARCHES }, slowRegexSearch);
       try {
         const startedAt = Date.now();
         await assert.rejects(
@@ -212,6 +255,34 @@ describe("When searching a job log", () => {
         (error: unknown) =>
           error instanceof JobLogSearchError &&
           error.message.startsWith("Invalid regular expression:")
+      );
+    });
+  });
+
+  describe("with syntax that RE2 does not support", () => {
+    it("should reject a backreference and name the RE2 syntax", async () => {
+      await assert.rejects(
+        () => searchJobLog("aa", { pattern: "(a)\\1", regex: true }),
+        isUnsupportedSyntaxError
+      );
+    });
+
+    it("should reject a lookahead and name the RE2 syntax", async () => {
+      await assert.rejects(
+        () => searchJobLog("ab", { pattern: "a(?=b)", regex: true }),
+        isUnsupportedSyntaxError
+      );
+    });
+  });
+
+  describe("with a regular expression past the program size limit", () => {
+    it("should reject it as too complex", async () => {
+      await assert.rejects(
+        () =>
+          searchJobLog("a", { pattern: `a{${JOB_LOG_MAX_REGEX_PROGRAM_SIZE}}`, regex: true }),
+        (error: unknown) =>
+          error instanceof JobLogSearchError &&
+          error.message.startsWith("Regular expression is too complex:")
       );
     });
   });

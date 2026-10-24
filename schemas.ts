@@ -985,7 +985,7 @@ export const GetPipelineJobOutputSchema = z.object({
     .boolean()
     .optional()
     .describe(
-      "When true, treat pattern as a JavaScript regular expression. Invalid expressions return an error. Default: false."
+      "When true, treat pattern as an RE2 regular expression, matched in linear time. Backreferences and lookaround are not supported. Invalid, unsupported or overly complex expressions return an error. Default: false."
     ),
   case_sensitive: z
     .boolean()

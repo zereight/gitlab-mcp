@@ -9,7 +9,7 @@ const TEST_JOB_ID = "456";
 const BACKTRACKING_JOB_ID = "457";
 const ESC = String.fromCharCode(0x1b);
 const TRACE = [`${ESC}[32mUNIQUE_HEAD${ESC}[0m token`, "middle", "tail only"].join("\n");
-const BACKTRACKING_TRACE = ["start", `${"a".repeat(34)}!`, "end"].join("\n");
+const BACKTRACKING_TRACE = ["start", `${"a".repeat(100_000)}!`, "end"].join("\n");
 
 interface ToolCallResult {
   readonly isError?: boolean;
@@ -204,7 +204,7 @@ describe("When get_pipeline_job_output reads a job trace", () => {
   });
 
   describe("with a catastrophically backtracking regular expression", () => {
-    it("should return a time-limit tool error", async () => {
+    it("should return the search result instead of a time-limit error", async () => {
       const result = await callTool(
         "get_pipeline_job_output",
         {
@@ -216,8 +216,8 @@ describe("When get_pipeline_job_output reads a job trace", () => {
         toolEnv()
       );
 
-      assert.equal(result.isError, true);
-      assert.match(readToolText(result), /Job log search exceeded the time limit/);
+      assert.notEqual(result.isError, true);
+      assert.match(readToolText(result), /total_matches=0/);
     });
   });
 });

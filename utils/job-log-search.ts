@@ -1,6 +1,10 @@
+import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 
 export const JOB_LOG_MAX_PATTERN_LENGTH = 500;
+// RE2 matching is linear in the log, but its cost per character grows with the
+// compiled program, which counted repetitions such as a{1000} inflate.
+export const JOB_LOG_MAX_REGEX_PROGRAM_SIZE = 1000;
 export const JOB_LOG_DEFAULT_CONTEXT_LINES = 5;
 export const JOB_LOG_MAX_CONTEXT_LINES = 50;
 export const JOB_LOG_DEFAULT_MAX_MATCHES = 20;
@@ -30,10 +34,17 @@ const SEARCH_BUDGET_MESSAGE =
   "Job log search exceeded the time limit. Use a simpler pattern or turn regex off.";
 const SEARCH_CAPACITY_MESSAGE = "Job log search is already running at capacity. Retry shortly.";
 const SEARCH_FAILED_MESSAGE = "Job log search failed.";
+const RE2_SYNTAX_NOTE =
+  "With regex=true, pattern uses RE2 syntax, which does not support backreferences or lookaround.";
+// An eval worker resolves bare specifiers from the working directory, so it
+// loads re2js from the path this module resolves.
+const RE2JS_PATH = createRequire(import.meta.url).resolve("re2js");
 
 // Eval workers run as classic CommonJS unless Node detects module syntax
 // (default only from 20.19 / 22.7), so worker_threads is loaded with require.
 // Pattern and log arrive in workerData and are never interpolated into the source.
+// Regex patterns are compiled here too: a 500-character pattern can take tens
+// of milliseconds to compile.
 const SEARCH_WORKER_SOURCE = [
   'const { parentPort, workerData } = require("node:worker_threads");',
   "if (parentPort === null) {",
@@ -84,18 +95,42 @@ const SEARCH_WORKER_SOURCE = [
   "  }",
   "  return line.length;",
   "}",
-  "function firstMatchStart(line, expression, needle, caseSensitive) {",
-  "  if (expression !== null) {",
-  "    expression.lastIndex = 0;",
-  "    const found = expression.exec(line);",
-  "    return found === null ? -1 : found.index;",
+  "function compileExpression(data) {",
+  "  const { RE2JS, RE2JSException } = require(data.re2jsPath);",
+  "  try {",
+  "    const flags = data.caseSensitive ? 0 : RE2JS.CASE_INSENSITIVE;",
+  "    const expression = RE2JS.compile(data.pattern, flags);",
+  "    const programSize = expression.programSize();",
+  "    return programSize > data.maxProgramSize ? { rejection: { programSize } } : { expression };",
+  "  } catch (error) {",
+  "    if (error instanceof RE2JSException) {",
+  "      return { rejection: { syntaxError: error.message } };",
+  "    }",
+  "    throw error;",
   "  }",
-  "  const haystack = caseSensitive ? line : line.toLowerCase();",
-  "  const start = haystack.indexOf(needle);",
-  "  if (start === -1 || haystack.length === line.length) {",
-  "    return start;",
+  "}",
+  "function lineMatches(line, search) {",
+  "  if (search.expression !== null) {",
+  "    return search.expression.test(line);",
   "  }",
-  "  return lineOffsetOf(line, start);",
+  "  return (search.caseSensitive ? line : line.toLowerCase()).includes(search.needle);",
+  "}",
+  // test() runs on RE2's DFA. Finding where a match starts needs the slower
+  // NFA, so it is only done for long lines that are returned.
+  "function firstMatchStart(line, search) {",
+  "  if (search.expression !== null) {",
+  "    if (!search.expression.test(line)) {",
+  "      return 0;",
+  "    }",
+  "    const matcher = search.expression.matcher(line);",
+  "    return matcher.find() ? matcher.start() : 0;",
+  "  }",
+  "  const haystack = search.caseSensitive ? line : line.toLowerCase();",
+  "  const start = haystack.indexOf(search.needle);",
+  "  if (start === -1) {",
+  "    return 0;",
+  "  }",
+  "  return haystack.length === line.length ? start : lineOffsetOf(line, start);",
   "}",
   // A long line keeps maxLineLength characters, markers included. The excerpt
   // starts a quarter of the way before matchStart (0 for context lines).
@@ -117,7 +152,7 @@ const SEARCH_WORKER_SOURCE = [
   // Lines are matched in full; only the returned text is cut to maxLineLength.
   // Returned text stops before the line that would pass maxOutputChars, and a
   // window cut before its first match is left out.
-  "function collectFragments(cleaned, windows, longLineMatchStarts, data) {",
+  "function collectFragments(cleaned, windows, search, data) {",
   "  const collected = { fragments: [], shownMatches: 0, linesTruncated: false, outputTruncated: false };",
   "  let outputChars = 0;",
   "  for (const matchWindow of windows) {",
@@ -125,8 +160,8 @@ const SEARCH_WORKER_SOURCE = [
   "    let linesTruncated = false;",
   "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
   "      const line = cleaned[offset];",
-  "      const matchStart = longLineMatchStarts.get(offset) ?? 0;",
-  "      const text = excerptLine(line, matchStart, data.maxLineLength, data.cutMarker);",
+  "      const start = line.length > data.maxLineLength ? firstMatchStart(line, search) : 0;",
+  "      const text = excerptLine(line, start, data.maxLineLength, data.cutMarker);",
   "      if (outputChars + text.length > data.maxOutputChars) {",
   "        collected.outputTruncated = true;",
   "        break;",
@@ -155,6 +190,15 @@ const SEARCH_WORKER_SOURCE = [
   "}",
   "function runSearch(data) {",
   "  const startedAt = Date.now();",
+  "  const compiled = data.regex ? compileExpression(data) : { expression: null };",
+  "  if (compiled.rejection !== undefined) {",
+  "    return compiled.rejection;",
+  "  }",
+  "  const search = {",
+  "    expression: compiled.expression,",
+  "    needle: data.caseSensitive ? data.pattern : data.pattern.toLowerCase(),",
+  "    caseSensitive: data.caseSensitive,",
+  "  };",
   '  const rawLines = data.log.split("\\n");',
   "  const cleaned = [];",
   "  for (let index = 0; index < rawLines.length; index += 1) {",
@@ -163,25 +207,17 @@ const SEARCH_WORKER_SOURCE = [
   "    }",
   "    cleaned.push(cleanLine(rawLines[index]));",
   "  }",
-  "  const expression = data.regex ? new RegExp(data.pattern, data.flags) : null;",
-  "  const needle = data.caseSensitive ? data.pattern : data.pattern.toLowerCase();",
   "  const matchIndexes = [];",
-  "  const longLineMatchStarts = new Map();",
   "  for (let index = 0; index < cleaned.length; index += 1) {",
   "    if (overBudget(startedAt, data.budgetMs)) {",
   "      return { timeout: true };",
   "    }",
-  "    const line = cleaned[index];",
-  "    const matchStart = firstMatchStart(line, expression, needle, data.caseSensitive);",
-  "    if (matchStart !== -1) {",
+  "    if (lineMatches(cleaned[index], search)) {",
   "      matchIndexes.push(index);",
-  "      if (line.length > data.maxLineLength) {",
-  "        longLineMatchStarts.set(index, matchStart);",
-  "      }",
   "    }",
   "  }",
   "  const windows = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
-  "  const collected = collectFragments(cleaned, windows, longLineMatchStarts, data);",
+  "  const collected = collectFragments(cleaned, windows, search, data);",
   "  return {",
   "    result: {",
   "      totalLines: data.lineOffset + cleaned.length,",
@@ -273,21 +309,25 @@ function assertPatternLength(pattern: string): void {
   }
 }
 
-function compileRegExp(pattern: string, flags: string): RegExp {
-  try {
-    return new RegExp(pattern, flags);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new JobLogSearchError(`Invalid regular expression: ${detail}`);
-  }
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function isTimeoutMessage(value: unknown): value is { timeout: true } {
   return isRecord(value) && value.timeout === true;
+}
+
+function patternRejection(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  if (typeof value.syntaxError === "string") {
+    return `Invalid regular expression: ${value.syntaxError}. ${RE2_SYNTAX_NOTE}`;
+  }
+  if (typeof value.programSize === "number") {
+    return `Regular expression is too complex: it compiles to ${value.programSize} instructions and the limit is ${JOB_LOG_MAX_REGEX_PROGRAM_SIZE}. Use smaller counted repetitions such as {n}.`;
+  }
+  return null;
 }
 
 function isFragmentLine(value: unknown): value is JobLogFragmentLine {
@@ -435,7 +475,6 @@ interface JobLogWorkerInput {
   readonly pattern: string;
   readonly regex: boolean;
   readonly caseSensitive: boolean;
-  readonly flags: string;
   readonly contextLines: number;
   readonly maxMatches: number;
 }
@@ -454,9 +493,10 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
         pattern: input.pattern,
         regex: input.regex,
         caseSensitive: input.caseSensitive,
-        flags: input.flags,
         contextLines: input.contextLines,
         maxMatches: input.maxMatches,
+        re2jsPath: RE2JS_PATH,
+        maxProgramSize: JOB_LOG_MAX_REGEX_PROGRAM_SIZE,
         budgetMs: JOB_LOG_SEARCH_BUDGET_MS,
         maxLineLength: JOB_LOG_MAX_LINE_LENGTH,
         maxOutputChars: JOB_LOG_MAX_OUTPUT_CHARS,
@@ -489,6 +529,13 @@ function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResu
       if (isTimeoutMessage(message)) {
         finish(() => {
           reject(new JobLogSearchError(SEARCH_BUDGET_MESSAGE));
+        });
+        return;
+      }
+      const rejection = patternRejection(message);
+      if (rejection !== null) {
+        finish(() => {
+          reject(new JobLogSearchError(rejection));
         });
         return;
       }
@@ -542,11 +589,6 @@ export async function searchJobLog(
   );
   const regex = input.regex === true;
   const caseSensitive = input.caseSensitive === true;
-  const flags = caseSensitive ? "" : "i";
-  if (regex) {
-    compileRegExp(input.pattern, flags);
-  }
-
   const bounded = boundJobLog(
     typeof log === "string" ? { text: log, lineOffset: 0, skippedChars: 0 } : log
   );
@@ -559,7 +601,6 @@ export async function searchJobLog(
       pattern: input.pattern,
       regex,
       caseSensitive,
-      flags,
       contextLines,
       maxMatches,
     });
