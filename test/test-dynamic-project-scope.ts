@@ -1085,6 +1085,55 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       assert.deepStrictEqual(download, { status: 200, body: downloadBody("2") });
     });
 
+    for (const authHeader of ["private-token", "job-token"]) {
+      test(`/downloads with ${authHeader} auth refuses a project outside the header scope`, async () => {
+        const download = await fetchDownload(
+          mcpUrls.stateful,
+          ARTIFACTS.type,
+          ARTIFACTS.args("2"),
+          {
+            [authHeader]: MOCK_TOKEN,
+            [SCOPE_HEADER]: "1",
+          }
+        );
+
+        assert.strictEqual(download.status, 403);
+        assert.match(download.body, /outside the X-GitLab-Allowed-Project-Ids scope/);
+      });
+    }
+
+    test("/downloads with header auth trims whitespace around the header ids", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args("1"),
+        headerAuth(" 1 ")
+      );
+
+      assert.deepStrictEqual(download, { status: 200, body: downloadBody("1") });
+    });
+
+    test("/downloads with header auth checks a double-encoded id after decoding it", async () => {
+      // On the wire project_id=%2532, which decodes to "2"
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args("%32"),
+        headerAuth("1")
+      );
+
+      assert.strictEqual(download.status, 403);
+      assert.match(download.body, /Project 2 is outside the X-GitLab-Allowed-Project-Ids scope/);
+    });
+
+    test("/downloads with header auth refuses a repeated project_id", async () => {
+      const url = new URL(`/downloads/${ARTIFACTS.type}`, mcpUrls.stateful);
+      url.search = "project_id=1&project_id=2&job_id=20";
+      const res = await fetch(url, { headers: headerAuth("1") });
+
+      assert.strictEqual(res.status, 403);
+    });
+
     function tokenParams(projectId: string, sealedProjectIds: string[]): Record<string, string> {
       const params = ARTIFACTS.args(projectId);
       const token = createDownloadToken(
@@ -1116,6 +1165,17 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
 
       assert.strictEqual(download.status, 403);
       assert.match(download.body, /outside the X-GitLab-Allowed-Project-Ids scope/);
+    });
+
+    test("/downloads rejects an empty header next to a download token", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        tokenParams("1", ["1"]),
+        { [SCOPE_HEADER]: " , " }
+      );
+
+      assert.strictEqual(download.status, 401);
     });
 
     test("/downloads redeems a download token inside both scopes", async () => {
