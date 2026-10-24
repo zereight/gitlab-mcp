@@ -163,7 +163,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | **Node.js**    | >=18.17                                                           | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
 
-### tools/list size (measured 2026-10-23)
+### tools/list size (measured 2026-10-24)
 
 A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4.
 

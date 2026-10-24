@@ -157,7 +157,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 | **Node.js**  | >=18.17                                                              | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-### tools/list 体积（2026-10-23 实测）
+### tools/list 体积（2026-10-24 实测）
 
 客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
 

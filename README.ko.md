@@ -157,7 +157,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | **Node.js**     | >=18.17                                                          | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-### tools/list 크기 (2026-10-23 실측)
+### tools/list 크기 (2026-10-24 실측)
 
 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 토큰 추정은 UTF-8 바이트 / 4입니다.
 

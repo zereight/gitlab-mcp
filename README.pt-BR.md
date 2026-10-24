@@ -157,7 +157,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 | **Node.js**               | >=18.17                                                                 | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-### Tamanho do tools/list (medido em 2026-10-23)
+### Tamanho do tools/list (medido em 2026-10-24)
 
 O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estimativa de tokens é bytes UTF-8 / 4.
 
