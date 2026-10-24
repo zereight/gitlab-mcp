@@ -214,6 +214,7 @@ import {
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  parseProjectScopeHeader,
   readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
@@ -15749,6 +15750,8 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     encodeGitLabPathSegment,
     encodeGitLabPath,
     getEffectiveProjectId,
+    enableDynamicProjectScope: ENABLE_DYNAMIC_PROJECT_SCOPE,
+    defaultAllowedProjectIds: GITLAB_ALLOWED_PROJECT_IDS,
     getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
     fetch: undiciFetch,
     logger,
@@ -16135,27 +16138,12 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Only process the requested project scope if the feature is enabled
     if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope !== undefined) {
-      const requested = requestedProjectScope
-        .split(",")
-        .map(id => id.trim())
-        .filter(Boolean);
-
-      if (requested.length === 0) {
-        logger.warn("Empty X-GitLab-Allowed-Project-Ids provided");
-        return null;
+      const scope = parseProjectScopeHeader(requestedProjectScope, GITLAB_ALLOWED_PROJECT_IDS);
+      if ("error" in scope) {
+        logger.warn(scope.error);
+        return null; // Reject an empty header, or one that tries to widen the configured allowlist
       }
-
-      if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
-        const outOfScope = requested.filter(id => !GITLAB_ALLOWED_PROJECT_IDS.includes(id));
-        if (outOfScope.length > 0) {
-          logger.warn(
-            `X-GitLab-Allowed-Project-Ids requested projects outside GITLAB_ALLOWED_PROJECT_IDS: ${outOfScope.join(", ")}`
-          );
-          return null; // Reject if the header tries to widen the configured allowlist
-        }
-      }
-
-      allowedProjectIds = requested;
+      allowedProjectIds = scope.projectIds;
     }
 
     // Only process dynamic URL if the feature is enabled

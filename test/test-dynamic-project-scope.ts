@@ -47,14 +47,30 @@ function snippetTitleFrom(value: unknown): string {
   return title;
 }
 
-async function connectClient(mcpUrl: string, scope?: string): Promise<CustomHeaderClient> {
+function headerAuth(scope?: string): Record<string, string> {
   const headers: Record<string, string> = { authorization: `Bearer ${MOCK_TOKEN}` };
   if (scope !== undefined) {
     headers[SCOPE_HEADER] = scope;
   }
-  const client = new CustomHeaderClient(headers);
+  return headers;
+}
+
+async function connectClient(mcpUrl: string, scope?: string): Promise<CustomHeaderClient> {
+  const client = new CustomHeaderClient(headerAuth(scope));
   await client.connect(mcpUrl);
   return client;
+}
+
+async function fetchDownload(
+  mcpUrl: string,
+  type: string,
+  params: Record<string, string>,
+  headers: Record<string, string> = {}
+): Promise<{ status: number; body: string }> {
+  const url = new URL(`/downloads/${type}`, mcpUrl);
+  url.search = new URLSearchParams(params).toString();
+  const res = await fetch(url, { headers });
+  return { status: res.status, body: await res.text() };
 }
 
 type ServerMode = "stateful" | "stateless";
@@ -370,6 +386,21 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         await client.disconnect();
       }
     });
+
+    for (const { type, args } of DOWNLOAD_CASES) {
+      test(`/downloads/${type} with header auth rejects a header outside GITLAB_ALLOWED_PROJECT_IDS`, async () => {
+        const download = await fetchDownload(mcpUrl, type, args("1"), headerAuth("1,3"));
+
+        assert.strictEqual(download.status, 401);
+      });
+
+      test(`/downloads/${type} with header auth refuses an env-allowed project outside the header scope`, async () => {
+        const download = await fetchDownload(mcpUrl, type, args("2"), headerAuth("1"));
+
+        assert.strictEqual(download.status, 403);
+        assert.match(download.body, /outside the X-GitLab-Allowed-Project-Ids scope/);
+      });
+    }
   });
 
   describe("without GITLAB_ALLOWED_PROJECT_IDS", () => {
@@ -993,7 +1024,110 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         assert.strictEqual(res.status, 403);
         assert.match(await res.text(), /outside the project scope of this download token/);
       });
+
+      test(`/downloads/${type} with header auth downloads from the header scope`, async () => {
+        const download = await fetchDownload(mcpUrls.stateful, type, args("1"), headerAuth("1"));
+
+        assert.deepStrictEqual(download, { status: 200, body: downloadBody("1") });
+      });
+
+      test(`/downloads/${type} with header auth refuses a project outside the header scope`, async () => {
+        const download = await fetchDownload(mcpUrls.stateful, type, args("2"), headerAuth("1"));
+
+        assert.strictEqual(download.status, 403);
+        assert.match(download.body, /outside the X-GitLab-Allowed-Project-Ids scope/);
+      });
     }
+
+    const [ARTIFACTS] = DOWNLOAD_CASES;
+
+    test("/downloads with header auth rejects an empty header", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args("1"),
+        headerAuth(" , ")
+      );
+
+      assert.strictEqual(download.status, 401);
+    });
+
+    test("/downloads with header auth matches an encoded path against a path scope", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args(encodeURIComponent(PATH_PROJECT)),
+        headerAuth(PATH_PROJECT)
+      );
+
+      assert.deepStrictEqual(download, { status: 200, body: downloadBody(PATH_PROJECT) });
+    });
+
+    test("/downloads with header auth refuses a numeric id against a path scope", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args("1"),
+        headerAuth(PATH_PROJECT)
+      );
+
+      assert.strictEqual(download.status, 403);
+    });
+
+    test("/downloads with header auth stays unrestricted without the header", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        ARTIFACTS.args("2"),
+        headerAuth()
+      );
+
+      assert.deepStrictEqual(download, { status: 200, body: downloadBody("2") });
+    });
+
+    function tokenParams(projectId: string, sealedProjectIds: string[]): Record<string, string> {
+      const params = ARTIFACTS.args(projectId);
+      const token = createDownloadToken(
+        "Authorization",
+        `Bearer ${MOCK_TOKEN}`,
+        sealedProjectIds,
+        undefined,
+        { type: ARTIFACTS.type, params }
+      );
+      return { ...params, _token: token };
+    }
+
+    test("/downloads keeps the sealed token scope when the header names a wider one", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        tokenParams("2", ["1"]),
+        { [SCOPE_HEADER]: "1,2" }
+      );
+
+      assert.strictEqual(download.status, 403);
+      assert.match(download.body, /outside the project scope of this download token/);
+    });
+
+    test("/downloads narrows an unscoped download token to the header scope", async () => {
+      const download = await fetchDownload(mcpUrls.stateful, ARTIFACTS.type, tokenParams("2", []), {
+        [SCOPE_HEADER]: "1",
+      });
+
+      assert.strictEqual(download.status, 403);
+      assert.match(download.body, /outside the X-GitLab-Allowed-Project-Ids scope/);
+    });
+
+    test("/downloads redeems a download token inside both scopes", async () => {
+      const download = await fetchDownload(
+        mcpUrls.stateful,
+        ARTIFACTS.type,
+        tokenParams("1", ["1"]),
+        { [SCOPE_HEADER]: "1" }
+      );
+
+      assert.deepStrictEqual(download, { status: 200, body: downloadBody("1") });
+    });
   });
 
   describe("with ENABLE_DYNAMIC_PROJECT_SCOPE disabled", () => {
@@ -1004,6 +1138,11 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
     before(async () => {
       const mockPort = await findMockServerPort();
       mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      for (const { upstreamPath } of DOWNLOAD_CASES) {
+        mockGitLab.addMockHandler("get", upstreamPath("2"), (_req, res) => {
+          res.type("application/octet-stream").send(downloadBody("2"));
+        });
+      }
       await mockGitLab.start();
 
       const mcpPort = await findAvailablePort(3200);
@@ -1034,5 +1173,13 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         await client.disconnect();
       }
     });
+
+    for (const { type, args } of DOWNLOAD_CASES) {
+      test(`/downloads/${type} with header auth ignores the header when the feature flag is off`, async () => {
+        const download = await fetchDownload(mcpUrl, type, args("2"), headerAuth("1"));
+
+        assert.deepStrictEqual(download, { status: 200, body: downloadBody("2") });
+      });
+    }
   });
 });

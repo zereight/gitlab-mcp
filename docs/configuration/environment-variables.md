@@ -541,6 +541,11 @@ Notes:
   only return a `download_url` for a project in the scope. The scope is sealed
   into the URL's download token, so `/downloads/*` also refuses (`403`) any
   other project, although it runs outside the session.
+- A `/downloads/*` request authenticated by `Private-Token`, `JOB-TOKEN`, or
+  `Authorization` instead of a download token is held to its own
+  `X-GitLab-Allowed-Project-Ids` header, validated as above (`401`), and refuses
+  (`403`) any other project. Next to a download token, the header can only
+  narrow the sealed scope.
 - The scope is fixed for the session. A later request without the header keeps
   it; a later request with a different value (wider or narrower) is rejected with
   `401`. This also holds when the request carries a new token. Re-initialize the
