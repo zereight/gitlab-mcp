@@ -18,7 +18,7 @@ The default `core` toolset lists 38 tools. `discover_tools` and `help` are alway
 
 Call `discover_tools` with no arguments to list categories, then pass a category (`pipelines`, `wiki`, `merge_requests`, …) to activate it for the current session.
 
-Measured default `tools/list` size (2026-10-23): 40 tools, 48,856 bytes of JSON. `GITLAB_TOOLSETS=all`: 276 tools, 275,683 bytes.
+Measured default `tools/list` size (2026-10-24): 40 tools, 50,682 bytes of JSON. `GITLAB_TOOLSETS=all`: 276 tools, 285,677 bytes.
 
 ## Without → With
 

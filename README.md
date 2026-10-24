@@ -169,9 +169,9 @@ A client sends the whole `tools/list` result to the model at session start. Toke
 
 | Profile | Tools | JSON bytes | Est. tokens |
 | ------- | ----: | ---------: | ----------: |
-| Default (`core` + `discover_tools`) | 39 | 48,069 | 12,018 |
-| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
-| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+| Default (`core` + `discover_tools` + `help`) | 40 | 50,682 | 12,671 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
+| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
 
 Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
