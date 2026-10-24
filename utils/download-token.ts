@@ -8,6 +8,8 @@ export interface DownloadTokenResource {
 export interface DecryptedDownloadToken {
   header: string;
   token: string;
+  /** Project allowlist in effect at issuance; empty when none applied. */
+  allowedProjectIds: string[];
   apiUrl?: string;
   resourceType?: string;
   resourceParams?: Record<string, string>;
@@ -38,10 +40,13 @@ const DOWNLOAD_TOKEN_TTL =
 
 /**
  * Create a self-contained encrypted download token for a specific GitLab resource.
+ * `allowedProjectIds` is the project allowlist of the issuing request (session scope
+ * or GITLAB_ALLOWED_PROJECT_IDS), because the download proxy runs outside that request.
  */
 export function createDownloadToken(
   header: string,
   token: string,
+  allowedProjectIds: readonly string[],
   apiUrl?: string,
   resource?: DownloadTokenResource
 ): string {
@@ -51,6 +56,7 @@ export function createDownloadToken(
     h: header,
     t: token,
     e: Math.floor(Date.now() / 1000) + DOWNLOAD_TOKEN_TTL,
+    s: allowedProjectIds,
     ...(apiUrl ? { u: apiUrl } : {}),
     ...(resource ? { r: resource.type, p: resource.params } : {}),
   });
@@ -59,8 +65,14 @@ export function createDownloadToken(
   return Buffer.concat([iv, tag, encrypted]).toString("base64url");
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === "string");
+}
+
 /**
  * Decrypt and validate a download token, returning null when it is invalid or expired.
+ * A token without a sealed project allowlist was issued by an older release, which
+ * did not check the session scope, so it is invalid too.
  */
 export function decryptDownloadToken(tokenStr: string): DecryptedDownloadToken | null {
   try {
@@ -78,9 +90,11 @@ export function decryptDownloadToken(tokenStr: string): DecryptedDownloadToken |
     }
     if (typeof payload.h !== "string" || payload.h.length === 0) return null;
     if (typeof payload.t !== "string" || payload.t.length === 0) return null;
+    if (!isStringArray(payload.s)) return null;
     return {
       header: payload.h,
       token: payload.t,
+      allowedProjectIds: payload.s,
       ...(payload.u ? { apiUrl: payload.u } : {}),
       ...(payload.r ? { resourceType: payload.r, resourceParams: payload.p } : {}),
     };

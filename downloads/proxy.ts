@@ -36,6 +36,25 @@ function canonicalizeQueryParams(params: Record<string, string>): string {
 }
 
 /**
+ * Check the requested project against the env allowlist (getEffectiveProjectId) and
+ * against the allowlist sealed into the download token, since the proxy runs
+ * outside the session that issued it.
+ */
+function resolveDownloadProjectId(
+  deps: DownloadProxyDependencies,
+  projectId: string,
+  sealedProjectIds: readonly string[]
+): string {
+  const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(projectId));
+  if (sealedProjectIds.length > 0 && !sealedProjectIds.includes(effectiveProjectId)) {
+    throw new Error(
+      `Access denied: Project ${effectiveProjectId} is outside the project scope of this download token`
+    );
+  }
+  return effectiveProjectId;
+}
+
+/**
  * Register the /downloads/:type proxy endpoint on an Express app.
  * Streams GitLab API responses directly to the client. Auth is read from
  * an encrypted `_token` query param (self-contained URL) or from request headers.
@@ -73,6 +92,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     // Try embedded encrypted token first (self-contained URL), then headers
     const encryptedToken = req.query._token as string | undefined;
     let tokenApiUrl: string | undefined;
+    let sealedProjectIds: string[] = [];
     if (encryptedToken) {
       const decrypted = decryptDownloadToken(encryptedToken);
       if (!decrypted) {
@@ -98,6 +118,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
       headers[decrypted.header] = decrypted.token;
       rateLimitKey = decrypted.token;
       tokenApiUrl = decrypted.apiUrl;
+      sealedProjectIds = decrypted.allowedProjectIds;
     } else {
       const privateToken = req.headers["private-token"] as string | undefined;
       const jobToken = req.headers["job-token"] as string | undefined;
@@ -148,7 +169,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             res.status(400).json({ error: "project_id and job_id are required" });
             return;
           }
-          const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
+          const effectiveProjectId = resolveDownloadProjectId(deps, project_id, sealedProjectIds);
           gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
           break;
         }
@@ -158,7 +179,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             res.status(400).json({ error: "project_id, secret, and filename are required" });
             return;
           }
-          const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
+          const effectiveProjectId = resolveDownloadProjectId(deps, project_id, sealedProjectIds);
           // The uploads route takes one filename segment; a slash inside the name must
           // stay inside that segment instead of turning into another route level.
           gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(filename)}`;
@@ -172,7 +193,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
               .json({ error: "project_id, tag_name, and direct_asset_path are required" });
             return;
           }
-          const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
+          const effectiveProjectId = resolveDownloadProjectId(deps, project_id, sealedProjectIds);
           gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/releases/${deps.encodeGitLabPathSegment(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
           break;
         }

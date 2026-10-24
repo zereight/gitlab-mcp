@@ -72,8 +72,14 @@ const STREAMABLE_HTTP_AUTH_TOKEN = getConfig(
  * Build a URL pointing to the download proxy endpoint.
  * Embeds an encrypted auth token (and API URL for dynamic routing)
  * from the current session so the URL works standalone.
+ * @throws {ProjectAccessDeniedError} If the project is outside the effective allowlist
  */
-function buildDownloadUrl(type: string, params: Record<string, string>): string {
+function buildDownloadUrl(type: string, projectId: string, params: Record<string, string>): string {
+  // Decoded once, like the /downloads proxy does, so both check the same value
+  const resourceParams = {
+    ...params,
+    project_id: getEffectiveProjectId(decodeURIComponent(projectId)),
+  };
   const base =
     MCP_SERVER_URL || sessionAuthStore.getStore()?.publicBaseUrl || `http://${HOST}:${PORT}`;
   const baseUrl = new URL(base);
@@ -81,17 +87,21 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
   const basePath = baseUrl.pathname.replace(/\/+$/, "");
   const safeBasePath = basePath ? `/${basePath.replace(/^\/+/, "")}` : "";
   const url = new URL(`${safeBasePath}/downloads/${type}`, baseUrl.origin);
-  for (const [key, value] of Object.entries(params)) {
+  for (const [key, value] of Object.entries(resourceParams)) {
     url.searchParams.set(key, value);
   }
   // Embed auth (and apiUrl when dynamic routing is active) from current session or static config
   // Token is bound to the specific resource (type + params) to prevent URL tampering
-  const resource = { type, params };
+  const resource = { type, params: resourceParams };
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
   const ctx = sessionAuthStore.getStore();
   if (ctx?.token) {
     const headerValue = ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token;
     const apiUrl = ENABLE_DYNAMIC_API_URL && ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
-    url.searchParams.set("_token", createDownloadToken(ctx.header, headerValue, apiUrl, resource));
+    url.searchParams.set(
+      "_token",
+      createDownloadToken(ctx.header, headerValue, allowedProjectIds, apiUrl, resource)
+    );
   } else {
     // Fallback for SSE/static-token mode (no session auth context)
     // Priority matches buildAuthHeaders: OAuth > PAT > JOB token
@@ -110,7 +120,10 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
         header = "Authorization";
         headerValue = `Bearer ${staticToken}`;
       }
-      url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
+      url.searchParams.set(
+        "_token",
+        createDownloadToken(header, headerValue, allowedProjectIds, undefined, resource)
+      );
     }
   }
   return url.toString();
@@ -14281,7 +14294,7 @@ async function handleToolCall(params: any) {
               "local_path cannot be used in remote mode — use the returned download_url instead"
             );
           }
-          const downloadUrl = buildDownloadUrl("job-artifacts", { project_id, job_id });
+          const downloadUrl = buildDownloadUrl("job-artifacts", project_id, { job_id });
           return {
             content: [
               {
@@ -14890,8 +14903,7 @@ async function handleToolCall(params: any) {
         // In remote mode for non-image files, return proxy URL
         const mimeType = getImageMimeType(args.filename);
         if (IS_REMOTE && !mimeType) {
-          const downloadUrl = buildDownloadUrl("attachment", {
-            project_id: args.project_id,
+          const downloadUrl = buildDownloadUrl("attachment", args.project_id, {
             secret: args.secret,
             filename: args.filename,
           });
@@ -15057,8 +15069,7 @@ async function handleToolCall(params: any) {
       case "download_release_asset": {
         const args = DownloadReleaseAssetSchema.parse(params.arguments);
         if (IS_REMOTE) {
-          const downloadUrl = buildDownloadUrl("release-asset", {
-            project_id: args.project_id,
+          const downloadUrl = buildDownloadUrl("release-asset", args.project_id, {
             tag_name: args.tag_name,
             direct_asset_path: args.direct_asset_path,
           });

@@ -525,6 +525,10 @@ Notes:
   `fork_repository`, the group variable and dependency proxy tools) are refused,
   `group:<id-or-path>` targets are refused, and `gitlab_api_request` accepts only
   `/projects/:id` paths for an allowed project.
+- `download_job_artifacts`, `download_attachment`, and `download_release_asset`
+  only return a `download_url` for a project in the scope. The scope is sealed
+  into the URL's download token, so `/downloads/*` also refuses (`403`) any
+  other project, although it runs outside the session.
 - The scope is fixed for the session. A later request without the header keeps
   it; a later request with a different value (wider or narrower) is rejected with
   `401`. This also holds when the request carries a new token. Re-initialize the
@@ -1155,6 +1159,13 @@ capacity drops every open session.
 
 Remote downloads mint an encrypted token. These settings are read from the
 environment directly (no CLI flags).
+
+A token is bound to one resource and carries the project allowlist in effect
+when it was issued (the session scope under `ENABLE_DYNAMIC_PROJECT_SCOPE`, or
+`GITLAB_ALLOWED_PROJECT_IDS`). `/downloads/*` refuses (`403`) a project outside
+that list, and also checks `GITLAB_ALLOWED_PROJECT_IDS`. A token without the
+list, issued by an earlier release, is rejected with `401`; call the tool again
+for a new URL.
 
 ### `DOWNLOAD_TOKEN_SECRET`
 

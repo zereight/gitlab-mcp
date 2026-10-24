@@ -13,6 +13,11 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
+// The token key is derived at module load, so the secret must be set before importing it.
+const DOWNLOAD_TOKEN_SECRET = "dynamic-scope-download-token-secret";
+process.env.DOWNLOAD_TOKEN_SECRET = DOWNLOAD_TOKEN_SECRET;
+const { createDownloadToken } = await import("../utils/download-token.js");
+
 const MOCK_TOKEN = "glpat-dynamic-scope-token";
 const SCOPE_HEADER = "x-gitlab-allowed-project-ids";
 
@@ -50,6 +55,63 @@ async function connectClient(mcpUrl: string, scope?: string): Promise<CustomHead
   const client = new CustomHeaderClient(headers);
   await client.connect(mcpUrl);
   return client;
+}
+
+type ServerMode = "stateful" | "stateless";
+
+interface DownloadCase {
+  tool: string;
+  /** /downloads/:type route; its query params are the tool arguments. */
+  type: string;
+  args: (projectId: string) => Record<string, string>;
+  upstreamPath: (encodedProjectId: string) => string;
+}
+
+const DOWNLOAD_CASES: DownloadCase[] = [
+  {
+    tool: "download_job_artifacts",
+    type: "job-artifacts",
+    args: projectId => ({ project_id: projectId, job_id: "20" }),
+    upstreamPath: projectId => `/projects/${projectId}/jobs/20/artifacts`,
+  },
+  {
+    tool: "download_attachment",
+    type: "attachment",
+    args: projectId => ({ project_id: projectId, secret: "deadbeef", filename: "design.pdf" }),
+    upstreamPath: projectId => `/projects/${projectId}/uploads/deadbeef/design.pdf`,
+  },
+  {
+    tool: "download_release_asset",
+    type: "release-asset",
+    args: projectId => ({
+      project_id: projectId,
+      tag_name: "v1",
+      direct_asset_path: "bin/app.tar.gz",
+    }),
+    upstreamPath: projectId => `/projects/${projectId}/releases/v1/downloads/bin/app.tar.gz`,
+  },
+];
+
+function downloadBody(projectId: string): string {
+  return `download of project ${projectId}`;
+}
+
+function downloadUrlFrom(value: unknown): string {
+  if (value === null || typeof value !== "object" || !("download_url" in value)) {
+    assert.fail("expected a tool result with download_url");
+  }
+  const downloadUrl = value.download_url;
+  if (typeof downloadUrl !== "string") {
+    assert.fail("expected download_url to be a string");
+  }
+  return downloadUrl;
+}
+
+async function redeemDownloadUrl(
+  result: CallToolResult
+): Promise<{ status: number; body: string }> {
+  const res = await fetch(downloadUrlFrom(parseToolJson(result)));
+  return { status: res.status, body: await res.text() };
 }
 
 async function getProjectId(client: CustomHeaderClient, projectId: string): Promise<string> {
@@ -790,6 +852,148 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       });
       assert.strictEqual(res.status, 401);
     });
+  });
+
+  describe("with remote download tools", () => {
+    const PATH_PROJECT = "group/project-1";
+    const OTHER_PATH_PROJECT = "group/project-2";
+    let mockGitLab: MockGitLabServer;
+    const servers: ServerInstance[] = [];
+    const SERVER_MODES: ServerMode[] = ["stateful", "stateless"];
+    const mcpUrls: Record<ServerMode, string> = { stateful: "", stateless: "" };
+
+    before(async () => {
+      const mockPort = await findMockServerPort();
+      mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      for (const projectId of ["1", "2", PATH_PROJECT, OTHER_PATH_PROJECT]) {
+        for (const { upstreamPath } of DOWNLOAD_CASES) {
+          mockGitLab.addMockHandler(
+            "get",
+            upstreamPath(encodeURIComponent(projectId)),
+            (_req, res) => {
+              res.type("application/octet-stream").send(downloadBody(projectId));
+            }
+          );
+        }
+      }
+      await mockGitLab.start();
+
+      const env = {
+        STREAMABLE_HTTP: "true",
+        REMOTE_AUTHORIZATION: "true",
+        ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
+        GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+        GITLAB_TOOLS: DOWNLOAD_CASES.map(({ tool }) => tool).join(","),
+        DOWNLOAD_TOKEN_SECRET,
+      };
+
+      const statefulPort = await findAvailablePort(3200);
+      servers.push(
+        await launchServer({
+          mode: TransportMode.STREAMABLE_HTTP,
+          port: statefulPort,
+          timeout: 5000,
+          env,
+        })
+      );
+      mcpUrls.stateful = `http://${HOST}:${statefulPort}/mcp`;
+
+      const statelessPort = await findAvailablePort(3200);
+      servers.push(
+        await launchServer({
+          mode: TransportMode.STREAMABLE_HTTP,
+          port: statelessPort,
+          timeout: 5000,
+          env: {
+            ...env,
+            OAUTH_STATELESS_MODE: "true",
+            OAUTH_STATELESS_SECRET: randomBytes(32).toString("base64url"),
+          },
+        })
+      );
+      mcpUrls.stateless = `http://${HOST}:${statelessPort}/mcp`;
+    });
+
+    after(async () => {
+      cleanupServers(servers);
+      await mockGitLab?.stop();
+    });
+
+    for (const mode of SERVER_MODES) {
+      for (const { tool, args } of DOWNLOAD_CASES) {
+        test(`${mode}: ${tool} refuses a project outside the session scope`, async () => {
+          const client = await connectClient(mcpUrls[mode], "1");
+          try {
+            assertProjectAllowlistDenial(await client.callTool(tool, args("2")));
+          } finally {
+            await client.disconnect();
+          }
+        });
+
+        test(`${mode}: ${tool} still downloads from the session scope`, async () => {
+          const client = await connectClient(mcpUrls[mode], "1");
+          try {
+            const download = await redeemDownloadUrl(await client.callTool(tool, args("1")));
+            assert.deepStrictEqual(download, { status: 200, body: downloadBody("1") });
+          } finally {
+            await client.disconnect();
+          }
+        });
+      }
+    }
+
+    for (const { tool, args } of DOWNLOAD_CASES) {
+      test(`${tool} matches an encoded path against a path scope`, async () => {
+        const client = await connectClient(mcpUrls.stateful, PATH_PROJECT);
+        try {
+          const download = await redeemDownloadUrl(
+            await client.callTool(tool, args(encodeURIComponent(PATH_PROJECT)))
+          );
+          assert.deepStrictEqual(download, { status: 200, body: downloadBody(PATH_PROJECT) });
+        } finally {
+          await client.disconnect();
+        }
+      });
+
+      test(`${tool} refuses an encoded path outside a path scope`, async () => {
+        const client = await connectClient(mcpUrls.stateful, PATH_PROJECT);
+        try {
+          assertProjectAllowlistDenial(
+            await client.callTool(tool, args(encodeURIComponent(OTHER_PATH_PROJECT)))
+          );
+        } finally {
+          await client.disconnect();
+        }
+      });
+
+      test(`${tool} downloads from any project without a session scope`, async () => {
+        const client = await connectClient(mcpUrls.stateful);
+        try {
+          const download = await redeemDownloadUrl(await client.callTool(tool, args("2")));
+          assert.deepStrictEqual(download, { status: 200, body: downloadBody("2") });
+        } finally {
+          await client.disconnect();
+        }
+      });
+    }
+
+    for (const { type, args } of DOWNLOAD_CASES) {
+      test(`/downloads/${type} refuses a project outside the scope sealed into its token`, async () => {
+        const params = args("2");
+        const auth = `Bearer ${MOCK_TOKEN}`;
+        const token = createDownloadToken("Authorization", auth, ["1"], undefined, {
+          type,
+          params,
+        });
+        const url = new URL(`/downloads/${type}`, mcpUrls.stateful);
+        url.search = new URLSearchParams({ ...params, _token: token }).toString();
+
+        const res = await fetch(url);
+
+        assert.strictEqual(res.status, 403);
+        assert.match(await res.text(), /outside the project scope of this download token/);
+      });
+    }
   });
 
   describe("with ENABLE_DYNAMIC_PROJECT_SCOPE disabled", () => {
