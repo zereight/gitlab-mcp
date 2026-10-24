@@ -163,9 +163,9 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools`） | 39 | 48,069 | 12,018 |
-| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
-| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 50,682 | 12,671 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
+| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
 
 更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 

@@ -163,9 +163,9 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools`) | 39 | 48,069 | 12,018 |
-| `GITLAB_TOOL_PROFILE=slim` | 38 | 47,199 | 11,800 |
-| `GITLAB_TOOLSETS=all` | 275 | 274,896 | 68,724 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 50,682 | 12,671 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
+| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
 
 설명이나 스키마를 바꾼 뒤에는 `npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
