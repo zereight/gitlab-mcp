@@ -35,7 +35,7 @@ const SEARCH_BUDGET_MESSAGE =
 const SEARCH_CAPACITY_MESSAGE = "Job log search is already running at capacity. Retry shortly.";
 const SEARCH_FAILED_MESSAGE = "Job log search failed.";
 const RE2_SYNTAX_NOTE =
-  "With regex=true, pattern uses RE2 syntax, which does not support backreferences or lookaround.";
+  "With regex=true, pattern uses RE2 syntax, which does not support backreferences or lookaround. Write \\uXXXX escapes as \\x{XXXX}.";
 // An eval worker resolves bare specifiers from the working directory, so it
 // loads re2js from the path this module resolves.
 const RE2JS_PATH = createRequire(import.meta.url).resolve("re2js");
@@ -116,10 +116,11 @@ const SEARCH_WORKER_SOURCE = [
   "  return (search.caseSensitive ? line : line.toLowerCase()).includes(search.needle);",
   "}",
   // test() runs on RE2's DFA. Finding where a match starts needs the slower
-  // NFA, so it is only done for long lines that are returned.
-  "function firstMatchStart(line, search) {",
+  // NFA, so it is only done for long lines that are returned. A context line
+  // past maxMatches can match too, so only listed match lines skip test().
+  "function firstMatchStart(line, search, knownMatch) {",
   "  if (search.expression !== null) {",
-  "    if (!search.expression.test(line)) {",
+  "    if (!knownMatch && !search.expression.test(line)) {",
   "      return 0;",
   "    }",
   "    const matcher = search.expression.matcher(line);",
@@ -160,7 +161,10 @@ const SEARCH_WORKER_SOURCE = [
   "    let linesTruncated = false;",
   "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
   "      const line = cleaned[offset];",
-  "      const start = line.length > data.maxLineLength ? firstMatchStart(line, search) : 0;",
+  "      const start =",
+  "        line.length > data.maxLineLength",
+  "          ? firstMatchStart(line, search, matchWindow.matchLines.includes(offset + 1))",
+  "          : 0;",
   "      const text = excerptLine(line, start, data.maxLineLength, data.cutMarker);",
   "      if (outputChars + text.length > data.maxOutputChars) {",
   "        collected.outputTruncated = true;",

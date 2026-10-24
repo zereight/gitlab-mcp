@@ -185,18 +185,22 @@ describe("When searching a job log", () => {
   describe("with a catastrophic backtracking pattern on a long line", () => {
     it("should report no match for a nested quantifier before a trailing character", async () => {
       const line = `${"a".repeat(BACKTRACKING_LINE_LENGTH)}!`;
+      const startedAt = Date.now();
 
       const result = await searchJobLog(line, { pattern: "(a+)+$", regex: true });
 
       assert.equal(result.totalMatches, 0);
+      assert.ok(Date.now() - startedAt < JOB_LOG_SEARCH_BUDGET_MS);
     });
 
     it("should match an overlapping alternation that ends the line", async () => {
       const line = `${"a".repeat(BACKTRACKING_LINE_LENGTH)}b`;
+      const startedAt = Date.now();
 
       const result = await searchJobLog(line, { pattern: "(a|aa)+b", regex: true });
 
       assert.deepEqual(result.fragments[0]?.matchLines, [1]);
+      assert.ok(Date.now() - startedAt < JOB_LOG_SEARCH_BUDGET_MS);
     });
   });
 
@@ -273,13 +277,22 @@ describe("When searching a job log", () => {
         isUnsupportedSyntaxError
       );
     });
+
+    it("should suggest the RE2 spelling for a \\u escape", async () => {
+      await assert.rejects(
+        () => searchJobLog("é", { pattern: "\\u00e9", regex: true }),
+        (error: unknown) =>
+          isUnsupportedSyntaxError(error) &&
+          error instanceof Error &&
+          error.message.includes("Write \\uXXXX escapes as \\x{XXXX}.")
+      );
+    });
   });
 
   describe("with a regular expression past the program size limit", () => {
     it("should reject it as too complex", async () => {
       await assert.rejects(
-        () =>
-          searchJobLog("a", { pattern: `a{${JOB_LOG_MAX_REGEX_PROGRAM_SIZE}}`, regex: true }),
+        () => searchJobLog("a", { pattern: `a{${JOB_LOG_MAX_REGEX_PROGRAM_SIZE}}`, regex: true }),
         (error: unknown) =>
           error instanceof JobLogSearchError &&
           error.message.startsWith("Regular expression is too complex:")
@@ -489,6 +502,21 @@ describe("When searching a job log", () => {
         `${context.slice(0, JOB_LOG_MAX_LINE_LENGTH - 1)}${JOB_LOG_CUT_MARKER}`
       );
       assert.equal(result.linesTruncated, true);
+    });
+
+    it("should cut a context line that matches past max_matches around its match", async () => {
+      const context = `${"x".repeat(10_000)}NEEDLE${"y".repeat(10_000)}`;
+      const result = await searchJobLog(numberedLog(["NEEDLE", context]), {
+        pattern: "nee+dle",
+        regex: true,
+        contextLines: 1,
+        maxMatches: 1,
+      });
+      const text = result.fragments[0]?.lines[1]?.text ?? "";
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [1]);
+      assert.ok(text.includes("NEEDLE"));
+      assert.ok(text.startsWith(JOB_LOG_CUT_MARKER));
     });
   });
 
