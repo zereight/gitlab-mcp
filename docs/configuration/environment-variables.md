@@ -248,6 +248,18 @@ Notes:
   - `Authorization: Bearer <token>`
   - `Private-Token: <token>`
   - `Job-Token: <token>`
+- A session belongs to the GitLab user whose token opened it, or, for a session
+  opened for unauthenticated tool discovery, the first user who authenticates on it.
+  A CI job token counts as the user who runs the job, and a token for another
+  GitLab instance (`X-GitLab-API-URL`) counts as another user.
+- A request with another user's token gets `404 Session not found`, and the
+  session keeps its stored token. A new token of the same user (for example a
+  rotated PAT) sent on `POST` replaces the stored one.
+- `GET` and `DELETE /mcp` for a session that belongs to a user must carry a token
+  of that user; without one the server answers `401`.
+- A `POST` without auth headers runs with the session's stored token, so anyone
+  who has the `Mcp-Session-Id` can use the session. Serve it over TLS and do not
+  log or share session ids.
 
 ### `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`
 
@@ -830,25 +842,23 @@ server to make any outbound request beyond your GitLab instance.
 
 ### `GITLAB_DOWNLOAD_DIR`
 
-Directory that `download_attachment` saves files under in stdio mode. Relative
-values resolve against the server's working directory. `local_path` is a
-subdirectory of this directory, not of the working directory.
+Directory that `download_attachment` and `download_job_artifacts` save files
+under in stdio mode. Relative values resolve against the server's working
+directory. `local_path` is a subdirectory of this directory, not of the working
+directory.
 
 Default:
 
 - `.gitlab-mcp-downloads` (created on first use with a `.gitignore` that
   ignores everything in it)
 
-`download_attachment` only creates new files here: it refuses to replace an
-existing file, and rejects `local_path` segments and filenames that start with
-a dot (`.git`, `.vscode`, `.envrc`). Point this outside your checkout (for
-example `~/Downloads/gitlab-mcp`) if you do not want downloaded files inside
-the project tree at all.
-
-`download_job_artifacts` does not use this directory. It saves
-`artifacts_job_<id>.zip` to `local_path` under the working directory, rejects
-`local_path` segments that start with a dot, and replaces an earlier archive
-of the same job.
+Both tools only create new files here: they refuse to replace an existing file,
+reject `local_path` segments and filenames that start with a dot (`.git`,
+`.vscode`, `.envrc`), and remove the file again when the download breaks off.
+`download_job_artifacts` saves `artifacts_job_<id>.zip`, so move or delete an
+earlier archive of the same job before downloading it again. Point this outside
+your checkout (for example `~/Downloads/gitlab-mcp`) if you do not want
+downloaded files inside the project tree at all.
 
 In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
 `GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`

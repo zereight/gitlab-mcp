@@ -10,18 +10,23 @@ const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
 const NULL_MODE_JOB_ID = '457';
+const PARTIAL_JOB_ID = '458';
 const REDIRECT_JOB_ID = '789';
 const REDIRECT_TARGET = 'http://169.254.169.254/latest/meta-data/';
 const TEST_ENCODED_ARTIFACT_PATH = 'reports/report#1.txt';
+const SERVER_ENTRY = path.resolve('build/index.js');
+const DOWNLOAD_ROOT = '.gitlab-mcp-downloads';
 
 // Helper to run an MCP tool via the built server
 async function callTool(
   toolName: string,
   args: Record<string, any>,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  cwd?: string
 ): Promise<any> {
   return new Promise<any>((resolve, reject) => {
-    const proc = spawn('node', ['build/index.js'], {
+    const proc = spawn('node', [SERVER_ENTRY], {
+      cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
@@ -77,10 +82,43 @@ async function callTool(
   });
 }
 
+function findFiles(dir: string, name: string): string[] {
+  return fs
+    .readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter(entry => path.basename(entry) === name)
+    .map(entry => path.join(dir, entry));
+}
+
 describe('job artifacts tools', () => {
   let mockGitLab: MockGitLabServer;
   let mockGitLabUrl: string;
-  let tmpDir: string;
+  const scratchDirs: string[] = [];
+
+  // Each download test runs the server in a fresh, empty working directory.
+  function freshWorkspace(): { workspace: string; downloadRoot: string } {
+    const workspace = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gl-artifacts-ws-')));
+    scratchDirs.push(workspace);
+    return { workspace, downloadRoot: path.join(workspace, DOWNLOAD_ROOT) };
+  }
+
+  function downloadArtifacts(
+    jobId: string,
+    workspace: string,
+    localPath?: string,
+    env: NodeJS.ProcessEnv = {}
+  ): Promise<any> {
+    return callTool(
+      'download_job_artifacts',
+      { project_id: TEST_PROJECT_ID, job_id: jobId, ...(localPath ? { local_path: localPath } : {}) },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_DOWNLOAD_DIR: '',
+        ...env,
+      },
+      workspace
+    );
+  }
 
   before(async () => {
     const mockPort = await findMockServerPort();
@@ -165,6 +203,13 @@ describe('job artifacts tools', () => {
       res.status(404).json({ message: 'Not Found' });
     });
 
+    // Sends the start of the archive, then drops the connection
+    mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/${PARTIAL_JOB_ID}/artifacts`, (req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': '4096' });
+      res.write('PK\x03\x04partial-archive');
+      setTimeout(() => res.destroy(), 50);
+    });
+
     // GitLab redirects artifact downloads to its object storage, so the hop after this
     // response leaves the origin. The destination is a non-public address here.
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/${REDIRECT_JOB_ID}/artifacts`, (req, res) => {
@@ -180,17 +225,12 @@ describe('job artifacts tools', () => {
 
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
-
-    // Relative temp dir — absolute local_path is rejected as traversal
-    tmpDir = `gitlab-mcp-test-artifacts-${process.pid}`;
-    fs.mkdirSync(tmpDir, { recursive: true });
   });
 
   after(async () => {
     await mockGitLab.stop();
-    // Clean up temp directory
-    if (tmpDir && fs.existsSync(tmpDir)) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+    for (const dir of scratchDirs) {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -233,53 +273,91 @@ describe('job artifacts tools', () => {
     });
   });
 
-  test('download_job_artifacts saves archive to disk', async () => {
-    const result = await callTool(
-      'download_job_artifacts',
-      { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: tmpDir },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      }
-    );
+  describe('When download_job_artifacts saves an archive', () => {
+    describe('with a nested local_path', () => {
+      it('should create it under the download directory', async () => {
+        // Given
+        const { workspace, downloadRoot } = freshWorkspace();
 
-    assert.ok(result.success, 'Download should succeed');
-    assert.ok(result.file_path.endsWith('.zip'), 'File should have .zip extension');
-    assert.ok(
-      fs.existsSync(result.file_path),
-      `File should exist at ${result.file_path}`
-    );
-    const stats = fs.statSync(result.file_path);
-    assert.ok(stats.size > 0, 'Downloaded file should not be empty');
-  });
+        // When
+        const result = await downloadArtifacts(TEST_JOB_ID, workspace, 'artifacts/run-42');
 
-  test('download_job_artifacts creates nested destination directories', async () => {
-    const nestedLocalPath = path.join(tmpDir, 'artifacts', 'run-42');
-    const result = await callTool(
-      'download_job_artifacts',
-      { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: nestedLocalPath },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      }
-    );
+        // Then
+        const expected = path.join(downloadRoot, 'artifacts', 'run-42', `artifacts_job_${TEST_JOB_ID}.zip`);
+        assert.strictEqual(result.file_path, expected);
+        assert.ok(fs.readFileSync(expected).subarray(0, 2).equals(Buffer.from('PK')));
+      });
+    });
 
-    assert.ok(result.success, 'Download should succeed');
-    assert.ok(fs.existsSync(result.file_path), `File should exist at ${result.file_path}`);
-    assert.ok(fs.existsSync(nestedLocalPath), `Directory should be created at ${nestedLocalPath}`);
+    describe('without local_path', () => {
+      it('should save it in the download directory itself', async () => {
+        // Given
+        const { workspace, downloadRoot } = freshWorkspace();
+
+        // When
+        const result = await downloadArtifacts(TEST_JOB_ID, workspace);
+
+        // Then
+        assert.strictEqual(result.file_path, path.join(downloadRoot, `artifacts_job_${TEST_JOB_ID}.zip`));
+      });
+    });
+
+    describe('with GITLAB_DOWNLOAD_DIR set', () => {
+      it('should save it under that directory', async () => {
+        // Given
+        const { workspace } = freshWorkspace();
+        const configured = path.join(workspace, 'configured', 'downloads');
+
+        // When
+        const result = await downloadArtifacts(TEST_JOB_ID, workspace, 'sub', {
+          GITLAB_DOWNLOAD_DIR: configured,
+        });
+
+        // Then
+        assert.strictEqual(result.file_path, path.join(configured, 'sub', `artifacts_job_${TEST_JOB_ID}.zip`));
+      });
+    });
+
+    describe('with an archive of the same job already on disk', () => {
+      it('should refuse to replace it', async () => {
+        // Given
+        const { workspace, downloadRoot } = freshWorkspace();
+        const archive = `artifacts_job_${TEST_JOB_ID}.zip`;
+        fs.mkdirSync(downloadRoot);
+        fs.writeFileSync(path.join(downloadRoot, archive), 'original');
+        fs.writeFileSync(path.join(workspace, archive), 'original');
+
+        // When
+        const download = downloadArtifacts(TEST_JOB_ID, workspace);
+
+        // Then
+        await assert.rejects(download, (err: Error) => /already exists/i.test(String(err.message || err)));
+        assert.deepStrictEqual(
+          [path.join(downloadRoot, archive), path.join(workspace, archive)].map(file => fs.readFileSync(file, 'utf8')),
+          ['original', 'original']
+        );
+      });
+    });
+
+    describe('with a download that breaks off midway', () => {
+      it('should not leave a partial archive behind', async () => {
+        // Given
+        const { workspace } = freshWorkspace();
+
+        // When
+        const download = downloadArtifacts(PARTIAL_JOB_ID, workspace, 'partial');
+
+        // Then
+        await assert.rejects(download);
+        assert.deepStrictEqual(findFiles(workspace, `artifacts_job_${PARTIAL_JOB_ID}.zip`), []);
+      });
+    });
   });
 
   test('download_job_artifacts rejects local_path with directory traversal', async () => {
+    const { workspace } = freshWorkspace();
     await assert.rejects(
-      () =>
-        callTool(
-          'download_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: '../../../tmp' },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
+      () => downloadArtifacts(TEST_JOB_ID, workspace, '../../../tmp'),
       (err: Error) => {
         const msg = String(err.message || err).toLowerCase();
         return msg.includes('traversal') || msg.includes('invalid');
@@ -288,18 +366,11 @@ describe('job artifacts tools', () => {
   });
 
   test('download_job_artifacts rejects symlink local_path escape', async () => {
-    const linkName = path.join(tmpDir, 'symlink-escape');
-    fs.symlinkSync(os.tmpdir(), linkName);
+    const { workspace, downloadRoot } = freshWorkspace();
+    fs.mkdirSync(downloadRoot);
+    fs.symlinkSync(os.tmpdir(), path.join(downloadRoot, 'symlink-escape'));
     await assert.rejects(
-      () =>
-        callTool(
-          'download_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: linkName },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
+      () => downloadArtifacts(TEST_JOB_ID, workspace, 'symlink-escape'),
       (err: Error) => {
         const msg = String(err.message || err).toLowerCase();
         return (
@@ -314,38 +385,21 @@ describe('job artifacts tools', () => {
   });
 
   test('download_job_artifacts rejects a local_path segment that starts with a dot', async () => {
-    const dotPath = path.join(tmpDir, '.git', 'hooks');
+    const { workspace, downloadRoot } = freshWorkspace();
     await assert.rejects(
-      () =>
-        callTool(
-          'download_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: dotPath },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
+      () => downloadArtifacts(TEST_JOB_ID, workspace, path.join('.git', 'hooks')),
       (err: Error) => /dot/i.test(String(err.message || err))
     );
-    assert.ok(!fs.existsSync(path.join(tmpDir, '.git')), 'no dot directory should be created');
+    assert.ok(!fs.existsSync(path.join(downloadRoot, '.git')), 'no dot directory should be created');
   });
 
   test('download_job_artifacts does not write in readonly mode', async () => {
-    const readonlyPath = path.join(tmpDir, 'readonly');
+    const { workspace } = freshWorkspace();
     await assert.rejects(
-      () =>
-        callTool(
-          'download_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: readonlyPath },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-            GITLAB_READ_ONLY_MODE: 'true',
-          }
-        ),
+      () => downloadArtifacts(TEST_JOB_ID, workspace, 'readonly', { GITLAB_READ_ONLY_MODE: 'true' }),
       (err: Error) => /readonly/i.test(String(err.message || err))
     );
-    assert.ok(!fs.existsSync(readonlyPath), 'readonly mode must not create the directory');
+    assert.deepStrictEqual(fs.readdirSync(workspace), [], 'readonly mode must not touch the disk');
   });
 
   test('get_job_artifact_file still works in readonly mode', async () => {
@@ -398,16 +452,9 @@ describe('job artifacts tools', () => {
   });
 
   test('download_job_artifacts refuses a redirect to a non-public address', async () => {
+    const { workspace } = freshWorkspace();
     await assert.rejects(
-      () =>
-        callTool(
-          'download_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: REDIRECT_JOB_ID, local_path: tmpDir },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        ),
+      () => downloadArtifacts(REDIRECT_JOB_ID, workspace),
       (err: Error) => String(err.message || err).toLowerCase().includes('non-public address')
     );
   });

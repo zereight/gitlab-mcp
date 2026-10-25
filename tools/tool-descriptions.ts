@@ -71,7 +71,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   delete_issue_link:
     "Remove a relationship between two issues. Verify first with `list_issue_links` or `get_issue_link`.",
   download_job_artifacts:
-    "Retrieve a job artifact archive. Remote HTTP returns a download URL; local stdio saves a file (rejected in readonly mode).",
+    "Retrieve a job artifact archive. Remote HTTP returns a download URL; local stdio saves under GITLAB_DOWNLOAD_DIR, never overwrites, and is rejected in readonly mode.",
   download_attachment:
     "Retrieve a project attachment. Remote HTTP returns inline base64 or a URL; local stdio saves under GITLAB_DOWNLOAD_DIR and never overwrites.",
   gitlab_api_request:

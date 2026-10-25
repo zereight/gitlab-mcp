@@ -298,7 +298,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--masking-config` - Path to a masking configuration file (replaces `GITLAB_MASKING_CONFIG`)
 - `--masking-policy-file` - Path to a protected managed-policy file (replaces `GITLAB_MASKING_POLICY_FILE`)
 - `--masking-workspace-dir` - Directory used to resolve masking files (replaces `GITLAB_MASKING_WORKSPACE_DIR`)
-- `--download-dir` - Directory `download_attachment` saves files under (replaces `GITLAB_DOWNLOAD_DIR`; default `.gitlab-mcp-downloads`)
+- `--download-dir` - Directory `download_attachment` and `download_job_artifacts` save files under (replaces `GITLAB_DOWNLOAD_DIR`; default `.gitlab-mcp-downloads`)
 - `--compact-results=true` - Truncate oversized MCP tool replies and attach a CLI command for the full payload (replaces `GITLAB_MCP_COMPACT_RESULTS`; default off)
 - `--compact-result-chars` - Character threshold for compacting (replaces `GITLAB_MCP_COMPACT_RESULT_CHARS`; default `4000`)
 - `--compact-tools` - Comma-separated tool names to compact when oversized, without turning global compact on (replaces `GITLAB_MCP_COMPACT_TOOLS`)
@@ -630,7 +630,7 @@ or
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
-The token is stored per session (identified by `mcp-session-id` header) and reused for subsequent requests in the same session.
+The token is stored per session (identified by `mcp-session-id` header) and reused for subsequent requests in the same session. The session belongs to the GitLab user of that token: a request with another user's token gets `404 Session not found`, and `GET` / `DELETE /mcp` without a token get `401`.
 
 #### Remote Authorization Client Configuration Example with Cursor
 
@@ -942,7 +942,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 164. `wait_for_pipeline` - Wait for a pipeline to reach a terminal status
 165. `wait_for_job` - Wait for a job to reach a terminal status
 166. `list_job_artifacts` - List artifact files in a job's archive
-167. `download_job_artifacts` - Download job artifact archive (zip) and save to a local path
+167. `download_job_artifacts` - Download job artifact archive (zip) and save it under the download directory
 168. `get_job_artifact_file` - Get content of a single file from a job's artifacts
 169. `list_merge_requests` - List merge requests (without project_id: user's MRs; with project_id: project MRs)
 170. `list_group_merge_requests` - List merge requests across all projects of a group and its subgroups

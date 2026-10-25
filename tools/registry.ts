@@ -1148,7 +1148,7 @@ export const allTools = [
     name: "download_job_artifacts",
     description: IS_REMOTE
       ? "Get a download URL for a job's artifact archive (zip)"
-      : "Download job artifact archive (zip) and save to a local path",
+      : "Download job artifact archive (zip) and save it under the download directory",
     inputSchema: IS_REMOTE
       ? toJSONSchema(DownloadJobArtifactsRemoteSchema)
       : toJSONSchema(DownloadJobArtifactsSchema),

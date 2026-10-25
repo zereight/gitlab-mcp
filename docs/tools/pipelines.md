@@ -878,7 +878,7 @@ List artifact files in a job's archive.
 
 *📖✏️ Reads and writes*
 
-Download job artifact archive (zip) and save to a local path. Retrieve a job artifact archive. Remote HTTP returns a download URL; local stdio saves a file (rejected in readonly mode).
+Download job artifact archive (zip) and save it under the download directory. Retrieve a job artifact archive. Remote HTTP returns a download URL; local stdio saves under GITLAB_DOWNLOAD_DIR, never overwrites, and is rejected in readonly mode.
 
 **Parameters**
 
@@ -886,7 +886,7 @@ Download job artifact archive (zip) and save to a local path. Retrieve a job art
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
-| `local_path` | string |  | Local directory to save the artifact archive (defaults to current directory) |
+| `local_path` | string |  | Subdirectory of the download directory to save the archive in (optional, defaults to the download directory itself). Names starting with a dot are rejected |
 
 ### `get_job_artifact_file`
 

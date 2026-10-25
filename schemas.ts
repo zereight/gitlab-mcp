@@ -4643,7 +4643,9 @@ export const DownloadJobArtifactsSchema = z.object({
   local_path: z
     .string()
     .optional()
-    .describe("Local directory to save the artifact archive (defaults to current directory)"),
+    .describe(
+      "Subdirectory of the download directory to save the archive in (optional, defaults to the download directory itself). Names starting with a dot are rejected"
+    ),
 });
 
 export const DownloadJobArtifactsRemoteSchema = z.object({
