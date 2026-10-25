@@ -43,6 +43,32 @@ export function isUnauthenticatedDiscoveryRequestBody(body: unknown): boolean {
 }
 
 /**
+ * Parse an `X-GitLab-Allowed-Project-Ids` value: comma-separated project ids or
+ * paths, compared verbatim. The header may only narrow GITLAB_ALLOWED_PROJECT_IDS,
+ * so a value naming no project, or one outside a non-empty `configuredProjectIds`,
+ * is an error.
+ */
+export function parseProjectScopeHeader(
+  value: string,
+  configuredProjectIds: readonly string[]
+): { projectIds: string[] } | { error: string } {
+  const projectIds = value
+    .split(",")
+    .map(id => id.trim())
+    .filter(Boolean);
+  if (projectIds.length === 0) {
+    return { error: "Empty X-GitLab-Allowed-Project-Ids provided" };
+  }
+  const outOfScope = projectIds.filter(id => !configuredProjectIds.includes(id));
+  if (configuredProjectIds.length > 0 && outOfScope.length > 0) {
+    return {
+      error: `X-GitLab-Allowed-Project-Ids requested projects outside GITLAB_ALLOWED_PROJECT_IDS: ${outOfScope.join(", ")}`,
+    };
+  }
+  return { projectIds };
+}
+
+/**
  * Normalize an `Mcp-Session-Id` header value.
  *
  * Node's HTTP types allow any request header to surface as `string[]` when

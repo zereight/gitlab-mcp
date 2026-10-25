@@ -52,7 +52,7 @@ wait_for_job               -> poll until a job reaches a terminal status
 ```
 list_job_artifacts         -> list files in a job's artifact archive
 get_job_artifact_file      -> get content of a single artifact file
-download_job_artifacts     -> download full artifact archive (zip) to local_path
+download_job_artifacts     -> download full artifact archive (zip) under the download directory
 ```
 
 ## Deployments & Environments

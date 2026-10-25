@@ -1,8 +1,9 @@
-import { describe, test } from "node:test";
+import { describe, it, test } from "node:test";
 import assert from "node:assert";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  parseProjectScopeHeader,
   readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
@@ -76,5 +77,39 @@ describe("streamable request helpers", () => {
       "application/json, text/event-stream"
     );
     assert.strictEqual(readAcceptHeader({ headers: {} }), "");
+  });
+});
+
+describe("When parsing an X-GitLab-Allowed-Project-Ids value", () => {
+  describe("with whitespace and empty entries around the ids", () => {
+    it("should return the trimmed ids", () => {
+      const scope = parseProjectScopeHeader(" 1 , ,group/project ,", []);
+
+      assert.deepStrictEqual(scope, { projectIds: ["1", "group/project"] });
+    });
+  });
+
+  describe("with no id at all", () => {
+    it("should return an error", () => {
+      const scope = parseProjectScopeHeader(" , ", []);
+
+      assert.ok("error" in scope);
+    });
+  });
+
+  describe("with an id outside a configured allowlist", () => {
+    it("should return an error instead of widening the allowlist", () => {
+      const scope = parseProjectScopeHeader("1,3", ["1", "2"]);
+
+      assert.ok("error" in scope);
+    });
+  });
+
+  describe("with ids inside a configured allowlist", () => {
+    it("should narrow the allowlist to them", () => {
+      const scope = parseProjectScopeHeader("2", ["1", "2"]);
+
+      assert.deepStrictEqual(scope, { projectIds: ["2"] });
+    });
   });
 });

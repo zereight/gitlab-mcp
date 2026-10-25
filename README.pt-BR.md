@@ -292,7 +292,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
 - `--masking-policy-file` - caminho para um arquivo protegido de política gerenciada (substitui `GITLAB_MASKING_POLICY_FILE`)
 - `--masking-workspace-dir` - diretório usado para resolver arquivos de mascaramento (substitui `GITLAB_MASKING_WORKSPACE_DIR`)
-- `--download-dir` - diretório onde `download_attachment` salva arquivos (substitui `GITLAB_DOWNLOAD_DIR`; padrão `.gitlab-mcp-downloads`)
+- `--download-dir` - diretório onde `download_attachment` e `download_job_artifacts` salvam arquivos (substitui `GITLAB_DOWNLOAD_DIR`; padrão `.gitlab-mcp-downloads`)
 - `--compact-results=true` - trunca respostas muito grandes de ferramentas MCP e anexa um comando CLI para a carga completa (substitui `GITLAB_MCP_COMPACT_RESULTS`; desativado por padrão)
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
@@ -592,7 +592,7 @@ ou
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
-O token é armazenado por sessão (identificada pelo header `mcp-session-id`) e reutilizado nas requisições seguintes da mesma sessão.
+O token é armazenado por sessão (identificada pelo header `mcp-session-id`) e reutilizado nas requisições seguintes da mesma sessão. A sessão pertence ao usuário GitLab desse token: uma requisição com o token de outro usuário recebe `404 Session not found`, e `GET` / `DELETE /mcp` sem token recebem `401`.
 
 #### Exemplo de configuração de autorização remota no Cursor
 

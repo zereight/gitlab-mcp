@@ -274,6 +274,9 @@ JSON response:
 ### Authentication
 
 - Each session maintains its own authentication token
+- A session stays with the GitLab user and instance it was opened for: a request
+  with another user's token or another `X-GitLab-API-URL` instance is refused,
+  so open a new session to switch instances
 - Tokens are validated for format and length
 - Authentication tokens expire after `SESSION_TIMEOUT_SECONDS` of inactivity
 

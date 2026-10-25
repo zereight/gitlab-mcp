@@ -61,6 +61,8 @@ In this mode:
 
 - Each session stores its own token.
 - Tokens from one session are not reused for another session.
+- A session belongs to the GitLab user whose token opened it. Requests with
+  another user's token get `404 Session not found`.
 - `SESSION_TIMEOUT_SECONDS` controls inactivity expiration.
 - After a session expires, the client must send auth headers again.
 

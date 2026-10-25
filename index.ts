@@ -214,6 +214,7 @@ import {
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  parseProjectScopeHeader,
   readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
@@ -8397,7 +8398,7 @@ async function listJobArtifacts(
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} jobId - The ID of the job
- * @param {string} localPath - Optional local directory to save the archive
+ * @param {string} localPath - Optional subdirectory of the download directory to save the archive in
  * @returns {Promise<string>} The path where the artifact archive was saved
  */
 async function downloadJobArtifacts(
@@ -8427,15 +8428,21 @@ async function downloadJobArtifacts(
   if (!response.body) {
     throw new Error("No response body from GitLab");
   }
-  // The archive name is fixed, but local_path still comes from the model.
+  // local_path comes from the model, so the archive is confined to the download
+  // directory like attachments, and an existing file is never replaced.
   const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
     filename,
     localPath,
     "local_path",
-    undefined,
-    { rejectDotNames: true }
+    resolveDownloadRoot(GITLAB_DOWNLOAD_DIR),
+    { exclusive: true, rejectDotNames: true }
   );
-  await streamPipeline(response.body, saveStream);
+  try {
+    await streamPipeline(response.body, saveStream);
+  } catch (error) {
+    fs.rmSync(savePath, { force: true });
+    throw error;
+  }
 
   return savePath;
 }
@@ -15743,6 +15750,8 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     encodeGitLabPathSegment,
     encodeGitLabPath,
     getEffectiveProjectId,
+    enableDynamicProjectScope: ENABLE_DYNAMIC_PROJECT_SCOPE,
+    defaultAllowedProjectIds: GITLAB_ALLOWED_PROJECT_IDS,
     getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
     fetch: undiciFetch,
     logger,
@@ -16064,7 +16073,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Rate limiting per session
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
 
-  // MCP OAuth mode: the GitLab user each stateful session belongs to
+  // MCP OAuth and REMOTE_AUTHORIZATION modes: the GitLab user each stateful
+  // session belongs to. Once set, it only changes when the session is cleaned up.
   const sessionOwners: Record<string, string> = Object.create(null);
 
   /**
@@ -16128,27 +16138,12 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Only process the requested project scope if the feature is enabled
     if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope !== undefined) {
-      const requested = requestedProjectScope
-        .split(",")
-        .map(id => id.trim())
-        .filter(Boolean);
-
-      if (requested.length === 0) {
-        logger.warn("Empty X-GitLab-Allowed-Project-Ids provided");
-        return null;
+      const scope = parseProjectScopeHeader(requestedProjectScope, GITLAB_ALLOWED_PROJECT_IDS);
+      if ("error" in scope) {
+        logger.warn(scope.error);
+        return null; // Reject an empty header, or one that tries to widen the configured allowlist
       }
-
-      if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
-        const outOfScope = requested.filter(id => !GITLAB_ALLOWED_PROJECT_IDS.includes(id));
-        if (outOfScope.length > 0) {
-          logger.warn(
-            `X-GitLab-Allowed-Project-Ids requested projects outside GITLAB_ALLOWED_PROJECT_IDS: ${outOfScope.join(", ")}`
-          );
-          return null; // Reject if the header tries to widen the configured allowlist
-        }
-      }
-
-      allowedProjectIds = requested;
+      allowedProjectIds = scope.projectIds;
     }
 
     // Only process dynamic URL if the feature is enabled
@@ -16293,13 +16288,18 @@ async function startStreamableHTTPServer(): Promise<void> {
   const sessionAuthTokensMatch = (left: AuthData, right: AuthData): boolean =>
     left.header === right.header && left.token === right.token && left.apiUrl === right.apiUrl;
 
+  /**
+   * Store a session's credential and bind the session to the credential's owner
+   * (`options.owner` when the caller already resolved it). A credential of another
+   * user than the bound owner is refused as "foreign".
+   */
   const storeValidatedSessionAuth = async (
     targetSessionId: string,
     authData: AuthData,
     publicBaseUrl?: string,
     existing?: AuthData,
-    options?: { skipIfUnchanged?: boolean }
-  ): Promise<"stored" | "unchanged" | "invalid"> => {
+    options?: { skipIfUnchanged?: boolean; owner?: string }
+  ): Promise<"stored" | "unchanged" | "invalid" | "foreign"> => {
     const current = authBySession[targetSessionId];
     if (options?.skipIfUnchanged && current && sessionAuthTokensMatch(current, authData)) {
       authBySession[targetSessionId].lastUsed = Date.now();
@@ -16307,9 +16307,16 @@ async function startStreamableHTTPServer(): Promise<void> {
       setAuthTimeout(targetSessionId);
       return "unchanged";
     }
-    if (!(await validateAuthDataUpstream(authData))) {
+    const owner = options?.owner ?? (await resolveAuthOwnerUpstream(authData));
+    if (owner === null) {
       return "invalid";
     }
+    // Read after the GitLab lookup: a concurrent request may have bound the session meanwhile.
+    const boundOwner = sessionOwners[targetSessionId];
+    if (boundOwner !== undefined && boundOwner !== owner) {
+      return "foreign";
+    }
+    sessionOwners[targetSessionId] = owner;
     authBySession[targetSessionId] = withPublicBaseUrl(
       authData,
       publicBaseUrl,
@@ -16925,7 +16932,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   // A credential for another user gets the same 404 as an unknown session, so it
   // can neither use, stream from, nor close the session. A refreshed token for the
   // same user still matches.
-  const rejectForeignSession = (req: Request, res: Response, next: NextFunction) => {
+  const rejectForeignOAuthSession = (req: Request, res: Response, next: NextFunction) => {
     const sessionId = readMcpSessionIdHeader(req);
     const owner = sessionId ? sessionOwners[sessionId] : undefined;
     if (owner !== undefined && readRequestOwner(req, res) !== owner) {
@@ -16935,6 +16942,57 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
     next();
   };
+
+  // Same rule with REMOTE_AUTHORIZATION, where clients may leave out the headers:
+  // a POST without credentials runs with the token stored for the session, while
+  // GET and DELETE must carry a credential of the owner. Only a token that differs
+  // from the stored one is looked up at GitLab.
+  const rejectForeignRemoteSession = async (req: Request, res: Response, next: NextFunction) => {
+    const sessionId = readMcpSessionIdHeader(req);
+    const owner = sessionId ? sessionOwners[sessionId] : undefined;
+    if (!sessionId || owner === undefined) {
+      next();
+      return;
+    }
+    const authData = parseAuthHeaders(req);
+    if (!authData) {
+      if (req.method === "POST") {
+        next();
+        return;
+      }
+      metrics.authFailures++;
+      res.status(401).json({
+        error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
+        message:
+          "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
+      });
+      return;
+    }
+    const stored = authBySession[sessionId];
+    const requestOwner =
+      stored && sessionAuthTokensMatch(stored, authData)
+        ? owner
+        : await resolveAuthOwnerUpstream(authData);
+    if (requestOwner === null) {
+      metrics.authFailures++;
+      res.status(401).json({
+        error: "Invalid GitLab authentication header",
+        message: "The provided GitLab token was rejected by the configured GitLab API.",
+      });
+      return;
+    }
+    if (requestOwner !== owner) {
+      metrics.authFailures++;
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    res.locals.sessionOwner = requestOwner;
+    next();
+  };
+
+  const rejectForeignSession = GITLAB_MCP_OAUTH
+    ? rejectForeignOAuthSession
+    : rejectForeignRemoteSession;
 
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post(
@@ -16970,8 +17028,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
 
       const newRemoteAuthData = !sessionId && REMOTE_AUTHORIZATION ? parseAuthHeaders(req) : null;
+      let newRemoteAuthOwner: string | null = null;
       let unauthenticatedDiscoveryRequested = false;
-      let remoteAuthValidatedForInit = false;
       if (!sessionId && REMOTE_AUTHORIZATION) {
         const allowUnauthenticatedDiscovery =
           GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
@@ -16988,16 +17046,16 @@ async function startStreamableHTTPServer(): Promise<void> {
           return;
         }
 
-        if (newRemoteAuthData && !(await validateAuthDataUpstream(newRemoteAuthData))) {
-          metrics.authFailures++;
-          res.status(401).json({
-            error: "Invalid GitLab authentication header",
-            message: "The provided GitLab token was rejected by the configured GitLab API.",
-          });
-          return;
-        }
         if (newRemoteAuthData) {
-          remoteAuthValidatedForInit = true;
+          newRemoteAuthOwner = await resolveAuthOwnerUpstream(newRemoteAuthData);
+          if (newRemoteAuthOwner === null) {
+            metrics.authFailures++;
+            res.status(401).json({
+              error: "Invalid GitLab authentication header",
+              message: "The provided GitLab token was rejected by the configured GitLab API.",
+            });
+            return;
+          }
         }
       }
 
@@ -17041,7 +17099,13 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
           if (authData) {
-            const result = await storeValidatedSessionAuth(sessionId, authData, publicBaseUrl);
+            const result = await storeValidatedSessionAuth(
+              sessionId,
+              authData,
+              publicBaseUrl,
+              undefined,
+              { owner: res.locals.sessionOwner }
+            );
             if (result === "invalid") {
               metrics.authFailures++;
               res.status(401).json({
@@ -17050,7 +17114,11 @@ async function startStreamableHTTPServer(): Promise<void> {
               });
               return;
             }
-            remoteAuthValidatedForInit = true;
+            if (result === "foreign") {
+              metrics.authFailures++;
+              res.status(404).json({ error: "Session not found" });
+              return;
+            }
             if (result === "stored") {
               logger.info(
                 `Session ${redactSessionIdForLog(sessionId)}: stored ${authData.header} header`
@@ -17075,7 +17143,7 @@ async function startStreamableHTTPServer(): Promise<void> {
             { ...authData, allowedProjectIds },
             publicBaseUrl,
             authBySession[sessionId],
-            { skipIfUnchanged: true }
+            { skipIfUnchanged: true, owner: res.locals.sessionOwner }
           );
           if (result === "invalid") {
             metrics.authFailures++;
@@ -17085,7 +17153,11 @@ async function startStreamableHTTPServer(): Promise<void> {
             });
             return;
           }
-          remoteAuthValidatedForInit = true;
+          if (result === "foreign") {
+            metrics.authFailures++;
+            res.status(404).json({ error: "Session not found" });
+            return;
+          }
           if (result === "stored") {
             logger.debug(
               `Session ${redactSessionIdForLog(sessionId)}: updated ${authData.header} header`
@@ -17190,7 +17262,8 @@ async function startStreamableHTTPServer(): Promise<void> {
                 // Store auth for newly created session in remote mode
                 if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                   const authData = parseAuthHeaders(req);
-                  if (authData && remoteAuthValidatedForInit) {
+                  if (authData && newRemoteAuthOwner !== null) {
+                    sessionOwners[newSessionId] = newRemoteAuthOwner;
                     authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                     logger.info(
                       `Session ${redactSessionIdForLog(newSessionId)}: stored ${authData.header} header`

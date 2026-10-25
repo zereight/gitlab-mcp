@@ -292,7 +292,7 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
 - `--masking-policy-file` - 受保护的托管策略文件路径（替代 `GITLAB_MASKING_POLICY_FILE`）
 - `--masking-workspace-dir` - 用于解析掩码文件的目录（替代 `GITLAB_MASKING_WORKSPACE_DIR`）
-- `--download-dir` - `download_attachment` 保存文件的目录（替代 `GITLAB_DOWNLOAD_DIR`，默认 `.gitlab-mcp-downloads`）
+- `--download-dir` - `download_attachment` 和 `download_job_artifacts` 保存文件的目录（替代 `GITLAB_DOWNLOAD_DIR`，默认 `.gitlab-mcp-downloads`）
 - `--compact-results=true` - 将过大的 MCP 工具回复截断为预览并附带 CLI 命令（替代 `GITLAB_MCP_COMPACT_RESULTS`，默认关闭）
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
@@ -591,7 +591,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
-token 按会话存储（由 `mcp-session-id` 请求头标识），并在同一会话的后续请求中复用。
+token 按会话存储（由 `mcp-session-id` 请求头标识），并在同一会话的后续请求中复用。会话属于该 token 对应的 GitLab 用户：携带其他用户 token 的请求返回 `404 Session not found`，不带 token 的 `GET` / `DELETE /mcp` 返回 `401`。
 
 #### Cursor 远程授权客户端配置示例
 

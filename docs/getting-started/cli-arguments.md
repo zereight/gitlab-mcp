@@ -53,7 +53,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
 | `--masking-policy-file` | `GITLAB_MASKING_POLICY_FILE` | Path to a protected managed-policy file. |
 | `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
-| `--download-dir` | `GITLAB_DOWNLOAD_DIR` | Directory `download_attachment` saves files under (default `.gitlab-mcp-downloads`). |
+| `--download-dir` | `GITLAB_DOWNLOAD_DIR` | Directory `download_attachment` and `download_job_artifacts` save files under (default `.gitlab-mcp-downloads`). |
 | `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
 | `--compact-tools` | `GITLAB_MCP_COMPACT_TOOLS` | Comma-separated tool names to compact when oversized, without enabling global compact mode. |

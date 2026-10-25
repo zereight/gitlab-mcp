@@ -292,7 +292,7 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
 - `--masking-policy-file` - 보호된 관리형 정책 파일 경로 (`GITLAB_MASKING_POLICY_FILE` 대체)
 - `--masking-workspace-dir` - 마스킹 파일 경로를 해석하는 기준 디렉터리 (`GITLAB_MASKING_WORKSPACE_DIR` 대체)
-- `--download-dir` - `download_attachment`가 파일을 저장하는 디렉터리 (`GITLAB_DOWNLOAD_DIR` 대체, 기본값 `.gitlab-mcp-downloads`)
+- `--download-dir` - `download_attachment`와 `download_job_artifacts`가 파일을 저장하는 디렉터리 (`GITLAB_DOWNLOAD_DIR` 대체, 기본값 `.gitlab-mcp-downloads`)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
@@ -592,7 +592,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
-토큰은 세션별로 저장됩니다(`mcp-session-id` 헤더로 식별). 같은 세션의 후속 요청에서 재사용됩니다.
+토큰은 세션별로 저장됩니다(`mcp-session-id` 헤더로 식별). 같은 세션의 후속 요청에서 재사용됩니다. 세션은 그 토큰의 GitLab 사용자에게 속합니다. 다른 사용자의 토큰을 보낸 요청은 `404 Session not found`, 토큰 없는 `GET` / `DELETE /mcp`는 `401`을 받습니다.
 
 #### Cursor 원격 인증 클라이언트 설정 예시
 
