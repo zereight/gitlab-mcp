@@ -519,7 +519,7 @@ Get details of a GitLab pipeline job number. To find resources, use the matching
 
 *📖 Read-only*
 
-Get the output/trace of a pipeline job with optional pagination.
+Get a pipeline job trace. It is read-only. Without pattern, lines come from the end of the log: limit is the maximum lines (default and max 1000) and offset is how many lines to skip from the end (default 0). With pattern, the full log is searched and limit and offset are ignored; a log over 10,000,000 characters is searched only in its last 10,000,000 characters, which can start partway through a line, and the result says which line that is. pattern is a substring unless regex is true, which treats it as an RE2 regular expression matched in linear time (no backreferences or lookaround); invalid or unsupported expressions, expressions over 1,000 compiled instructions (large {n} repetitions), and patterns longer than 500 characters return an error. case_sensitive defaults to false. context_lines (default 5, maximum 50) includes lines before and after each match, and overlapping windows are merged. max_matches (default 20, maximum 100) caps returned matches, and returned lines stop at 100,000 characters of text in total. Results are plain text with 1-based line numbers from the start of the log plus total_lines, total_matches, shown_matches, truncated, and output_truncated (true when the character limit cut the output). ANSI escape codes and GitLab section_start/section_end markers are removed before matching and in returned fragments. Provide project_id as a numeric ID or URL-encoded path and job_id as the job ID.
 
 **Parameters**
 
@@ -527,8 +527,13 @@ Get the output/trace of a pipeline job with optional pagination.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
-| `limit` | number |  | Maximum number of lines to return from the end of the log (default/max: 1000) |
-| `offset` | number |  | Number of lines to skip from the end of the log (default: 0) |
+| `limit` | number |  | Maximum number of lines to return from the end of the log (default/max: 1000). Ignored when pattern is set. |
+| `offset` | number |  | Number of lines to skip from the end of the log (default: 0). Ignored when pattern is set. |
+| `pattern` | string |  | Substring to search for in the full job log. When set, the full log (only its last 10,000,000 characters when longer) is searched and limit and offset are ignored. Empty is treated as omitted. Maximum 500 characters. |
+| `regex` | boolean |  | When true, treat pattern as an RE2 regular expression, matched in linear time. Backreferences and lookaround are not supported. Invalid, unsupported or overly complex expressions return an error. Default: false. |
+| `case_sensitive` | boolean |  | Match case when true. Default: false (case-insensitive). Used only when pattern is set. |
+| `context_lines` | integer |  | Lines of context before and after each match (default: 5, maximum: 50). Overlapping windows are merged. Used only when pattern is set. |
+| `max_matches` | integer |  | Maximum number of matches to return (default: 20, maximum: 100). total_matches still counts every hit and truncated is true when more exist. Used only when pattern is set. |
 
 ### `create_pipeline`
 

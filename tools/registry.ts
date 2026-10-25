@@ -1004,7 +1004,8 @@ export const allTools = [
   },
   {
     name: "get_pipeline_job_output",
-    description: "Get the output/trace of a pipeline job with optional pagination",
+    description:
+      "Get a pipeline job trace. It is read-only. Without pattern, lines come from the end of the log: limit is the maximum lines (default and max 1000) and offset is how many lines to skip from the end (default 0). With pattern, the full log is searched and limit and offset are ignored; a log over 10,000,000 characters is searched only in its last 10,000,000 characters, which can start partway through a line, and the result says which line that is. pattern is a substring unless regex is true, which treats it as an RE2 regular expression matched in linear time (no backreferences or lookaround); invalid or unsupported expressions, expressions over 1,000 compiled instructions (large {n} repetitions), and patterns longer than 500 characters return an error. case_sensitive defaults to false. context_lines (default 5, maximum 50) includes lines before and after each match, and overlapping windows are merged. max_matches (default 20, maximum 100) caps returned matches, and returned lines stop at 100,000 characters of text in total. Results are plain text with 1-based line numbers from the start of the log plus total_lines, total_matches, shown_matches, truncated, and output_truncated (true when the character limit cut the output). ANSI escape codes and GitLab section_start/section_end markers are removed before matching and in returned fragments. Provide project_id as a numeric ID or URL-encoded path and job_id as the job ID.",
     inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
   },
   {
