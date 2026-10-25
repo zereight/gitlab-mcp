@@ -10,7 +10,7 @@ and GitLab's official MCP server.
 | **Best for** | AI agent workflows (MR review, pipelines, issues) | Enterprise platform teams (multi-instance, CQRS tooling) |
 | **Tool model** | 278 tools: 275 in toolsets + `execute_graphql` + `discover_tools` + `help` | CQRS-style grouped tools with action parameters |
 | **Token budget** | Start minimal via `discover_tools` / toolsets | Fewer listed tools by default |
-| **Node.js** | >=18 | Typically >=24 |
+| **Node.js** | >=20 | Typically >=24 |
 | **License** | MIT | Varies (often Apache-2.0) |
 | **Multi-instance** | Planned ([design doc](../configuration/multi-instance-design.md)) | Supported in some variants |
 | **Agent Skill** | Built in (`skills/gitlab-mcp/`) | Not typical |
@@ -30,7 +30,7 @@ Pick this server when you want:
 - Broad GitLab API coverage with fine-grained tool names
 - `discover_tools` or `GITLAB_TOOLSETS` for token control without CQRS
 - Remote auth, stateless OAuth (HPA), and dynamic API URL routing
-- MIT license and Node 18+ support
+- MIT license and Node 20+ support
 - Setup guides for Claude, Cursor, Copilot, VS Code, and more
 
 ## Choosing GitLab MCP A

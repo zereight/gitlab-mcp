@@ -21,7 +21,7 @@ vendor or fork.
 | GitLab version awareness | `health_check` reports version | Often filters schemas by version/tier |
 | Remote / OAuth | Deep (stateless HPA, callback proxy, remote auth) | Varies |
 | Agent Skill | Yes (`skills/gitlab-mcp/`) | Rare |
-| Node.js | >=18 | Often >=24 |
+| Node.js | >=20 | Often >=24 |
 | License | MIT | Varies |
 
 ## Tool model
@@ -53,7 +53,7 @@ flat tool names.
 - **Agent-first setups** — Skill + `discover_tools` cover “start small, grow on demand”
 - **Broad API surface** — dependency proxy, vulnerability triage, work items, draft notes, etc.
 - **Deployment flexibility** — stdio / SSE / Streamable HTTP, remote auth, stateless OAuth
-- **Lower Node requirement** — Node 18+
+- **Lower Node requirement** — Node 20+
 
 ## When GitLab MCP A fits better
 
