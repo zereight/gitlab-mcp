@@ -544,7 +544,8 @@ Notes:
 - A `/downloads/*` request authenticated by `Private-Token`, `JOB-TOKEN`, or
   `Authorization` instead of a download token is held to its own
   `X-GitLab-Allowed-Project-Ids` header, validated as above (`401`), and refuses
-  (`403`) any other project. Next to a download token, the header can only
+  (`403`) any other project. Without the header, only `GITLAB_ALLOWED_PROJECT_IDS`
+  applies to such a request. Next to a download token, the header can only
   narrow the sealed scope.
 - The scope is fixed for the session. A later request without the header keeps
   it; a later request with a different value (wider or narrower) is rejected with
