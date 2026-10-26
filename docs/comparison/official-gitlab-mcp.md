@@ -17,7 +17,7 @@ Facts about the official server come from its documentation as read on 2026-10-2
 | **Turned on by**   | Nothing on the GitLab side; you supply a token                                                     | "Allow access to the MCP server" for the top-level group (GitLab.com) or the instance (Self-Managed, Dedicated) |
 | **Tokens**         | Personal, project, and group access tokens, CI job tokens, OAuth, cookie file                      | OAuth token with the `mcp` scope, or a fine-grained personal access token                                       |
 | **Transports**     | stdio, Streamable HTTP, legacy SSE                                                                 | HTTP (GitLab 18.6 and later); stdio through `mcp-remote`                                                        |
-| **Node.js**        | >=18.17                                                                                            | 20 or later for stdio; none for HTTP                                                                            |
+| **Node.js**        | >=20.0.0                                                                                           | 20 or later for stdio; none for HTTP                                                                            |
 | **Rate limits**    | GitLab API limits for the token's user, plus `MAX_REQUESTS_PER_MINUTE` over Streamable HTTP or SSE | Separate MCP endpoint limit (GitLab.com, flags off by default: 60/min Free, 600/min Premium and Ultimate)       |
 | **Tool selection** | `GITLAB_TOOLSETS`, `GITLAB_TOOLS`, `discover_tools`                                                | `X-Gitlab-Enabled-Mcp-Server-Toolsets` and `X-Gitlab-Enabled-Mcp-Server-Tools` headers                          |
 | **Write controls** | `GITLAB_PERMISSION_MODE`, deny regex, approve and hidden policies, project allowlist               | GitLab permissions checked on every call                                                                        |
@@ -67,7 +67,7 @@ The official server takes HTTP requests at `https://<gitlab-host>/api/v4/mcp`. G
 direct HTTP connections from 18.6. Clients that only speak stdio connect through the `mcp-remote`
 proxy, which needs Node.js 20 or later.
 
-`@zereight/mcp-gitlab` runs over stdio by default with Node.js 18.17 or later. Set
+`@zereight/mcp-gitlab` runs over stdio by default with Node.js 20 or later. Set
 [`STREAMABLE_HTTP=true`](../configuration/environment-variables.md#streamable_http) or
 [`SSE=true`](../configuration/environment-variables.md#sse) (legacy) to serve it over HTTP.
 

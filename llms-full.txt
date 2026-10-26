@@ -4,7 +4,7 @@
 
 - Package: `@zereight/mcp-gitlab`
 - Binary: `zereight-mcp-gitlab` (legacy alias: `mcp-gitlab`)
-- Node.js: >=18.17
+- Node.js: >=20.0.0
 - License: MIT
 - Source: https://github.com/zereight/gitlab-mcp
 - Docs: https://zereight.github.io/gitlab-mcp/

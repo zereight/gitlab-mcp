@@ -41,7 +41,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18.17.0",
+    "node": ">=20.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
@@ -89,7 +89,7 @@
     "socks-proxy-agent": "^8.0.5",
     "tldts": "^6.1.86",
     "tough-cookie": "^5.1.2",
-    "undici": "^6.28.0",
+    "undici": "^6.29.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

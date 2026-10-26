@@ -28,7 +28,7 @@
 
         # Bump with `lib.fakeHash` -> build -> copy the reported hash whenever
         # package-lock.json changes.
-        npmDepsHash = "sha256-3BG3sDzNtn7HfL20b8ZrAkQSV9/dQtYXIGySaWZ0ZDE=";
+        npmDepsHash = "sha256-rxVqWV00i85MVaiRrNZ3PANu0htwv1N2h2KRdNLBh3M=";
 
         meta = {
           description = packageJson.description;
