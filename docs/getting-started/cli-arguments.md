@@ -57,6 +57,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
 | `--compact-tools` | `GITLAB_MCP_COMPACT_TOOLS` | Comma-separated tool names to compact when oversized, without enabling global compact mode. |
+| `--list-summary-default=true` | `GITLAB_MCP_LIST_SUMMARY_DEFAULT` | `list_*` tools treat an omitted `summary` argument as `true`. `summary: false` still returns the full JSON. Off by default. |
 | `--tool-profile` | `GITLAB_TOOL_PROFILE` | `full` (default) or `slim`. `slim` is ignored when `--toolsets` / `GITLAB_TOOLSETS` is set. |
 
 > **Deprecation notice:** `--read-only=true` / `GITLAB_READ_ONLY_MODE`, `--use-wiki=true` /

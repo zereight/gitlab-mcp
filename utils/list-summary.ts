@@ -4,6 +4,10 @@ export const LIST_SUMMARY_ARGUMENT = "summary";
 export const LIST_SUMMARY_ARGUMENT_DESCRIPTION =
   "If true, return only high-signal fields (id, iid, title, state, web_url, …). Default false keeps the full GitLab JSON.";
 
+/** Description used when GITLAB_MCP_LIST_SUMMARY_DEFAULT is on. */
+export const LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION =
+  "If true, return only high-signal fields (id, iid, title, state, web_url, …). This server defaults to true; pass false for the full GitLab JSON.";
+
 const SUMMARY_FIELDS = [
   "id",
   "iid",
@@ -32,11 +36,19 @@ export function toolAcceptsDecoratedSummary(toolName: string): boolean {
   return toolName.startsWith("list_") || toolName === "mr_discussions";
 }
 
-export function readListSummaryRequested(args: Record<string, unknown> | undefined): boolean {
-  if (!args) {
-    return false;
+/** mr_discussions stays opt-in: its summary keeps only discussion ids. */
+export function toolUsesListSummaryDefault(toolName: string): boolean {
+  return toolAcceptsDecoratedSummary(toolName) && toolName.startsWith("list_");
+}
+
+export function readListSummaryRequested(
+  args: Record<string, unknown> | undefined,
+  defaultRequested = false
+): boolean {
+  const raw = args?.[LIST_SUMMARY_ARGUMENT];
+  if (raw === undefined || raw === null) {
+    return defaultRequested;
   }
-  const raw = args[LIST_SUMMARY_ARGUMENT];
   return raw === true || raw === "true";
 }
 

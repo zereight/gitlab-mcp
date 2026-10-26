@@ -55,6 +55,7 @@ import {
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
+  GITLAB_MCP_LIST_SUMMARY_DEFAULT,
   GITLAB_TOOL_PROFILE,
   GITLAB_DOWNLOAD_DIR,
   buildDeprecatedEnvInput,
@@ -336,6 +337,7 @@ import {
   omitListSummaryArgument,
   readListSummaryRequested,
   toolAcceptsDecoratedSummary,
+  toolUsesListSummaryDefault,
 } from "./utils/list-summary.js";
 import {
   parseSearchReplaceBlocks,
@@ -868,6 +870,7 @@ function createServer(): McpServer {
     approveToolNames: approveToolSet,
     jmespathArgument: JMESPATH_TOOL_ARGUMENT,
     jmespathArgumentDescription: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
+    listSummaryDefault: GITLAB_MCP_LIST_SUMMARY_DEFAULT,
   };
   const listedToolsCache: { revision: number } = { revision: 0 };
   const decorateListedTools = (tools: readonly (typeof filteredTools)[number][]) =>
@@ -927,7 +930,8 @@ function createServer(): McpServer {
     const listSummaryRequested =
       toolAcceptsDecoratedSummary(toolName) &&
       readListSummaryRequested(
-        requestArguments === undefined ? undefined : { ...requestArguments }
+        requestArguments === undefined ? undefined : { ...requestArguments },
+        GITLAB_MCP_LIST_SUMMARY_DEFAULT && toolUsesListSummaryDefault(toolName)
       );
 
     const logCompletion = (result: any, completionOptions?: { skipJmespath?: boolean }) => {

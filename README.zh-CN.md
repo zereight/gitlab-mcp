@@ -296,6 +296,7 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--compact-results=true` - 将过大的 MCP 工具回复截断为预览并附带 CLI 命令（替代 `GITLAB_MCP_COMPACT_RESULTS`，默认关闭）
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
+- `--list-summary-default=true` - `list_*` 工具省略 `summary` 参数时按 `true` 处理；传 `summary: false` 仍返回完整 JSON（替代 `GITLAB_MCP_LIST_SUMMARY_DEFAULT`，默认关闭）
 - `--tool-profile` - `full`（默认）或 `slim`。`slim` 会从初始列表中移除 draft note、表情回应、标签、CI 目录工具以及 `create_group`。仅当 `GITLAB_TOOLSETS` 设置为非空白值时忽略（替代 `GITLAB_TOOL_PROFILE`）
 
 如果已经设置了 `GITLAB_TOOLSETS` 或 `--toolsets`，请把 `wiki`、`milestones` 或 `pipelines` 追加到该列表，不要整段替换。如果已经设置了 `GITLAB_TOOLS` 或 `--tools`，请把 `validate_ci_lint` 和 `validate_project_ci_lint` 追加到该列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。

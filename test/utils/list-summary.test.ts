@@ -6,6 +6,7 @@ import {
   readListSummaryRequested,
   summarizeListPayload,
   toolAcceptsDecoratedSummary,
+  toolUsesListSummaryDefault,
 } from "../../utils/list-summary.js";
 
 describe("When deciding whether a tool accepts the decorated summary flag", () => {
@@ -88,6 +89,49 @@ describe("When reading the summary argument", () => {
 
       assert.equal(readListSummaryRequested(args), true);
       assert.deepEqual(omitListSummaryArgument(args), { project_id: "1" });
+    });
+  });
+
+  describe("with summary omitted and no server default", () => {
+    it("should not request a summary", () => {
+      assert.equal(readListSummaryRequested({ project_id: "1" }), false);
+      assert.equal(readListSummaryRequested(undefined), false);
+    });
+  });
+
+  describe("with summary omitted and the server default on", () => {
+    it("should request a summary", () => {
+      assert.equal(readListSummaryRequested({ project_id: "1" }, true), true);
+      assert.equal(readListSummaryRequested({ project_id: "1", summary: null }, true), true);
+      assert.equal(readListSummaryRequested(undefined, true), true);
+    });
+  });
+
+  describe("with summary false and the server default on", () => {
+    it("should keep the full payload", () => {
+      assert.equal(readListSummaryRequested({ summary: false }, true), false);
+      assert.equal(readListSummaryRequested({ summary: "false" }, true), false);
+    });
+  });
+});
+
+describe("When deciding whether a tool follows the server summary default", () => {
+  describe("with list_merge_requests", () => {
+    it("should follow the default", () => {
+      assert.equal(toolUsesListSummaryDefault("list_merge_requests"), true);
+    });
+  });
+
+  describe("with mr_discussions", () => {
+    it("should stay opt-in", () => {
+      assert.equal(toolAcceptsDecoratedSummary("mr_discussions"), true);
+      assert.equal(toolUsesListSummaryDefault("mr_discussions"), false);
+    });
+  });
+
+  describe("with list_webhook_events", () => {
+    it("should keep its native summary argument", () => {
+      assert.equal(toolUsesListSummaryDefault("list_webhook_events"), false);
     });
   });
 });

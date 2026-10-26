@@ -38,11 +38,25 @@ CLI: `--compact-tools`
 
 ## List and attachment summaries
 
-List tools accept an opt-in `summary` argument (`true`/`false`, default `false`).
+List tools accept an opt-in `summary` argument (`true`/`false`, default `false`
+unless `GITLAB_MCP_LIST_SUMMARY_DEFAULT` is set).
 When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
-`state`, and `web_url` and drops long bodies. Existing clients that omit
-`summary` still receive the full GitLab JSON. `list_webhook_events` already had
+`state`, and `web_url` and drops long bodies. By default, existing clients that
+omit `summary` still receive the full GitLab JSON. `list_webhook_events` already had
 its own `summary` flag; that native behavior is unchanged.
+
+### `GITLAB_MCP_LIST_SUMMARY_DEFAULT`
+
+Optional. Set to `true` so `list_*` tools treat an omitted `summary` argument as
+`true`. Use it on shared servers where you cannot teach every client to pass
+`summary: true`. A client that passes `summary: false` still gets the full
+GitLab JSON, and the `summary` description in `tools/list` says the server
+defaults to `true`. A `jmespath` filter runs on the summarized reply, so pass
+`summary: false` when it needs other fields. `mr_discussions` stays opt-in
+because its summary keeps only discussion ids. `list_webhook_events` keeps its own `summary` flag. Default
+`false` leaves list replies unchanged.
+
+CLI: `--list-summary-default`
 
 `get_pipeline_job_output` still defaults to the last 1000 lines (`limit` /
 `offset`). Pass those arguments instead of fetching a whole job trace.
