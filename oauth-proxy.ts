@@ -854,6 +854,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
   // ---- Refresh token -----------------------------------------------------
 
+  /** Refresh once, preserving successful tokens while sanitizing failures and releasing rejected bodies. */
   async exchangeRefreshToken(
     _client: OAuthClientInformationFull,
     refreshToken: string,
@@ -875,15 +876,28 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     if (scopes?.length) params.set("scope", scopes.join(" "));
     if (resource) params.set("resource", resource.href);
 
-    const response = await fetch(`${this._gitlabBaseUrl}/oauth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
+    let response: globalThis.Response;
+    try {
+      response = await fetch(`${this._gitlabBaseUrl}/oauth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
+    } catch {
+      // Fetch errors may contain request URLs or credentials. Do not expose them.
+      logger.error("GitLab token refresh transport failed");
+      throw new ServerError("GitLab token refresh temporarily unavailable");
+    }
 
     if (!response.ok) {
-      const body = await response.text();
-      logger.error(`Token refresh failed (${response.status}): ${body}`);
+      let body: string;
+      try {
+        body = await response.text();
+      } catch {
+        logger.error({ status: response.status }, "GitLab token refresh response unavailable");
+        throw new ServerError(`Token refresh failed: ${response.status}`);
+      }
+      logger.error({ status: response.status }, "GitLab token refresh rejected");
       throw tokenEndpointError("Token refresh", response.status, body);
     }
 
