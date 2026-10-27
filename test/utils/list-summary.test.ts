@@ -89,7 +89,7 @@ describe("When a list payload is summarized", () => {
   });
 
   describe("with merge request discussions", () => {
-    it("should keep the discussion id and the author, body, created_at, resolved of each note", () => {
+    it("should keep the discussion id and the id, author, body, created_at, resolved of each note", () => {
       const summarized = summarizeListPayload({
         items: [
           {
@@ -128,12 +128,18 @@ describe("When a list payload is summarized", () => {
             id: "10d5abc",
             notes: [
               {
+                id: 501,
                 author: { username: "alice" },
                 body: "Please rename this.",
                 created_at: "2024-01-01T00:00:00Z",
                 resolved: false,
               },
-              { author: { username: "bob" }, body: "Done.", created_at: "2024-01-02T00:00:00Z" },
+              {
+                id: 502,
+                author: { username: "bob" },
+                body: "Done.",
+                created_at: "2024-01-02T00:00:00Z",
+              },
             ],
           },
         ],

@@ -33,7 +33,7 @@ const SUMMARY_FIELDS = [
 ] as const;
 
 /** Fields kept per note when a summarized item carries discussion `notes`. */
-const NOTE_SUMMARY_FIELDS = ["body", "created_at", "resolved"] as const;
+const NOTE_SUMMARY_FIELDS = ["id", "body", "created_at", "resolved"] as const;
 
 const NATIVE_SUMMARY_TOOLS = new Set(["list_webhook_events"]);
 

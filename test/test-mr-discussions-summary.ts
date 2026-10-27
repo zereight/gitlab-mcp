@@ -9,6 +9,7 @@ const TEST_PROJECT_ID = "123";
 const TEST_MR_IID = "1";
 
 interface DiscussionNote {
+  readonly id?: unknown;
   readonly author?: unknown;
   readonly body?: unknown;
   readonly created_at?: unknown;
@@ -153,6 +154,7 @@ describe("mr_discussions summary", () => {
         id: "10d5abc",
         notes: [
           {
+            id: "501",
             author: { username: "alice" },
             body: "Please rename this.",
             created_at: "2024-01-01T00:00:00Z",

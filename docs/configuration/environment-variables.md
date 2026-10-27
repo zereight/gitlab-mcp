@@ -45,7 +45,7 @@ When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
 `assignees[].username`, and for merge requests `source_branch`, `target_branch`,
 and `draft`, and drops long bodies and other nested objects. Discussion lists
 (`mr_discussions`, `list_issue_discussions`) keep each discussion `id` and
-`notes[].{author.username, body, created_at, resolved}`. By default, existing
+`notes[].{id, author.username, body, created_at, resolved}`. By default, existing
 clients that omit `summary` still receive the full GitLab JSON.
 `list_webhook_events` already had its own `summary` flag; that native behavior
 is unchanged.
