@@ -125,6 +125,25 @@ const GROUP_ACCESS_DENIED_MESSAGE = "Access denied: user is not a member of an a
 const REFRESH_TOKEN_DISABLED_MESSAGE =
   "Refresh tokens are disabled on this server (OAUTH_DISABLE_REFRESH_TOKEN); start a new authorization";
 
+/**
+ * Maps a non-OK GitLab /oauth/token response. A rotated, revoked or expired
+ * refresh token or authorization code is a 400 invalid_grant, which clients
+ * must see as invalid_grant to restart authorization; anything else stays a
+ * ServerError.
+ */
+function tokenEndpointError(operation: string, status: number, body: string): Error {
+  let gitlabError: unknown;
+  try {
+    gitlabError = JSON.parse(body)?.error;
+  } catch {
+    gitlabError = undefined;
+  }
+  if (status === 400 && gitlabError === "invalid_grant") {
+    return new InvalidGrantError(`${operation} rejected by GitLab; start a new authorization`);
+  }
+  return new ServerError(`${operation} failed: ${status}`);
+}
+
 function singleQueryParam(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
@@ -722,7 +741,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         if (!response.ok) {
           const body = await response.text();
           logger.error(`Token exchange failed (${response.status}): ${body}`);
-          throw new ServerError(`Token exchange failed: ${response.status}`);
+          throw tokenEndpointError("Token exchange", response.status, body);
         }
 
         const data = await response.json();
@@ -859,7 +878,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     if (!response.ok) {
       const body = await response.text();
       logger.error(`Token refresh failed (${response.status}): ${body}`);
-      throw new ServerError(`Token refresh failed: ${response.status}`);
+      throw tokenEndpointError("Token refresh", response.status, body);
     }
 
     const data = await response.json();
