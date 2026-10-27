@@ -67,6 +67,34 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_work_items", // type, webUrl; assignees are strings, not users
 ]);
 
+/**
+ * List tools that keep the full reply under GITLAB_MCP_LIST_SUMMARY_DEFAULT only
+ * when the call asks for page content (`with_content` or `render_html`), which
+ * the summary would drop.
+ */
+const CONTENT_ON_REQUEST_LIST_TOOLS = new Set(["list_wiki_pages", "list_group_wiki_pages"]);
+
+const CONTENT_REQUEST_ARGUMENTS = ["with_content", "render_html"] as const;
+
+/** Mirrors the boolean coercion of the tool schemas: true, 1, "true", "1". */
+function isTruthyFlag(value: unknown): boolean {
+  if (value === true || value === 1) {
+    return true;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "1";
+  }
+  return false;
+}
+
+function requestsListContent(toolName: string, args: Record<string, unknown> | undefined): boolean {
+  if (!CONTENT_ON_REQUEST_LIST_TOOLS.has(toolName) || args === undefined) {
+    return false;
+  }
+  return CONTENT_REQUEST_ARGUMENTS.some(argument => isTruthyFlag(args[argument]));
+}
+
 export function toolAcceptsDecoratedSummary(toolName: string): boolean {
   if (NATIVE_SUMMARY_TOOLS.has(toolName)) {
     return false;
@@ -77,10 +105,16 @@ export function toolAcceptsDecoratedSummary(toolName: string): boolean {
 /**
  * Tools whose omitted `summary` follows GITLAB_MCP_LIST_SUMMARY_DEFAULT
  * (list_* and mr_discussions, minus LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS).
+ * With `args`, a wiki list call that asks for page content keeps the full reply.
  */
-export function toolUsesListSummaryDefault(toolName: string): boolean {
+export function toolUsesListSummaryDefault(
+  toolName: string,
+  args?: Record<string, unknown>
+): boolean {
   return (
-    toolAcceptsDecoratedSummary(toolName) && !LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS.has(toolName)
+    toolAcceptsDecoratedSummary(toolName) &&
+    !LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS.has(toolName) &&
+    !requestsListContent(toolName, args)
   );
 }
 

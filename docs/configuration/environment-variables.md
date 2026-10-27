@@ -73,8 +73,10 @@ would drop an id or type that other tools need: `list_issue_links`
 (`issue_link_id`, `link_type`), `list_pipeline_trigger_jobs`
 (`downstream_pipeline.id`), `list_project_variables` and `list_group_variables`
 (`environment_scope`), `list_merge_request_changed_files` (`old_path` and the
-new/deleted/renamed flags), and `list_work_items` (`type`). Passing
-`summary: true` to them works as before.
+new/deleted/renamed flags), and `list_work_items` (`type`). `list_wiki_pages`
+and `list_group_wiki_pages` keep the full reply only when the call sets
+`with_content` or `render_html`, because the summary would drop `content`.
+Passing `summary: true` to any of them works as before.
 
 CLI: `--list-summary-default`
 

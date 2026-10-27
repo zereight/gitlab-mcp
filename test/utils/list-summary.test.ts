@@ -264,6 +264,50 @@ describe("When deciding whether a tool follows the server summary default", () =
     });
   });
 
+  describe("with a wiki list tool", () => {
+    it("should follow the default when no page content is requested", () => {
+      for (const toolName of ["list_wiki_pages", "list_group_wiki_pages"]) {
+        assert.equal(toolUsesListSummaryDefault(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName, { project_id: "1" }), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName, { with_content: false }), true, toolName);
+        assert.equal(
+          toolUsesListSummaryDefault(toolName, { with_content: "false", render_html: "0" }),
+          true,
+          toolName
+        );
+      }
+    });
+
+    it("should keep the full reply when with_content or render_html is requested", () => {
+      for (const toolName of ["list_wiki_pages", "list_group_wiki_pages"]) {
+        for (const args of [
+          { with_content: true },
+          { with_content: "true" },
+          { with_content: "1" },
+          { render_html: true },
+          { render_html: "true" },
+          { with_content: false, render_html: true },
+        ]) {
+          assert.equal(toolUsesListSummaryDefault(toolName, args), false, JSON.stringify(args));
+        }
+      }
+    });
+
+    it("should still summarize when summary is explicitly true", () => {
+      const args = { with_content: true, summary: true };
+      assert.equal(
+        readListSummaryRequested(args, toolUsesListSummaryDefault("list_wiki_pages", args)),
+        true
+      );
+    });
+  });
+
+  describe("with a non-wiki list tool that receives with_content", () => {
+    it("should follow the default", () => {
+      assert.equal(toolUsesListSummaryDefault("list_issues", { with_content: true }), true);
+    });
+  });
+
   describe("with a list tool whose summary drops an id or type other tools need", () => {
     it("should keep the full reply but still accept an explicit summary", () => {
       for (const toolName of [

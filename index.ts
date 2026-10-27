@@ -932,7 +932,7 @@ function createServer(): McpServer {
       toolAcceptsDecoratedSummary(toolName) &&
       readListSummaryRequested(
         requestArguments === undefined ? undefined : { ...requestArguments },
-        GITLAB_MCP_LIST_SUMMARY_DEFAULT && toolUsesListSummaryDefault(toolName)
+        GITLAB_MCP_LIST_SUMMARY_DEFAULT && toolUsesListSummaryDefault(toolName, requestArguments)
       );
 
     const logCompletion = (result: any, completionOptions?: { skipJmespath?: boolean }) => {
