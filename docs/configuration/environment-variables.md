@@ -38,23 +38,28 @@ CLI: `--compact-tools`
 
 ## List and attachment summaries
 
-List tools accept an opt-in `summary` argument (`true`/`false`, default `false`
-unless `GITLAB_MCP_LIST_SUMMARY_DEFAULT` is set).
+List tools and `mr_discussions` accept an opt-in `summary` argument (`true`/`false`,
+default `false` unless `GITLAB_MCP_LIST_SUMMARY_DEFAULT` is set).
 When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
-`state`, and `web_url` and drops long bodies. By default, existing clients that
-omit `summary` still receive the full GitLab JSON. `list_webhook_events` already had
-its own `summary` flag; that native behavior is unchanged.
+`state`, `labels`, `updated_at`, `web_url`, `author.username`,
+`assignees[].username`, and for merge requests `source_branch`, `target_branch`,
+and `draft`, and drops long bodies and other nested objects. Discussion lists
+(`mr_discussions`, `list_issue_discussions`) keep each discussion `id` and
+`notes[].{author.username, body, created_at, resolved}`. By default, existing
+clients that omit `summary` still receive the full GitLab JSON.
+`list_webhook_events` already had its own `summary` flag; that native behavior
+is unchanged.
 
 ### `GITLAB_MCP_LIST_SUMMARY_DEFAULT`
 
-Optional. Set to `true` so `list_*` tools treat an omitted `summary` argument as
-`true`. Use it on shared servers where you cannot teach every client to pass
-`summary: true`. A client that passes `summary: false` still gets the full
-GitLab JSON, and the `summary` description in `tools/list` says the server
-defaults to `true`. A `jmespath` filter runs on the summarized reply, so pass
-`summary: false` when it needs other fields. `mr_discussions` stays opt-in
-because its summary keeps only discussion ids. `list_webhook_events` keeps its own `summary` flag. Default
-`false` leaves list replies unchanged.
+Optional. Set to `true` so `list_*` tools and `mr_discussions` treat an omitted
+`summary` argument as `true`. Use it on shared servers where you cannot teach
+every client to pass `summary: true`. A client that passes `summary: false`
+still gets the full GitLab JSON, and the `summary` description in `tools/list`
+says the server defaults to `true`. A `jmespath` filter runs on the summarized
+reply, so pass `summary: false` when it needs other fields.
+`list_webhook_events` keeps its own `summary` flag. Default `false` leaves list
+replies unchanged.
 
 CLI: `--list-summary-default`
 

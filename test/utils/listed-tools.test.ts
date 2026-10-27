@@ -121,13 +121,13 @@ describe("When decorating a tool for tools/list", () => {
   });
 
   describe("with mr_discussions and the server summary default on", () => {
-    it("should keep the default false description", () => {
+    it("should say the summary argument defaults to true", () => {
       const listed = decorateToolForList(
         schemaTool("mr_discussions", { project_id: { type: "string" } }),
         { ...CONTEXT, listSummaryDefault: true }
       );
 
-      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DESCRIPTION);
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION);
     });
   });
 

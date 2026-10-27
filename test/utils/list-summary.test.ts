@@ -39,6 +39,22 @@ describe("When a list payload is summarized", () => {
           state: "opened",
           web_url: "https://gitlab.example.com/g/p/-/merge_requests/12",
           description: "a very long body",
+          labels: ["bug", "backend"],
+          source_branch: "fix-login",
+          target_branch: "main",
+          draft: false,
+          updated_at: "2024-01-03T00:00:00Z",
+          author: {
+            id: 7,
+            username: "alice",
+            name: "Alice",
+            web_url: "https://gitlab.example.com/alice",
+          },
+          assignees: [
+            { id: 8, username: "bob", name: "Bob" },
+            { id: 9, username: "carol", name: "Carol" },
+          ],
+          references: { full: "g/p!12" },
         },
       ]);
 
@@ -48,8 +64,81 @@ describe("When a list payload is summarized", () => {
           title: "Fix login",
           state: "opened",
           web_url: "https://gitlab.example.com/g/p/-/merge_requests/12",
+          labels: ["bug", "backend"],
+          source_branch: "fix-login",
+          target_branch: "main",
+          draft: false,
+          updated_at: "2024-01-03T00:00:00Z",
+          author: { username: "alice" },
+          assignees: [{ username: "bob" }, { username: "carol" }],
         },
       ]);
+    });
+  });
+
+  describe("with an issue that has no assignees", () => {
+    it("should keep the empty assignees list and drop the author object fields", () => {
+      const summarized = summarizeListPayload([
+        { iid: 3, title: "Unassigned", author: { id: 1, username: "alice" }, assignees: [] },
+      ]);
+
+      assert.deepEqual(summarized, [
+        { iid: 3, title: "Unassigned", author: { username: "alice" }, assignees: [] },
+      ]);
+    });
+  });
+
+  describe("with merge request discussions", () => {
+    it("should keep the discussion id and the author, body, created_at, resolved of each note", () => {
+      const summarized = summarizeListPayload({
+        items: [
+          {
+            id: "10d5abc",
+            individual_note: false,
+            notes: [
+              {
+                id: 501,
+                type: "DiffNote",
+                body: "Please rename this.",
+                author: { id: 7, username: "alice", name: "Alice" },
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-02T00:00:00Z",
+                system: false,
+                resolvable: true,
+                resolved: false,
+                resolved_by: null,
+                position: { new_line: 3 },
+              },
+              {
+                id: 502,
+                body: "Done.",
+                author: { id: 8, username: "bob" },
+                created_at: "2024-01-02T00:00:00Z",
+                system: false,
+              },
+            ],
+          },
+        ],
+        pagination: { x_total: 1 },
+      });
+
+      assert.deepEqual(summarized, {
+        items: [
+          {
+            id: "10d5abc",
+            notes: [
+              {
+                author: { username: "alice" },
+                body: "Please rename this.",
+                created_at: "2024-01-01T00:00:00Z",
+                resolved: false,
+              },
+              { author: { username: "bob" }, body: "Done.", created_at: "2024-01-02T00:00:00Z" },
+            ],
+          },
+        ],
+        pagination: { x_total: 1 },
+      });
     });
   });
 
@@ -123,9 +212,9 @@ describe("When deciding whether a tool follows the server summary default", () =
   });
 
   describe("with mr_discussions", () => {
-    it("should stay opt-in", () => {
+    it("should follow the default", () => {
       assert.equal(toolAcceptsDecoratedSummary("mr_discussions"), true);
-      assert.equal(toolUsesListSummaryDefault("mr_discussions"), false);
+      assert.equal(toolUsesListSummaryDefault("mr_discussions"), true);
     });
   });
 

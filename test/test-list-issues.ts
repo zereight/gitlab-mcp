@@ -146,7 +146,15 @@ describe("list_issues", () => {
     const issue = issues[0] as object;
     assert.strictEqual(Reflect.get(issue, "title"), "Test Issue 1");
     assert.strictEqual("description" in issue, false, "Summary should drop the description");
-    assert.strictEqual("author" in issue, false, "Summary should drop nested objects");
+    assert.deepStrictEqual(
+      Reflect.get(issue, "author"),
+      { username: "test-user" },
+      "Summary should keep only the author username"
+    );
+    assert.deepStrictEqual(Reflect.get(issue, "assignees"), []);
+    assert.deepStrictEqual(Reflect.get(issue, "labels"), []);
+    assert.strictEqual(Reflect.get(issue, "updated_at"), "2024-01-02T00:00:00Z");
+    assert.strictEqual("milestone" in issue, false, "Summary should drop other nested objects");
   });
 
   test("keeps the full payload when summary is false and the server default is on", async () => {
