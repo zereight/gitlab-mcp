@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 278 |
-| Invoked | 176 |
-| Coverage | 63.3% |
+| Invoked | 177 |
+| Coverage | 63.7% |
 
 ## By toolset
 
@@ -20,7 +20,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
-| [Merge Requests](#merge_requests) | 14 | 46 | 30.4% |
+| [Merge Requests](#merge_requests) | 15 | 46 | 32.6% |
 | [Issues](#issues) | 11 | 24 | 45.8% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 4 | 18 | 22.2% |
@@ -121,7 +121,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
 - [x] [`list_group_merge_requests`](../tools/merge-requests.md#list_group_merge_requests) — `test/response-masking.test.ts`, `test/test-list-group-merge-requests.ts`
 - [ ] [`get_branch_diffs`](../tools/merge-requests.md#get_branch_diffs)
-- [ ] [`mr_discussions`](../tools/merge-requests.md#mr_discussions)
+- [x] [`mr_discussions`](../tools/merge-requests.md#mr_discussions) — `test/test-mr-discussions-summary.ts`
 - [ ] [`get_merge_request_discussion`](../tools/merge-requests.md#get_merge_request_discussion)
 - [x] [`create_merge_request_note`](../tools/merge-requests.md#create_merge_request_note) — `test/streamable-http-body-limit.test.ts`
 - [ ] [`update_merge_request_note`](../tools/merge-requests.md#update_merge_request_note)
