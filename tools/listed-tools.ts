@@ -1,7 +1,9 @@
 import {
   LIST_SUMMARY_ARGUMENT,
+  LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION,
   LIST_SUMMARY_ARGUMENT_DESCRIPTION,
   toolAcceptsDecoratedSummary,
+  toolUsesListSummaryDefault,
 } from "../utils/list-summary.js";
 
 export interface ListedToolAnnotations {
@@ -17,6 +19,8 @@ export interface ListedToolDecorationContext {
   readonly approveToolNames: ReadonlySet<string>;
   readonly jmespathArgument: string;
   readonly jmespathArgumentDescription: string;
+  /** GITLAB_MCP_LIST_SUMMARY_DEFAULT: an omitted `summary` on tools that pass toolUsesListSummaryDefault means true. */
+  readonly listSummaryDefault?: boolean;
 }
 
 const CONFIRMED_ARGUMENT = "_confirmed";
@@ -72,7 +76,8 @@ function withJmespathArgument(
 
 function withSummaryArgument(
   schema: Record<string, unknown>,
-  toolName: string
+  toolName: string,
+  context: ListedToolDecorationContext
 ): Record<string, unknown> {
   if (!toolAcceptsDecoratedSummary(toolName) || !isRecord(schema.properties)) {
     return schema;
@@ -86,7 +91,10 @@ function withSummaryArgument(
       ...schema.properties,
       [LIST_SUMMARY_ARGUMENT]: {
         type: "boolean",
-        description: LIST_SUMMARY_ARGUMENT_DESCRIPTION,
+        description:
+          context.listSummaryDefault === true && toolUsesListSummaryDefault(toolName)
+            ? LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION
+            : LIST_SUMMARY_ARGUMENT_DESCRIPTION,
       },
     },
   };
@@ -102,7 +110,8 @@ function decorateInputSchema(
   }
   return withSummaryArgument(
     withJmespathArgument(withConfirmedArgument(cloneSchema(schema), toolName, context), context),
-    toolName
+    toolName,
+    context
   );
 }
 

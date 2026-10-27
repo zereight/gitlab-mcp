@@ -296,6 +296,7 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
+- `--list-summary-default=true` - `list_*` 도구에서 `summary` 인자를 생략하면 `true`로 처리. `summary: false`를 넘기면 전체 JSON을 반환 (`GITLAB_MCP_LIST_SUMMARY_DEFAULT` 대체, 기본 꺼짐)
 - `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
 
 이미 `GITLAB_TOOLSETS` 또는 `--toolsets`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 이미 `GITLAB_TOOLS` 또는 `--tools`를 설정했다면 `validate_ci_lint`와 `validate_project_ci_lint`를 그 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.

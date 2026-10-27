@@ -95,6 +95,7 @@ const GLOBAL_FLAG_NAMES = new Set([
   "denied-tools-regex",
   "compact-results",
   "compact-result-chars",
+  "list-summary-default",
 ]);
 
 interface JsonSchemaProperty {

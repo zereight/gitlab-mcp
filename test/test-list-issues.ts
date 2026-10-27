@@ -1,6 +1,7 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
+import { StdioTestClient } from "./clients/stdio-client.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
@@ -115,6 +116,78 @@ describe("list_issues", () => {
     assert.ok(result.text, "Tool response should include text content");
     assert.doesNotMatch(result.text!, /\n\s+"/, "Tool response JSON should not be pretty-printed");
     assert.ok(Array.isArray(result.data), "Response should remain valid JSON");
+  });
+
+  test("keeps the full payload when GITLAB_MCP_LIST_SUMMARY_DEFAULT is unset", async () => {
+    const issues = await callListIssues(
+      { project_id: TEST_PROJECT_ID },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_MCP_LIST_SUMMARY_DEFAULT: undefined,
+      }
+    );
+
+    assert.ok(Array.isArray(issues) && issues.length === 1);
+    assert.strictEqual(Reflect.get(issues[0] as object, "description"), "Test issue description");
+  });
+
+  test("summarizes when GITLAB_MCP_LIST_SUMMARY_DEFAULT is true and summary is omitted", async () => {
+    const issues = await callListIssues(
+      { project_id: TEST_PROJECT_ID },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_MCP_LIST_SUMMARY_DEFAULT: "true",
+      }
+    );
+
+    assert.ok(Array.isArray(issues) && issues.length === 1);
+    const issue = issues[0] as object;
+    assert.strictEqual(Reflect.get(issue, "title"), "Test Issue 1");
+    assert.strictEqual("description" in issue, false, "Summary should drop the description");
+    assert.deepStrictEqual(
+      Reflect.get(issue, "author"),
+      { username: "test-user" },
+      "Summary should keep only the author username"
+    );
+    assert.deepStrictEqual(Reflect.get(issue, "assignees"), []);
+    assert.deepStrictEqual(Reflect.get(issue, "labels"), []);
+    assert.strictEqual(Reflect.get(issue, "updated_at"), "2024-01-02T00:00:00Z");
+    assert.strictEqual("milestone" in issue, false, "Summary should drop other nested objects");
+  });
+
+  test("keeps the full payload when summary is false and the server default is on", async () => {
+    const issues = await callListIssues(
+      { project_id: TEST_PROJECT_ID, summary: false },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_MCP_LIST_SUMMARY_DEFAULT: "true",
+      }
+    );
+
+    assert.ok(Array.isArray(issues) && issues.length === 1);
+    assert.strictEqual(Reflect.get(issues[0] as object, "description"), "Test issue description");
+  });
+
+  test("states the server summary default in the list_issues schema", async () => {
+    const client = new StdioTestClient();
+    await client.connect("build/index.js", {
+      GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+      GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_MCP_LIST_SUMMARY_DEFAULT: "true",
+    });
+    try {
+      const { tools } = await client.listTools();
+      const listIssues = tools.find(tool => tool.name === "list_issues");
+      const summary = listIssues?.inputSchema.properties?.summary as
+        | { description?: string }
+        | undefined;
+      assert.match(summary?.description ?? "", /defaults to true; pass false/);
+    } finally {
+      await client.disconnect();
+    }
   });
 
   test("prefers author_username over author_id when both are provided", async () => {

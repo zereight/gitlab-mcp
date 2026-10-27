@@ -38,11 +38,47 @@ CLI: `--compact-tools`
 
 ## List and attachment summaries
 
-List tools accept an opt-in `summary` argument (`true`/`false`, default `false`).
+List tools and `mr_discussions` accept an opt-in `summary` argument (`true`/`false`,
+default `false` unless `GITLAB_MCP_LIST_SUMMARY_DEFAULT` is set).
 When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
-`state`, and `web_url` and drops long bodies. Existing clients that omit
-`summary` still receive the full GitLab JSON. `list_webhook_events` already had
-its own `summary` flag; that native behavior is unchanged.
+`state`, `labels`, `updated_at`, `web_url`, `author.username`,
+`assignees[].username`, and for merge requests `source_branch`, `target_branch`,
+and `draft`, and drops long bodies and other nested objects. Discussion lists
+(`mr_discussions`, `list_issue_discussions`) keep each discussion `id` and
+`notes[].{id, author.username, body, created_at, resolved}`. By default, existing
+clients that omit `summary` still receive the full GitLab JSON.
+`list_webhook_events` already had its own `summary` flag; that native behavior
+is unchanged.
+
+### `GITLAB_MCP_LIST_SUMMARY_DEFAULT`
+
+Optional. Set to `true` so `list_*` tools and `mr_discussions` treat an omitted
+`summary` argument as `true`. Use it on shared servers where you cannot teach
+every client to pass `summary: true`. A client that passes `summary: false`
+still gets the full GitLab JSON, and the `summary` description in `tools/list`
+says the server defaults to `true`. A `jmespath` filter runs on the summarized
+reply, so pass `summary: false` when it needs other fields.
+`list_webhook_events` keeps its own `summary` flag. Default `false` leaves list
+replies unchanged.
+
+These list tools keep the full reply when `summary` is omitted, because the
+summary would drop the content they return or does not read their reply shape:
+`list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
+`list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
+`list_job_artifacts`, `list_project_vulnerabilities`,
+`list_dependency_proxy_blobs`, `list_ci_catalog_resources`,
+`list_work_item_notes`, `list_custom_field_definitions`, and
+`list_work_item_statuses`. These also keep the full reply, because the summary
+would drop an id or type that other tools need: `list_issue_links`
+(`issue_link_id`, `link_type`), `list_pipeline_trigger_jobs`
+(`downstream_pipeline.id`), `list_project_variables` and `list_group_variables`
+(`environment_scope`), `list_merge_request_changed_files` (`old_path` and the
+new/deleted/renamed flags), and `list_work_items` (`type`). `list_wiki_pages`
+and `list_group_wiki_pages` keep the full reply only when the call sets
+`with_content` or `render_html`, because the summary would drop `content`.
+Passing `summary: true` to any of them works as before.
+
+CLI: `--list-summary-default`
 
 `get_pipeline_job_output` still defaults to the last 1000 lines (`limit` /
 `offset`). Pass those arguments instead of fetching a whole job trace.

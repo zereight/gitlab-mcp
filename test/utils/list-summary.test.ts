@@ -6,6 +6,7 @@ import {
   readListSummaryRequested,
   summarizeListPayload,
   toolAcceptsDecoratedSummary,
+  toolUsesListSummaryDefault,
 } from "../../utils/list-summary.js";
 
 describe("When deciding whether a tool accepts the decorated summary flag", () => {
@@ -38,6 +39,22 @@ describe("When a list payload is summarized", () => {
           state: "opened",
           web_url: "https://gitlab.example.com/g/p/-/merge_requests/12",
           description: "a very long body",
+          labels: ["bug", "backend"],
+          source_branch: "fix-login",
+          target_branch: "main",
+          draft: false,
+          updated_at: "2024-01-03T00:00:00Z",
+          author: {
+            id: 7,
+            username: "alice",
+            name: "Alice",
+            web_url: "https://gitlab.example.com/alice",
+          },
+          assignees: [
+            { id: 8, username: "bob", name: "Bob" },
+            { id: 9, username: "carol", name: "Carol" },
+          ],
+          references: { full: "g/p!12" },
         },
       ]);
 
@@ -47,8 +64,87 @@ describe("When a list payload is summarized", () => {
           title: "Fix login",
           state: "opened",
           web_url: "https://gitlab.example.com/g/p/-/merge_requests/12",
+          labels: ["bug", "backend"],
+          source_branch: "fix-login",
+          target_branch: "main",
+          draft: false,
+          updated_at: "2024-01-03T00:00:00Z",
+          author: { username: "alice" },
+          assignees: [{ username: "bob" }, { username: "carol" }],
         },
       ]);
+    });
+  });
+
+  describe("with an issue that has no assignees", () => {
+    it("should keep the empty assignees list and drop the author object fields", () => {
+      const summarized = summarizeListPayload([
+        { iid: 3, title: "Unassigned", author: { id: 1, username: "alice" }, assignees: [] },
+      ]);
+
+      assert.deepEqual(summarized, [
+        { iid: 3, title: "Unassigned", author: { username: "alice" }, assignees: [] },
+      ]);
+    });
+  });
+
+  describe("with merge request discussions", () => {
+    it("should keep the discussion id and the id, author, body, created_at, resolved of each note", () => {
+      const summarized = summarizeListPayload({
+        items: [
+          {
+            id: "10d5abc",
+            individual_note: false,
+            notes: [
+              {
+                id: 501,
+                type: "DiffNote",
+                body: "Please rename this.",
+                author: { id: 7, username: "alice", name: "Alice" },
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-02T00:00:00Z",
+                system: false,
+                resolvable: true,
+                resolved: false,
+                resolved_by: null,
+                position: { new_line: 3 },
+              },
+              {
+                id: 502,
+                body: "Done.",
+                author: { id: 8, username: "bob" },
+                created_at: "2024-01-02T00:00:00Z",
+                system: false,
+              },
+            ],
+          },
+        ],
+        pagination: { x_total: 1 },
+      });
+
+      assert.deepEqual(summarized, {
+        items: [
+          {
+            id: "10d5abc",
+            notes: [
+              {
+                id: 501,
+                author: { username: "alice" },
+                body: "Please rename this.",
+                created_at: "2024-01-01T00:00:00Z",
+                resolved: false,
+              },
+              {
+                id: 502,
+                author: { username: "bob" },
+                body: "Done.",
+                created_at: "2024-01-02T00:00:00Z",
+              },
+            ],
+          },
+        ],
+        pagination: { x_total: 1 },
+      });
     });
   });
 
@@ -88,6 +184,143 @@ describe("When reading the summary argument", () => {
 
       assert.equal(readListSummaryRequested(args), true);
       assert.deepEqual(omitListSummaryArgument(args), { project_id: "1" });
+    });
+  });
+
+  describe("with summary omitted and no server default", () => {
+    it("should not request a summary", () => {
+      assert.equal(readListSummaryRequested({ project_id: "1" }), false);
+      assert.equal(readListSummaryRequested(undefined), false);
+    });
+  });
+
+  describe("with summary omitted and the server default on", () => {
+    it("should request a summary", () => {
+      assert.equal(readListSummaryRequested({ project_id: "1" }, true), true);
+      assert.equal(readListSummaryRequested({ project_id: "1", summary: null }, true), true);
+      assert.equal(readListSummaryRequested(undefined, true), true);
+    });
+  });
+
+  describe("with summary false and the server default on", () => {
+    it("should keep the full payload", () => {
+      assert.equal(readListSummaryRequested({ summary: false }, true), false);
+      assert.equal(readListSummaryRequested({ summary: "false" }, true), false);
+    });
+  });
+});
+
+describe("When deciding whether a tool follows the server summary default", () => {
+  describe("with list_merge_requests", () => {
+    it("should follow the default", () => {
+      assert.equal(toolUsesListSummaryDefault("list_merge_requests"), true);
+    });
+  });
+
+  describe("with mr_discussions", () => {
+    it("should follow the default", () => {
+      assert.equal(toolAcceptsDecoratedSummary("mr_discussions"), true);
+      assert.equal(toolUsesListSummaryDefault("mr_discussions"), true);
+    });
+  });
+
+  describe("with list_webhook_events", () => {
+    it("should keep its native summary argument", () => {
+      assert.equal(toolUsesListSummaryDefault("list_webhook_events"), false);
+    });
+  });
+
+  describe("with a list tool whose content the summary would drop", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_merge_request_diffs",
+        "list_draft_notes",
+        "list_merge_request_versions",
+        "list_events",
+        "list_todos",
+        "list_webhooks",
+        "list_pipeline_triggers",
+        "list_job_artifacts",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
+    });
+  });
+
+  describe("with a list tool whose reply envelope the summary does not read", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_project_vulnerabilities",
+        "list_dependency_proxy_blobs",
+        "list_ci_catalog_resources",
+        "list_work_item_notes",
+        "list_custom_field_definitions",
+        "list_work_item_statuses",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
+    });
+  });
+
+  describe("with a wiki list tool", () => {
+    it("should follow the default when no page content is requested", () => {
+      for (const toolName of ["list_wiki_pages", "list_group_wiki_pages"]) {
+        assert.equal(toolUsesListSummaryDefault(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName, { project_id: "1" }), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName, { with_content: false }), true, toolName);
+        assert.equal(
+          toolUsesListSummaryDefault(toolName, { with_content: "false", render_html: "0" }),
+          true,
+          toolName
+        );
+      }
+    });
+
+    it("should keep the full reply when with_content or render_html is requested", () => {
+      for (const toolName of ["list_wiki_pages", "list_group_wiki_pages"]) {
+        for (const args of [
+          { with_content: true },
+          { with_content: "true" },
+          { with_content: "1" },
+          { render_html: true },
+          { render_html: "true" },
+          { with_content: false, render_html: true },
+        ]) {
+          assert.equal(toolUsesListSummaryDefault(toolName, args), false, JSON.stringify(args));
+        }
+      }
+    });
+
+    it("should still summarize when summary is explicitly true", () => {
+      const args = { with_content: true, summary: true };
+      assert.equal(
+        readListSummaryRequested(args, toolUsesListSummaryDefault("list_wiki_pages", args)),
+        true
+      );
+    });
+  });
+
+  describe("with a non-wiki list tool that receives with_content", () => {
+    it("should follow the default", () => {
+      assert.equal(toolUsesListSummaryDefault("list_issues", { with_content: true }), true);
+    });
+  });
+
+  describe("with a list tool whose summary drops an id or type other tools need", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_issue_links",
+        "list_pipeline_trigger_jobs",
+        "list_project_variables",
+        "list_group_variables",
+        "list_merge_request_changed_files",
+        "list_work_items",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
     });
   });
 });

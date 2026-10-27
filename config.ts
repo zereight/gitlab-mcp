@@ -301,6 +301,9 @@ export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
   "compact-result-chars",
   4000
 );
+/** When true, list_* tools and mr_discussions treat an omitted `summary` argument as true. Explicit `summary: false` still wins. */
+export const GITLAB_MCP_LIST_SUMMARY_DEFAULT =
+  getConfig("list-summary-default", "GITLAB_MCP_LIST_SUMMARY_DEFAULT") === "true";
 
 // ---------------------------------------------------------------------------
 // Proxy configuration

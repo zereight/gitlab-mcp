@@ -5,6 +5,10 @@ import {
   decorateToolForList,
   type ListedToolDecorationContext,
 } from "../../tools/listed-tools.js";
+import {
+  LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION,
+  LIST_SUMMARY_ARGUMENT_DESCRIPTION,
+} from "../../utils/list-summary.js";
 
 const CONTEXT: ListedToolDecorationContext = {
   readOnlyToolNames: new Set(["get_issue"]),
@@ -24,6 +28,14 @@ function schemaTool(name: string, properties?: Record<string, unknown>) {
       ...(properties ? { properties } : {}),
     },
   };
+}
+
+function summaryDescription(listed: { inputSchema?: Record<string, unknown> }): unknown {
+  const properties = listed.inputSchema?.properties;
+  if (!isRecord(properties) || !isRecord(properties.summary)) {
+    return undefined;
+  }
+  return properties.summary.description;
 }
 
 describe("When decorating a tool for tools/list", () => {
@@ -83,6 +95,54 @@ describe("When decorating a tool for tools/list", () => {
         listed.inputSchema?.properties && "summary" in listed.inputSchema.properties,
         true
       );
+    });
+  });
+
+  describe("with a list tool and the server summary default on", () => {
+    it("should say the summary argument defaults to true", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_issues", { project_id: { type: "string" } }),
+        { ...CONTEXT, listSummaryDefault: true }
+      );
+
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION);
+    });
+  });
+
+  describe("with a list tool and the server summary default off", () => {
+    it("should keep the default false description", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_issues", { project_id: { type: "string" } }),
+        CONTEXT
+      );
+
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DESCRIPTION);
+      assert.equal(
+        summaryDescription(listed),
+        "If true, return only high-signal fields (id, iid, title, state, web_url, …). Default false keeps the full GitLab JSON."
+      );
+    });
+  });
+
+  describe("with mr_discussions and the server summary default on", () => {
+    it("should say the summary argument defaults to true", () => {
+      const listed = decorateToolForList(
+        schemaTool("mr_discussions", { project_id: { type: "string" } }),
+        { ...CONTEXT, listSummaryDefault: true }
+      );
+
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION);
+    });
+  });
+
+  describe("with a tool excluded from the server summary default", () => {
+    it("should keep the default false description", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_merge_request_diffs", { project_id: { type: "string" } }),
+        { ...CONTEXT, listSummaryDefault: true }
+      );
+
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DESCRIPTION);
     });
   });
 

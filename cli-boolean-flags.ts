@@ -23,6 +23,7 @@ export const BOOLEAN_CLI_FLAG_NAMES = new Set([
   "enable-strict-project-scope",
   "oauth-stateless-mode",
   "compact-results",
+  "list-summary-default",
 ]);
 
 const BOOLEAN_FLAG_LITERALS = new Set(["true", "false", "1", "0"]);
