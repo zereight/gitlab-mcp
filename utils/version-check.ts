@@ -16,6 +16,7 @@ function isUsableRegistryUrl(registry: string): boolean {
   try {
     const parsed = new URL(registry);
     return (
+      !/[?#]/.test(registry) &&
       parsed.protocol === "https:" &&
       parsed.hostname !== "" &&
       parsed.username === "" &&

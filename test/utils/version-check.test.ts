@@ -128,7 +128,9 @@ describe("When fetchLatestVersion picks the registry", () => {
     ["has no hostname", "https:///"],
     ["has credentials", "https://user:secret@npm.internal.example/"],
     ["has a query string", "https://registry.example/npm?tenant=a"],
+    ["has a bare query delimiter", "https://registry.example/npm?"],
     ["has a fragment", "https://registry.example/npm#feed"],
+    ["has a bare fragment delimiter", "https://registry.example/npm#"],
   ]) {
     test(`should fall back to the public registry when the configured value ${label}`, async () => {
       const calls: CapturedFetch[] = [];
