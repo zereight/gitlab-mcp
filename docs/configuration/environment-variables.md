@@ -986,12 +986,14 @@ Comma-separated list of toolset IDs to enable. If unset, the server exposes the 
 
     `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`). In a stateful session, activate extra categories with `discover_tools`. With `OAUTH_STATELESS_MODE=true`, persist a named list such as `GITLAB_TOOLSETS=core,wiki` instead — session discovery does not survive the next request. Or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-05).
 
+Unknown IDs are ignored, and the server logs a warning to stderr that names them and lists the known IDs. When no ID is valid, the server falls back to the default `core` toolset.
+
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Special values:
 
-- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas.
+- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas. It must be the whole value: in a list such as `all,api` it is ignored like an unknown ID, so list every toolset by name to add `api`.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 
