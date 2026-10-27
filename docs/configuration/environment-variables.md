@@ -859,11 +859,33 @@ Set to `true` to disable the startup update check.
 
 By default the server queries the npm registry once at startup (3 second
 timeout, fail-silent — it never blocks or breaks startup) and logs a notice to
-stderr when a newer version than the one running is available. No data other
-than the standard HTTP request to `registry.npmjs.org` is sent.
+stderr when a newer version than the one running is available. The request is
+an anonymous `GET https://registry.npmjs.org/@zereight/mcp-gitlab/latest`, or
+the same path under `GITLAB_VERSION_CHECK_REGISTRY` when that is set. The check
+does not run npm, does not read `.npmrc` files or npm config such as
+`npm_config_registry` or `@zereight:registry`, and sends no `Authorization`
+header or other credentials.
 
 Set this in offline or air-gapped environments, or when you do not want the
 server to make any outbound request beyond your GitLab instance.
+
+### `GITLAB_VERSION_CHECK_REGISTRY`
+
+Optional. An `https` npm registry URL that the startup update check queries
+instead of `https://registry.npmjs.org`, for example a mirror in a network that
+blocks the public registry:
+
+```bash
+GITLAB_VERSION_CHECK_REGISTRY=https://npm.internal.example/npm
+```
+
+The server requests `<registry>/@zereight/mcp-gitlab/latest` without
+credentials, so the registry must serve package metadata to anonymous requests.
+A registry that needs a token answers with an error, and no notice is shown. A
+value that is not an `https` URL, or that has a user name, password, query
+string, or fragment, is ignored and the public registry is used. `.npmrc` and
+npm config are never used to pick the registry. Has no effect when
+`GITLAB_DISABLE_VERSION_CHECK=true`.
 
 ### `GITLAB_DOWNLOAD_DIR`
 

@@ -19,6 +19,7 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
+  GITLAB_VERSION_CHECK_REGISTRY,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
   GITLAB_MASKING_POLICY_FILE,
@@ -17757,15 +17758,17 @@ async function runServer() {
 
     if (!GITLAB_DISABLE_VERSION_CHECK) {
       // Fire-and-forget: logs to stderr only, never blocks or fails startup.
-      void checkForNewVersion(SERVER_VERSION).then(latestVersion => {
-        if (latestVersion) {
-          logger.warn(
-            `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
-              `Upgrade with \`brew upgrade zereight-mcp-gitlab\`, \`npx -y @zereight/mcp-gitlab@latest\`, or \`npm install -g @zereight/mcp-gitlab\`. ` +
-              `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
-          );
+      void checkForNewVersion(SERVER_VERSION, undefined, GITLAB_VERSION_CHECK_REGISTRY).then(
+        latestVersion => {
+          if (latestVersion) {
+            logger.warn(
+              `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
+                `Upgrade with \`brew upgrade zereight-mcp-gitlab\`, \`npx -y @zereight/mcp-gitlab@latest\`, or \`npm install -g @zereight/mcp-gitlab\`. ` +
+                `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
+            );
+          }
         }
-      });
+      );
     }
 
     // Host names only, decided for the whole list (see parseConfiguredGitLabApiUrls).

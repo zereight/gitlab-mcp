@@ -92,6 +92,8 @@ export const USE_PIPELINE_RAW = getConfig("use-pipeline", "USE_PIPELINE");
 export const USE_PIPELINE = USE_PIPELINE_RAW === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
+/** https registry the startup version check queries instead of registry.npmjs.org. */
+export const GITLAB_VERSION_CHECK_REGISTRY = process.env.GITLAB_VERSION_CHECK_REGISTRY;
 
 // ---------------------------------------------------------------------------
 // Tool filtering
