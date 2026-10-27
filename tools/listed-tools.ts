@@ -19,7 +19,7 @@ export interface ListedToolDecorationContext {
   readonly approveToolNames: ReadonlySet<string>;
   readonly jmespathArgument: string;
   readonly jmespathArgumentDescription: string;
-  /** GITLAB_MCP_LIST_SUMMARY_DEFAULT: an omitted `summary` on list_* tools and mr_discussions means true. */
+  /** GITLAB_MCP_LIST_SUMMARY_DEFAULT: an omitted `summary` on tools that pass toolUsesListSummaryDefault means true. */
   readonly listSummaryDefault?: boolean;
 }
 

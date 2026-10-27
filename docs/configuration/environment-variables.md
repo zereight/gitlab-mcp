@@ -61,6 +61,15 @@ reply, so pass `summary: false` when it needs other fields.
 `list_webhook_events` keeps its own `summary` flag. Default `false` leaves list
 replies unchanged.
 
+These list tools keep the full reply when `summary` is omitted, because the
+summary would drop the content they return or does not read their reply shape:
+`list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
+`list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
+`list_job_artifacts`, `list_project_vulnerabilities`,
+`list_dependency_proxy_blobs`, `list_ci_catalog_resources`,
+`list_work_item_notes`, `list_custom_field_definitions`, and
+`list_work_item_statuses`. Passing `summary: true` to them works as before.
+
 CLI: `--list-summary-default`
 
 `get_pipeline_job_output` still defaults to the last 1000 lines (`limit` /

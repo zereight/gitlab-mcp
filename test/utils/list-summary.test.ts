@@ -223,4 +223,38 @@ describe("When deciding whether a tool follows the server summary default", () =
       assert.equal(toolUsesListSummaryDefault("list_webhook_events"), false);
     });
   });
+
+  describe("with a list tool whose content the summary would drop", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_merge_request_diffs",
+        "list_draft_notes",
+        "list_merge_request_versions",
+        "list_events",
+        "list_todos",
+        "list_webhooks",
+        "list_pipeline_triggers",
+        "list_job_artifacts",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
+    });
+  });
+
+  describe("with a list tool whose reply envelope the summary does not read", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_project_vulnerabilities",
+        "list_dependency_proxy_blobs",
+        "list_ci_catalog_resources",
+        "list_work_item_notes",
+        "list_custom_field_definitions",
+        "list_work_item_statuses",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
+    });
+  });
 });

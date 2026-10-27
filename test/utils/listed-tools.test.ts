@@ -135,6 +135,17 @@ describe("When decorating a tool for tools/list", () => {
     });
   });
 
+  describe("with a tool excluded from the server summary default", () => {
+    it("should keep the default false description", () => {
+      const listed = decorateToolForList(
+        schemaTool("list_merge_request_diffs", { project_id: { type: "string" } }),
+        { ...CONTEXT, listSummaryDefault: true }
+      );
+
+      assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DESCRIPTION);
+    });
+  });
+
   describe("with list_webhook_events", () => {
     it("should keep the native summary field", () => {
       const listed = decorateToolForList(

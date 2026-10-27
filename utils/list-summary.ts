@@ -37,6 +37,29 @@ const NOTE_SUMMARY_FIELDS = ["body", "created_at", "resolved"] as const;
 
 const NATIVE_SUMMARY_TOOLS = new Set(["list_webhook_events"]);
 
+/**
+ * List tools that keep the full reply when GITLAB_MCP_LIST_SUMMARY_DEFAULT is on.
+ * An explicit `summary: true` still applies to them.
+ */
+const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
+  // The summary drops the content the tool exists to return.
+  "list_merge_request_diffs", // diff
+  "list_draft_notes", // body, position
+  "list_merge_request_versions", // base/head/start commit SHAs
+  "list_events", // action_name, target_*
+  "list_todos", // action_name, target, body
+  "list_webhooks", // url, event flags
+  "list_pipeline_triggers", // description
+  "list_job_artifacts", // path, type, size
+  // The reply is an envelope summarizeListPayload does not read.
+  "list_project_vulnerabilities", // { vulnerabilities, pageInfo }
+  "list_dependency_proxy_blobs", // { blobs, pageInfo }
+  "list_ci_catalog_resources", // raw GraphQL { data }
+  "list_work_item_notes", // { discussions, pageInfo }
+  "list_custom_field_definitions", // { work_item_type, custom_fields }
+  "list_work_item_statuses", // single object
+]);
+
 export function toolAcceptsDecoratedSummary(toolName: string): boolean {
   if (NATIVE_SUMMARY_TOOLS.has(toolName)) {
     return false;
@@ -44,9 +67,14 @@ export function toolAcceptsDecoratedSummary(toolName: string): boolean {
   return toolName.startsWith("list_") || toolName === "mr_discussions";
 }
 
-/** Tools whose omitted `summary` follows GITLAB_MCP_LIST_SUMMARY_DEFAULT (list_* and mr_discussions). */
+/**
+ * Tools whose omitted `summary` follows GITLAB_MCP_LIST_SUMMARY_DEFAULT
+ * (list_* and mr_discussions, minus LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS).
+ */
 export function toolUsesListSummaryDefault(toolName: string): boolean {
-  return toolAcceptsDecoratedSummary(toolName);
+  return (
+    toolAcceptsDecoratedSummary(toolName) && !LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS.has(toolName)
+  );
 }
 
 export function readListSummaryRequested(
