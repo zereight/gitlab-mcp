@@ -1,13 +1,12 @@
 /** MCP-only argument; stripped before GitLab handlers run. */
 export const LIST_SUMMARY_ARGUMENT = "summary";
 
-const LIST_SUMMARY_FIELDS_HINT =
-  "If true, return only high-signal fields (id, iid, title, state, labels, author.username, updated_at, web_url, …).";
-
-export const LIST_SUMMARY_ARGUMENT_DESCRIPTION = `${LIST_SUMMARY_FIELDS_HINT} Default false keeps the full GitLab JSON.`;
+export const LIST_SUMMARY_ARGUMENT_DESCRIPTION =
+  "If true, return only high-signal fields (id, iid, title, state, web_url, …). Default false keeps the full GitLab JSON.";
 
 /** Description used when GITLAB_MCP_LIST_SUMMARY_DEFAULT is on. */
-export const LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION = `${LIST_SUMMARY_FIELDS_HINT} This server defaults to true; pass false for the full GitLab JSON.`;
+export const LIST_SUMMARY_ARGUMENT_DEFAULT_TRUE_DESCRIPTION =
+  "If true, return only high-signal fields (id, iid, title, state, labels, author.username, updated_at, web_url, …). This server defaults to true; pass false for the full GitLab JSON.";
 
 const SUMMARY_FIELDS = [
   "id",

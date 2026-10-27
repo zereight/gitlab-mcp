@@ -117,6 +117,10 @@ describe("When decorating a tool for tools/list", () => {
       );
 
       assert.equal(summaryDescription(listed), LIST_SUMMARY_ARGUMENT_DESCRIPTION);
+      assert.equal(
+        summaryDescription(listed),
+        "If true, return only high-signal fields (id, iid, title, state, web_url, …). Default false keeps the full GitLab JSON."
+      );
     });
   });
 
