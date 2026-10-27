@@ -257,4 +257,20 @@ describe("When deciding whether a tool follows the server summary default", () =
       }
     });
   });
+
+  describe("with a list tool whose summary drops an id or type other tools need", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_issue_links",
+        "list_pipeline_trigger_jobs",
+        "list_project_variables",
+        "list_group_variables",
+        "list_merge_request_changed_files",
+        "list_work_items",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+      }
+    });
+  });
 });

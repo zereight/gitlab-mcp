@@ -58,6 +58,13 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_work_item_notes", // { discussions, pageInfo }
   "list_custom_field_definitions", // { work_item_type, custom_fields }
   "list_work_item_statuses", // single object
+  // The summary drops an id or type that callers pass to other tools.
+  "list_issue_links", // issue_link_id, link_type
+  "list_pipeline_trigger_jobs", // downstream_pipeline.id
+  "list_project_variables", // environment_scope, variable_type
+  "list_group_variables", // environment_scope, variable_type
+  "list_merge_request_changed_files", // old_path, new_file/deleted_file/renamed_file
+  "list_work_items", // type, webUrl; assignees are strings, not users
 ]);
 
 export function toolAcceptsDecoratedSummary(toolName: string): boolean {
