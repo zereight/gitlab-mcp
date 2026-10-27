@@ -20,8 +20,8 @@ function createTransport(apiUrl: string): StdioClientTransport {
       GITLAB_PERSONAL_ACCESS_TOKEN: "test-token",
       GITLAB_API_URL: apiUrl,
       GITLAB_PERMISSION_MODE: "modify",
-      GITLAB_TOOLSETS: "projects,merge_requests",
-      GITLAB_TOOLS: "execute_graphql,fork_repository",
+      GITLAB_TOOLSETS: "projects,merge_requests,api",
+      GITLAB_TOOLS: "execute_graphql,fork_repository,gitlab_api_request",
       GITLAB_MASKING_ENABLED: "true",
       GITLAB_DISABLE_VERSION_CHECK: "true",
       LOG_LEVEL: "error",
@@ -45,6 +45,20 @@ async function reserveClosedPort(): Promise<number> {
 async function startServer(t: TestContext) {
   const api = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
+
+    if (req.url === "/api/v4/namespaces/throttled") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "42");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
+    if (req.url === "/api/v4/namespaces/throttled-date") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "Wed, 21 Oct 2026 07:28:00 GMT");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
 
     if (req.url === "/api/v4/namespaces/missing") {
       res.statusCode = 404;
@@ -128,6 +142,10 @@ describe("GitLab API tool errors", () => {
     assert.match(resultText(notFound), /GitLab API error: 404 Not Found/);
     assert.doesNotMatch(resultText(notFound), new RegExp(MASKED_IP.replaceAll(".", "\\.")));
     assert.match(resultText(notFound), /\[IP address\]/);
+    // Every GitLab HTTP error now carries its status as structured content.
+    assert.deepEqual((notFound as { structuredContent?: unknown }).structuredContent, {
+      status: 404,
+    });
 
     const forbidden = await client.callTool({
       name: "list_group_members",
@@ -156,6 +174,53 @@ describe("GitLab API tool errors", () => {
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
   });
 
+  test("preserves Retry-After on a GitLab 429 as structured error content", async t => {
+    const client = await startServer(t);
+
+    const throttled = await client.callTool({
+      name: "get_namespace",
+      arguments: { namespace_id: "throttled" },
+    });
+    assert.equal(throttled.isError, true);
+    assert.match(resultText(throttled), /GitLab API error: 429 Too Many Requests/);
+    assert.deepEqual((throttled as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "42",
+    });
+
+    // Retry-After may be an HTTP-date; it passes through verbatim.
+    const throttledDate = await client.callTool({
+      name: "get_namespace",
+      arguments: { namespace_id: "throttled-date" },
+    });
+    assert.equal(throttledDate.isError, true);
+    assert.deepEqual((throttledDate as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "Wed, 21 Oct 2026 07:28:00 GMT",
+    });
+
+    const recovery = await client.callTool({
+      name: "verify_namespace",
+      arguments: { path: "core" },
+    });
+    assert.notEqual(recovery.isError, true);
+  });
+
+  test("gitlab_api_request preserves Retry-After on a GitLab 429", async t => {
+    const client = await startServer(t);
+
+    const throttled = await client.callTool({
+      name: "gitlab_api_request",
+      arguments: { method: "GET", path: "/namespaces/throttled" },
+    });
+    assert.equal(throttled.isError, true);
+    assert.match(resultText(throttled), /GitLab API error: 429 Too Many Requests/);
+    assert.deepEqual((throttled as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "42",
+    });
+  });
+
   test("returns missing merge request identifiers as a tool error", async t => {
     const client = await startServer(t);
 
@@ -167,6 +232,11 @@ describe("GitLab API tool errors", () => {
     assert.match(
       resultText(invalidMergeRequest),
       /Either merge_request_iid or source_branch must be provided/
+    );
+    // A validation error carries no GitLab HTTP fields.
+    assert.equal(
+      (invalidMergeRequest as { structuredContent?: unknown }).structuredContent,
+      undefined
     );
 
     const recovery = await client.callTool({

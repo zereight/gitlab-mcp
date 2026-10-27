@@ -1287,6 +1287,12 @@ function createServer(): McpServer {
         error instanceof ProjectAccessDeniedError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
+        // Redaction and masking mutate the error in place, so the GitLab HTTP
+        // fields survive on the same instance the message was taken from.
+        const structuredContent =
+          safeError instanceof GitLabApiError
+            ? gitLabApiErrorStructuredContent(safeError)
+            : undefined;
         return {
           content: [
             {
@@ -1297,6 +1303,7 @@ function createServer(): McpServer {
             },
           ],
           isError: true,
+          ...(structuredContent ? { structuredContent } : {}),
         };
       }
       throw safeError;
@@ -2231,10 +2238,43 @@ if (
 }
 
 class GitLabApiError extends Error {
-  constructor(message: string) {
+  /** HTTP status of the GitLab response this error describes, when there was one. */
+  status?: number;
+  /**
+   * Raw Retry-After header value of the GitLab response (delta-seconds or an
+   * HTTP-date), when GitLab sent one. Exposed verbatim so clients can honor it.
+   */
+  retryAfter?: string;
+
+  constructor(message: string, response?: UndiciResponse) {
     super(message);
     this.name = "GitLabApiError";
+    if (response) {
+      this.status = response.status;
+      this.retryAfter = response.headers.get("retry-after")?.trim() || undefined;
+    }
   }
+}
+
+/**
+ * Machine-readable GitLab HTTP error fields for an isError tool result, so a
+ * client can see the status and honor Retry-After without parsing the text.
+ * Only fields the response actually provided are included.
+ */
+function gitLabApiErrorStructuredContent(
+  error: GitLabApiError
+): Record<string, unknown> | undefined {
+  if (error.status === undefined && error.retryAfter === undefined) {
+    return undefined;
+  }
+  const structuredContent: Record<string, unknown> = {};
+  if (error.status !== undefined) {
+    structuredContent.status = error.status;
+  }
+  if (error.retryAfter !== undefined) {
+    structuredContent.retryAfter = error.retryAfter;
+  }
+  return structuredContent;
 }
 
 class ToolInputError extends Error {
@@ -2271,7 +2311,8 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
       const error = new GitLabApiError(
-        appendRecoveryHint(`GitLab API Rate Limit Exceeded: ${errorBody}`)
+        appendRecoveryHint(`GitLab API Rate Limit Exceeded: ${errorBody}`),
+        response
       );
       throw error;
     } else {
@@ -2279,7 +2320,8 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       const error = new GitLabApiError(
         appendRecoveryHint(
           `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
-        )
+        ),
+        response
       );
       throw error;
     }
@@ -2857,7 +2899,7 @@ async function executeGraphQL<T = any>(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new GitLabApiError(`GraphQL request failed (${response.status}): ${errorBody}`);
+    throw new GitLabApiError(`GraphQL request failed (${response.status}): ${errorBody}`, response);
   }
 
   const json: any = await response.json();
@@ -4861,7 +4903,8 @@ async function createMergeRequest(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -4988,7 +5031,8 @@ async function deleteMergeRequestDiscussionNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 }
@@ -5231,7 +5275,8 @@ async function deleteMergeRequestNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 }
@@ -5483,7 +5528,8 @@ async function createOrUpdateFile(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -5530,7 +5576,8 @@ async function createCommit(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -5566,7 +5613,8 @@ async function searchProjects(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -5677,7 +5725,8 @@ async function createRepository(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -6204,7 +6253,8 @@ async function getBranchDiffs(
   if (!response.ok) {
     const errorBody = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
     );
   }
 
@@ -6554,7 +6604,8 @@ async function createNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6581,7 +6632,8 @@ async function getDraftNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6608,7 +6660,8 @@ async function listDraftNotes(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6661,7 +6714,8 @@ async function createDraftNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6714,7 +6768,8 @@ async function updateDraftNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6749,7 +6804,8 @@ async function deleteDraftNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 }
@@ -6781,7 +6837,8 @@ async function publishDraftNote(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6903,7 +6960,8 @@ async function bulkPublishDraftNotes(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 
@@ -6950,7 +7008,8 @@ async function resolveMergeRequestThread(
   if (!response.ok) {
     const errorText = await response.text();
     throw new GitLabApiError(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+      response
     );
   }
 }
@@ -11746,7 +11805,11 @@ async function handleToolCall(params: any) {
             throw new ToolInputError(error.message);
           }
           if (error instanceof GitLabApiRequestHttpError) {
-            throw new GitLabApiError(error.message);
+            // Carry the HTTP fields (status, Retry-After) into the tool error result.
+            const apiError = new GitLabApiError(error.message);
+            apiError.status = error.status;
+            apiError.retryAfter = error.retryAfter;
+            throw apiError;
           }
           throw error;
         }
