@@ -333,7 +333,6 @@ import {
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
 import { appendRecoveryHint } from "./utils/error-hints.js";
-import { readRetryAfterSeconds } from "./utils/retry-after.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -2239,7 +2238,7 @@ if (
 class GitLabApiError extends Error {
   /** HTTP status of the GitLab response this error describes, when there was one. */
   status?: number;
-  /** GitLab's Retry-After delay in whole seconds, preserved as a string when valid. */
+  /** GitLab's Retry-After delay in seconds, forwarded unchanged when present. */
   retryAfter?: string;
 
   /**
@@ -2252,7 +2251,7 @@ class GitLabApiError extends Error {
     this.name = "GitLabApiError";
     if (response) {
       this.status = response.status;
-      this.retryAfter = readRetryAfterSeconds(response.headers);
+      this.retryAfter = response.headers.get("retry-after") ?? undefined;
     }
   }
 }
@@ -2260,7 +2259,7 @@ class GitLabApiError extends Error {
 /**
  * Machine-readable GitLab HTTP error fields for an isError tool result, so a
  * client can see the status and honor Retry-After without parsing the text.
- * Missing or unsupported Retry-After values are omitted.
+ * Retry-After is omitted only when the header is absent.
  */
 function gitLabApiErrorStructuredContent(
   error: GitLabApiError

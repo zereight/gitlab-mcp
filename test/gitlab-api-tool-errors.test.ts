@@ -9,17 +9,6 @@ import {
 } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const MASKED_IP = "10.20.30.40";
-const RETRY_AFTER_CASES = [
-  ["seconds", "42", "42"],
-  ["zero", "0", "0"],
-  ["leading-zeroes", "0042", "0042"],
-  ["missing", undefined, undefined],
-  ["empty", "", undefined],
-  ["date", "Wed, 21 Oct 2026 07:28:00 GMT", undefined],
-  ["negative", "-1", undefined],
-  ["fraction", "1.5", undefined],
-  ["malformed", "42 seconds", undefined],
-] as const;
 
 function createTransport(apiUrl: string): StdioClientTransport {
   const transport = new StdioClientTransport({
@@ -57,14 +46,9 @@ async function startServer(t: TestContext) {
   const api = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
 
-    const retryCase = RETRY_AFTER_CASES.find(
-      ([suffix]) => req.url === `/api/v4/namespaces/throttled-${suffix}`
-    );
-    if (retryCase) {
+    if (req.url === "/api/v4/namespaces/throttled") {
       res.statusCode = 429;
-      if (retryCase[1] !== undefined) {
-        res.setHeader("Retry-After", retryCase[1]);
-      }
+      res.setHeader("Retry-After", "30");
       res.end(JSON.stringify({ message: "Too Many Requests" }));
       return;
     }
@@ -140,24 +124,30 @@ function resultText(result: Awaited<ReturnType<Client["callTool"]>>): string {
 }
 
 describe("GitLab API tool errors", () => {
-  for (const [suffix, , retryAfter] of RETRY_AFTER_CASES) {
-    test(`forwards only whole-second Retry-After values (${suffix})`, async t => {
-      const client = await startServer(t);
-      const path = `/namespaces/throttled-${suffix}`;
-      for (const call of [
-        { name: "get_namespace", arguments: { namespace_id: `throttled-${suffix}` } },
-        { name: "gitlab_api_request", arguments: { method: "GET", path } },
-      ]) {
-        const result = await client.callTool(call);
-        assert.equal(result.isError, true);
-        assert.match(resultText(result), /GitLab API error: 429 Too Many Requests/);
-        assert.deepEqual(result.structuredContent, {
-          status: 429,
-          ...(retryAfter === undefined ? {} : { retryAfter }),
-        });
-      }
-    });
-  }
+  test("forwards GitLab's Retry-After header", async t => {
+    const client = await startServer(t);
+    for (const call of [
+      { name: "get_namespace", arguments: { namespace_id: "throttled" } },
+      { name: "gitlab_api_request", arguments: { path: "/namespaces/throttled" } },
+    ]) {
+      const result = await client.callTool(call);
+      assert.equal(result.isError, true);
+      assert.match(resultText(result), /GitLab API error: 429 Too Many Requests/);
+      assert.deepEqual(result.structuredContent, { status: 429, retryAfter: "30" });
+    }
+  });
+
+  test("omits retryAfter when GitLab does not send the header", async t => {
+    const client = await startServer(t);
+    for (const call of [
+      { name: "get_namespace", arguments: { namespace_id: "missing" } },
+      { name: "gitlab_api_request", arguments: { path: "/namespaces/missing" } },
+    ]) {
+      const result = await client.callTool(call);
+      assert.equal(result.isError, true);
+      assert.deepEqual(result.structuredContent, { status: 404 });
+    }
+  });
 
   test("returns HTTP failures as tool errors and keeps the MCP connection usable", async t => {
     const client = await startServer(t);
