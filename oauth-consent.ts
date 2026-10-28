@@ -44,9 +44,7 @@ export const DEFAULT_ALLOWED_REDIRECT_URIS: readonly string[] = [
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 type RedirectRule =
-  | { kind: "any" }
-  | { kind: "exact"; uri: string }
-  | { kind: "prefix"; base: URL };
+  { kind: "any" } | { kind: "exact"; uri: string } | { kind: "prefix"; base: URL };
 
 function parseRule(entry: string): RedirectRule {
   if (entry === "*") return { kind: "any" };

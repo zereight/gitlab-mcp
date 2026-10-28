@@ -10751,8 +10751,7 @@ async function orbitListTools(): Promise<unknown> {
 async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
   const data = await executeGraphQL<{
     vulnerability:
-      | ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>)
-      | null;
+      ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>) | null;
   }>(
     `query getVulnerability($id: VulnerabilityID!) {
       vulnerability(id: $id) {
@@ -16277,8 +16276,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           if (response.ok) {
             const body = (await response.json().catch(() => undefined)) as
-              | { id?: unknown; user?: { id?: unknown } }
-              | undefined;
+              { id?: unknown; user?: { id?: unknown } } | undefined;
             const userId = path === "job" ? body?.user?.id : body?.id;
             return sessionOwnerKey(apiUrl, userId, authData.token);
           }
