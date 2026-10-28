@@ -198,6 +198,7 @@ import { registerDownloadProxy } from "./downloads/proxy.js";
 import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
 import { loadRemoteHttpStack } from "./server/remote-http-stack.js";
+import { createHttpErrorHandler } from "./server/http-error-handler.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
 import { SERVER_VERSION } from "./server/version.js";
@@ -10751,8 +10752,7 @@ async function orbitListTools(): Promise<unknown> {
 async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
   const data = await executeGraphQL<{
     vulnerability:
-      | ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>)
-      | null;
+      ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>) | null;
   }>(
     `query getVulnerability($id: VulnerabilityID!) {
       vulnerability(id: $id) {
@@ -16052,6 +16052,8 @@ async function startSSEServer(): Promise<void> {
     });
   });
 
+  app.use(createHttpErrorHandler(logger));
+
   const httpServer = app.listen(Number(PORT), HOST, () => {
     logger.info("GitLab MCP Server running with SSE transport");
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
@@ -16277,8 +16279,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           if (response.ok) {
             const body = (await response.json().catch(() => undefined)) as
-              | { id?: unknown; user?: { id?: unknown } }
-              | undefined;
+              { id?: unknown; user?: { id?: unknown } } | undefined;
             const userId = path === "job" ? body?.user?.id : body?.id;
             return sessionOwnerKey(apiUrl, userId, authData.token);
           }
@@ -17616,6 +17617,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       message: "Method Not Allowed. Use GET, POST, or DELETE to communicate with the MCP server.",
     });
   });
+
+  app.use(createHttpErrorHandler(logger));
 
   // Start server
   const httpServer = app.listen(Number(PORT), HOST, () => {

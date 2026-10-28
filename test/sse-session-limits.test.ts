@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, it, test } from "node:test";
 import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
 
 const LOOPBACK = "127.0.0.1";
 const SSE_TOKEN = "mcp_sse_secret";
+const PARSE_ERROR_LEAK_PROBE = "approval_password_leak_probe_948";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
 // Keeps connection churn from tripping the per-IP creation limit in tests that
 // are not about rate limiting.
@@ -38,6 +39,14 @@ function startSseServer(env: Record<string, string>, port: number) {
   running.add(child);
   child.once("exit", () => running.delete(child));
   return child;
+}
+
+function captureStderr(child: { stderr: NodeJS.ReadableStream | null }): () => string {
+  let output = "";
+  child.stderr?.on("data", chunk => {
+    output += chunk.toString();
+  });
+  return () => output;
 }
 
 async function waitForHealth(port: number, timeoutMs = 10000) {
@@ -424,5 +433,41 @@ describe("SSE session limits", { concurrency: 1 }, () => {
     assert.equal(body.maxSessions, 1);
 
     connection.close();
+  });
+});
+
+describe("When posting broken JSON to /messages", () => {
+  describe("with a secret field in the raw body", () => {
+    it("should return a JSON-RPC parse error without logging the body", async () => {
+      const port = await findAvailablePort(4560);
+      const child = startSseServer(
+        { MAX_REQUESTS_PER_MINUTE: UNTHROTTLED, LOG_FORMAT: "json" },
+        port
+      );
+      const stderr = captureStderr(child);
+      await waitForHealth(port);
+
+      const connection = openSseConnection(port);
+      const sessionId = await readSessionId(connection);
+      const brokenBody = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"arguments":{"approval_password":"${PARSE_ERROR_LEAK_PROBE}"}`;
+
+      const response = await fetch(`http://${LOOPBACK}:${port}/messages?sessionId=${sessionId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${SSE_TOKEN}`, "Content-Type": "application/json" },
+        body: brokenBody,
+      });
+      const payload: unknown = await response.json();
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(payload, {
+        jsonrpc: "2.0",
+        error: { code: -32700, message: "Parse error" },
+        id: null,
+      });
+      assert.equal(await waitFor(() => stderr().includes("HTTP request error")), true);
+      assert.equal(stderr().includes(PARSE_ERROR_LEAK_PROBE), false);
+      assert.equal(stderr().includes("entity.parse.failed"), true);
+      connection.close();
+    });
   });
 });
