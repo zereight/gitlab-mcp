@@ -186,6 +186,25 @@ build_docs() {
   make docs
 }
 
+# Move changelog.d fragments into CHANGELOG.md for this version and delete them.
+# No fragments is a no-op, so releases stay equivalent when none are present.
+merge_changelog_fragments() {
+  local version="$1"
+  local previous_tag="$2"
+  node scripts/merge-changelog-fragments.mjs \
+    --version "$version" \
+    --previous-tag "$previous_tag" \
+    --repo-url "$REPO_URL"
+}
+
+stage_release_paths() {
+  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md README.pt-BR.md docs CHANGELOG.md
+  git add -A changelog.d
+  if [ -f server.json ]; then
+    git add server.json
+  fi
+}
+
 # Determine the previous stable tag for changelog. Pre-release tags such as
 # v2.4.0-rc.1 are skipped, so notes and the docs pin start from a stable release.
 get_previous_tag() {
@@ -566,11 +585,9 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
+  merge_changelog_fragments "$NEW_VERSION" "$PREV_TAG"
 
-  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md README.pt-BR.md docs
-  if [ -f server.json ]; then
-    git add server.json
-  fi
+  stage_release_paths
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"
@@ -594,11 +611,9 @@ else
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
+  merge_changelog_fragments "$NEW_VERSION" "$PREV_TAG"
 
-  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md README.pt-BR.md docs
-  if [ -f server.json ]; then
-    git add server.json
-  fi
+  stage_release_paths
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"

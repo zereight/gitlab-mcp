@@ -127,16 +127,29 @@ anything.
 3. It syncs the version into `server.json` and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good
    version. It runs the MCP Registry preflight
-   (`npm run release:mcp-registry -- --check`) and `make docs`.
+   (`npm run release:mcp-registry -- --check`) and `make docs`. It then merges
+   `changelog.d/*.md` fragments (except `README.md`) into a new
+   `#### [vX.Y.Z]` section of `CHANGELOG.md` and deletes those files. No
+   fragments is a no-op, so a release with an empty `changelog.d/` is unchanged
+   from the previous path.
 4. It commits `chore(release): vX.Y.Z`, tags `vX.Y.Z`, pushes both, and creates
    the GitHub release with generated notes.
 
-The release notes list the PRs referenced since the previous tag, grouped by PR
-title prefix (`feat`, `fix`, `docs`, ...), followed by contributors. The script
-reads at most 20 PR numbers, so check the notes when more PRs merged. PRs opened
-by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are left
-out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
+The GitHub release notes list the PRs referenced since the previous tag, grouped
+by PR title prefix (`feat`, `fix`, `docs`, ...), followed by contributors. The
+script reads at most 20 PR numbers, so check the notes when more PRs merged. PRs
+opened by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are
+left out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
 [#815](https://github.com/zereight/gitlab-mcp/issues/815) deprecation notice.
+
+## Release notes in `changelog.d/`
+
+Each pull request that a user can see adds a file under `changelog.d/`, named
+after the branch with `-` for `/`. The
+[Changelog](.github/workflows/changelog.yml) workflow fails a PR that adds
+neither a fragment nor a `CHANGELOG.md` edit, unless it has the `no-changelog`
+label. `scripts/release.sh` moves those items into `CHANGELOG.md` under the new
+version heading. See [`changelog.d/README.md`](changelog.d/README.md).
 
 Publishing a stable GitHub release starts these workflows, directly or in turn.
 A pre-release skips them; see [Pre-release builds](#pre-release-builds-next).

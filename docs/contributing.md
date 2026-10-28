@@ -10,6 +10,8 @@ how to get your change merged.
 > - [Pull requests](https://github.com/zereight/gitlab-mcp/pulls)
 > - [Source — `CONTRIBUTING.md`](https://github.com/zereight/gitlab-mcp/blob/main/CONTRIBUTING.md)
 > - [Changelog](https://github.com/zereight/gitlab-mcp/blob/main/CHANGELOG.md)
+> - [Code of Conduct](https://github.com/zereight/gitlab-mcp/blob/main/CODE_OF_CONDUCT.md)
+> - [Security policy](https://github.com/zereight/gitlab-mcp/blob/main/SECURITY.md)
 
 ---
 
@@ -19,6 +21,17 @@ how to get your change merged.
 - **Request a feature** — open an issue describing the GitLab capability you want exposed and why it matters for your workflow.
 - **Submit a fix or new tool** — fork the repo and open a pull request (details below).
 - **Improve the docs** — this site is generated from `docs/`. PRs that clarify a setup guide, fix a broken link, or add a missing example are very welcome.
+
+Bug fixes, documentation, and small improvements that do not change default
+behavior can go in as a pull request without an issue.
+
+**New tools, default behavior, auth/OAuth, and CI/workflow changes** need an
+issue with the `approved` label first. Open the issue, wait for a maintainer
+to add `approved`, then link it from the pull request. PRs in those areas
+without an approved issue may be labeled `needs-approved-issue`.
+
+If they are missing, maintainers should create these labels: `approved`,
+`needs-approved-issue`, `needs-triage`, `external`, `no-changelog`.
 
 ## Development setup
 
@@ -78,6 +91,7 @@ complete list of flags the server understands.
 ├── test/                       # Mock + live test suites
 ├── docs/                       # MkDocs source — published to GitHub Pages
 ├── scripts/                    # Maintenance scripts (release, doc-gen)
+├── changelog.d/                # Per-PR release notes; merged at release
 └── .github/workflows/          # CI pipelines
 ```
 
@@ -150,16 +164,22 @@ Conventions enforced by CI:
    We don't enforce Conventional Commits strictly, but the changelog
    generator (`npm run changelog`) groups commits by these prefixes.
 
-3. **Pull request** — open against `main`. In the description, include:
+3. **Changelog fragment** — add `changelog.d/<branch-with-dashes>.md` with a
+   `### Added` / `### Changed` / `### Fixed` (or Deprecated, Removed, Security,
+   Breaking changes) list item. The Changelog workflow fails the PR if that
+   file is missing, unless the PR has the `no-changelog` label (use it when a
+   user sees no change). See `changelog.d/README.md`.
+
+4. **Pull request** — open against `main`. In the description, include:
 
    - **What** changed (one paragraph).
    - **Why** — link an issue if there is one.
    - **How tested** — which `npm test` commands ran, and any manual verification with a real MCP client (Claude Code, Cursor, etc.).
    - **Breaking changes** — call them out explicitly.
 
-4. **CI must pass** — the PR workflow runs the mock test suite, type check, lint, Docker build, formatting check, and `npm audit`. Address all real failures; existing "warning" steps (e.g., the TODO grep) are informational.
+5. **CI must pass** — the PR workflow runs the mock test suite, type check, lint, Docker build, formatting check, and `npm audit`. Lint, Prettier, and production `npm audit` failures fail the job. Address all real failures; existing "warning" steps (e.g., the TODO grep) are informational.
 
-5. **Review** — a maintainer will review. We try to respond within a few days. Small, focused PRs get merged fastest.
+6. **Review** — a maintainer will review. We try to respond within a few days. Small, focused PRs get merged fastest. Changes to permissions, auth, tokens, network, or default behavior need maintainer approval.
 
 ## Documentation contributions
 
@@ -223,6 +243,7 @@ for the full process, approval rules, and supported versions.
 ## Getting help
 
 - **Questions about usage** — open a [GitHub Discussion](https://github.com/zereight/gitlab-mcp/discussions) or a discussion-style issue.
-- **Sensitive reports** (security, conduct) — email the maintainers via the address listed in the repo's `package.json` / npm page rather than filing a public issue.
+- **Security reports** — use [GitHub private vulnerability reporting](https://github.com/zereight/gitlab-mcp/security/advisories/new), as described in [SECURITY.md](https://github.com/zereight/gitlab-mcp/blob/main/SECURITY.md). Do not open a public issue.
+- **Conduct** — see [CODE_OF_CONDUCT.md](https://github.com/zereight/gitlab-mcp/blob/main/CODE_OF_CONDUCT.md). Report privately through the same GitHub advisory form.
 
 Thanks for contributing!

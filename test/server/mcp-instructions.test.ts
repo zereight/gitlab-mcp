@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import {
-  MCP_INSTRUCTIONS,
-  MCP_INSTRUCTIONS_MAX_BYTES,
-} from "../../server/mcp-instructions.js";
+import { MCP_INSTRUCTIONS, MCP_INSTRUCTIONS_MAX_BYTES } from "../../server/mcp-instructions.js";
 import { StdioTestClient } from "../clients/stdio-client.js";
 
 const SERVER_PATH = path.resolve("build/index.js");
