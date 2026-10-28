@@ -35,3 +35,7 @@ updates:
     labels:
       - dependencies
       - no-changelog
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
