@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Checkout
         # actions/checkout@v4 — pin to commit SHA for supply-chain safety
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           # Drop the GITHUB_TOKEN credential after checkout; nothing in the
