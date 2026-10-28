@@ -198,6 +198,7 @@ import { registerDownloadProxy } from "./downloads/proxy.js";
 import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
 import { loadRemoteHttpStack } from "./server/remote-http-stack.js";
+import { createHttpErrorHandler } from "./server/http-error-handler.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
 import { SERVER_VERSION } from "./server/version.js";
@@ -16051,6 +16052,8 @@ async function startSSEServer(): Promise<void> {
     });
   });
 
+  app.use(createHttpErrorHandler(logger));
+
   const httpServer = app.listen(Number(PORT), HOST, () => {
     logger.info("GitLab MCP Server running with SSE transport");
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
@@ -17614,6 +17617,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       message: "Method Not Allowed. Use GET, POST, or DELETE to communicate with the MCP server.",
     });
   });
+
+  app.use(createHttpErrorHandler(logger));
 
   // Start server
   const httpServer = app.listen(Number(PORT), HOST, () => {
