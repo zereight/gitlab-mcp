@@ -4,7 +4,7 @@ import { once } from "node:events";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { pino } from "pino";
+import { stdSerializers } from "pino";
 import { serializeLoggedError } from "../../utils/logger.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -368,7 +368,7 @@ describe("When serializeLoggedError runs", () => {
 
       assert.equal(
         JSON.stringify(serializeLoggedError(error)),
-        JSON.stringify(pino.stdSerializers.err(error))
+        JSON.stringify(stdSerializers.err(error))
       );
     });
   });

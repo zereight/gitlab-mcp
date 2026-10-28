@@ -182,8 +182,7 @@ describe("list_issues", () => {
       const { tools } = await client.listTools();
       const listIssues = tools.find(tool => tool.name === "list_issues");
       const summary = listIssues?.inputSchema.properties?.summary as
-        | { description?: string }
-        | undefined;
+        { description?: string } | undefined;
       assert.match(summary?.description ?? "", /defaults to true; pass false/);
     } finally {
       await client.disconnect();

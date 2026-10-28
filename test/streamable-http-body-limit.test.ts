@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, it, test } from "node:test";
 import {
   cleanupServers,
   findAvailablePort,
@@ -11,6 +11,7 @@ import {
 const HOST = process.env.HOST || "127.0.0.1";
 const GITLAB_NOTE_CHARACTER_LIMIT = 1_000_000;
 const TWENTY_KIB = 20 * 1024;
+const PARSE_ERROR_LEAK_PROBE = "approval_password_leak_probe_948";
 
 const servers: ServerInstance[] = [];
 
@@ -66,6 +67,31 @@ async function postNoteRequest(mcpUrl: string, body: string): Promise<Response> 
   });
 }
 
+function captureStderr(child: { stderr: NodeJS.ReadableStream | null }): () => string {
+  let output = "";
+  child.stderr?.on("data", chunk => {
+    output += chunk.toString();
+  });
+  return () => output;
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 3000, stepMs = 50): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await new Promise(resolve => setTimeout(resolve, stepMs));
+  }
+  return predicate();
+}
+
+function lastLaunchedServer(): ServerInstance {
+  const server = servers.at(-1);
+  if (server === undefined) {
+    throw new Error("expected a launched server");
+  }
+  return server;
+}
+
 afterEach(() => {
   cleanupServers(servers);
   servers.length = 0;
@@ -106,5 +132,28 @@ describe("Streamable HTTP request body limit", () => {
 
     const rateLimited = await postNoteRequest(mcpUrl, noteRequestWithEncodedLength(TWENTY_KIB + 1));
     assert.equal(rateLimited.status, 429);
+  });
+});
+
+describe("When posting broken JSON to /mcp", () => {
+  describe("with a secret field in the raw body", () => {
+    it("should return a JSON-RPC parse error without logging the body", async () => {
+      const mcpUrl = await startServer(4620, { LOG_FORMAT: "json" });
+      const stderr = captureStderr(lastLaunchedServer().process);
+      const brokenBody = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"arguments":{"approval_password":"${PARSE_ERROR_LEAK_PROBE}"}`;
+
+      const response = await postNoteRequest(mcpUrl, brokenBody);
+      const payload: unknown = await response.json();
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(payload, {
+        jsonrpc: "2.0",
+        error: { code: -32700, message: "Parse error" },
+        id: null,
+      });
+      assert.equal(await waitFor(() => stderr().includes("HTTP request error")), true);
+      assert.equal(stderr().includes(PARSE_ERROR_LEAK_PROBE), false);
+      assert.equal(stderr().includes("entity.parse.failed"), true);
+    });
   });
 });

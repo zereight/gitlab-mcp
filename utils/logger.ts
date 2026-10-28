@@ -1,5 +1,12 @@
 import { createRequire } from "node:module";
-import { pino, type DestinationStream, type LogFn, type Logger } from "pino";
+import {
+  pino,
+  destination,
+  stdSerializers,
+  type DestinationStream,
+  type LogFn,
+  type Logger,
+} from "pino";
 import { redactUrlSecretsInError, redactUrlSecretsInLogLine } from "./redact-url.js";
 
 const require = createRequire(import.meta.url);
@@ -85,8 +92,8 @@ function loadPrettifier(): Prettifier {
   return prettyModule.prettyFactory({ colorize: true, levelFirst: true });
 }
 
-function createAsyncStderr(): ReturnType<typeof pino.destination> {
-  return pino.destination({
+function createAsyncStderr(): ReturnType<typeof destination> {
+  return destination({
     dest: STDERR_FD,
     sync: false,
     minLength: ASYNC_LOG_MIN_LENGTH,
@@ -155,7 +162,7 @@ export function flushBufferedLogs(logger: Logger): void {
  * that the line redaction cannot recognize.
  */
 export function serializeLoggedError(error: unknown): unknown {
-  return pino.stdSerializers.err(redactUrlSecretsInError(error) as Error);
+  return stdSerializers.err(redactUrlSecretsInError(error) as Error);
 }
 
 // Keys whose error pino or pino-pretty prints even though no serializer runs on it.
