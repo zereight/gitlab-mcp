@@ -43,11 +43,11 @@ async function withServer(run: (client: StdioTestClient) => Promise<void>): Prom
 
 describe("When the stdio server exposes docs resources", () => {
   describe("with a fake local token and stdio transport", () => {
-    it("should advertise resources as an empty capability object", async () => {
+    it("should advertise resources with listChanged capability", async () => {
       await withServer(async client => {
         const capabilities = await client.serverCapabilities();
 
-        assert.deepEqual(capabilities?.resources, {});
+        assert.deepEqual(capabilities?.resources, { listChanged: true });
       });
     });
 

@@ -43,11 +43,11 @@ async function withServer(run: (client: StdioTestClient) => Promise<void>): Prom
 
 describe("When the stdio server exposes workflow prompts", () => {
   describe("with a fake local token and stdio transport", () => {
-    it("should advertise prompts as an empty capability object", async () => {
+    it("should advertise prompts with listChanged capability", async () => {
       await withServer(async client => {
         const capabilities = await client.serverCapabilities();
 
-        assert.deepEqual(capabilities?.prompts, {});
+        assert.deepEqual(capabilities?.prompts, { listChanged: true });
       });
     });
 
