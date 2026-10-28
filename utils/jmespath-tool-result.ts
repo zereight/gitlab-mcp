@@ -1,4 +1,5 @@
 import jmespath from "jmespath";
+import { isJsonObject } from "./structured-content.js";
 
 declare module "jmespath" {
   export function compile(expression: string): unknown;
@@ -54,10 +55,6 @@ export interface JmespathApplyOptions {
 
 function isContentBlock(value: unknown): value is { type?: unknown; text?: unknown } {
   return Boolean(value && typeof value === "object");
-}
-
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function prepareDataForJmespath(data: unknown, maskValue?: (value: unknown) => unknown): unknown {

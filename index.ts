@@ -333,6 +333,7 @@ import {
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
 import { appendRecoveryHint } from "./utils/error-hints.js";
+import { omitInvalidStructuredContent } from "./utils/structured-content.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -964,17 +965,20 @@ function createServer(): McpServer {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
-      return compactMcpToolResult({
-        result: masked,
-        enabled: shouldCompactToolResult(
+      // Last exit for successful results: structuredContent is object-or-absent (#675).
+      return omitInvalidStructuredContent(
+        compactMcpToolResult({
+          result: masked,
+          enabled: shouldCompactToolResult(
+            toolName,
+            GITLAB_MCP_COMPACT_RESULTS,
+            GITLAB_MCP_COMPACT_TOOL_NAMES
+          ),
+          maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
           toolName,
-          GITLAB_MCP_COMPACT_RESULTS,
-          GITLAB_MCP_COMPACT_TOOL_NAMES
-        ),
-        maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
-        toolName,
-        args: readOwnRecord(request.params.arguments),
-      });
+          args: readOwnRecord(request.params.arguments),
+        })
+      );
     };
 
     const logError = (error: unknown): unknown => {
