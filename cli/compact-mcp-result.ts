@@ -1,3 +1,4 @@
+import { omitInvalidStructuredContent } from "../utils/structured-content.js";
 import { buildToolReplayCommand } from "./replay-command.js";
 
 const PREVIEW_ARRAY_ITEMS = 5;
@@ -45,6 +46,11 @@ export function compactMcpToolResult(input: CompactMcpToolResultInput): Record<s
     content: [{ type: "text", text: JSON.stringify(compact) }],
     isError: false,
   };
+}
+
+/** Last exit of a tools/call result: compaction, then structuredContent is object-or-absent (#675). */
+export function finalizeToolCallResult(input: CompactMcpToolResultInput): Record<string, unknown> {
+  return omitInvalidStructuredContent(compactMcpToolResult(input));
 }
 
 function toolResultRecord(value: unknown): Record<string, unknown> {

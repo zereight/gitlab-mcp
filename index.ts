@@ -185,7 +185,7 @@ import {
 } from "./cli/doctor.js";
 import { runSetup } from "./cli/setup.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
-import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
+import { finalizeToolCallResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
@@ -964,7 +964,8 @@ function createServer(): McpServer {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
-      return compactMcpToolResult({
+      // Last exit for successful results: structuredContent is object-or-absent (#675).
+      return finalizeToolCallResult({
         result: masked,
         enabled: shouldCompactToolResult(
           toolName,
