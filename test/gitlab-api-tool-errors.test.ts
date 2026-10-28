@@ -9,6 +9,17 @@ import {
 } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const MASKED_IP = "10.20.30.40";
+const RETRY_AFTER_CASES = [
+  ["seconds", "42", "42"],
+  ["zero", "0", "0"],
+  ["leading-zeroes", "0042", "0042"],
+  ["missing", undefined, undefined],
+  ["empty", "", undefined],
+  ["date", "Wed, 21 Oct 2026 07:28:00 GMT", undefined],
+  ["negative", "-1", undefined],
+  ["fraction", "1.5", undefined],
+  ["malformed", "42 seconds", undefined],
+] as const;
 
 function createTransport(apiUrl: string): StdioClientTransport {
   const transport = new StdioClientTransport({
@@ -46,12 +57,13 @@ async function startServer(t: TestContext) {
   const api = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
 
-    if (req.url?.startsWith("/api/v4/namespaces/throttled")) {
+    const retryCase = RETRY_AFTER_CASES.find(
+      ([suffix]) => req.url === `/api/v4/namespaces/throttled-${suffix}`
+    );
+    if (retryCase) {
       res.statusCode = 429;
-      if (req.url === "/api/v4/namespaces/throttled-seconds") {
-        res.setHeader("Retry-After", "42");
-      } else if (req.url === "/api/v4/namespaces/throttled-date") {
-        res.setHeader("Retry-After", "Wed, 21 Oct 2026 07:28:00 GMT");
+      if (retryCase[1] !== undefined) {
+        res.setHeader("Retry-After", retryCase[1]);
       }
       res.end(JSON.stringify({ message: "Too Many Requests" }));
       return;
@@ -128,12 +140,8 @@ function resultText(result: Awaited<ReturnType<Client["callTool"]>>): string {
 }
 
 describe("GitLab API tool errors", () => {
-  for (const [suffix, retryAfter] of [
-    ["seconds", "42"],
-    ["date", "Wed, 21 Oct 2026 07:28:00 GMT"],
-    ["missing", undefined],
-  ] as const) {
-    test(`forwards Retry-After metadata (${suffix})`, async t => {
+  for (const [suffix, , retryAfter] of RETRY_AFTER_CASES) {
+    test(`forwards only whole-second Retry-After values (${suffix})`, async t => {
       const client = await startServer(t);
       const path = `/namespaces/throttled-${suffix}`;
       for (const call of [

@@ -1,5 +1,6 @@
 import type { RequestInit as UndiciRequestInit } from "undici";
 import { z } from "zod";
+import { readRetryAfterSeconds } from "../utils/retry-after.js";
 
 import {
   redactSensitiveGitLabFields,
@@ -62,7 +63,7 @@ export class GitLabApiRequestInputError extends Error {
 export class GitLabApiRequestHttpError extends Error {
   /** HTTP status of the GitLab response, when the error came from one. */
   status?: number;
-  /** Raw Retry-After header value from GitLab (delta-seconds or HTTP-date), when present. */
+  /** GitLab's Retry-After delay in whole seconds, preserved as a string when valid. */
   retryAfter?: string;
 
   /**
@@ -78,7 +79,7 @@ export class GitLabApiRequestHttpError extends Error {
     this.name = "GitLabApiRequestHttpError";
     if (response) {
       this.status = response.status;
-      this.retryAfter = response.headers.get("retry-after") ?? undefined;
+      this.retryAfter = readRetryAfterSeconds(response.headers);
     }
   }
 }
