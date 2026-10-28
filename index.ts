@@ -185,7 +185,7 @@ import {
 } from "./cli/doctor.js";
 import { runSetup } from "./cli/setup.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
-import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
+import { finalizeToolCallResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
@@ -333,7 +333,6 @@ import {
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
 import { appendRecoveryHint } from "./utils/error-hints.js";
-import { omitInvalidStructuredContent } from "./utils/structured-content.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -966,19 +965,17 @@ function createServer(): McpServer {
           })
         : filtered;
       // Last exit for successful results: structuredContent is object-or-absent (#675).
-      return omitInvalidStructuredContent(
-        compactMcpToolResult({
-          result: masked,
-          enabled: shouldCompactToolResult(
-            toolName,
-            GITLAB_MCP_COMPACT_RESULTS,
-            GITLAB_MCP_COMPACT_TOOL_NAMES
-          ),
-          maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
+      return finalizeToolCallResult({
+        result: masked,
+        enabled: shouldCompactToolResult(
           toolName,
-          args: readOwnRecord(request.params.arguments),
-        })
-      );
+          GITLAB_MCP_COMPACT_RESULTS,
+          GITLAB_MCP_COMPACT_TOOL_NAMES
+        ),
+        maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
+        toolName,
+        args: readOwnRecord(request.params.arguments),
+      });
     };
 
     const logError = (error: unknown): unknown => {
