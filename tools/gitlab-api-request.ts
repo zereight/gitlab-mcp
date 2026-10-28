@@ -5,7 +5,6 @@ import {
   redactSensitiveGitLabFields,
   redactSensitiveGitLabText,
 } from "../utils/redact-sensitive.js";
-import { safeRetryAfterHeader } from "../utils/redact-url.js";
 import {
   fetchWithValidatedRedirects,
   UnsafeRedirectError,
@@ -79,7 +78,7 @@ export class GitLabApiRequestHttpError extends Error {
     this.name = "GitLabApiRequestHttpError";
     if (response) {
       this.status = response.status;
-      this.retryAfter = safeRetryAfterHeader(response.headers);
+      this.retryAfter = response.headers.get("retry-after") ?? undefined;
     }
   }
 }

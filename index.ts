@@ -287,7 +287,6 @@ import {
   redactUrlSecretsInError,
   redactUrlSecretsInErrorMessage,
   redactUrlSecretsInText,
-  safeRetryAfterHeader,
 } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
@@ -1288,18 +1287,10 @@ function createServer(): McpServer {
         error instanceof ProjectAccessDeniedError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
-        // Redaction and masking mutate the error in place, so the GitLab HTTP
-        // fields survive on the same instance the message was taken from.
         const structuredContent =
           safeError instanceof GitLabApiError
             ? gitLabApiErrorStructuredContent(safeError)
             : undefined;
-        // The Retry-After value is upstream-controlled text; mask it like the
-        // message above, the same way results mask structuredContent.
-        const maskedStructuredContent =
-          structuredContent !== undefined && maskingEngine
-            ? maskingEngine.maskValue(structuredContent)
-            : structuredContent;
         return {
           content: [
             {
@@ -1310,7 +1301,7 @@ function createServer(): McpServer {
             },
           ],
           isError: true,
-          ...(maskedStructuredContent ? { structuredContent: maskedStructuredContent } : {}),
+          ...(structuredContent ? { structuredContent } : {}),
         };
       }
       throw safeError;
@@ -2263,7 +2254,7 @@ class GitLabApiError extends Error {
     this.name = "GitLabApiError";
     if (response) {
       this.status = response.status;
-      this.retryAfter = safeRetryAfterHeader(response.headers);
+      this.retryAfter = response.headers.get("retry-after") ?? undefined;
     }
   }
 }
@@ -9797,11 +9788,6 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     // No matching user found
     return null;
   } catch (error) {
-    // An HTTP failure is not "no such user": surface it so the tool result
-    // reports the status (and Retry-After) instead of a silent null.
-    if (error instanceof GitLabApiError) {
-      throw error;
-    }
     logger.error({ err: error }, `Error fetching user by username '${username}'`);
     return null;
   }
@@ -9822,11 +9808,6 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
       const user = await getUser(username);
       users[username] = user;
     } catch (error) {
-      // An HTTP failure is not "no such user": surface it so the tool result
-      // reports the status (and Retry-After) instead of a silent null.
-      if (error instanceof GitLabApiError) {
-        throw error;
-      }
       logger.error({ err: error }, `Error processing username '${username}'`);
       users[username] = null;
     }
@@ -11798,13 +11779,8 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
-          // Returned rather than thrown, so redact the text here. Preserve the
-          // legacy result shape for failures without GitLab HTTP metadata.
+          // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
-          // A GitLab HTTP error keeps its machine-readable fields so a client can
-          // still honor Retry-After; logCompletion masks the structured content.
-          const structuredContent =
-            err instanceof GitLabApiError ? gitLabApiErrorStructuredContent(err) : undefined;
           return {
             content: [
               {
@@ -11812,7 +11788,6 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: `GraphQL request failed: ${message}` }),
               },
             ],
-            ...(structuredContent ? { isError: true, structuredContent } : {}),
           };
         } finally {
           clearTimeout(timeout);
@@ -11854,24 +11829,13 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
-          if (forkError instanceof GitLabApiError) {
-            // Do not serialize upstream body/header text before result masking.
-            logger.error({ status: forkError.status }, "Error forking repository");
-          } else {
-            logger.error({ err: forkError }, "Error forking repository");
-          }
+          logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
             const reason =
               describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
-          // A GitLab HTTP error keeps its machine-readable fields so a client can
-          // still honor Retry-After; logCompletion masks the structured content.
-          const structuredContent =
-            forkError instanceof GitLabApiError
-              ? gitLabApiErrorStructuredContent(forkError)
-              : undefined;
           return {
             content: [
               {
@@ -11879,7 +11843,6 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: forkErrorMessage }),
               },
             ],
-            ...(structuredContent ? { isError: true, structuredContent } : {}),
           };
         }
       }

@@ -39,23 +39,6 @@ export function redactUrlSecretsInText(text: string): string {
 }
 
 /**
- * The Retry-After header as safe, trimmed text: undefined when absent, and
- * redacted like log text otherwise. GitLab sends delta-seconds or an HTTP-date,
- * which pass through verbatim; anything else carrying URL secrets is redacted
- * to the same standard the log serializer holds the message to.
- */
-export function safeRetryAfterHeader(headers: {
-  get(name: string): string | null;
-}): string | undefined {
-  const value = headers.get("retry-after");
-  if (value === null) {
-    return undefined;
-  }
-  const redacted = redactUrlSecretsInText(value).trim();
-  return redacted || undefined;
-}
-
-/**
  * Redacts an error in place: `message`, `stack`, and every `cause` below it.
  * undici and `new URL()` put the URL they rejected into the message, so a
  * credentialed URL would otherwise reach the MCP client and the log verbatim.
