@@ -287,6 +287,7 @@ import {
   redactUrlSecretsInError,
   redactUrlSecretsInErrorMessage,
   redactUrlSecretsInText,
+  safeRetryAfterHeader,
 } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
@@ -2262,7 +2263,7 @@ class GitLabApiError extends Error {
     this.name = "GitLabApiError";
     if (response) {
       this.status = response.status;
-      this.retryAfter = response.headers.get("retry-after")?.trim() || undefined;
+      this.retryAfter = safeRetryAfterHeader(response.headers);
     }
   }
 }
@@ -2467,7 +2468,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
 
   // Handle case where project already exists
   if (response.status === 409) {
-    throw new GitLabApiError("Project already exists in the target namespace");
+    throw new GitLabApiError("Project already exists in the target namespace", response);
   }
 
   await handleGitLabError(response);
@@ -2564,7 +2565,7 @@ async function getFileContents(
 
   // Handle file not found
   if (response.status === 404) {
-    throw new GitLabApiError(`File not found: ${filePath}`);
+    throw new GitLabApiError(`File not found: ${filePath}`, response);
   }
 
   await handleGitLabError(response);
@@ -2610,7 +2611,7 @@ async function createIssue(
   // Handle bad request
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new GitLabApiError(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`, response);
   }
 
   await handleGitLabError(response);
@@ -4908,7 +4909,7 @@ async function createMergeRequest(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new GitLabApiError(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`, response);
   }
 
   if (!response.ok) {
@@ -5581,7 +5582,7 @@ async function createCommit(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new GitLabApiError(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`, response);
   }
 
   if (!response.ok) {
@@ -7810,7 +7811,7 @@ async function getPipeline(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`, response);
   }
 
   await handleGitLabError(response);
@@ -7926,7 +7927,7 @@ async function getDeployment(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Deployment not found`);
+    throw new GitLabApiError(`Deployment not found`, response);
   }
 
   await handleGitLabError(response);
@@ -8005,7 +8006,7 @@ async function getEnvironment(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Environment not found`);
+    throw new GitLabApiError(`Environment not found`, response);
   }
 
   await handleGitLabError(response);
@@ -8171,7 +8172,7 @@ async function getRunner(runnerId: string, projectId?: string): Promise<unknown>
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError("Runner not found");
+    throw new GitLabApiError("Runner not found", response);
   }
 
   await handleGitLabError(response);
@@ -8270,7 +8271,7 @@ async function listPipelineJobs(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`, response);
   }
 
   await handleGitLabError(response);
@@ -8304,7 +8305,7 @@ async function listPipelineTriggerJobs(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`, response);
   }
 
   await handleGitLabError(response);
@@ -8328,7 +8329,7 @@ async function getPipelineJob(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Job not found`);
+    throw new GitLabApiError(`Job not found`, response);
   }
 
   await handleGitLabError(response);
@@ -8374,7 +8375,7 @@ async function getPipelineJobOutput(
   });
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Job trace not found or job is not finished yet`);
+    throw new GitLabApiError(`Job trace not found or job is not finished yet`, response);
   }
 
   await handleGitLabError(response);
@@ -8503,7 +8504,8 @@ async function listJobArtifacts(
 
   if (response.status === 404) {
     throw new GitLabApiError(
-      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
+      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`,
+      response
     );
   }
 
@@ -8536,7 +8538,8 @@ async function downloadJobArtifacts(
 
   if (response.status === 404) {
     throw new GitLabApiError(
-      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
+      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`,
+      response
     );
   }
 
@@ -8590,7 +8593,7 @@ async function getJobArtifactFile(
   const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
-    throw new GitLabApiError(`Artifact file not found: ${artifactPath}`);
+    throw new GitLabApiError(`Artifact file not found: ${artifactPath}`, response);
   }
 
   await handleGitLabError(response);
@@ -9308,14 +9311,11 @@ async function getRepositoryTree(
   );
 
   if (response.status === 404) {
-    throw new GitLabApiError("Repository or path not found");
+    throw new GitLabApiError("Repository or path not found", response);
   }
 
   if (!response.ok) {
-    throw new GitLabApiError(
-      `Failed to get repository tree: ${response.statusText}`,
-      response
-    );
+    throw new GitLabApiError(`Failed to get repository tree: ${response.statusText}`, response);
   }
 
   const data = await response.json();
@@ -9797,6 +9797,11 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     // No matching user found
     return null;
   } catch (error) {
+    // An HTTP failure is not "no such user": surface it so the tool result
+    // reports the status (and Retry-After) instead of a silent null.
+    if (error instanceof GitLabApiError) {
+      throw error;
+    }
     logger.error({ err: error }, `Error fetching user by username '${username}'`);
     return null;
   }
@@ -9817,6 +9822,11 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
       const user = await getUser(username);
       users[username] = user;
     } catch (error) {
+      // An HTTP failure is not "no such user": surface it so the tool result
+      // reports the status (and Retry-After) instead of a silent null.
+      if (error instanceof GitLabApiError) {
+        throw error;
+      }
       logger.error({ err: error }, `Error processing username '${username}'`);
       users[username] = null;
     }
@@ -11790,6 +11800,10 @@ async function handleToolCall(params: any) {
         } catch (err) {
           // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
+          // A GitLab HTTP error keeps its machine-readable fields so a client can
+          // still honor Retry-After; logCompletion masks the structured content.
+          const structuredContent =
+            err instanceof GitLabApiError ? gitLabApiErrorStructuredContent(err) : undefined;
           return {
             content: [
               {
@@ -11797,6 +11811,8 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: `GraphQL request failed: ${message}` }),
               },
             ],
+            isError: true,
+            ...(structuredContent ? { structuredContent } : {}),
           };
         } finally {
           clearTimeout(timeout);
@@ -11845,6 +11861,12 @@ async function handleToolCall(params: any) {
               describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
+          // A GitLab HTTP error keeps its machine-readable fields so a client can
+          // still honor Retry-After; logCompletion masks the structured content.
+          const structuredContent =
+            forkError instanceof GitLabApiError
+              ? gitLabApiErrorStructuredContent(forkError)
+              : undefined;
           return {
             content: [
               {
@@ -11852,6 +11874,8 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: forkErrorMessage }),
               },
             ],
+            isError: true,
+            ...(structuredContent ? { structuredContent } : {}),
           };
         }
       }

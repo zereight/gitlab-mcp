@@ -20,7 +20,7 @@ function createTransport(apiUrl: string): StdioClientTransport {
       GITLAB_PERSONAL_ACCESS_TOKEN: "test-token",
       GITLAB_API_URL: apiUrl,
       GITLAB_PERMISSION_MODE: "modify",
-      GITLAB_TOOLSETS: "projects,merge_requests,api",
+      GITLAB_TOOLSETS: "projects,merge_requests,api,users",
       GITLAB_TOOLS: "execute_graphql,fork_repository,gitlab_api_request",
       GITLAB_MASKING_ENABLED: "true",
       GITLAB_DISABLE_VERSION_CHECK: "true",
@@ -63,6 +63,34 @@ async function startServer(t: TestContext) {
     if (req.url === "/api/v4/namespaces/throttled-masked") {
       res.statusCode = 429;
       res.setHeader("Retry-After", "10.20.30.40");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
+    if (req.url === "/api/v4/namespaces/throttled-secret") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "https://user:secret@example.test/wait");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/v4/projects/123/fork") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "42");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
+    if ((req.url ?? "").startsWith("/api/v4/users?username=")) {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "42");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/graphql") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "42");
       res.end(JSON.stringify({ message: "429 Too Many Requests" }));
       return;
     }
@@ -224,6 +252,60 @@ describe("GitLab API tool errors", () => {
     assert.deepEqual((throttled as { structuredContent?: unknown }).structuredContent, {
       status: 429,
       retryAfter: "[IP address]",
+    });
+  });
+
+  test("redacts URL secrets in a Retry-After value", async t => {
+    const client = await startServer(t);
+
+    const throttled = await client.callTool({
+      name: "get_namespace",
+      arguments: { namespace_id: "throttled-secret" },
+    });
+    assert.equal(throttled.isError, true);
+    const structuredContent = (throttled as { structuredContent?: { retryAfter?: string } })
+      .structuredContent;
+    assert.equal(structuredContent?.retryAfter, "https://[REDACTED]@example.test/wait");
+  });
+
+  test("execute_graphql and fork_repository keep Retry-After on a GitLab 429", async t => {
+    const client = await startServer(t);
+
+    const graphql = await client.callTool({
+      name: "execute_graphql",
+      arguments: { query: "query { currentUser { id } }" },
+    });
+    assert.equal(graphql.isError, true);
+    assert.match(resultText(graphql), /GraphQL request failed: GitLab API error: 429/);
+    assert.deepEqual((graphql as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "42",
+    });
+
+    const fork = await client.callTool({
+      name: "fork_repository",
+      arguments: { project_id: "123" },
+    });
+    assert.equal(fork.isError, true);
+    assert.match(resultText(fork), /Failed to fork repository: GitLab API error: 429/);
+    assert.deepEqual((fork as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "42",
+    });
+  });
+
+  test("get_users reports a GitLab 429 instead of a silent null user", async t => {
+    const client = await startServer(t);
+
+    const throttled = await client.callTool({
+      name: "get_users",
+      arguments: { usernames: ["alice"] },
+    });
+    assert.equal(throttled.isError, true);
+    assert.match(resultText(throttled), /GitLab API error: 429 Too Many Requests/);
+    assert.deepEqual((throttled as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "42",
     });
   });
 
