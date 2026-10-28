@@ -33,6 +33,7 @@ function baseEnv(mockGitLabUrl: string): NodeJS.ProcessEnv {
 interface ToolCallResult {
   isError: boolean;
   text: string;
+  structuredContent?: Record<string, unknown>;
 }
 
 function callToolAsync(
@@ -81,6 +82,7 @@ function callToolAsync(
         resolve({
           isError: response.result?.isError === true,
           text: content,
+          structuredContent: response.result?.structuredContent,
         });
       } catch (error) {
         reject(error);
@@ -536,6 +538,7 @@ describe("When current-user tools call GET /user", () => {
         assert.match(result.text, /insufficient scope/);
         assert.match(result.text, /read_user/);
         assert.match(result.text, /my_issues/);
+        assert.deepStrictEqual(result.structuredContent, { status: 403 });
       } finally {
         await mockGitLab.stop();
       }

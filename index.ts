@@ -2361,7 +2361,7 @@ async function throwUserApiScopeErrorUnlessRateLimitedAsync(
   if (isGitLabUserApiRateLimitBody(errorBody) || !isGitLabInsufficientUserScopeBody(errorBody)) {
     return;
   }
-  throw new GitLabApiError(USER_API_INSUFFICIENT_SCOPE_MESSAGE);
+  throw new GitLabApiError(USER_API_INSUFFICIENT_SCOPE_MESSAGE, response);
 }
 
 async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): Promise<boolean> {
