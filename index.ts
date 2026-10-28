@@ -11798,7 +11798,8 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
-          // Returned as data, not isError, so the central error redaction does not see it.
+          // Returned rather than thrown, so redact the text here. Preserve the
+          // legacy result shape for failures without GitLab HTTP metadata.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
           // A GitLab HTTP error keeps its machine-readable fields so a client can
           // still honor Retry-After; logCompletion masks the structured content.
@@ -11811,8 +11812,7 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: `GraphQL request failed: ${message}` }),
               },
             ],
-            isError: true,
-            ...(structuredContent ? { structuredContent } : {}),
+            ...(structuredContent ? { isError: true, structuredContent } : {}),
           };
         } finally {
           clearTimeout(timeout);
@@ -11854,7 +11854,12 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
-          logger.error({ err: forkError }, "Error forking repository");
+          if (forkError instanceof GitLabApiError) {
+            // Do not serialize upstream body/header text before result masking.
+            logger.error({ status: forkError.status }, "Error forking repository");
+          } else {
+            logger.error({ err: forkError }, "Error forking repository");
+          }
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
             const reason =
@@ -11874,8 +11879,7 @@ async function handleToolCall(params: any) {
                 text: JSON.stringify({ error: forkErrorMessage }),
               },
             ],
-            isError: true,
-            ...(structuredContent ? { structuredContent } : {}),
+            ...(structuredContent ? { isError: true, structuredContent } : {}),
           };
         }
       }
