@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - no-changelog
+    # Match a short npm publish soak; auto-merge.yml still merges patch only.
+    cooldown:
+      default-days: 3
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - no-changelog

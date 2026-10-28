@@ -1,0 +1,56 @@
+name: Changelog
+
+# Each pull request writes its release notes in its own changelog.d file, so two
+# pull requests never change the same lines of CHANGELOG.md. scripts/release.sh
+# moves those files into CHANGELOG.md. Label events re-run the check because
+# pr-test.yml does not run when a label changes.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  notes:
+    name: Release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The merge commit and its first parent, the base branch.
+          fetch-depth: 2
+          persist-credentials: false
+
+      # A change to CHANGELOG.md itself also passes: a release, or notes written
+      # before changelog.d. Bot PRs skip the fragment requirement.
+      - name: Require release notes
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        env:
+          BRANCH: ${{ github.head_ref }}
+          ACTOR: ${{ github.actor }}
+        # Not `grep -q`: it stops at the first match, and with a long file list
+        # the grep before it then fails with a broken pipe, which `pipefail`
+        # reports as no notes.
+        run: |
+          set -euo pipefail
+          if [ "$ACTOR" = "dependabot[bot]" ] || [ "$ACTOR" = "github-actions[bot]" ]; then
+            echo "Bot pull request; changelog fragment not required."
+            exit 0
+          fi
+          if ! git diff --name-only --diff-filter=ACMR HEAD^1 HEAD |
+            grep -vFx -e changelog.d/README.md |
+            grep -E '^(changelog\.d/.+\.md|CHANGELOG\.md)$' >/dev/null; then
+            echo "::error::Write the release notes in changelog.d/${BRANCH//\//-}.md (see changelog.d/README.md). Add the no-changelog label when a user sees no change."
+            exit 1
+          fi
+
+      - name: Check changelog fragments
+        run: node scripts/merge-changelog-fragments.mjs --check

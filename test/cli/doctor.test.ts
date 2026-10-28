@@ -26,7 +26,7 @@ describe("When doctor inspects local configuration", () => {
       });
 
       assert.equal(report.ok, false);
-      assert.match(report.text, /fail  credentials/);
+      assert.match(report.text, /fail {2}credentials/);
       assert.equal(report.text.includes("glpat-"), false);
     });
   });
@@ -47,8 +47,8 @@ describe("When doctor inspects local configuration", () => {
       });
 
       assert.equal(report.ok, false);
-      assert.match(report.text, /ok  credentials/);
-      assert.match(report.text, /fail  api_url/);
+      assert.match(report.text, /ok {2}credentials/);
+      assert.match(report.text, /fail {2}api_url/);
       assert.match(report.text, /\/api\/v4/);
     });
   });
@@ -69,8 +69,8 @@ describe("When doctor inspects local configuration", () => {
       });
 
       assert.equal(report.ok, true);
-      assert.match(report.text, /ok  toolsets: core,wiki/);
-      assert.match(report.text, /ok  version: 2.3.7/);
+      assert.match(report.text, /ok {2}toolsets: core,wiki/);
+      assert.match(report.text, /ok {2}version: 2.3.7/);
     });
   });
 });
@@ -101,7 +101,7 @@ describe("When doctor is asked to probe GitLab", () => {
       });
 
       assert.equal(report.ok, true);
-      assert.match(report.text, /ok  gitlab_user: GET \/user 200/);
+      assert.match(report.text, /ok {2}gitlab_user: GET \/user 200/);
     });
   });
 });
@@ -113,8 +113,8 @@ describe("When the built doctor CLI runs", () => {
       const result = await runBuiltDoctor();
 
       assert.equal(result.exitCode, 1);
-      assert.match(result.stdout, /fail  credentials/);
-      assert.match(result.stdout, /ok  version: \d+\.\d+\.\d+/);
+      assert.match(result.stdout, /fail {2}credentials/);
+      assert.match(result.stdout, /ok {2}version: \d+\.\d+\.\d+/);
       assert.equal(result.stdout.includes("{"), false);
       assert.equal(result.stdout.includes("glpat-"), false);
     });

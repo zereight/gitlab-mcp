@@ -43,7 +43,8 @@ run_mock_tests 4 \
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
 node --import tsx/esm --test --experimental-test-isolation=none \
-  scripts/tool-coverage/coverage.test.ts scripts/release.test.ts
+  scripts/tool-coverage/coverage.test.ts scripts/release.test.ts \
+  scripts/merge-changelog-fragments.test.ts
 
 # Server-spawning suites — sequential to avoid port races and node:test IPC flakes
 run_mock_tests 1 \

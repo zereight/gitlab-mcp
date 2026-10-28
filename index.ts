@@ -208,11 +208,7 @@ import {
 } from "./server/mcp-resources.js";
 import { getMcpPrompt, listMcpPrompts } from "./server/mcp-prompts.js";
 import { MCP_INSTRUCTIONS } from "./server/mcp-instructions.js";
-import {
-  formatUnknownHelpTopic,
-  getWorkflowGuide,
-  readHelpTopic,
-} from "./server/mcp-help.js";
+import { formatUnknownHelpTopic, getWorkflowGuide, readHelpTopic } from "./server/mcp-help.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
@@ -949,16 +945,10 @@ function createServer(): McpServer {
         redactErrorResultUrls(result),
         listSummaryRequested
       );
-      const filtered = applyJmespathToToolResult(
-        summarized,
-        jmespathExpression,
-        {
-          ...completionOptions,
-          maskValue: maskingEngine
-            ? (value: unknown) => maskingEngine!.maskValue(value)
-            : undefined,
-        }
-      );
+      const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
+        ...completionOptions,
+        maskValue: maskingEngine ? (value: unknown) => maskingEngine!.maskValue(value) : undefined,
+      });
       const masked = maskingEngine
         ? maskingEngine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
