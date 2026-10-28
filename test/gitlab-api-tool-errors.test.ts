@@ -60,6 +60,13 @@ async function startServer(t: TestContext) {
       return;
     }
 
+    if (req.url === "/api/v4/namespaces/throttled-masked") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "10.20.30.40");
+      res.end(JSON.stringify({ message: "429 Too Many Requests" }));
+      return;
+    }
+
     if (req.url === "/api/v4/namespaces/missing") {
       res.statusCode = 404;
       res.end(JSON.stringify({ message: "Namespace not found", host: MASKED_IP }));
@@ -204,6 +211,20 @@ describe("GitLab API tool errors", () => {
       arguments: { path: "core" },
     });
     assert.notEqual(recovery.isError, true);
+  });
+
+  test("masks a Retry-After value that matches a masking rule", async t => {
+    const client = await startServer(t);
+
+    const throttled = await client.callTool({
+      name: "get_namespace",
+      arguments: { namespace_id: "throttled-masked" },
+    });
+    assert.equal(throttled.isError, true);
+    assert.deepEqual((throttled as { structuredContent?: unknown }).structuredContent, {
+      status: 429,
+      retryAfter: "[IP address]",
+    });
   });
 
   test("gitlab_api_request preserves Retry-After on a GitLab 429", async t => {

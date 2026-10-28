@@ -65,6 +65,11 @@ export class GitLabApiRequestHttpError extends Error {
   /** Raw Retry-After header value from GitLab (delta-seconds or HTTP-date), when present. */
   retryAfter?: string;
 
+  /**
+   * @param message - The error text shown in the tool result.
+   * @param response - The GitLab response the error describes; supplies status
+   *   and Retry-After when given.
+   */
   constructor(
     message: string,
     response?: { status: number; headers: { get(name: string): string | null } }

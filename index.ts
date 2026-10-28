@@ -1293,6 +1293,12 @@ function createServer(): McpServer {
           safeError instanceof GitLabApiError
             ? gitLabApiErrorStructuredContent(safeError)
             : undefined;
+        // The Retry-After value is upstream-controlled text; mask it like the
+        // message above, the same way results mask structuredContent.
+        const maskedStructuredContent =
+          structuredContent !== undefined && maskingEngine
+            ? maskingEngine.maskValue(structuredContent)
+            : structuredContent;
         return {
           content: [
             {
@@ -1303,7 +1309,7 @@ function createServer(): McpServer {
             },
           ],
           isError: true,
-          ...(structuredContent ? { structuredContent } : {}),
+          ...(maskedStructuredContent ? { structuredContent: maskedStructuredContent } : {}),
         };
       }
       throw safeError;
@@ -2246,6 +2252,11 @@ class GitLabApiError extends Error {
    */
   retryAfter?: string;
 
+  /**
+   * @param message - The error text shown in the tool result.
+   * @param response - The GitLab response the error describes; supplies status
+   *   and Retry-After when given.
+   */
   constructor(message: string, response?: UndiciResponse) {
     super(message);
     this.name = "GitLabApiError";
@@ -9301,7 +9312,10 @@ async function getRepositoryTree(
   }
 
   if (!response.ok) {
-    throw new GitLabApiError(`Failed to get repository tree: ${response.statusText}`);
+    throw new GitLabApiError(
+      `Failed to get repository tree: ${response.statusText}`,
+      response
+    );
   }
 
   const data = await response.json();
