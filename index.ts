@@ -10166,14 +10166,38 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
-function normalizeIterationLookupId(iterationId: string): string {
+const ITERATION_GID_PREFIX = "gid://gitlab/Iteration/";
+
+function normalizeIterationLookupId(iterationId: string): {
+  targetId: string;
+  isGraphqlGid: boolean;
+} {
   const decoded = decodeURIComponent(iterationId);
-  const prefix = "gid://gitlab/Iteration/";
-  return decoded.startsWith(prefix) ? decoded.slice(prefix.length) : decoded;
+  const isGraphqlGid = decoded.startsWith(ITERATION_GID_PREFIX);
+  return {
+    targetId: isGraphqlGid ? decoded.slice(ITERATION_GID_PREFIX.length) : decoded,
+    isGraphqlGid,
+  };
+}
+
+function selectGroupIterationMatch(
+  idMatch: GroupIteration | undefined,
+  iidMatch: GroupIteration | undefined,
+  iterationId: string,
+  groupId: string
+): GroupIteration {
+  if (idMatch && iidMatch && idMatch.id !== iidMatch.id) {
+    throw new Error(`Group iteration ${iterationId} is ambiguous in group ${groupId}`);
+  }
+  if (idMatch) return idMatch;
+  if (iidMatch) return iidMatch;
+  throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
 }
 
 async function getGroupIteration(groupId: string, iterationId: string): Promise<GroupIteration> {
-  const targetId = normalizeIterationLookupId(iterationId);
+  const { targetId, isGraphqlGid } = normalizeIterationLookupId(iterationId);
+  let idMatch: GroupIteration | undefined;
+  let iidMatch: GroupIteration | undefined;
 
   for (let page = 1; ; page += 1) {
     const iterations = await listGroupIterations(groupId, {
@@ -10181,12 +10205,22 @@ async function getGroupIteration(groupId: string, iterationId: string): Promise<
       page,
       per_page: 100,
     });
-    const match = iterations.find(iteration => [iteration.id, iteration.iid].includes(targetId));
-    if (match) return match;
+    for (const iteration of iterations) {
+      if (iteration.id === targetId) {
+        idMatch = iteration;
+      } else if (!isGraphqlGid && iteration.iid === targetId) {
+        iidMatch = iteration;
+      }
+    }
     if (iterations.length < 100) break;
   }
 
-  throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+  if (isGraphqlGid) {
+    if (idMatch) return idMatch;
+    throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+  }
+
+  return selectGroupIterationMatch(idMatch, iidMatch, iterationId, groupId);
 }
 
 async function updateGroupIteration(
@@ -10208,7 +10242,7 @@ async function updateGroupIteration(
   const { path: groupPath } = await resolveProjectOrGroupPath(groupReference);
   const input: Record<string, unknown> = {
     groupPath,
-    id: `gid://gitlab/Iteration/${current.id}`,
+    id: `${ITERATION_GID_PREFIX}${current.id}`,
   };
 
   if (options.title !== undefined) input.title = options.title;
@@ -10236,7 +10270,7 @@ async function updateGroupIteration(
     throw new Error("Failed to update group iteration: GitLab returned no iteration");
   }
 
-  return getGroupIteration(groupId, current.id);
+  return getGroupIteration(groupId, `${ITERATION_GID_PREFIX}${current.id}`);
 }
 
 // --- CI/CD Variables ---

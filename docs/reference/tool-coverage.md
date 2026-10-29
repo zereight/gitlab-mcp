@@ -8,15 +8,15 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 278 |
-| Invoked | 177 |
-| Coverage | 63.7% |
+| Tools | 280 |
+| Invoked | 179 |
+| Coverage | 63.9% |
 
 ## By toolset
 
 | Toolset | Invoked | Total | Coverage |
 | --- | ---: | ---: | ---: |
-| [Projects & Namespaces](#projects) | 9 | 11 | 81.8% |
+| [Projects & Namespaces](#projects) | 11 | 13 | 84.6% |
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
@@ -55,6 +55,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`verify_namespace`](../tools/projects.md#verify_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`
 - [ ] [`list_group_projects`](../tools/projects.md#list_group_projects)
 - [ ] [`list_group_iterations`](../tools/projects.md#list_group_iterations)
+- [x] [`get_group_iteration`](../tools/projects.md#get_group_iteration) — `test/test-group-iterations.ts`
+- [x] [`update_group_iteration`](../tools/projects.md#update_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`health_check`](../tools/projects.md#health_check) — `test/test-health-check.ts`
 
 ## Projects & Files
@@ -193,7 +195,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`get_work_item`](../tools/workitems.md#get_work_item)
 - [x] [`list_work_items`](../tools/workitems.md#list_work_items) — `test/test-geteffectiveprojectid.ts`
 - [x] [`create_work_item`](../tools/workitems.md#create_work_item) — `test/test-geteffectiveprojectid.ts`
-- [x] [`update_work_item`](../tools/workitems.md#update_work_item) — `test/response-masking.test.ts`, `test/test-geteffectiveprojectid.ts`
+- [x] [`update_work_item`](../tools/workitems.md#update_work_item) — `test/response-masking.test.ts`, `test/test-geteffectiveprojectid.ts`, `test/test-work-item-iteration.ts`
 - [ ] [`convert_work_item_type`](../tools/workitems.md#convert_work_item_type)
 - [ ] [`list_work_item_statuses`](../tools/workitems.md#list_work_item_statuses)
 - [ ] [`list_custom_field_definitions`](../tools/workitems.md#list_custom_field_definitions)

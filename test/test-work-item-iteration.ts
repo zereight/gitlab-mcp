@@ -159,6 +159,17 @@ describe("update_work_item iteration widget", () => {
     assert.equal(result.iteration, null);
   });
 
+  test('does not detach the iteration when remove_iteration is the string "false"', async () => {
+    await callTool(
+      "update_work_item",
+      { project_id: PROJECT_ID, iid: WORK_ITEM_IID, remove_iteration: "false" },
+      env()
+    );
+
+    assert.equal(mutationInput?.iterationId, undefined);
+    assert.equal(/iterationWidget/.test(mutationQuery ?? ""), false);
+  });
+
   test("rejects passing both iteration_id and remove_iteration", async () => {
     await assert.rejects(
       () =>

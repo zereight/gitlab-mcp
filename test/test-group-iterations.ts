@@ -1,4 +1,4 @@
-import { after, before, beforeEach, describe, test } from "node:test";
+import { after, before, beforeEach, describe, it, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
@@ -258,5 +258,108 @@ describe("group iteration tools", () => {
       );
     }
     assert.equal(mutationInput, undefined);
+  });
+});
+
+const LOOKUP_PAGE_SIZE = 100;
+
+function createLookupIteration(overrides: Partial<Iteration>): Iteration {
+  return {
+    ...baseIteration(),
+    ...overrides,
+  };
+}
+
+function fillIterationPage(match: Iteration): Iteration[] {
+  const fillers = Array.from({ length: LOOKUP_PAGE_SIZE - 1 }, (_, index) =>
+    createLookupIteration({
+      id: 200 + index,
+      iid: 2000 + index,
+      title: `Filler ${index}`,
+    })
+  );
+  return [...fillers, match];
+}
+
+async function withIterationLookupServer(
+  pages: Iteration[][],
+  run: (env: NodeJS.ProcessEnv) => Promise<void>
+): Promise<void> {
+  const port = await findMockServerPort();
+  const mockServer = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
+  mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (req, res) => {
+    const page = Number(req.query.page ?? 1);
+    res.json(pages[page - 1] ?? []);
+  });
+  await mockServer.start();
+  try {
+    await run({
+      GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+      GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_TOOLSETS: "projects",
+    });
+  } finally {
+    await mockServer.stop();
+  }
+}
+
+async function getGroupIterationById(
+  env: NodeJS.ProcessEnv,
+  iterationId: string
+): Promise<{ id: string; iid: string; title: string }> {
+  return callTool("get_group_iteration", { group_id: GROUP_ID, iteration_id: iterationId }, env);
+}
+
+describe("When looking up a group iteration", () => {
+  describe("with a number that matches one iteration id and another iteration iid", () => {
+    it("should reject the lookup as ambiguous", async () => {
+      const byIid = createLookupIteration({ id: 53, iid: 13, title: "IID match" });
+      const byId = createLookupIteration({ id: 13, iid: 1, title: "ID match" });
+
+      await withIterationLookupServer([fillIterationPage(byIid), [byId]], async env => {
+        await assert.rejects(
+          () => getGroupIterationById(env, "13"),
+          /Group iteration 13 is ambiguous in group 5/
+        );
+      });
+    });
+  });
+
+  describe("with a GraphQL GID", () => {
+    it("should match the primary id only", async () => {
+      const byIid = createLookupIteration({ id: 53, iid: 13, title: "IID match" });
+      const byId = createLookupIteration({ id: 13, iid: 1, title: "ID match" });
+
+      await withIterationLookupServer([[byIid, byId]], async env => {
+        const result = await getGroupIterationById(env, "gid://gitlab/Iteration/13");
+        assert.equal(result.id, "13");
+        assert.equal(result.title, "ID match");
+      });
+    });
+  });
+
+  describe("with a number that matches only an iid", () => {
+    it("should return that iteration", async () => {
+      const byIid = createLookupIteration({ id: 53, iid: 13, title: "IID fallback" });
+
+      await withIterationLookupServer([[byIid]], async env => {
+        const result = await getGroupIterationById(env, "13");
+        assert.equal(result.id, "53");
+        assert.equal(result.iid, "13");
+      });
+    });
+  });
+
+  describe("with the id match on a later page than any iid-only row", () => {
+    it("should prefer the id match after scanning every page", async () => {
+      const earlier = createLookupIteration({ id: 99, iid: 1, title: "Earlier page" });
+      const laterById = createLookupIteration({ id: 13, iid: 2, title: "Later ID match" });
+
+      await withIterationLookupServer([fillIterationPage(earlier), [laterById]], async env => {
+        const result = await getGroupIterationById(env, "13");
+        assert.equal(result.id, "13");
+        assert.equal(result.title, "Later ID match");
+      });
+    });
   });
 });

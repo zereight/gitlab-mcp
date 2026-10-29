@@ -50,7 +50,12 @@ test("update group iteration supports clearing description", () => {
  * the error text keeps these tests independent of the Zod version's wording.
  */
 function rejectedFields(
-  schema: { safeParse: (input: unknown) => { success: boolean; error?: { issues: { path: PropertyKey[] }[] } } },
+  schema: {
+    safeParse: (input: unknown) => {
+      success: boolean;
+      error?: { issues: { path: PropertyKey[] }[] };
+    };
+  },
   input: unknown
 ): string[] {
   const result = schema.safeParse(input);

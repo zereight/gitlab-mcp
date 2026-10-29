@@ -1315,7 +1315,8 @@ export const allTools = [
   },
   {
     name: "update_group_iteration",
-    description: "Update a manual group iteration's title, description, or dates",
+    description:
+      "Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required.",
     inputSchema: toJSONSchema(UpdateGroupIterationSchema),
   },
   {
