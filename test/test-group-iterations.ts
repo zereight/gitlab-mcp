@@ -144,7 +144,9 @@ describe("group iteration tools", () => {
     const port = await findMockServerPort();
     mockServer = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
 
-    mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (_req, res) => {
+    mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (req, res) => {
+      // Mutation lookups must not resolve an ancestor group's iteration.
+      assert.equal(req.query.include_ancestors, "false");
       res.json([iteration, ...createdIterations]);
     });
     mockServer.addMockHandler("get", `/projects/${PROJECT_ID}/iterations`, (req, res) => {
@@ -694,22 +696,27 @@ function fillIterationPage(match: Iteration): Iteration[] {
 
 async function withIterationLookupServer(
   pages: Iteration[][],
-  run: (env: NodeJS.ProcessEnv) => Promise<void>
+  run: (env: NodeJS.ProcessEnv, requestedPages: number[]) => Promise<void>
 ): Promise<void> {
   const port = await findMockServerPort();
   const mockServer = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
+  const requestedPages: number[] = [];
   mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (req, res) => {
     assert.equal(req.query.include_ancestors, "false");
     const page = Number(req.query.page ?? 1);
+    requestedPages.push(page);
     res.json(pages[page - 1] ?? []);
   });
   await mockServer.start();
   try {
-    await run({
-      GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
-      GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_TOOLSETS: "projects",
-    });
+    await run(
+      {
+        GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_TOOLSETS: "projects",
+      },
+      requestedPages
+    );
   } finally {
     await mockServer.stop();
   }
@@ -792,6 +799,22 @@ describe("When looking up a group iteration", () => {
           /Group iteration gid:\/\/gitlab\/Iteration\/99 was not found in group 5/
         );
       });
+    });
+  });
+
+  describe("with a GraphQL GID that matches on a full first page", () => {
+    it("should stop paging after the exact id match", async () => {
+      const byId = createLookupIteration({ id: 13, iid: 1, title: "ID match" });
+      const nextPage = createLookupIteration({ id: 14, iid: 2, title: "Next page" });
+
+      await withIterationLookupServer(
+        [fillIterationPage(byId), [nextPage]],
+        async (env, requestedPages) => {
+          const result = await getGroupIterationById(env, "gid://gitlab/Iteration/13");
+          assert.equal(result.title, "ID match");
+          assert.deepEqual(requestedPages, [1]);
+        }
+      );
     });
   });
 

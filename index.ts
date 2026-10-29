@@ -10242,7 +10242,8 @@ async function getGroupIteration(groupId: string, iterationId: string): Promise<
         iidMatch = iteration;
       }
     }
-    if (iterations.length < 100) break;
+    // A GID matches only the primary id, so later pages cannot change the result.
+    if (iterations.length < 100 || (isGraphqlGid && idMatch)) break;
   }
 
   if (isGraphqlGid) {
