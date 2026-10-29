@@ -37,7 +37,7 @@ const baseIteration = (): Iteration => ({
   web_url: "https://gitlab.example.com/groups/test-group/-/iterations/13",
 });
 
-async function callTool(
+async function callToolRaw(
   name: string,
   args: Record<string, unknown>,
   env: NodeJS.ProcessEnv
@@ -62,17 +62,7 @@ async function callTool(
         reject(new Error("No JSON output found"));
         return;
       }
-      const response = JSON.parse(line);
-      if (response.error) {
-        reject(new Error(response.error?.message ?? String(response.error)));
-        return;
-      }
-      const content = response.result?.content?.[0]?.text;
-      if (response.result?.isError) {
-        reject(new Error(content ?? "Tool call failed"));
-        return;
-      }
-      resolve(content ? JSON.parse(content) : response.result);
+      resolve(JSON.parse(line));
     });
 
     proc.stdin?.end(
@@ -84,6 +74,29 @@ async function callTool(
       }) + "\n"
     );
   });
+}
+
+async function callTool(
+  name: string,
+  args: Record<string, unknown>,
+  env: NodeJS.ProcessEnv
+): Promise<any> {
+  const response = await callToolRaw(name, args, env);
+  if (response.error) {
+    throw new Error(response.error?.message ?? String(response.error));
+  }
+  const content = response.result?.content?.[0]?.text;
+  if (response.result?.isError) {
+    throw new Error(content ?? "Tool call failed");
+  }
+  return content ? JSON.parse(content) : response.result;
+}
+
+// ToolInputError must reach the client as an isError tool result, not a JSON-RPC error.
+function assertToolError(response: any, message: RegExp): void {
+  assert.equal(response.error, undefined);
+  assert.equal(response.result?.isError, true);
+  assert.match(response.result?.content?.[0]?.text ?? "", message);
 }
 
 describe("group iteration tools", () => {
@@ -224,19 +237,16 @@ describe("group iteration tools", () => {
   test("surfaces GitLab mutation errors", async () => {
     mutationErrors = ["Manual iteration updates are not allowed"];
 
-    await assert.rejects(
-      () =>
-        callTool(
-          "update_group_iteration",
-          {
-            group_id: GROUP_ID,
-            iteration_id: ITERATION_ID,
-            description: "New goal",
-          },
-          env()
-        ),
-      /Manual iteration updates are not allowed/
+    const response = await callToolRaw(
+      "update_group_iteration",
+      {
+        group_id: GROUP_ID,
+        iteration_id: ITERATION_ID,
+        description: "New goal",
+      },
+      env()
     );
+    assertToolError(response, /Manual iteration updates are not allowed/);
   });
 
   test("rejects the group iteration tools while a project allowlist is in effect", async () => {
@@ -311,6 +321,13 @@ async function getGroupIterationById(
   return callTool("get_group_iteration", { group_id: GROUP_ID, iteration_id: iterationId }, env);
 }
 
+async function getGroupIterationResponse(
+  env: NodeJS.ProcessEnv,
+  iterationId: string
+): Promise<any> {
+  return callToolRaw("get_group_iteration", { group_id: GROUP_ID, iteration_id: iterationId }, env);
+}
+
 describe("When looking up a group iteration", () => {
   describe("with a number that matches one iteration id and another iteration iid", () => {
     it("should reject the lookup as ambiguous", async () => {
@@ -318,8 +335,8 @@ describe("When looking up a group iteration", () => {
       const byId = createLookupIteration({ id: 13, iid: 1, title: "ID match" });
 
       await withIterationLookupServer([fillIterationPage(byIid), [byId]], async env => {
-        await assert.rejects(
-          () => getGroupIterationById(env, "13"),
+        assertToolError(
+          await getGroupIterationResponse(env, "13"),
           /Group iteration 13 is ambiguous in group 5/
         );
       });
@@ -356,8 +373,8 @@ describe("When looking up a group iteration", () => {
       const existing = createLookupIteration({ id: 53, iid: 13, title: "Existing" });
 
       await withIterationLookupServer([[existing]], async env => {
-        await assert.rejects(
-          () => getGroupIterationById(env, "99"),
+        assertToolError(
+          await getGroupIterationResponse(env, "99"),
           /Group iteration 99 was not found in group 5/
         );
       });
@@ -369,8 +386,8 @@ describe("When looking up a group iteration", () => {
       const byIid = createLookupIteration({ id: 53, iid: 99, title: "IID only" });
 
       await withIterationLookupServer([[byIid]], async env => {
-        await assert.rejects(
-          () => getGroupIterationById(env, "gid://gitlab/Iteration/99"),
+        assertToolError(
+          await getGroupIterationResponse(env, "gid://gitlab/Iteration/99"),
           /Group iteration gid:\/\/gitlab\/Iteration\/99 was not found in group 5/
         );
       });

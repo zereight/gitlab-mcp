@@ -10265,10 +10265,10 @@ async function updateGroupIteration(
   const result = data.updateIteration;
 
   if (result.errors.length > 0) {
-    throw new Error(`Failed to update group iteration: ${result.errors.join(", ")}`);
+    throw new ToolInputError(`Failed to update group iteration: ${result.errors.join(", ")}`);
   }
   if (!result.iteration) {
-    throw new Error("Failed to update group iteration: GitLab returned no iteration");
+    throw new ToolInputError("Failed to update group iteration: GitLab returned no iteration");
   }
 
   return getGroupIteration(groupId, `${ITERATION_GID_PREFIX}${current.id}`);
