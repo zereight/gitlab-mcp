@@ -60,9 +60,26 @@ export class GitLabApiRequestInputError extends Error {
 }
 
 export class GitLabApiRequestHttpError extends Error {
-  constructor(message: string) {
+  /** HTTP status of the GitLab response, when the error came from one. */
+  status?: number;
+  /** GitLab's Retry-After delay in seconds, forwarded unchanged when present. */
+  retryAfter?: string;
+
+  /**
+   * @param message - The error text shown in the tool result.
+   * @param response - The GitLab response the error describes; supplies status
+   *   and Retry-After when given.
+   */
+  constructor(
+    message: string,
+    response?: { status: number; headers: { get(name: string): string | null } }
+  ) {
     super(message);
     this.name = "GitLabApiRequestHttpError";
+    if (response) {
+      this.status = response.status;
+      this.retryAfter = response.headers.get("retry-after") ?? undefined;
+    }
   }
 }
 
@@ -346,7 +363,8 @@ export async function executeGitLabApiRequestAsync(
     const rawBody = await response.text();
     if (!response.ok) {
       throw new GitLabApiRequestHttpError(
-        formatHttpError(response.status, response.statusText, rawBody)
+        formatHttpError(response.status, response.statusText, rawBody),
+        response
       );
     }
     return { content: [{ type: "text", text: formatSuccessBody(rawBody) }] };
