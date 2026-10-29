@@ -117,22 +117,26 @@ describe("list summary default with access and protection fields (#942)", () => 
     mockGitLab.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/repository/branches`,
-      (_req, res) => res.json([BRANCH])
+      (_req, res) => {
+        res.json([BRANCH]);
+      }
     );
     mockGitLab.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/protected_branches`,
-      (_req, res) => res.json([PROTECTED_BRANCH])
+      (_req, res) => {
+        res.json([PROTECTED_BRANCH]);
+      }
     );
-    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/protected_tags`, (_req, res) =>
-      res.json([PROTECTED_TAG])
-    );
-    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/members`, (_req, res) =>
-      res.json([MEMBER])
-    );
-    mockGitLab.addMockHandler("get", `/groups/${TEST_GROUP_ID}/members`, (_req, res) =>
-      res.json([MEMBER])
-    );
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/protected_tags`, (_req, res) => {
+      res.json([PROTECTED_TAG]);
+    });
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/members`, (_req, res) => {
+      res.json([MEMBER]);
+    });
+    mockGitLab.addMockHandler("get", `/groups/${TEST_GROUP_ID}/members`, (_req, res) => {
+      res.json([MEMBER]);
+    });
     await mockGitLab.start();
     baseEnv = {
       GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
