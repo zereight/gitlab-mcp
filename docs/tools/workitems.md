@@ -89,7 +89,7 @@ Create a work item (issue, task, incident, epic, etc.) with full field support. 
 
 *✏️ Writes*
 
-Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use the create tool for new resources and a note tool for comments.
+Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association. Use the create tool for new resources and a note tool for comments.
 
 **Parameters**
 
@@ -115,6 +115,7 @@ Update a work item (title, description, labels, assignees, state, parent, custom
 | `due_date` | string |  | Due date in YYYY-MM-DD format |
 | `milestone_id` | string |  | Milestone ID (GitLab global ID format, e.g. 'gid://gitlab/Milestone/123', or numeric ID) |
 | `iteration_id` | string |  | Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations. |
+| `remove_iteration` | boolean |  | Set to true to remove the work item's iteration association. Mutually exclusive with iteration_id. |
 | `confidential` | boolean |  | Set confidentiality |
 | `linked_items_to_add` | array<object> |  | Work items to link |
 | `linked_items_to_remove` | array<object> |  | Linked work items to remove |

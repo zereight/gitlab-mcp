@@ -74,7 +74,14 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
     "list_commit_statuses",
     "create_commit_status",
   ],
-  projects: ["get_project", "update_project", "list_namespaces", "list_group_iterations"],
+  projects: [
+    "get_project",
+    "update_project",
+    "list_namespaces",
+    "list_group_iterations",
+    "get_group_iteration",
+    "update_group_iteration",
+  ],
   labels: ["list_labels", "create_label"],
   ci: [
     "validate_ci_lint",
@@ -469,6 +476,27 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
 
     test("returns correct count (read-only issues + discover_tools)", () => {
       assert.strictEqual(tools.length, readOnlyIssueTools.length + ALWAYS_LISTED_META_COUNT);
+    });
+  });
+
+  describe("GITLAB_TOOLSETS=projects + GITLAB_READ_ONLY_MODE=true", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLSETS: "projects",
+        GITLAB_READ_ONLY_MODE: "true",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("keeps get_group_iteration and excludes update_group_iteration", () => {
+      assert.ok(tools.includes("get_group_iteration"));
+      assert.ok(!tools.includes("update_group_iteration"));
     });
   });
 

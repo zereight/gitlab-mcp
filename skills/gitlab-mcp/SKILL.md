@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 278 tools: 275 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
+GitLab MCP server providing 280 tools: 277 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -18,7 +18,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | issues (24 tools) | no | `GITLAB_TOOLSETS=issues` |
 | repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
 | branches (16 tools) | no | `GITLAB_TOOLSETS=branches` |
-| projects (11 tools) | no | `GITLAB_TOOLSETS=projects` |
+| projects (13 tools) | no | `GITLAB_TOOLSETS=projects` |
 | labels (5 tools) | no | `GITLAB_TOOLSETS=labels` |
 | ci (4 tools) | no | `GITLAB_TOOLSETS=ci` |
 | groups (1 tool) | no | `GITLAB_TOOLSETS=groups` |
@@ -42,9 +42,9 @@ Enable all discoverable toolsets: `GITLAB_TOOLSETS=all` (does **not** enable `ap
 
 `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
-The per-toolset counts above sum to 315 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 317 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 275.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 277.
 
 ## Key Workflows
 
@@ -70,6 +70,8 @@ Use `update_issue_description_patch` for small edits to long issue descriptions 
 - `get_project`, `list_projects`, `update_project` - inspect or change project settings
 - `list_project_members`, `list_group_members` - search members by name or username within a project or group
 - `list_namespaces`, `get_namespace`, `verify_namespace` - find target namespaces before creating projects/groups
+- `list_group_iterations`, `get_group_iteration`, `update_group_iteration` - list, fetch, or update a group iteration
+- `update_work_item.remove_iteration` detaches a work item from its iteration
 - `verify_namespace.parent_id` scopes nested namespace checks
 - `create_repository.namespace_id` creates a project under a group namespace
 

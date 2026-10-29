@@ -14,6 +14,7 @@ const {
   ResolveMergeRequestThreadSchema,
   UpdateIssueSchema,
   UpdateMergeRequestSchema,
+  UpdateWorkItemSchema,
 } = schemas;
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -89,6 +90,28 @@ describe("When parsing boolean tool arguments", () => {
         resolved: "false",
       });
       assert.equal(parsed.resolved, false);
+    });
+  });
+
+  describe("with update_work_item", () => {
+    test('should keep remove_iteration false for "false"', () => {
+      const parsed = UpdateWorkItemSchema.parse({
+        project_id: PROJECT_ID,
+        iid: 1,
+        remove_iteration: "false",
+      });
+      assert.equal(parsed.remove_iteration, false);
+    });
+
+    test('should allow iteration_id when remove_iteration is the string "false"', () => {
+      const parsed = UpdateWorkItemSchema.parse({
+        project_id: PROJECT_ID,
+        iid: 1,
+        iteration_id: "53",
+        remove_iteration: "false",
+      });
+      assert.equal(parsed.remove_iteration, false);
+      assert.equal(parsed.iteration_id, "53");
     });
   });
 

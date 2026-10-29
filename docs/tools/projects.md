@@ -17,6 +17,8 @@ Project/namespace listing, member queries, group iterations, and server health.
 - [`verify_namespace`](#verify_namespace) — 📖 Read-only
 - [`list_group_projects`](#list_group_projects) — 📖 Read-only
 - [`list_group_iterations`](#list_group_iterations) — 📖 Read-only
+- [`get_group_iteration`](#get_group_iteration) — 📖 Read-only
+- [`update_group_iteration`](#update_group_iteration) — ✏️ Writes
 - [`health_check`](#health_check) — 📖 Read-only
 
 ---
@@ -202,7 +204,7 @@ List projects in a group.
 
 *📖 Read-only*
 
-List group iterations with filtering options.
+List group iterations with filtering options. For one known resource, use the matching get tool.
 
 **Parameters**
 
@@ -218,6 +220,36 @@ List group iterations with filtering options.
 | `updated_after` | string |  | Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_group_iteration`
+
+*📖 Read-only*
+
+Get a group iteration by ID, IID, or GraphQL GID. To find resources, use the matching list or search tool.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `iteration_id` | string | ✓ | Iteration ID, IID, or GraphQL GID |
+
+### `update_group_iteration`
+
+*✏️ Writes*
+
+Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `iteration_id` | string | ✓ | Iteration ID, IID, or GraphQL GID |
+| `title` | string |  | New iteration title |
+| `description` | string \| null |  | New iteration description; null clears it |
+| `start_date` | string |  | New start date in YYYY-MM-DD format |
+| `due_date` | string |  | New due date in YYYY-MM-DD format |
 
 ### `health_check`
 

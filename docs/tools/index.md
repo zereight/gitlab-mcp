@@ -103,7 +103,7 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 
 ### [Projects & Namespaces](projects.md)
 
-Project/namespace listing, member queries, group iterations, and server health. *(11 tools)*
+Project/namespace listing, member queries, group iterations, and server health. *(13 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
@@ -118,7 +118,9 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`get_namespace`](projects.md#get_namespace) | Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. To find resources, use the matching list or search tool. | 📖 |
 | [`verify_namespace`](projects.md#verify_namespace) | Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents. | 📖 |
 | [`list_group_projects`](projects.md#list_group_projects) | List projects in a group. | 📖 |
-| [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options. | 📖 |
+| [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options. For one known resource, use the matching get tool. | 📖 |
+| [`get_group_iteration`](projects.md#get_group_iteration) | Get a group iteration by ID, IID, or GraphQL GID. To find resources, use the matching list or search tool. | 📖 |
+| [`update_group_iteration`](projects.md#update_group_iteration) | Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required. | ✏️ |
 | [`health_check`](projects.md#health_check) | Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
 
 ### [Projects & Files](repositories.md)
@@ -285,7 +287,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 | [`get_work_item`](workitems.md#get_work_item) | Get a work item with full details including status, hierarchy, type, and widgets. To find resources, use the matching list or search tool. | 📖 |
 | [`list_work_items`](workitems.md#list_work_items) | List work items with filters (type, state, search, assignees, labels). For one known resource, use the matching get tool. | 📖 |
 | [`create_work_item`](workitems.md#create_work_item) | Create a work item (issue, task, incident, epic, etc.) with full field support. If the resource already exists, use the update tool. | ✏️ |
-| [`update_work_item`](workitems.md#update_work_item) | Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use the create tool for new resources and a note tool for comments. | ✏️ |
+| [`update_work_item`](workitems.md#update_work_item) | Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association. Use the create tool for new resources and a note tool for comments. | ✏️ |
 | [`convert_work_item_type`](workitems.md#convert_work_item_type) | Convert a work item to a different type. | ✏️ |
 | [`list_work_item_statuses`](workitems.md#list_work_item_statuses) | List available statuses for a work item type (Premium/Ultimate). | 📖 |
 | [`list_custom_field_definitions`](workitems.md#list_custom_field_definitions) | List custom field definitions for a work item type. | 📖 |
