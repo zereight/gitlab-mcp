@@ -14,7 +14,7 @@
 
 The default `core` toolset lists 38 tools. `discover_tools` and `help` are always re-added after every toolset filter, so a default `tools/list` has **40 tools**.
 
-278 tools exist in total: 275 in 24 toolsets + `execute_graphql` + `discover_tools` + `help`. `GITLAB_TOOLSETS=all` enables every discoverable toolset and still does **not** enable the explicit-only `api` toolset. `execute_graphql` is not in a toolset; enable it with `GITLAB_TOOLS=execute_graphql`.
+287 tools exist in total: 284 in 24 toolsets + `execute_graphql` + `discover_tools` + `help`. `GITLAB_TOOLSETS=all` enables every discoverable toolset and still does **not** enable the explicit-only `api` toolset. `execute_graphql` is not in a toolset; enable it with `GITLAB_TOOLS=execute_graphql`.
 
 Call `discover_tools` with no arguments to list categories, then pass a category (`pipelines`, `wiki`, `merge_requests`, …) to activate it for the current session.
 

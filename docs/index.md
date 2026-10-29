@@ -4,7 +4,7 @@ A comprehensive **Model Context Protocol** server for GitLab. Manage projects,
 merge requests, issues, pipelines, wikis, releases, tags, milestones, and more
 from any MCP-compatible AI client.
 
-**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 278 tools exist in total.
+**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 287 tools exist in total.
 Start lean; call `discover_tools` to activate more. Machine-readable index:
 [llms.txt](llms.txt) · [llms-full.txt](llms-full.txt).
 
