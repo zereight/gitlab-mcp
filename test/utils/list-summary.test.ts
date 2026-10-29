@@ -248,10 +248,9 @@ describe("When deciding whether a tool follows the server summary default", () =
     });
   });
 
-  describe("with a list tool whose summary drops access or protection fields", () => {
-    it("should keep the full reply but still accept an explicit summary", () => {
+  describe("with a list tool whose summary keeps access or protection fields", () => {
+    it("should keep the full reply by default but still accept an explicit summary", () => {
       for (const toolName of [
-        "list_branches",
         "list_protected_branches",
         "list_protected_tags",
         "list_project_members",
@@ -267,45 +266,117 @@ describe("When deciding whether a tool follows the server summary default", () =
       }
     });
 
-    it("should drop those fields when summary is explicitly requested", () => {
-      const [protectedBranch, member, branch] = summarizeListPayload([
-        {
-          id: 1,
-          name: "main",
-          push_access_levels: [{ id: 101, access_level: 40 }],
-          merge_access_levels: [{ id: 201, access_level: 40 }],
-          allow_force_push: false,
-        },
-        {
-          id: 7,
-          username: "alice",
-          name: "Alice",
-          state: "active",
-          web_url: "https://gitlab.example.com/alice",
-          access_level: 40,
-          expires_at: "2027-01-01",
-        },
-        {
-          name: "main",
-          web_url: "https://gitlab.example.com/g/p/-/tree/main",
-          protected: true,
-          default: true,
-          commit: { id: "abc" },
-        },
-      ]) as Record<string, unknown>[];
+    it("should follow the default for list_branches", () => {
+      assert.equal(toolUsesListSummaryDefault("list_branches"), true);
+    });
 
-      assert.deepEqual(protectedBranch, { id: 1, name: "main" });
-      assert.deepEqual(member, {
+    it("should keep those fields when the summary knows the tool", () => {
+      const [branch] = summarizeListPayload(
+        [
+          {
+            name: "main",
+            web_url: "https://gitlab.example.com/g/p/-/tree/main",
+            protected: true,
+            default: true,
+            merged: false,
+            can_push: true,
+            developers_can_push: false,
+            developers_can_merge: false,
+            commit: { id: "abc", message: "a long commit message" },
+          },
+        ],
+        "list_branches"
+      ) as Record<string, unknown>[];
+      const [protectedBranch] = summarizeListPayload(
+        [
+          {
+            id: 1,
+            name: "main",
+            push_access_levels: [{ id: 101, access_level: 40 }],
+            merge_access_levels: [{ id: 201, access_level: 30 }],
+            unprotect_access_levels: [],
+            allow_force_push: false,
+            code_owner_approval_required: true,
+            inherited: false,
+          },
+        ],
+        "list_protected_branches"
+      ) as Record<string, unknown>[];
+      const [protectedTag] = summarizeListPayload(
+        [{ name: "v*", create_access_levels: [{ id: 301, access_level: 40 }] }],
+        "list_protected_tags"
+      ) as Record<string, unknown>[];
+      const member = {
+        id: 7,
+        username: "alice",
+        name: "Alice",
+        state: "active",
+        avatar_url: "https://gitlab.example.com/avatar.png",
+        web_url: "https://gitlab.example.com/alice",
+        access_level: 40,
+        created_at: "2024-01-01T00:00:00Z",
+        expires_at: "2027-01-01",
+      };
+      const expectedMember = {
         id: 7,
         name: "Alice",
         state: "active",
         web_url: "https://gitlab.example.com/alice",
         username: "alice",
-      });
+        access_level: 40,
+        expires_at: "2027-01-01",
+      };
+
       assert.deepEqual(branch, {
         name: "main",
         web_url: "https://gitlab.example.com/g/p/-/tree/main",
+        protected: true,
+        default: true,
+        merged: false,
+        can_push: true,
+        developers_can_push: false,
+        developers_can_merge: false,
       });
+      assert.deepEqual(protectedBranch, {
+        id: 1,
+        name: "main",
+        push_access_levels: [{ id: 101, access_level: 40 }],
+        merge_access_levels: [{ id: 201, access_level: 30 }],
+        unprotect_access_levels: [],
+        allow_force_push: false,
+        code_owner_approval_required: true,
+      });
+      assert.deepEqual(protectedTag, {
+        name: "v*",
+        create_access_levels: [{ id: 301, access_level: 40 }],
+      });
+      for (const toolName of ["list_project_members", "list_group_members"]) {
+        assert.deepEqual(summarizeListPayload([member], toolName), [expectedMember], toolName);
+      }
+    });
+
+    it("should not keep them for other tools", () => {
+      const item = { name: "main", protected: true, access_level: 40 };
+      assert.deepEqual(summarizeListPayload([item]), [{ name: "main" }]);
+      assert.deepEqual(summarizeListPayload([item], "list_issues"), [{ name: "main" }]);
+    });
+
+    it("should pass the tool name through the tool result", () => {
+      const result = applyListSummaryToToolResult(
+        {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify([{ name: "main", protected: true, commit: { id: "abc" } }]),
+            },
+          ],
+        },
+        true,
+        "list_branches"
+      );
+      assert.deepEqual(JSON.parse((result.content as { text: string }[])[0].text), [
+        { name: "main", protected: true },
+      ]);
     });
   });
 

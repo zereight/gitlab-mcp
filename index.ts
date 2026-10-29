@@ -954,7 +954,8 @@ function createServer(): McpServer {
         (toolName === "download_release_asset" && !IS_REMOTE);
       const summarized = applyListSummaryToToolResult(
         redactErrorResultUrls(result),
-        listSummaryRequested
+        listSummaryRequested,
+        toolName
       );
       const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
         ...completionOptions,
