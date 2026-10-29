@@ -323,7 +323,8 @@ describe("Callback Proxy Mode", () => {
     const second = await exchangeToken(
       mcpBaseUrl, clientId, proxyCode, clientPKCE.verifier, clientRedirectUri
     );
-    assert.notStrictEqual(second.status, 200);
+    assert.strictEqual(second.status, 400);
+    assert.strictEqual(second.body.error, "invalid_grant");
   });
 
   // ---- Client binding -----------------------------------------------------
@@ -346,7 +347,8 @@ describe("Callback Proxy Mode", () => {
     const result = await exchangeToken(
       mcpBaseUrl, otherClientId, proxyCode, clientPKCE.verifier, clientRedirectUri
     );
-    assert.notStrictEqual(result.status, 200);
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(result.body.error, "invalid_grant");
   });
 
   test("proxy code cannot be redeemed with a different redirect_uri", async () => {
@@ -367,7 +369,8 @@ describe("Callback Proxy Mode", () => {
       clientPKCE.verifier,
       "http://localhost:19998/oauth/callback"
     );
-    assert.notStrictEqual(result.status, 200);
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(result.body.error, "invalid_grant");
   });
 
   // ---- Unknown state parameter -------------------------------------------
@@ -399,7 +402,8 @@ describe("Callback Proxy Mode", () => {
     const result = await exchangeToken(
       mcpBaseUrl, clientId, proxyCode, "wrong-verifier-value", clientRedirectUri
     );
-    assert.notStrictEqual(result.status, 200);
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(result.body.error, "invalid_grant");
   });
 
   // ---- PKCE verifier omitted ---------------------------------------------
@@ -415,7 +419,7 @@ describe("Callback Proxy Mode", () => {
     const cb = await simulateGitLabCallback(mcpBaseUrl, "code-no-verifier", proxyState);
     const proxyCode = new URL(cb.location!).searchParams.get("code")!;
 
-    // Exchange WITHOUT verifier — should fail
+    // Exchange WITHOUT verifier — the SDK rejects the request before the provider runs
     const res = await fetch(`${mcpBaseUrl}/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -426,7 +430,8 @@ describe("Callback Proxy Mode", () => {
         redirect_uri: clientRedirectUri,
       }).toString(),
     });
-    assert.notStrictEqual(res.status, 200);
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(((await res.json()) as { error?: string }).error, "invalid_request");
   });
 
   // ---- Replayed state parameter ------------------------------------------
