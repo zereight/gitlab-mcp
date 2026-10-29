@@ -10534,7 +10534,7 @@ async function updateGroupIterationCadence(
 ): Promise<GroupIterationCadence> {
   const fields = toIterationCadenceInput(options);
   if (Object.keys(fields).length === 0) {
-    throw new Error("Provide at least one iteration cadence field to update");
+    throw new ToolInputError("Provide at least one iteration cadence field to update");
   }
 
   const mutation = `
