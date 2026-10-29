@@ -244,6 +244,15 @@ describe("Allowed groups — OAuth provider", () => {
     assert.deepStrictEqual(groupsCalls, [REFRESHED_NON_MEMBER_TOKEN]);
   });
 
+  test("exchangeAuthorizationCode returns no tokens for a user outside the allowed groups", async () => {
+    const provider = await makeProvider();
+    await assert.rejects(
+      () => provider.exchangeAuthorizationCode(client, "nonmember-code"),
+      hasErrorCode("invalid_grant")
+    );
+    assert.deepStrictEqual(groupsCalls, [NON_MEMBER_TOKEN]);
+  });
+
   test("exchangeRefreshToken returns tokens for a member", async () => {
     const provider = await makeProvider();
     const tokens = await provider.exchangeRefreshToken(client, "member-refresh");
