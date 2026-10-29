@@ -51,6 +51,11 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_webhooks", // url, event flags
   "list_pipeline_triggers", // description
   "list_job_artifacts", // path, type, size
+  "list_branches", // protected, default, merged
+  "list_protected_branches", // *_access_levels, allow_force_push
+  "list_protected_tags", // create_access_levels
+  "list_project_members", // access_level, expires_at
+  "list_group_members", // access_level, expires_at
   // The reply is an envelope summarizeListPayload does not read.
   "list_project_vulnerabilities", // { vulnerabilities, pageInfo }
   "list_dependency_proxy_blobs", // { blobs, pageInfo }

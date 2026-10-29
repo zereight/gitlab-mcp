@@ -49,6 +49,7 @@ import {
   CustomOAuthError,
   InsufficientScopeError,
   InvalidGrantError,
+  InvalidRequestError,
   InvalidTokenError,
   ServerError,
 } from "@modelcontextprotocol/sdk/server/auth/errors.js";
@@ -619,6 +620,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         // The authorizationCode is a proxy code we generated in handleCallback().
         // It is either a sealed token (stateless mode) or a random UUID that
         // keys into the _storedTokens LRU (legacy mode).
+        // A code that is unknown, expired, already used, or fails the client,
+        // redirect_uri or PKCE binding is invalid_grant, and a missing
+        // code_verifier is invalid_request (RFC 6749 §5.2, RFC 7636 §4.6), so
+        // the client restarts authorization. Only transient conditions
+        // (exchange in progress, replay cache full) are ServerError.
         const stateless = this._stateless;
         let entry: {
           tokens: OAuthTokens;
@@ -641,7 +647,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
                   "Authorization code exchange in progress — please retry"
                 );
               }
-              throw new ServerError("Authorization code already used");
+              throw new InvalidGrantError("Authorization code already used");
             }
           } catch (err) {
             if (err instanceof Error && err.message === PROXY_CODE_CACHE_FULL) {
@@ -666,7 +672,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
             stateless.storedTtlSeconds
           );
           if (!payload) {
-            throw new ServerError("Invalid or expired authorization code");
+            throw new InvalidGrantError("Invalid or expired authorization code");
           }
           entry = {
             tokens: payload.t,
@@ -682,10 +688,10 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           // client/redirect/PKCE binding checks fail (DoS prevention).
           const lru = this._storedTokens.getAndDelete(authorizationCode);
           if (!lru) {
-            throw new ServerError("Invalid or expired authorization code");
+            throw new InvalidGrantError("Invalid or expired authorization code");
           }
           if (Date.now() - lru.createdAt > PENDING_AUTH_TTL_MS) {
-            throw new ServerError("Authorization code expired — please restart the OAuth flow");
+            throw new InvalidGrantError("Authorization code expired — please restart the OAuth flow");
           }
           legacyRestorable = { code: authorizationCode, entry: lru };
           entry = {
@@ -701,21 +707,21 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         // Binding + PKCE run while consumption is only *reserved* (pending /
         // restorable); failed checks release so the legitimate client can retry.
         if (client.client_id !== entry.clientId) {
-          throw new ServerError("Invalid client for authorization code");
+          throw new InvalidGrantError("Invalid client for authorization code");
         }
         if (redirectUri !== entry.clientRedirectUri) {
-          throw new ServerError("Invalid redirect_uri for authorization code");
+          throw new InvalidGrantError("Invalid redirect_uri for authorization code");
         }
 
         // Verify client PKCE: the client's code_verifier must match the
         // code_challenge stored during /authorize.
         if (entry.clientCodeChallenge) {
           if (!codeVerifier) {
-            throw new ServerError("PKCE code_verifier is required");
+            throw new InvalidRequestError("PKCE code_verifier is required");
           }
           const computed = createHash("sha256").update(codeVerifier).digest("base64url");
           if (computed !== entry.clientCodeChallenge) {
-            throw new ServerError("PKCE verification failed");
+            throw new InvalidGrantError("PKCE verification failed");
           }
         }
 
@@ -753,7 +759,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           { allowedGroups: this._allowedGroups },
           "Token issuance denied: user is not a member of any allowed group"
         );
-        throw new ServerError(GROUP_ACCESS_DENIED_MESSAGE);
+        throw new InvalidGrantError(GROUP_ACCESS_DENIED_MESSAGE);
       }
 
       // All checks passed — permanently consume the proxy code.

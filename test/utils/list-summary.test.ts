@@ -248,6 +248,67 @@ describe("When deciding whether a tool follows the server summary default", () =
     });
   });
 
+  describe("with a list tool whose summary drops access or protection fields", () => {
+    it("should keep the full reply but still accept an explicit summary", () => {
+      for (const toolName of [
+        "list_branches",
+        "list_protected_branches",
+        "list_protected_tags",
+        "list_project_members",
+        "list_group_members",
+      ]) {
+        assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
+        assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
+        assert.equal(
+          readListSummaryRequested({ summary: true }, toolUsesListSummaryDefault(toolName)),
+          true,
+          toolName
+        );
+      }
+    });
+
+    it("should drop those fields when summary is explicitly requested", () => {
+      const [protectedBranch, member, branch] = summarizeListPayload([
+        {
+          id: 1,
+          name: "main",
+          push_access_levels: [{ id: 101, access_level: 40 }],
+          merge_access_levels: [{ id: 201, access_level: 40 }],
+          allow_force_push: false,
+        },
+        {
+          id: 7,
+          username: "alice",
+          name: "Alice",
+          state: "active",
+          web_url: "https://gitlab.example.com/alice",
+          access_level: 40,
+          expires_at: "2027-01-01",
+        },
+        {
+          name: "main",
+          web_url: "https://gitlab.example.com/g/p/-/tree/main",
+          protected: true,
+          default: true,
+          commit: { id: "abc" },
+        },
+      ]) as Record<string, unknown>[];
+
+      assert.deepEqual(protectedBranch, { id: 1, name: "main" });
+      assert.deepEqual(member, {
+        id: 7,
+        name: "Alice",
+        state: "active",
+        web_url: "https://gitlab.example.com/alice",
+        username: "alice",
+      });
+      assert.deepEqual(branch, {
+        name: "main",
+        web_url: "https://gitlab.example.com/g/p/-/tree/main",
+      });
+    });
+  });
+
   describe("with a list tool whose reply envelope the summary does not read", () => {
     it("should keep the full reply but still accept an explicit summary", () => {
       for (const toolName of [

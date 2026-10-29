@@ -65,10 +65,13 @@ These list tools keep the full reply when `summary` is omitted, because the
 summary would drop the content they return or does not read their reply shape:
 `list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
 `list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
-`list_job_artifacts`, `list_project_vulnerabilities`,
-`list_dependency_proxy_blobs`, `list_ci_catalog_resources`,
-`list_work_item_notes`, `list_custom_field_definitions`, and
-`list_work_item_statuses`. These also keep the full reply, because the summary
+`list_job_artifacts`, `list_branches` (`protected`, `default`, `merged`),
+`list_protected_branches` (`*_access_levels`, `allow_force_push`),
+`list_protected_tags` (`create_access_levels`), `list_project_members` and
+`list_group_members` (`access_level`, `expires_at`),
+`list_project_vulnerabilities`, `list_dependency_proxy_blobs`,
+`list_ci_catalog_resources`, `list_work_item_notes`,
+`list_custom_field_definitions`, and `list_work_item_statuses`. These also keep the full reply, because the summary
 would drop an id or type that other tools need: `list_issue_links`
 (`issue_link_id`, `link_type`), `list_pipeline_trigger_jobs`
 (`downstream_pipeline.id`), `list_project_variables` and `list_group_variables`

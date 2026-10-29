@@ -162,6 +162,19 @@ function fakeReq(query: Record<string, unknown>): ExpressRequest {
   return { query } as unknown as ExpressRequest;
 }
 
+/** assert.rejects predicate: checks the OAuth error code and message. */
+function oauthError(errorCode: string, message: RegExp) {
+  return (err: unknown) => {
+    assert.equal(
+      (err as { errorCode?: string }).errorCode,
+      errorCode,
+      `unexpected error: ${String(err)}`
+    );
+    assert.match((err as Error).message, message);
+    return true;
+  };
+}
+
 // A response wrapper that captures authorize redirects. Its request is the
 // consent form being approved (consent itself is covered in
 // test/oauth-consent.test.ts), so authorize continues to GitLab.
@@ -433,7 +446,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           wrongVerifier,
           CLIENT_REDIRECT
         ),
-      /PKCE verification failed/
+      oauthError("invalid_grant", /PKCE verification failed/)
     );
   });
 
@@ -476,13 +489,61 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           wrongVerifier,
           CLIENT_REDIRECT
         ),
-      /PKCE verification failed/
+      oauthError("invalid_grant", /PKCE verification failed/)
     );
 
     const tokens = await pod.exchangeAuthorizationCode(
       registered,
       proxyCode,
       correctVerifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
+  });
+
+  test("missing PKCE verifier is invalid_request and does not burn the code", async () => {
+    const s = secret();
+    const pod = makeProvider(loadMaterial(s));
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorizeRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: challenge,
+      },
+      authorizeRes as unknown as ExpressResponse
+    );
+    const proxyState = new URL(authorizeRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: proxyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          undefined,
+          CLIENT_REDIRECT
+        ),
+      oauthError("invalid_request", /PKCE code_verifier is required/)
+    );
+
+    const tokens = await pod.exchangeAuthorizationCode(
+      registered,
+      proxyCode,
+      verifier,
       CLIENT_REDIRECT
     );
     assert.equal(tokens.access_token, "gl-access-123");
@@ -532,7 +593,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           verifier,
           CLIENT_REDIRECT
         ),
-      /Authorization code already used/
+      oauthError("invalid_grant", /Authorization code already used/)
     );
   });
 
@@ -584,7 +645,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           verifier,
           CLIENT_REDIRECT
         ),
-      /Authorization server busy/
+      oauthError("server_error", /Authorization server busy/)
     );
   });
 
@@ -622,7 +683,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
     // Try to redeem as r2 (different client_id)
     await assert.rejects(
       () => pod.exchangeAuthorizationCode(r2, proxyCode, verifier, CLIENT_REDIRECT),
-      /Invalid client for authorization code/
+      oauthError("invalid_grant", /Invalid client for authorization code/)
     );
     // Failed binding must not burn the code for the legitimate client.
     const tokens = await pod.exchangeAuthorizationCode(
@@ -669,7 +730,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           verifier,
           "https://attacker.example/cb"
         ),
-      /Invalid redirect_uri for authorization code/
+      oauthError("invalid_grant", /Invalid redirect_uri for authorization code/)
     );
     // Failed binding must not burn the code for the legitimate client.
     const tokens = await pod.exchangeAuthorizationCode(
@@ -770,7 +831,7 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
           wrongVerifier,
           CLIENT_REDIRECT
         ),
-      /PKCE verification failed/
+      oauthError("invalid_grant", /PKCE verification failed/)
     );
 
     const tokens = await pod.exchangeAuthorizationCode(
