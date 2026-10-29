@@ -20,7 +20,7 @@ function createTransport(apiUrl: string): StdioClientTransport {
       GITLAB_PERSONAL_ACCESS_TOKEN: "test-token",
       GITLAB_API_URL: apiUrl,
       GITLAB_PERMISSION_MODE: "modify",
-      GITLAB_TOOLSETS: "projects,merge_requests",
+      GITLAB_TOOLSETS: "projects,merge_requests,api",
       GITLAB_TOOLS: "execute_graphql,fork_repository",
       GITLAB_MASKING_ENABLED: "true",
       GITLAB_DISABLE_VERSION_CHECK: "true",
@@ -45,6 +45,13 @@ async function reserveClosedPort(): Promise<number> {
 async function startServer(t: TestContext) {
   const api = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
+
+    if (req.url === "/api/v4/namespaces/throttled") {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "30");
+      res.end(JSON.stringify({ message: "Too Many Requests" }));
+      return;
+    }
 
     if (req.url === "/api/v4/namespaces/missing") {
       res.statusCode = 404;
@@ -117,6 +124,38 @@ function resultText(result: Awaited<ReturnType<Client["callTool"]>>): string {
 }
 
 describe("GitLab API tool errors", () => {
+  test("forwards GitLab's Retry-After header", async t => {
+    const client = await startServer(t);
+    for (const call of [
+      { name: "get_namespace", arguments: { namespace_id: "throttled" } },
+      { name: "gitlab_api_request", arguments: { path: "/namespaces/throttled" } },
+    ]) {
+      const result = await client.callTool(call);
+      assert.equal(result.isError, true);
+      assert.match(resultText(result), /GitLab API error: 429 Too Many Requests/);
+      assert.equal(result.structuredContent, undefined);
+      assert.deepEqual(result._meta, {
+        "io.github.zereight.gitlab-mcp/http-error": { status: 429, retryAfter: "30" },
+      });
+    }
+  });
+
+  test("omits retryAfter when GitLab does not send the header", async t => {
+    const client = await startServer(t);
+    for (const call of [
+      { name: "get_namespace", arguments: { namespace_id: "missing" } },
+      { name: "gitlab_api_request", arguments: { path: "/namespaces/missing" } },
+    ]) {
+      const result = await client.callTool(call);
+      assert.equal(result.isError, true);
+      assert.match(resultText(result), /GitLab API error: 404 Not Found/);
+      assert.equal(result.structuredContent, undefined);
+      assert.deepEqual(result._meta, {
+        "io.github.zereight.gitlab-mcp/http-error": { status: 404 },
+      });
+    }
+  });
+
   test("returns HTTP failures as tool errors and keeps the MCP connection usable", async t => {
     const client = await startServer(t);
 
@@ -146,7 +185,11 @@ describe("GitLab API tool errors", () => {
       },
     });
     assert.equal(invalidMergeRequest.isError, true);
-    assert.match(resultText(invalidMergeRequest), /Invalid request/);
+    assert.match(resultText(invalidMergeRequest), /Invalid request: .*Invalid merge request/);
+    assert.equal(invalidMergeRequest.structuredContent, undefined);
+    assert.deepEqual(invalidMergeRequest._meta, {
+      "io.github.zereight.gitlab-mcp/http-error": { status: 400 },
+    });
 
     const recovery = await client.callTool({
       name: "verify_namespace",
@@ -164,6 +207,8 @@ describe("GitLab API tool errors", () => {
       arguments: { project_id: "123", mergeRequestIid: 7102 },
     });
     assert.equal(invalidMergeRequest.isError, true);
+    assert.equal(invalidMergeRequest.structuredContent, undefined);
+    assert.equal(invalidMergeRequest._meta, undefined);
     assert.match(
       resultText(invalidMergeRequest),
       /Either merge_request_iid or source_branch must be provided/
