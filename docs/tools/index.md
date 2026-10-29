@@ -120,14 +120,14 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`list_group_projects`](projects.md#list_group_projects) | List projects in a group. | 📖 |
 | [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options. For one known resource, use the matching get tool. | 📖 |
 | [`get_group_iteration`](projects.md#get_group_iteration) | Get a group iteration by ID, IID, or GraphQL GID. To find resources, use the matching list or search tool. | 📖 |
-| [`update_group_iteration`](projects.md#update_group_iteration) | Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required. | ✏️ |
-| [`create_group_iteration`](projects.md#create_group_iteration) | Create a group iteration, optionally in a given iteration cadence. | ✏️ |
-| [`delete_group_iteration`](projects.md#delete_group_iteration) | Delete a group iteration by ID, IID, or GraphQL GID. | ✏️ |
+| [`update_group_iteration`](projects.md#update_group_iteration) | Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required. Use the create tool for new resources. | ✏️ |
+| [`create_group_iteration`](projects.md#create_group_iteration) | Create a group iteration, optionally in a given iteration cadence. If the resource already exists, use the update tool. | ✏️ |
+| [`delete_group_iteration`](projects.md#delete_group_iteration) | Delete a group iteration by ID, IID, or GraphQL GID. Verify the target first with a get or list tool. | ✏️ |
 | [`list_project_iterations`](projects.md#list_project_iterations) | List the iterations available to a project with filtering options. | 📖 |
 | [`list_group_iteration_cadences`](projects.md#list_group_iteration_cadences) | List a group's iteration cadences with filtering options. | 📖 |
-| [`create_group_iteration_cadence`](projects.md#create_group_iteration_cadence) | Create an iteration cadence in a group. | ✏️ |
-| [`update_group_iteration_cadence`](projects.md#update_group_iteration_cadence) | Update an iteration cadence's title, description, schedule, or automation. | ✏️ |
-| [`delete_group_iteration_cadence`](projects.md#delete_group_iteration_cadence) | Delete an iteration cadence. | ✏️ |
+| [`create_group_iteration_cadence`](projects.md#create_group_iteration_cadence) | Create an iteration cadence in a group. If the resource already exists, use the update tool. | ✏️ |
+| [`update_group_iteration_cadence`](projects.md#update_group_iteration_cadence) | Update an iteration cadence's title, description, schedule, or automation. Use the create tool for new resources. | ✏️ |
+| [`delete_group_iteration_cadence`](projects.md#delete_group_iteration_cadence) | Delete an iteration cadence. Verify the target first with a get or list tool. | ✏️ |
 | [`health_check`](projects.md#health_check) | Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
 
 ### [Projects & Files](repositories.md)

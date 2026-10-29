@@ -86,7 +86,6 @@ async function callTool(
   });
 }
 
-
 const CREATED_ITERATION_ID = "54";
 const PROJECT_ID = "9";
 
@@ -647,10 +646,7 @@ describe("group iteration tools", () => {
       ],
       ["delete_group_iteration", { group_id: GROUP_ID, iteration_id: ITERATION_ID }],
       ["list_group_iteration_cadences", { group_id: GROUP_ID }],
-      [
-        "create_group_iteration_cadence",
-        { group_id: GROUP_ID, automatic: false, active: true },
-      ],
+      ["create_group_iteration_cadence", { group_id: GROUP_ID, automatic: false, active: true }],
       ["update_group_iteration_cadence", { iteration_cadence_id: "7", title: "X" }],
       ["delete_group_iteration_cadence", { iteration_cadence_id: "7" }],
     ];

@@ -8,15 +8,15 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 280 |
-| Invoked | 179 |
-| Coverage | 63.9% |
+| Tools | 287 |
+| Invoked | 186 |
+| Coverage | 64.8% |
 
 ## By toolset
 
 | Toolset | Invoked | Total | Coverage |
 | --- | ---: | ---: | ---: |
-| [Projects & Namespaces](#projects) | 11 | 13 | 84.6% |
+| [Projects & Namespaces](#projects) | 18 | 20 | 90.0% |
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
@@ -57,6 +57,13 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`list_group_iterations`](../tools/projects.md#list_group_iterations)
 - [x] [`get_group_iteration`](../tools/projects.md#get_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`update_group_iteration`](../tools/projects.md#update_group_iteration) — `test/test-group-iterations.ts`
+- [x] [`create_group_iteration`](../tools/projects.md#create_group_iteration) — `test/test-group-iterations.ts`
+- [x] [`delete_group_iteration`](../tools/projects.md#delete_group_iteration) — `test/test-group-iterations.ts`
+- [x] [`list_project_iterations`](../tools/projects.md#list_project_iterations) — `test/test-group-iterations.ts`
+- [x] [`list_group_iteration_cadences`](../tools/projects.md#list_group_iteration_cadences) — `test/test-group-iterations.ts`
+- [x] [`create_group_iteration_cadence`](../tools/projects.md#create_group_iteration_cadence) — `test/test-group-iterations.ts`
+- [x] [`update_group_iteration_cadence`](../tools/projects.md#update_group_iteration_cadence) — `test/test-group-iterations.ts`
+- [x] [`delete_group_iteration_cadence`](../tools/projects.md#delete_group_iteration_cadence) — `test/test-group-iterations.ts`
 - [x] [`health_check`](../tools/projects.md#health_check) — `test/test-health-check.ts`
 
 ## Projects & Files

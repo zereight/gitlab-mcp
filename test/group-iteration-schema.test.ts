@@ -117,7 +117,10 @@ test("create group iteration requires only the group, like iterationCreate", () 
   assert.equal(parsed.start_date, undefined);
   assert.equal(parsed.due_date, undefined);
   assert.deepEqual(
-    rejectedFields(CreateGroupIterationSchema, { start_date: "2026-09-08", due_date: "2026-09-21" }),
+    rejectedFields(CreateGroupIterationSchema, {
+      start_date: "2026-09-08",
+      due_date: "2026-09-21",
+    }),
     ["group_id"]
   );
 });
@@ -174,9 +177,7 @@ test("update and delete iteration cadence require the cadence ID", () => {
   assert.deepEqual(rejectedFields(UpdateGroupIterationCadenceSchema, { title: "S" }), [
     "iteration_cadence_id",
   ]);
-  assert.deepEqual(rejectedFields(DeleteGroupIterationCadenceSchema, {}), [
-    "iteration_cadence_id",
-  ]);
+  assert.deepEqual(rejectedFields(DeleteGroupIterationCadenceSchema, {}), ["iteration_cadence_id"]);
 });
 
 test("list group iteration cadences accepts a numeric group ID and string booleans", () => {
