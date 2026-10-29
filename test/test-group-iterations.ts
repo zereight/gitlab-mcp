@@ -288,6 +288,7 @@ async function withIterationLookupServer(
   const port = await findMockServerPort();
   const mockServer = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
   mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (req, res) => {
+    assert.equal(req.query.include_ancestors, "false");
     const page = Number(req.query.page ?? 1);
     res.json(pages[page - 1] ?? []);
   });
@@ -386,6 +387,37 @@ describe("When looking up a group iteration", () => {
         assert.equal(result.id, "13");
         assert.equal(result.title, "Later ID match");
       });
+    });
+  });
+
+  describe("when GitLab would include ancestor iterations by default", () => {
+    it("should select the group's own iteration instead of an ancestor with the same iid", async () => {
+      const port = await findMockServerPort();
+      const mockServer = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
+      mockServer.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (req, res) => {
+        const own = createLookupIteration({ id: 53, iid: 13, title: "Own group" });
+        const ancestor = createLookupIteration({
+          id: 999,
+          iid: 13,
+          group_id: 1,
+          title: "Ancestor",
+        });
+        res.json(req.query.include_ancestors === "false" ? [own] : [own, ancestor]);
+      });
+      await mockServer.start();
+      try {
+        const result = await getGroupIterationById(
+          {
+            GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "projects",
+          },
+          "13"
+        );
+        assert.equal(result.id, "53");
+      } finally {
+        await mockServer.stop();
+      }
     });
   });
 });

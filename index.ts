@@ -10202,6 +10202,7 @@ async function getGroupIteration(groupId: string, iterationId: string): Promise<
   for (let page = 1; ; page += 1) {
     const iterations = await listGroupIterations(groupId, {
       state: "all",
+      include_ancestors: false,
       page,
       per_page: 100,
     });
