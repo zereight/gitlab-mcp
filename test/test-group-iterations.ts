@@ -350,6 +350,32 @@ describe("When looking up a group iteration", () => {
     });
   });
 
+  describe("with an identifier that matches no iteration", () => {
+    it("should reject the lookup as not found", async () => {
+      const existing = createLookupIteration({ id: 53, iid: 13, title: "Existing" });
+
+      await withIterationLookupServer([[existing]], async env => {
+        await assert.rejects(
+          () => getGroupIterationById(env, "99"),
+          /Group iteration 99 was not found in group 5/
+        );
+      });
+    });
+  });
+
+  describe("with a GraphQL GID that matches no id", () => {
+    it("should reject the lookup as not found", async () => {
+      const byIid = createLookupIteration({ id: 53, iid: 99, title: "IID only" });
+
+      await withIterationLookupServer([[byIid]], async env => {
+        await assert.rejects(
+          () => getGroupIterationById(env, "gid://gitlab/Iteration/99"),
+          /Group iteration gid:\/\/gitlab\/Iteration\/99 was not found in group 5/
+        );
+      });
+    });
+  });
+
   describe("with the id match on a later page than any iid-only row", () => {
     it("should prefer the id match after scanning every page", async () => {
       const earlier = createLookupIteration({ id: 99, iid: 1, title: "Earlier page" });

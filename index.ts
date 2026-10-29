@@ -10187,11 +10187,11 @@ function selectGroupIterationMatch(
   groupId: string
 ): GroupIteration {
   if (idMatch && iidMatch && idMatch.id !== iidMatch.id) {
-    throw new Error(`Group iteration ${iterationId} is ambiguous in group ${groupId}`);
+    throw new ToolInputError(`Group iteration ${iterationId} is ambiguous in group ${groupId}`);
   }
   if (idMatch) return idMatch;
   if (iidMatch) return iidMatch;
-  throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+  throw new ToolInputError(`Group iteration ${iterationId} was not found in group ${groupId}`);
 }
 
 async function getGroupIteration(groupId: string, iterationId: string): Promise<GroupIteration> {
@@ -10217,7 +10217,7 @@ async function getGroupIteration(groupId: string, iterationId: string): Promise<
 
   if (isGraphqlGid) {
     if (idMatch) return idMatch;
-    throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+    throw new ToolInputError(`Group iteration ${iterationId} was not found in group ${groupId}`);
   }
 
   return selectGroupIterationMatch(idMatch, iidMatch, iterationId, groupId);
@@ -10234,7 +10234,7 @@ async function updateGroupIteration(
     options.start_date === undefined &&
     options.due_date === undefined
   ) {
-    throw new Error("Provide at least one iteration field to update");
+    throw new ToolInputError("Provide at least one iteration field to update");
   }
 
   const current = await getGroupIteration(groupId, iterationId);
