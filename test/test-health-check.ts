@@ -34,6 +34,7 @@ interface ToolCallResult {
   isError: boolean;
   text: string;
   structuredContent?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 }
 
 function callToolAsync(
@@ -83,6 +84,7 @@ function callToolAsync(
           isError: response.result?.isError === true,
           text: content,
           structuredContent: response.result?.structuredContent,
+          _meta: response.result?._meta,
         });
       } catch (error) {
         reject(error);
@@ -538,7 +540,10 @@ describe("When current-user tools call GET /user", () => {
         assert.match(result.text, /insufficient scope/);
         assert.match(result.text, /read_user/);
         assert.match(result.text, /my_issues/);
-        assert.deepStrictEqual(result.structuredContent, { status: 403 });
+        assert.equal(result.structuredContent, undefined);
+        assert.deepStrictEqual(result._meta, {
+          "io.github.zereight.gitlab-mcp/http-error": { status: 403 },
+        });
       } finally {
         await mockGitLab.stop();
       }

@@ -1287,10 +1287,8 @@ function createServer(): McpServer {
         error instanceof ProjectAccessDeniedError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
-        const structuredContent =
-          safeError instanceof GitLabApiError
-            ? gitLabApiErrorStructuredContent(safeError)
-            : undefined;
+        const meta =
+          safeError instanceof GitLabApiError ? gitLabApiErrorMetadata(safeError) : undefined;
         return {
           content: [
             {
@@ -1301,7 +1299,7 @@ function createServer(): McpServer {
             },
           ],
           isError: true,
-          ...(structuredContent ? { structuredContent } : {}),
+          ...(meta ? { _meta: { "io.github.zereight.gitlab-mcp/http-error": meta } } : {}),
         };
       }
       throw safeError;
@@ -2257,24 +2255,22 @@ class GitLabApiError extends Error {
 }
 
 /**
- * Machine-readable GitLab HTTP error fields for an isError tool result, so a
- * client can see the status and honor Retry-After without parsing the text.
- * Retry-After is omitted only when the header is absent.
+ * Out-of-band HTTP metadata for an error result. Keep it separate from
+ * structuredContent so clients preserve the error text and do not validate
+ * this metadata against a tool's output schema.
  */
-function gitLabApiErrorStructuredContent(
-  error: GitLabApiError
-): Record<string, unknown> | undefined {
+function gitLabApiErrorMetadata(error: GitLabApiError): Record<string, unknown> | undefined {
   if (error.status === undefined && error.retryAfter === undefined) {
     return undefined;
   }
-  const structuredContent: Record<string, unknown> = {};
+  const meta: Record<string, unknown> = {};
   if (error.status !== undefined) {
-    structuredContent.status = error.status;
+    meta.status = error.status;
   }
   if (error.retryAfter !== undefined) {
-    structuredContent.retryAfter = error.retryAfter;
+    meta.retryAfter = error.retryAfter;
   }
-  return structuredContent;
+  return meta;
 }
 
 class ToolInputError extends Error {

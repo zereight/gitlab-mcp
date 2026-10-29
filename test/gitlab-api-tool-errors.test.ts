@@ -133,7 +133,10 @@ describe("GitLab API tool errors", () => {
       const result = await client.callTool(call);
       assert.equal(result.isError, true);
       assert.match(resultText(result), /GitLab API error: 429 Too Many Requests/);
-      assert.deepEqual(result.structuredContent, { status: 429, retryAfter: "30" });
+      assert.equal(result.structuredContent, undefined);
+      assert.deepEqual(result._meta, {
+        "io.github.zereight.gitlab-mcp/http-error": { status: 429, retryAfter: "30" },
+      });
     }
   });
 
@@ -145,7 +148,11 @@ describe("GitLab API tool errors", () => {
     ]) {
       const result = await client.callTool(call);
       assert.equal(result.isError, true);
-      assert.deepEqual(result.structuredContent, { status: 404 });
+      assert.match(resultText(result), /GitLab API error: 404 Not Found/);
+      assert.equal(result.structuredContent, undefined);
+      assert.deepEqual(result._meta, {
+        "io.github.zereight.gitlab-mcp/http-error": { status: 404 },
+      });
     }
   });
 
@@ -178,7 +185,11 @@ describe("GitLab API tool errors", () => {
       },
     });
     assert.equal(invalidMergeRequest.isError, true);
-    assert.match(resultText(invalidMergeRequest), /Invalid request/);
+    assert.match(resultText(invalidMergeRequest), /Invalid request: .*Invalid merge request/);
+    assert.equal(invalidMergeRequest.structuredContent, undefined);
+    assert.deepEqual(invalidMergeRequest._meta, {
+      "io.github.zereight.gitlab-mcp/http-error": { status: 400 },
+    });
 
     const recovery = await client.callTool({
       name: "verify_namespace",
@@ -197,6 +208,7 @@ describe("GitLab API tool errors", () => {
     });
     assert.equal(invalidMergeRequest.isError, true);
     assert.equal(invalidMergeRequest.structuredContent, undefined);
+    assert.equal(invalidMergeRequest._meta, undefined);
     assert.match(
       resultText(invalidMergeRequest),
       /Either merge_request_iid or source_branch must be provided/
