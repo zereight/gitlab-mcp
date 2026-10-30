@@ -12,7 +12,7 @@
 
 📖 **[Documentation →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 278 tools exist in total (275 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
+**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 287 tools exist in total (284 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
 
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -144,7 +144,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **Default 40 tools (38 `core` + `discover_tools` + `help`); 278 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping
+- **Default 40 tools (38 `core` + `discover_tools` + `help`); 287 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -158,7 +158,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 |                | @zereight/mcp-gitlab                                              | GitLab MCP A (community CQRS-style)          | GitLab official MCP server                                                                                                                       |
 | -------------- | ----------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Best for**   | AI agent workflows                                                | Enterprise multi-instance / grouped tools    | Built into GitLab, no separate install                                                                                                           |
-| **Tool model** | 278 tools: 275 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
+| **Tool model** | 287 tools: 284 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped `browse_*` / `manage_*` tools | Toolsets chosen with an HTTP header                                                                                                              |
 | **MR review**  | 2-step batched diff                                               | Varies                                       | `get_merge_request` with diffs                                                                                                                   |
 | **Node.js**    | >=20.0.0                                                          | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
@@ -974,87 +974,96 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 195. `list_commit_statuses` - List statuses for a commit
 196. `create_commit_status` - Create or update the status of a commit
 197. `list_group_iterations` - List group iterations with filtering options
-198. `upload_markdown` - Upload a file for use in markdown content
-199. `download_attachment` - Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)
-200. `health_check` - Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
-201. `list_events` - List events for the authenticated user (before/after: YYYY-MM-DD)
-202. `get_project_events` - List events for a project (before/after: YYYY-MM-DD)
-203. `list_releases` - List all releases for a project
-204. `get_release` - Get a release by tag name
-205. `create_release` - Create a new release
-206. `update_release` - Update an existing release
-207. `delete_release` - Delete a release (does not delete the tag)
-208. `create_release_evidence` - Create release evidence (Premium/Ultimate)
-209. `download_release_asset` - Download a release asset file by direct asset path
-210. `list_tags` - List repository tags for a project
-211. `get_tag` - Get a repository tag by name
-212. `create_tag` - Create a new repository tag
-213. `delete_tag` - Delete a repository tag
-214. `get_tag_signature` - Get the X.509 signature of a signed tag (404 if unsigned)
-215. `list_protected_tags` - List protected tags in a project
-216. `get_protected_tag` - Get details of a single protected tag or wildcard (create access levels)
-217. `protect_tag` - Protect a repository tag or wildcard (set who can create it)
-218. `unprotect_tag` - Remove protection from a previously protected tag or wildcard
-219. `get_work_item` - Get a work item with full details including status, hierarchy, type, and widgets
-220. `list_work_items` - List work items with filters (type, state, search, assignees, labels)
-221. `create_work_item` - Create a work item (issue, task, incident, epic, etc.) with full field support
-222. `update_work_item` - Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)
-223. `convert_work_item_type` - Convert a work item to a different type
-224. `list_work_item_statuses` - List available statuses for a work item type (Premium/Ultimate)
-225. `list_custom_field_definitions` - List custom field definitions for a work item type
-226. `move_work_item` - Move a work item to a different project
-227. `list_work_item_notes` - List notes and discussions on a work item
-228. `create_work_item_note` - Add a note to a work item (supports Markdown, internal notes, threads)
-229. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
-230. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
-231. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
-232. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
-233. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
-234. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
-235. `get_timeline_events` - List timeline events for an incident
-236. `create_timeline_event` - Create a timeline event on an incident
-237. `list_webhooks` - List webhooks for a project or group
-238. `create_webhook` - Create a webhook on a project or group
-239. `update_webhook` - Update an existing project or group webhook
-240. `delete_webhook` - Delete a project or group webhook
-241. `list_webhook_events` - List recent webhook events (past 7 days)
-242. `get_webhook_event` - Get full details of a specific webhook event
-243. `search_code` - Search for code across all projects (requires advanced search or Zoekt)
-244. `search_project_code` - Search for code within a specific project (requires advanced search or Zoekt)
-245. `search_group_code` - Search for code within a specific group (requires advanced search or Zoekt)
-246. `list_project_variables` - List CI/CD variables for a project
-247. `get_project_variable` - Get a single CI/CD variable from a project
-248. `create_project_variable` - Create a CI/CD variable for a project
-249. `update_project_variable` - Update an existing CI/CD variable in a project
-250. `delete_project_variable` - Delete a CI/CD variable from a project
-251. `list_group_variables` - List CI/CD variables for a group
-252. `get_group_variable` - Get a single CI/CD variable from a group
-253. `create_group_variable` - Create a CI/CD variable for a group
-254. `update_group_variable` - Update an existing CI/CD variable in a group
-255. `delete_group_variable` - Delete a CI/CD variable from a group
-256. `get_dependency_proxy_settings` - Get dependency proxy settings for a group
-257. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
-258. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group
-259. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
-260. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
-261. `get_vulnerability` - Get full details of a specific vulnerability
-262. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
-263. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
-264. `orbit_query` - Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph
-265. `orbit_get_schema` - Fetch the current GitLab Orbit graph schema (node and edge types)
-266. `orbit_get_status` - Check GitLab Orbit indexing status for the enabled scope
-267. `orbit_list_tools` - List the MCP tool definitions exposed by GitLab Orbit
-268. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
-269. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content.
-270. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
-271. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
-272. `delete_snippet` - Delete a snippet
-273. `list_project_runners` - List runners available to a project (type, status, paused, tag_list). Omits registration and authentication tokens.
-274. `get_runner` - Get a runner's tag_list, run_untagged, locked, and access_level. When a project allowlist is active, the runner must be available to an allowed project. Omits registration and authentication tokens.
-275. `rebase_merge_request` - Rebase the source branch of a merge request onto its target branch
-276. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
-277. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
-278. `help` - Return a short GitLab workflow guide. Omit topic for the overview and topic list.
+198. `get_group_iteration` - Get a group iteration by ID, IID, or GraphQL GID
+199. `update_group_iteration` - Update a manual group iteration's title, description, or dates
+200. `create_group_iteration` - Create a group iteration, optionally in a given iteration cadence
+201. `delete_group_iteration` - Delete a group iteration by ID, IID, or GraphQL GID
+202. `list_project_iterations` - List the iterations available to a project with filtering options
+203. `list_group_iteration_cadences` - List a group's iteration cadences with filtering options
+204. `create_group_iteration_cadence` - Create an iteration cadence in a group
+205. `update_group_iteration_cadence` - Update an iteration cadence's title, description, schedule, or automation
+206. `delete_group_iteration_cadence` - Delete an iteration cadence
+207. `upload_markdown` - Upload a file for use in markdown content
+208. `download_attachment` - Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)
+209. `health_check` - Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
+210. `list_events` - List events for the authenticated user (before/after: YYYY-MM-DD)
+211. `get_project_events` - List events for a project (before/after: YYYY-MM-DD)
+212. `list_releases` - List all releases for a project
+213. `get_release` - Get a release by tag name
+214. `create_release` - Create a new release
+215. `update_release` - Update an existing release
+216. `delete_release` - Delete a release (does not delete the tag)
+217. `create_release_evidence` - Create release evidence (Premium/Ultimate)
+218. `download_release_asset` - Download a release asset file by direct asset path
+219. `list_tags` - List repository tags for a project
+220. `get_tag` - Get a repository tag by name
+221. `create_tag` - Create a new repository tag
+222. `delete_tag` - Delete a repository tag
+223. `get_tag_signature` - Get the X.509 signature of a signed tag (404 if unsigned)
+224. `list_protected_tags` - List protected tags in a project
+225. `get_protected_tag` - Get details of a single protected tag or wildcard (create access levels)
+226. `protect_tag` - Protect a repository tag or wildcard (set who can create it)
+227. `unprotect_tag` - Remove protection from a previously protected tag or wildcard
+228. `get_work_item` - Get a work item with full details including status, hierarchy, type, and widgets
+229. `list_work_items` - List work items with filters (type, state, search, assignees, labels)
+230. `create_work_item` - Create a work item (issue, task, incident, epic, etc.) with full field support
+231. `update_work_item` - Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)
+232. `convert_work_item_type` - Convert a work item to a different type
+233. `list_work_item_statuses` - List available statuses for a work item type (Premium/Ultimate)
+234. `list_custom_field_definitions` - List custom field definitions for a work item type
+235. `move_work_item` - Move a work item to a different project
+236. `list_work_item_notes` - List notes and discussions on a work item
+237. `create_work_item_note` - Add a note to a work item (supports Markdown, internal notes, threads)
+238. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
+239. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
+240. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
+241. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
+242. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
+243. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
+244. `get_timeline_events` - List timeline events for an incident
+245. `create_timeline_event` - Create a timeline event on an incident
+246. `list_webhooks` - List webhooks for a project or group
+247. `create_webhook` - Create a webhook on a project or group
+248. `update_webhook` - Update an existing project or group webhook
+249. `delete_webhook` - Delete a project or group webhook
+250. `list_webhook_events` - List recent webhook events (past 7 days)
+251. `get_webhook_event` - Get full details of a specific webhook event
+252. `search_code` - Search for code across all projects (requires advanced search or Zoekt)
+253. `search_project_code` - Search for code within a specific project (requires advanced search or Zoekt)
+254. `search_group_code` - Search for code within a specific group (requires advanced search or Zoekt)
+255. `list_project_variables` - List CI/CD variables for a project
+256. `get_project_variable` - Get a single CI/CD variable from a project
+257. `create_project_variable` - Create a CI/CD variable for a project
+258. `update_project_variable` - Update an existing CI/CD variable in a project
+259. `delete_project_variable` - Delete a CI/CD variable from a project
+260. `list_group_variables` - List CI/CD variables for a group
+261. `get_group_variable` - Get a single CI/CD variable from a group
+262. `create_group_variable` - Create a CI/CD variable for a group
+263. `update_group_variable` - Update an existing CI/CD variable in a group
+264. `delete_group_variable` - Delete a CI/CD variable from a group
+265. `get_dependency_proxy_settings` - Get dependency proxy settings for a group
+266. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
+267. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group
+268. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
+269. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+270. `get_vulnerability` - Get full details of a specific vulnerability
+271. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+272. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
+273. `orbit_query` - Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph
+274. `orbit_get_schema` - Fetch the current GitLab Orbit graph schema (node and edge types)
+275. `orbit_get_status` - Check GitLab Orbit indexing status for the enabled scope
+276. `orbit_list_tools` - List the MCP tool definitions exposed by GitLab Orbit
+277. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
+278. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content.
+279. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
+280. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
+281. `delete_snippet` - Delete a snippet
+282. `list_project_runners` - List runners available to a project (type, status, paused, tag_list). Omits registration and authentication tokens.
+283. `get_runner` - Get a runner's tag_list, run_untagged, locked, and access_level. When a project allowlist is active, the runner must be available to an allowed project. Omits registration and authentication tokens.
+284. `rebase_merge_request` - Rebase the source branch of a merge request onto its target branch
+285. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
+286. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+287. `help` - Return a short GitLab workflow guide. Omit topic for the overview and topic list.
 
 <!-- TOOLS-END -->
 
