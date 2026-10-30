@@ -315,7 +315,7 @@ JSON response:
 4. **"Rate limit exceeded"**
    - You've exceeded `MAX_REQUESTS_PER_MINUTE` for your client IP, MCP session, or download token
    - Behind a shared proxy without `MCP_TRUST_PROXY=true`, all users share one IP bucket; with it, users behind the same NAT or egress address still share one
-   - Wait for the window to reset (60 seconds after the first counted request), or raise the limit and enable `MCP_TRUST_PROXY`
+   - Wait for the window to reset (60 seconds after the first counted request), or raise the limit. Set `MCP_TRUST_PROXY=true` only if the server sits behind a trusted reverse proxy and direct client access to the server port is blocked; otherwise clients can spoof forwarded headers to rotate their rate-limit key
 
 ### Debug Logging
 
