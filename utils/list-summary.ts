@@ -76,6 +76,9 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_webhooks", // url, event flags
   "list_pipeline_triggers", // description
   "list_job_artifacts", // path, type, size
+  "list_group_iterations", // start_date, due_date
+  "list_project_iterations", // start_date, due_date
+  "list_group_iteration_cadences", // start_date, duration_in_weeks, iterations_in_advance
   // Small replies whose access fields are the point; summary: true keeps them (TOOL_SUMMARY_FIELDS).
   "list_protected_branches", // *_access_levels, allow_force_push
   "list_protected_tags", // create_access_levels
@@ -95,6 +98,7 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_group_variables", // environment_scope, variable_type
   "list_merge_request_changed_files", // old_path, new_file/deleted_file/renamed_file
   "list_work_items", // type, webUrl; assignees are strings, not users
+  "list_namespaces", // full_path, path, kind
 ]);
 
 /**
@@ -103,6 +107,79 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
  * the summary would drop.
  */
 const CONTENT_ON_REQUEST_LIST_TOOLS = new Set(["list_wiki_pages", "list_group_wiki_pages"]);
+
+/**
+ * List tools reviewed for GITLAB_MCP_LIST_SUMMARY_DEFAULT whose summary keeps what
+ * callers need, with the fields it must keep. Every list tool is in exactly one of
+ * this map, LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS, CONTENT_ON_REQUEST_LIST_TOOLS or
+ * NATIVE_SUMMARY_TOOLS: test/utils/list-summary-coverage.test.ts fails on a new
+ * list tool that is in none of them, or on a listed field the summary drops.
+ */
+export const LIST_SUMMARY_SAFE_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  list_issues: ["iid", "title", "state", "labels"],
+  list_issue_discussions: ["id", "notes"],
+  mr_discussions: ["id", "notes"],
+  list_merge_requests: ["iid", "title", "state", "source_branch", "target_branch", "draft"],
+  list_group_merge_requests: ["iid", "title", "state", "source_branch", "target_branch", "draft"],
+  list_deployment_merge_requests: ["iid", "title", "state", "source_branch", "target_branch"],
+  list_merge_request_pipelines: ["id", "status", "ref"],
+  list_pipelines: ["id", "status", "ref"],
+  list_pipeline_schedule_pipelines: ["id", "status", "ref"],
+  list_pipeline_schedules: ["id", "ref"],
+  list_pipeline_jobs: ["id", "name", "status"],
+  list_commit_statuses: ["id", "name", "status"],
+  list_deployments: ["id", "iid", "status", "ref"],
+  list_environments: ["id", "name", "state"],
+  list_commits: ["id", "short_id", "title"],
+  // Explicit (not a spread of TOOL_SUMMARY_FIELDS) so the coverage test guards that list.
+  list_branches: [
+    "name",
+    "protected",
+    "default",
+    "merged",
+    "can_push",
+    "developers_can_push",
+    "developers_can_merge",
+  ],
+  list_tags: ["name"],
+  list_releases: ["name", "tag_name"],
+  list_milestones: ["id", "iid", "title", "state"],
+  list_group_milestones: ["id", "iid", "title", "state"],
+  list_labels: ["id", "name"],
+  list_projects: ["id", "path_with_namespace"],
+  list_group_projects: ["id", "path_with_namespace"],
+  list_snippets: ["id", "title", "web_url"],
+  list_project_runners: ["id", "status"],
+  list_merge_request_emoji_reactions: ["id", "name"],
+  list_merge_request_note_emoji_reactions: ["id", "name"],
+  list_issue_emoji_reactions: ["id", "name"],
+  list_issue_note_emoji_reactions: ["id", "name"],
+  list_work_item_emoji_reactions: ["id", "name"],
+  list_work_item_note_emoji_reactions: ["id", "name"],
+};
+
+export type ListSummaryClassification =
+  "native" | "excluded" | "content-on-request" | "summary-safe" | "unclassified";
+
+/** Which of the lists above a summary-capable tool is in (test helper; no runtime effect). */
+export function listSummaryClassifications(toolName: string): ListSummaryClassification[] {
+  const found: ListSummaryClassification[] = [];
+  if (NATIVE_SUMMARY_TOOLS.has(toolName)) found.push("native");
+  if (LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS.has(toolName)) found.push("excluded");
+  if (CONTENT_ON_REQUEST_LIST_TOOLS.has(toolName)) found.push("content-on-request");
+  if (Object.hasOwn(LIST_SUMMARY_SAFE_TOOLS, toolName)) found.push("summary-safe");
+  return found.length > 0 ? found : ["unclassified"];
+}
+
+/** Every tool name the lists above mention (to catch stale entries). */
+export function listSummaryClassifiedToolNames(): string[] {
+  return [
+    ...NATIVE_SUMMARY_TOOLS,
+    ...LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS,
+    ...CONTENT_ON_REQUEST_LIST_TOOLS,
+    ...Object.keys(LIST_SUMMARY_SAFE_TOOLS),
+  ];
+}
 
 const CONTENT_REQUEST_ARGUMENTS = ["with_content", "render_html"] as const;
 
