@@ -351,7 +351,7 @@ export const allTools = [
   },
   {
     name: "get_file_contents",
-    description: "Get contents of a file or directory from a GitLab project",
+    description: "Get the contents of one file from a GitLab project",
     inputSchema: toJSONSchema(GetFileContentsSchema),
   },
   {

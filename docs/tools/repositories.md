@@ -52,14 +52,14 @@ Create a new GitLab project.
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project.
+Get the contents of one file from a GitLab project. `ref` defaults to the default branch. Text is UTF-8; binary stays base64. Directories are not supported: use `get_repository_tree`.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string |  | Project ID or URL-encoded path (optional; falls back to env) |
-| `file_path` | string |  | Path to the file or directory. Takes precedence over 'path' when both are provided |
+| `file_path` | string |  | Path to the file (not a directory). Takes precedence over 'path' when both are provided |
 | `path` | string |  | Alias of file_path |
 | `ref` | string |  | Branch/tag/commit to get contents from |
 
@@ -115,7 +115,7 @@ Fork a project to your account or specified namespace. Fork an existing project 
 
 *📖 Read-only*
 
-List files and directories in a repository.
+List files and directories in a repository. One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file.
 
 **Parameters**
 

@@ -66,6 +66,21 @@ describe("When MCP tool descriptions are exposed", () => {
     });
   });
 
+  describe("with get_file_contents and get_repository_tree", () => {
+    it("should send directories to get_repository_tree and files to get_file_contents", () => {
+      const fileContents = getExposedTool("get_file_contents");
+      const filePath = fileContents.inputSchema.properties.file_path.description;
+
+      assert.doesNotMatch(fileContents.description, /file or directory/i);
+      assert.match(
+        fileContents.description,
+        /Directories are not supported[\s\S]*get_repository_tree/
+      );
+      assert.doesNotMatch(filePath, /file or directory/i);
+      assert.match(getExposedTool("get_repository_tree").description, /get_file_contents/);
+    });
+  });
+
   describe("with protected branch tools", () => {
     it("should send rule changes to update_protected_branch instead of protect_branch", () => {
       const protect = getExposedTool("protect_branch").description;

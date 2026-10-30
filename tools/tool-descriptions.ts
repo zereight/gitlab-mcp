@@ -13,6 +13,10 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
     "Inspect merge conflicts before `merge_merge_request`. It reports conflicts and does not resolve them.",
   list_merge_request_pipelines:
     "List pipelines for one merge request. Use `list_pipelines` for project-wide filtering.",
+  get_file_contents:
+    "`ref` defaults to the default branch. Text is UTF-8; binary stays base64. Directories are not supported: use `get_repository_tree`.",
+  get_repository_tree:
+    "One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file.",
   create_or_update_file:
     "Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.",
   push_files:

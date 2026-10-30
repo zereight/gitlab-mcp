@@ -72,7 +72,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 - [x] [`search_repositories`](../tools/repositories.md#search_repositories) — `test/test-dynamic-project-scope.ts`
 - [x] [`create_repository`](../tools/repositories.md#create_repository) — `test/test-create-repository.ts`, `test/test-geteffectiveprojectid.ts`
-- [x] [`get_file_contents`](../tools/repositories.md#get_file_contents) — `test/response-masking.test.ts`, `test/streamable-http-concurrent-session.test.ts`, `test/test-get-file-contents.ts`
+- [x] [`get_file_contents`](../tools/repositories.md#get_file_contents) — `test/gitlab-api-tool-errors.test.ts`, `test/response-masking.test.ts`, `test/streamable-http-concurrent-session.test.ts`, `test/test-get-file-contents.ts`
 - [x] [`push_files`](../tools/repositories.md#push_files) — `test/test-permission-mode.ts`
 - [ ] [`create_or_update_file`](../tools/repositories.md#create_or_update_file)
 - [x] [`fork_repository`](../tools/repositories.md#fork_repository) — `test/gitlab-api-tool-errors.test.ts`, `test/test-geteffectiveprojectid.ts`

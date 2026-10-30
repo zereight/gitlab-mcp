@@ -21,7 +21,7 @@ function createTransport(apiUrl: string): StdioClientTransport {
       GITLAB_API_URL: apiUrl,
       GITLAB_PERMISSION_MODE: "modify",
       GITLAB_TOOLSETS: "projects,merge_requests,api",
-      GITLAB_TOOLS: "execute_graphql,fork_repository",
+      GITLAB_TOOLS: "execute_graphql,fork_repository,get_file_contents",
       GITLAB_MASKING_ENABLED: "true",
       GITLAB_DISABLE_VERSION_CHECK: "true",
       LOG_LEVEL: "error",
@@ -197,6 +197,23 @@ describe("GitLab API tool errors", () => {
     });
     assert.notEqual(recovery.isError, true);
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
+  });
+
+  test("points a missing file path at get_repository_tree", async t => {
+    const client = await startServer(t);
+
+    const missing = await client.callTool({
+      name: "get_file_contents",
+      arguments: { project_id: "123", file_path: "src", ref: "main" },
+    });
+    assert.equal(missing.isError, true);
+    assert.equal(
+      resultText(missing),
+      "File not found: src\nNext: check file_path and ref; to list a directory, use get_repository_tree."
+    );
+    assert.deepEqual(missing._meta, {
+      "io.github.zereight.gitlab-mcp/http-error": { status: 404 },
+    });
   });
 
   test("returns missing merge request identifiers as a tool error", async t => {
