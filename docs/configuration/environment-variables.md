@@ -684,10 +684,13 @@ Effects when enabled:
   `X-Forwarded-For` values that include a source port (for example
   `1.2.3.4:5678` or `[2001:db8::1]:5678`) before `express-rate-limit` keys
   requests on `/authorize`, `/token`, `/register`, and `/revoke`.
-- **`/mcp` rate limiting** (Streamable HTTP): keys `POST` and `DELETE /mcp`
-  requests by the real client IP instead of the reverse-proxy IP. Required for
-  shared deployments behind a single egress IP so each user gets their own
-  `MAX_REQUESTS_PER_MINUTE` bucket.
+- **`/mcp` rate limiting** (Streamable HTTP): keys `GET`, `POST`, and
+  `DELETE /mcp` requests by the client address reported by the one trusted
+  proxy hop (Express `trust proxy` is set to `1`) instead of the proxy's own
+  address. Without it, every client behind the proxy shares one
+  `MAX_REQUESTS_PER_MINUTE` bucket. With it, clients that share an egress
+  address (the same NAT or corporate gateway) still share one bucket, and
+  each server process keeps its own counters.
 
 Use this only when the proxy is trusted **and** direct client access to the MCP
 server port is blocked. When unset, forwarded headers are ignored for URL
@@ -1168,8 +1171,8 @@ Default:
 
 ### `MAX_REQUESTS_PER_MINUTE`
 
-Maximum requests allowed per rolling 60-second window. Applies to Streamable HTTP
-and SSE remote deployments. Valid range: `1`–`1000`.
+Maximum requests allowed per 60-second window. Applies to Streamable HTTP and
+SSE remote deployments. Valid range: `1`–`1000`.
 
 Default:
 
@@ -1177,15 +1180,37 @@ Default:
 
 This single value is reused in four places (whichever limit is hit first wins):
 
-| Layer              | Key            | Routes                                                                        |
-| ------------------ | -------------- | ----------------------------------------------------------------------------- |
-| Express middleware | Client IP      | `POST` / `DELETE /mcp`                                                        |
-| Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
-| Download proxy     | Auth token     | `GET /downloads/*`                                                            |
-| SSE connections    | Client IP      | New `GET /sse` connections (rejected with `429`)                              |
+| Layer              | Key            | Routes                                                                                                                                      |
+| ------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Express middleware | Client IP      | `GET` / `POST` / `DELETE /mcp`                                                                                                              |
+| Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`; skipped in [stateless mode](stateless-mode.md#rate-limiting) |
+| Download proxy     | Auth token     | `GET /downloads/*`                                                                                                                          |
+| SSE connections    | Client IP      | New `GET /sse` connections (rejected with `429`)                                                                                            |
 
-When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
-bucket and the per-IP limit becomes the bottleneck for the whole deployment.
+How the counters behave:
+
+- **Fixed window, not rolling.** Each key's window starts at its first request
+  and resets 60 seconds later; the count is not a sliding average. The `/mcp`
+  and `/sse` limiters use the in-memory `express-rate-limit` store, and the
+  session and download counters follow the same pattern.
+- **Per server process.** Counters live in memory, so each replica counts on
+  its own. With `N` replicas behind a load balancer, one client can make up to
+  `N × MAX_REQUESTS_PER_MINUTE` `/mcp` requests per minute in total. Use an
+  ingress or WAF limit when you need a strict global cap.
+- **Client IP is the address Express sees.** Without `MCP_TRUST_PROXY`, behind
+  a reverse proxy that is the proxy itself, so every client shares one bucket
+  and the per-IP limit becomes the bottleneck for the whole deployment. With
+  `MCP_TRUST_PROXY=true` (Express `trust proxy` set to `1`) it is the address
+  reported by the one trusted proxy hop. Clients behind the same NAT or egress
+  address still share one bucket. IPv6 clients are grouped by `/56` prefix.
+- **`GET`, `POST`, and `DELETE /mcp` all count** once they reach the limiter,
+  including requests that authentication rejects afterwards. In stateless
+  mode a `GET /mcp` that reaches the stateless check is answered `405` after
+  it has been counted.
+- **OAuth routes are not affected.** With `GITLAB_MCP_OAUTH=true`,
+  `/authorize`, `/token`, `/revoke`, and `/register` keep the MCP SDK's own
+  per-route limits; `MAX_REQUESTS_PER_MINUTE` does not change them. Only
+  `/register` is tunable, via `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`.
 
 **Shared deployment starting point:** `MCP_TRUST_PROXY=true` with
 `MAX_REQUESTS_PER_MINUTE=300` (raise if `/metrics` shows
@@ -1198,7 +1223,8 @@ Monitor rejections via `/metrics` → `rejectedByRateLimit` or
 ### `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 
 Maximum client registration (`POST /register`) requests allowed per client IP
-per rolling 1-hour window. Applies when `GITLAB_MCP_OAUTH=true`.
+per 1-hour window. The window is fixed, not rolling: it starts at the client's
+first request and resets one hour later. Applies when `GITLAB_MCP_OAUTH=true`.
 
 Valid range: `1`-`1000`.
 
@@ -1214,8 +1240,10 @@ Counts apply **per server process** (in-memory `express-rate-limit` store). In
 multi-instance deployments each replica maintains its own counter; use
 ingress-level limits when you need a strict global cap.
 
-Separate from `MAX_REQUESTS_PER_MINUTE` (`/mcp` and other OAuth routes) and
-from GitLab upstream API rate limits.
+Separate from `MAX_REQUESTS_PER_MINUTE` (which limits `/mcp`, `/sse`, and
+`/downloads/*` but no OAuth route) and from GitLab upstream API rate limits.
+The other OAuth routes (`/authorize`, `/token`, `/revoke`) keep the MCP SDK's
+default limits and have no environment variable.
 
 ### `MAX_SESSIONS`
 
