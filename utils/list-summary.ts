@@ -32,6 +32,31 @@ const SUMMARY_FIELDS = [
   "updated_at",
 ] as const;
 
+/**
+ * Extra fields a tool's summary keeps on top of SUMMARY_FIELDS: the access and
+ * protection fields these tools exist to answer (#942).
+ */
+const TOOL_SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  list_branches: [
+    "protected",
+    "default",
+    "merged",
+    "can_push",
+    "developers_can_push",
+    "developers_can_merge",
+  ],
+  list_protected_branches: [
+    "push_access_levels",
+    "merge_access_levels",
+    "unprotect_access_levels",
+    "allow_force_push",
+    "code_owner_approval_required",
+  ],
+  list_protected_tags: ["create_access_levels"],
+  list_project_members: ["access_level", "expires_at"],
+  list_group_members: ["access_level", "expires_at"],
+};
+
 /** Fields kept per note when a summarized item carries discussion `notes`. */
 const NOTE_SUMMARY_FIELDS = ["id", "body", "created_at", "resolved"] as const;
 
@@ -51,7 +76,7 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_webhooks", // url, event flags
   "list_pipeline_triggers", // description
   "list_job_artifacts", // path, type, size
-  "list_branches", // protected, default, merged
+  // Small replies whose access fields are the point; summary: true keeps them (TOOL_SUMMARY_FIELDS).
   "list_protected_branches", // *_access_levels, allow_force_push
   "list_protected_tags", // create_access_levels
   "list_project_members", // access_level, expires_at
@@ -171,12 +196,12 @@ function summarizeNote(note: unknown): unknown {
   return summarized;
 }
 
-function summarizeItem(item: unknown): unknown {
+function summarizeItem(item: unknown, extraFields: readonly string[] = []): unknown {
   if (!isRecord(item)) {
     return item;
   }
   const summarized: Record<string, unknown> = {};
-  for (const field of SUMMARY_FIELDS) {
+  for (const field of [...SUMMARY_FIELDS, ...extraFields]) {
     if (field in item) {
       summarized[field] = item[field];
     }
@@ -194,12 +219,15 @@ function summarizeItem(item: unknown): unknown {
   return Object.keys(summarized).length > 0 ? summarized : item;
 }
 
-export function summarizeListPayload(data: unknown): unknown {
+/** With `toolName`, the summary also keeps that tool's TOOL_SUMMARY_FIELDS. */
+export function summarizeListPayload(data: unknown, toolName?: string): unknown {
+  const extraFields = (toolName && TOOL_SUMMARY_FIELDS[toolName]) || [];
+  const summarize = (item: unknown) => summarizeItem(item, extraFields);
   if (Array.isArray(data)) {
-    return data.map(summarizeItem);
+    return data.map(summarize);
   }
   if (isRecord(data) && Array.isArray(data.items)) {
-    return { ...data, items: data.items.map(summarizeItem) };
+    return { ...data, items: data.items.map(summarize) };
   }
   return data;
 }
@@ -215,7 +243,8 @@ function isTextContentBlock(value: unknown): value is TextContentBlock {
 
 export function applyListSummaryToToolResult<T extends { content?: unknown; isError?: boolean }>(
   result: T,
-  requested: boolean
+  requested: boolean,
+  toolName?: string
 ): T {
   if (!requested || result.isError) {
     return result;
@@ -229,7 +258,7 @@ export function applyListSummaryToToolResult<T extends { content?: unknown; isEr
     }
     try {
       const parsed: unknown = JSON.parse(block.text);
-      return { ...block, text: JSON.stringify(summarizeListPayload(parsed)) };
+      return { ...block, text: JSON.stringify(summarizeListPayload(parsed, toolName)) };
     } catch {
       return block;
     }

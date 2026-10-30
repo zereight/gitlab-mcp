@@ -3,8 +3,9 @@ import assert from "node:assert";
 import { StdioTestClient } from "./clients/stdio-client.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-// #942: with GITLAB_MCP_LIST_SUMMARY_DEFAULT=true, an omitted `summary` must not drop
-// the access and protection fields these list tools exist to return.
+// #942: the list summary must not drop the access and protection fields these list
+// tools exist to return, whether `summary` is omitted under GITLAB_MCP_LIST_SUMMARY_DEFAULT
+// or passed explicitly.
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
 const TEST_PROJECT_ID = "123";
@@ -65,31 +66,36 @@ const CASES = [
     tool: "list_branches",
     args: { project_id: TEST_PROJECT_ID },
     name: BRANCH.name,
-    fields: ["protected", "default", "merged"],
+    fields: ["protected", "default", "merged", "can_push"],
+    summaryDrops: ["commit"],
   },
   {
     tool: "list_protected_branches",
     args: { project_id: TEST_PROJECT_ID },
     name: PROTECTED_BRANCH.name,
     fields: ["push_access_levels", "merge_access_levels", "allow_force_push"],
+    summaryDrops: [],
   },
   {
     tool: "list_protected_tags",
     args: { project_id: TEST_PROJECT_ID },
     name: PROTECTED_TAG.name,
     fields: ["create_access_levels"],
+    summaryDrops: [],
   },
   {
     tool: "list_project_members",
     args: { project_id: TEST_PROJECT_ID },
     name: MEMBER.name,
     fields: ["access_level", "expires_at"],
+    summaryDrops: ["avatar_url", "created_at"],
   },
   {
     tool: "list_group_members",
     args: { group_id: TEST_GROUP_ID },
     name: MEMBER.name,
     fields: ["access_level", "expires_at"],
+    summaryDrops: ["avatar_url", "created_at"],
   },
 ];
 
@@ -174,16 +180,34 @@ describe("list summary default with access and protection fields (#942)", () => 
     });
   });
 
-  test("still summarizes when summary is true and the server default is on", async () => {
+  test("summarizes list_branches by default and keeps its protection fields", async () => {
     await withClient({ GITLAB_MCP_LIST_SUMMARY_DEFAULT: "true" }, async client => {
-      for (const { tool, args, name, fields } of CASES) {
-        const item = await callListTool(client, tool, { ...args, summary: true });
-        assert.strictEqual(item.name, name, `${tool} summary should keep name`);
-        for (const field of fields) {
-          assert.strictEqual(field in item, false, `${tool} summary should drop ${field}`);
-        }
-      }
+      const item = await callListTool(client, "list_branches", { project_id: TEST_PROJECT_ID });
+      assert.strictEqual(
+        "commit" in item,
+        false,
+        "list_branches default summary should drop commit"
+      );
+      assert.strictEqual(item.protected, true);
+      assert.strictEqual(item.default, true);
     });
+  });
+
+  test("keeps the fields when summary is true", async () => {
+    for (const listSummaryDefault of ["true", "false"]) {
+      await withClient({ GITLAB_MCP_LIST_SUMMARY_DEFAULT: listSummaryDefault }, async client => {
+        for (const { tool, args, name, fields, summaryDrops } of CASES) {
+          const item = await callListTool(client, tool, { ...args, summary: true });
+          assert.strictEqual(item.name, name, `${tool} summary should keep name`);
+          for (const field of fields) {
+            assert.ok(field in item, `${tool} summary should keep ${field}`);
+          }
+          for (const field of summaryDrops) {
+            assert.strictEqual(field in item, false, `${tool} summary should drop ${field}`);
+          }
+        }
+      });
+    }
   });
 
   test("keeps the fields when the server default is off", async () => {

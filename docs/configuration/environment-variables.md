@@ -45,7 +45,13 @@ When `true`, the server keeps high-signal fields such as `id`, `iid`, `title`,
 `assignees[].username`, and for merge requests `source_branch`, `target_branch`,
 and `draft`, and drops long bodies and other nested objects. Discussion lists
 (`mr_discussions`, `list_issue_discussions`) keep each discussion `id` and
-`notes[].{id, author.username, body, created_at, resolved}`. By default, existing
+`notes[].{id, author.username, body, created_at, resolved}`. Access and
+protection fields stay in the summary of the tools that return them:
+`protected`, `default`, `merged`, `can_push`, `developers_can_push` and
+`developers_can_merge` for `list_branches`; `*_access_levels`, `allow_force_push`
+and `code_owner_approval_required` for `list_protected_branches`;
+`create_access_levels` for `list_protected_tags`; `access_level` and `expires_at`
+for `list_project_members` and `list_group_members`. By default, existing
 clients that omit `summary` still receive the full GitLab JSON.
 `list_webhook_events` already had its own `summary` flag; that native behavior
 is unchanged.
@@ -65,10 +71,9 @@ These list tools keep the full reply when `summary` is omitted, because the
 summary would drop the content they return or does not read their reply shape:
 `list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
 `list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
-`list_job_artifacts`, `list_branches` (`protected`, `default`, `merged`),
-`list_protected_branches` (`*_access_levels`, `allow_force_push`),
-`list_protected_tags` (`create_access_levels`), `list_project_members` and
-`list_group_members` (`access_level`, `expires_at`),
+`list_job_artifacts`, `list_protected_branches` (`*_access_levels`,
+`allow_force_push`), `list_protected_tags` (`create_access_levels`),
+`list_project_members` and `list_group_members` (`access_level`, `expires_at`),
 `list_project_vulnerabilities`, `list_dependency_proxy_blobs`,
 `list_ci_catalog_resources`, `list_work_item_notes`,
 `list_custom_field_definitions`, and `list_work_item_statuses`. These also keep the full reply, because the summary
