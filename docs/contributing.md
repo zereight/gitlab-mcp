@@ -39,7 +39,7 @@ If they are missing, maintainers should create these labels: `approved`,
 
 | Tool           | Version              | Notes                                          |
 | -------------- | -------------------- | ---------------------------------------------- |
-| Node.js        | **22.21.1**          | Pinned in `.nvmrc`. Use `nvm use` to match.    |
+| Node.js        | **22.23.4**          | Pinned in `.nvmrc`. Use `nvm use` to match.    |
 | npm            | bundled with Node 22 |                                                |
 | Git            | any recent version   |                                                |
 | Python 3.10+   | (only for docs)      | Required if you want to preview the docs site. |
