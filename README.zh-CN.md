@@ -615,7 +615,7 @@ token 按会话存储（由 `mcp-session-id` 请求头标识），并在同一�
 - 每个会话相互隔离。一个会话的 token 不能访问另一个会话的数据。会话关闭后 token 会自动清理。
 - **会话超时：** 认证 token 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）无活动后过期。超时后，客户端必须再次发送认证请求头。传输会话仍保持活动。
 - 每个请求都会重置该会话的超时计时器。
-- **Rate limiting：** `/mcp` 请求按客户端 IP 限制为每分钟 `MAX_REQUESTS_PER_MINUTE` 次；使用 OAuth 或远程授权时还按 MCP 会话限制（默认 60）。详见 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)。
+- **Rate limiting：** `/mcp` 请求按客户端 IP 限制为每分钟 `MAX_REQUESTS_PER_MINUTE` 次；使用 OAuth 或远程授权时还按 MCP 会话限制（默认 60）。按 IP 的限制使用固定 60 秒窗口，按服务器进程分别计数，并同样覆盖 `GET /mcp`；stateless 模式会跳过按会话的限制。详见 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)。
 - **Capacity limit：** 服务器最多接受 `MAX_SESSIONS` 个并发会话（默认 1000）。
 
 ### MCP OAuth 设置（Claude.ai Native OAuth）
@@ -691,7 +691,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
-| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP 限制（固定 1 小时窗口）。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
 | `OAUTH_DISABLE_REFRESH_TOKEN`               | 否   | 设置 `true` 时 `/token` 响应不含 `refresh_token`，refresh grant 以 `invalid_grant` 拒绝；GitLab access token 过期后用户需在浏览器中重新授权。默认 `false`。回调代理模式下，遵循本服务器流程的 MCP 客户端拿不到 GitLab refresh token（passthrough 模式下客户端可直接从 GitLab 获取）。这是面向标准 MCP 客户端的重新授权策略，而非安全边界。启用前已发放的 refresh token 在 GitLab **User Settings → Applications → Authorized applications → Revoke** 撤销前仍然有效。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 

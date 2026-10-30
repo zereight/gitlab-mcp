@@ -616,7 +616,7 @@ Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 - 각 세션은 격리됩니다. 한 세션의 토큰은 다른 세션 데이터에 접근할 수 없습니다. 세션이 종료되면 토큰은 자동으로 정리됩니다.
 - **세션 타임아웃:** 인증 토큰은 `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 비활성 상태가 지속되면 만료됩니다. 만료 후 클라이언트는 인증 헤더를 다시 보내야 합니다. 전송 세션은 유지됩니다.
 - 각 요청은 해당 세션의 타임아웃 타이머를 초기화합니다.
-- **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
+- **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). IP당 한도는 고정 60초 윈도우를 사용하고 서버 프로세스별로 집계되며 `GET /mcp`에도 적용됩니다. stateless 모드에서는 세션당 한도를 건너뜁니다. 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
 - **Capacity limit:** 서버는 최대 `MAX_SESSIONS` 동시 세션을 허용합니다(기본 1000).
 
 ### MCP OAuth 설정(Claude.ai Native OAuth)
@@ -692,7 +692,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다.             |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
-| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 한도(고정 1시간 윈도우). 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
 | `OAUTH_DISABLE_REFRESH_TOKEN`               | 아니오 | `true`면 `/token` 응답에서 `refresh_token`을 빼고 refresh grant를 `invalid_grant`로 거부합니다. GitLab access token이 만료되면 브라우저에서 다시 인가해야 합니다. 기본 `false`. 콜백 프록시 모드에서는 이 서버의 흐름을 따르는 MCP 클라이언트가 GitLab refresh token을 받지 못합니다(passthrough에서는 클라이언트가 GitLab에서 직접 받을 수 있음). 표준 MCP 클라이언트를 위한 재인가 정책이며 보안 경계가 아닙니다. 켜기 전에 발급된 refresh token은 GitLab **User Settings → Applications → Authorized applications → Revoke**로 revoke할 때까지 유효합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 

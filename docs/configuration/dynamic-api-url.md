@@ -282,10 +282,11 @@ JSON response:
 
 ### Rate Limiting
 
-- `/mcp` requests are limited per client IP (`MAX_REQUESTS_PER_MINUTE`, default 60)
-- OAuth and remote-authorization sessions have an additional per-session limit (same env var)
+- `GET`, `POST`, and `DELETE /mcp` requests are limited per client IP (`MAX_REQUESTS_PER_MINUTE`, default 60, fixed 60-second window, counted per server process)
+- OAuth and remote-authorization sessions have an additional per-session limit (same env var); stateless mode skips this per-session limit
 - Download proxy routes (`/downloads/*`) are limited per auth token (same env var)
-- Behind a reverse proxy, set `MCP_TRUST_PROXY=true` so the IP limit keys on real clients
+- Behind a reverse proxy, set `MCP_TRUST_PROXY=true` so the IP limit keys on the client address reported by the proxy; clients behind the same NAT or egress address still share one bucket
+- OAuth routes (`/authorize`, `/token`, `/revoke`, `/register`) keep the MCP SDK's own limits; `MAX_REQUESTS_PER_MINUTE` does not change them
 - The connection pool has a maximum size (`GITLAB_POOL_MAX_SIZE`)
 - Requests are rejected with HTTP 429 when limits are exceeded
 
@@ -313,8 +314,8 @@ JSON response:
 
 4. **"Rate limit exceeded"**
    - You've exceeded `MAX_REQUESTS_PER_MINUTE` for your client IP, MCP session, or download token
-   - Behind a shared proxy without `MCP_TRUST_PROXY=true`, all users share one IP bucket
-   - Wait for the rate limit window to reset (1 minute), or raise the limit and enable `MCP_TRUST_PROXY`
+   - Behind a shared proxy without `MCP_TRUST_PROXY=true`, all users share one IP bucket; with it, users behind the same NAT or egress address still share one
+   - Wait for the window to reset (60 seconds after the first counted request), or raise the limit and enable `MCP_TRUST_PROXY`
 
 ### Debug Logging
 
