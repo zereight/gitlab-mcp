@@ -1,3 +1,0 @@
-### Fixed
-
-- Documentation now describes `/mcp` rate limiting as the server implements it: the per-client-IP limit (`MAX_REQUESTS_PER_MINUTE`) also covers `GET /mcp` and still runs in stateless mode, where only the per-session counter is skipped; the window is a fixed 60 seconds per key, not rolling; counters are kept per server process, and with `MCP_TRUST_PROXY=true` the key is the client address reported by one trusted proxy hop, so clients behind the same NAT share a bucket; the OAuth routes (`/authorize`, `/token`, `/revoke`, `/register`) keep the MCP SDK's own limits ([#941](https://github.com/zereight/gitlab-mcp/issues/941))
