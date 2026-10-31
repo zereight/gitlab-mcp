@@ -85,7 +85,7 @@
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "pkce-challenge": "^5.0.0",
-    "re2js": "2.9.0",
+    "re2js": "2.9.1",
     "socks-proxy-agent": "^8.0.5",
     "tldts": "^6.1.86",
     "tough-cookie": "^5.1.2",
