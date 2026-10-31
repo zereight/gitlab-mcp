@@ -87,7 +87,7 @@ single tool call can make more than one API request.
 Over Streamable HTTP or SSE, the server also has its own request limit,
 [`MAX_REQUESTS_PER_MINUTE`](../configuration/environment-variables.md#max_requests_per_minute)
 (default 60), separate from the GitLab limits. The same value limits `/mcp` requests per client IP
-(and per session with remote authorization or MCP OAuth), new `/sse` connections, and
+(and, outside stateless mode, per session with remote authorization or MCP OAuth), new `/sse` connections, and
 `/downloads/*` requests. A client over any of them gets `429` from the server itself. It does not
 apply over stdio.
 

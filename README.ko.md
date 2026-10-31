@@ -6,7 +6,7 @@
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 278개(toolset 275개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 287개(toolset 284개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -138,7 +138,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 278개** — 작게 시작하고, `discover_tools`로 세션에서 확장
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 287개** — 작게 시작하고, `discover_tools`로 세션에서 확장
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -152,7 +152,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 278개 도구: toolset 275개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 287개 도구: toolset 284개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
@@ -252,7 +252,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.14`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.16`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -616,7 +616,7 @@ Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 - 각 세션은 격리됩니다. 한 세션의 토큰은 다른 세션 데이터에 접근할 수 없습니다. 세션이 종료되면 토큰은 자동으로 정리됩니다.
 - **세션 타임아웃:** 인증 토큰은 `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 비활성 상태가 지속되면 만료됩니다. 만료 후 클라이언트는 인증 헤더를 다시 보내야 합니다. 전송 세션은 유지됩니다.
 - 각 요청은 해당 세션의 타임아웃 타이머를 초기화합니다.
-- **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
+- **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). IP당 한도는 고정 60초 윈도우를 사용하고 서버 프로세스별로 집계되며 `GET /mcp`에도 적용됩니다. stateless 모드에서는 세션당 한도를 건너뜁니다. 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
 - **Capacity limit:** 서버는 최대 `MAX_SESSIONS` 동시 세션을 허용합니다(기본 1000).
 
 ### MCP OAuth 설정(Claude.ai Native OAuth)
@@ -692,7 +692,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다.             |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
-| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 한도(고정 1시간 윈도우). 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
 | `OAUTH_DISABLE_REFRESH_TOKEN`               | 아니오 | `true`면 `/token` 응답에서 `refresh_token`을 빼고 refresh grant를 `invalid_grant`로 거부합니다. GitLab access token이 만료되면 브라우저에서 다시 인가해야 합니다. 기본 `false`. 콜백 프록시 모드에서는 이 서버의 흐름을 따르는 MCP 클라이언트가 GitLab refresh token을 받지 못합니다(passthrough에서는 클라이언트가 GitLab에서 직접 받을 수 있음). 표준 MCP 클라이언트를 위한 재인가 정책이며 보안 경계가 아닙니다. 켜기 전에 발급된 refresh token은 GitLab **User Settings → Applications → Authorized applications → Revoke**로 revoke할 때까지 유효합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 

@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 287 |
-| Invoked | 186 |
-| Coverage | 64.8% |
+| Invoked | 187 |
+| Coverage | 65.2% |
 
 ## By toolset
 
@@ -23,7 +23,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Merge Requests](#merge_requests) | 15 | 46 | 32.6% |
 | [Issues](#issues) | 11 | 24 | 45.8% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
-| [Work Items](#workitems) | 4 | 18 | 22.2% |
+| [Work Items](#workitems) | 5 | 18 | 27.8% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
 | [Pipelines, Jobs & Deployments](#pipelines) | 32 | 58 | 55.2% |
 | [Milestones](#milestones) | 17 | 17 | 100.0% |
@@ -199,10 +199,10 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="workitems"></a>
 
-- [ ] [`get_work_item`](../tools/workitems.md#get_work_item)
-- [x] [`list_work_items`](../tools/workitems.md#list_work_items) — `test/test-geteffectiveprojectid.ts`
+- [x] [`get_work_item`](../tools/workitems.md#get_work_item) — `test/test-work-item-ce-widgets.ts`
+- [x] [`list_work_items`](../tools/workitems.md#list_work_items) — `test/test-geteffectiveprojectid.ts`, `test/test-work-item-ce-widgets.ts`
 - [x] [`create_work_item`](../tools/workitems.md#create_work_item) — `test/test-geteffectiveprojectid.ts`
-- [x] [`update_work_item`](../tools/workitems.md#update_work_item) — `test/response-masking.test.ts`, `test/test-geteffectiveprojectid.ts`, `test/test-work-item-iteration.ts`
+- [x] [`update_work_item`](../tools/workitems.md#update_work_item) — `test/response-masking.test.ts`, `test/test-geteffectiveprojectid.ts`, `test/test-work-item-ce-widgets.ts`, `test/test-work-item-iteration.ts`
 - [ ] [`convert_work_item_type`](../tools/workitems.md#convert_work_item_type)
 - [ ] [`list_work_item_statuses`](../tools/workitems.md#list_work_item_statuses)
 - [ ] [`list_custom_field_definitions`](../tools/workitems.md#list_custom_field_definitions)

@@ -77,7 +77,7 @@ Pass the caller token through request headers instead.
 | Callback-proxy `/authorize` state    | `_pendingAuth` on pod          | Sealed `state` (`v1.ps.…`)                       |
 | Callback-proxy `/callback` → `/token` | `_storedTokens` on pod         | Sealed proxy `code` (`v1.pc.…`)                  |
 | `/mcp` session auth                  | `authBySession` map on pod     | Sealed `Mcp-Session-Id` (`v1.sid.…`), rotated per request |
-| Per-session rate-limit counter       | `sessionRequestCounts` on pod  | **Disabled** (rate-limit at Traefik/WAF instead) |
+| Per-session rate-limit counter       | `sessionRequestCounts` on pod  | **Disabled**; the per-client-IP `/mcp` limit still runs in each server process |
 | `StreamableHTTPServerTransport`      | Reused per session on pod      | Fresh transport per request (always)             |
 
 Cryptography:
@@ -148,11 +148,18 @@ practical security.
 
 ### Rate limiting
 
-Rate limiting is **disabled** in stateless mode — per-pod counters would
-yield a loose global bound proportional to the replica count. Operators who
-need a strict global rate limit should apply it at the ingress (Traefik,
-Nginx, Envoy) or WAF level, which already see all traffic before it reaches
-any pod.
+Stateless mode disables only the **per-session** counter
+(`sessionRequestCounts`): a process-local counter keyed by a sealed session id would
+yield a loose global bound proportional to the replica count. The
+**per-client-IP** `express-rate-limit` middleware on `GET`, `POST`, and
+`DELETE /mcp` still runs in stateless mode, with the same
+[`MAX_REQUESTS_PER_MINUTE`](environment-variables.md#max_requests_per_minute)
+value, the same fixed 60-second window, and a separate in-memory counter in
+each server process (so each pod or replica counts on its own).
+A `GET /mcp` that reaches the stateless check is counted before it is
+answered `405`. Operators who need a strict
+global rate limit should apply it at the ingress (Traefik, Nginx, Envoy) or
+WAF level, which already see all traffic before it reaches any pod.
 
 ### Transport object affinity
 
@@ -304,7 +311,8 @@ mode always use the new format.
 - Single-replica deployments. Legacy mode is cheaper and has the same
   functional properties at one pod.
 - Deployments that require strict per-session rate limiting inside the app
-  (unless you can move the limiter upstream).
+  (unless you can move the limiter upstream). The per-client-IP `/mcp` limit
+  still applies, counted per server process.
 - Deployments that require absolute one-time-use enforcement for OAuth state
   and codes (unusual; PKCE + TTL is normally sufficient).
 

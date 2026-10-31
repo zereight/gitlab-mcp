@@ -39,3 +39,16 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+
+  # Base images in Dockerfile: Node security releases arrive as PRs.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

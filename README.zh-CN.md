@@ -6,7 +6,7 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 278 个（toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 287 个（toolset 中 284 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -138,7 +138,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 278 个** — 先精简，再用 `discover_tools` 在本会话扩展
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 287 个** — 先精简，再用 `discover_tools` 在本会话扩展
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -152,7 +152,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 278 个工具：toolset 中 275 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 287 个工具：toolset 中 284 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
@@ -252,7 +252,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.14`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.16`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -615,7 +615,7 @@ token 按会话存储（由 `mcp-session-id` 请求头标识），并在同一�
 - 每个会话相互隔离。一个会话的 token 不能访问另一个会话的数据。会话关闭后 token 会自动清理。
 - **会话超时：** 认证 token 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）无活动后过期。超时后，客户端必须再次发送认证请求头。传输会话仍保持活动。
 - 每个请求都会重置该会话的超时计时器。
-- **Rate limiting：** `/mcp` 请求按客户端 IP 限制为每分钟 `MAX_REQUESTS_PER_MINUTE` 次；使用 OAuth 或远程授权时还按 MCP 会话限制（默认 60）。详见 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)。
+- **Rate limiting：** `/mcp` 请求按客户端 IP 限制为每分钟 `MAX_REQUESTS_PER_MINUTE` 次；使用 OAuth 或远程授权时还按 MCP 会话限制（默认 60）。按 IP 的限制使用固定 60 秒窗口，按服务器进程分别计数，并同样覆盖 `GET /mcp`；stateless 模式会跳过按会话的限制。详见 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)。
 - **Capacity limit：** 服务器最多接受 `MAX_SESSIONS` 个并发会话（默认 1000）。
 
 ### MCP OAuth 设置（Claude.ai Native OAuth）
@@ -691,7 +691,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
-| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP 限制（固定 1 小时窗口）。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
 | `OAUTH_DISABLE_REFRESH_TOKEN`               | 否   | 设置 `true` 时 `/token` 响应不含 `refresh_token`，refresh grant 以 `invalid_grant` 拒绝；GitLab access token 过期后用户需在浏览器中重新授权。默认 `false`。回调代理模式下，遵循本服务器流程的 MCP 客户端拿不到 GitLab refresh token（passthrough 模式下客户端可直接从 GitLab 获取）。这是面向标准 MCP 客户端的重新授权策略，而非安全边界。启用前已发放的 refresh token 在 GitLab **User Settings → Applications → Authorized applications → Revoke** 撤销前仍然有效。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 

@@ -4,7 +4,7 @@ A comprehensive **Model Context Protocol** server for GitLab. Manage projects,
 merge requests, issues, pipelines, wikis, releases, tags, milestones, and more
 from any MCP-compatible AI client.
 
-**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 278 tools exist in total.
+**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 287 tools exist in total.
 Start lean; call `discover_tools` to activate more. Machine-readable index:
 [llms.txt](llms.txt) · [llms-full.txt](llms-full.txt).
 
@@ -74,7 +74,7 @@ Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registr
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.14`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production.
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.16`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production.
 
 === "Personal Access Token"
 

@@ -39,11 +39,13 @@ If they are missing, maintainers should create these labels: `approved`,
 
 | Tool           | Version              | Notes                                                 |
 | -------------- | -------------------- | ----------------------------------------------------- |
-| Node.js        | **22.21.1**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match. |
+| Node.js        | **22.23.4**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match. |
 | npm            | bundled with Node 22 |                                                       |
 | Git            | any recent version   |                                                       |
 | Python 3.10+   | (only for docs)      | Required if you want to preview the docs site.        |
 | GitLab account | optional             | Needed only for live integration tests.               |
+
+The intended local and CI pin is [`.nvmrc`](.nvmrc) (22.23.4); `package.json` `engines` only requires `node >= 20`, and some workflows may still lag that pin.
 
 ### Clone, install, build
 
@@ -140,10 +142,10 @@ not anything you care about.
 | ESLint (autofix) | `npm run lint:fix`     | Auto-fix where possible.     |
 | TypeScript       | `npx tsc --noEmit`     | Type check.                  |
 
-Conventions enforced by CI:
+Conventions:
 
-- **No stray `console.log`** in `*.ts` (test files are exempt). Use proper logging.
-- **No `TODO` / `FIXME` / `XXX`** comments in committed code — open an issue instead.
+- Avoid stray `console.log` in `*.ts` (only filenames matching `test*.ts` are excluded, not every test file or everything under `test/`). Use proper logging. CI greps for these and reports a warning; it does not fail the job.
+- Avoid `TODO` / `FIXME` / `XXX` comments in committed code — open an issue instead. That grep is informational and does not fail CI.
 - **Strict TypeScript** — `npm run build` emits with [`tsconfig.build.json`](tsconfig.build.json) (tests and scripts stay out of `build/`). `tsc --noEmit` still typechecks the full [`tsconfig.json`](tsconfig.json), including tests.
 
 ## Submitting changes
@@ -183,7 +185,7 @@ Conventions enforced by CI:
 5. **CI must pass** — `pr-test.yml` runs the mock test suite, type check,
    lint, Docker build, formatting check, and `npm audit`. Lint, Prettier, and
    production `npm audit` failures fail the job. Address all real failures; the
-   existing "warning" steps (e.g., the TODO grep) are informational.
+   console.log and TODO greps are informational warnings and do not fail CI.
 
 6. **Review** — a maintainer will review. We try to respond within a few
    days. Small, focused PRs get merged fastest. Changes to permissions, auth,
