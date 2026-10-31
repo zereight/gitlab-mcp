@@ -144,7 +144,7 @@ not anything you care about.
 
 Conventions:
 
-- Avoid stray `console.log` in `*.ts` (test files are exempt). Use proper logging. CI greps for these and reports a warning; it does not fail the job.
+- Avoid stray `console.log` in `*.ts` (only filenames matching `test*.ts` are excluded, not every test file or everything under `test/`). Use proper logging. CI greps for these and reports a warning; it does not fail the job.
 - Avoid `TODO` / `FIXME` / `XXX` comments in committed code — open an issue instead. That grep is informational and does not fail CI.
 - **Strict TypeScript** — `npm run build` emits with [`tsconfig.build.json`](tsconfig.build.json) (tests and scripts stay out of `build/`). `tsc --noEmit` still typechecks the full [`tsconfig.json`](tsconfig.json), including tests.
 
