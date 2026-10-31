@@ -292,6 +292,13 @@ import {
 } from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
+import {
+  createUnsupportedWidgetSelections,
+  mergeUnsupportedWidgetSelections,
+  parseUnsupportedWidgetSelections,
+  pruneUnsupportedWidgetSelections,
+  type UnsupportedWidgetSelections,
+} from "./utils/work-item-widget-compat.js";
 import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
 import { fetchStatusBeforeDeadline } from "./utils/poll-deadline.js";
 import {
@@ -2872,6 +2879,15 @@ async function deleteIssue(projectId: string, issueIid: number | string): Promis
 
 // --- GraphQL helper ---
 
+/** GraphQL endpoint for the effective API URL (GITLAB_GRAPHQL_URL wins). */
+function getGraphQLUrl(): string {
+  const apiUrl = new URL(getEffectiveApiUrl());
+  const restPath = apiUrl.pathname || "";
+  const idx = restPath.lastIndexOf("/api/v4");
+  const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
+  return process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+}
+
 /**
  * Execute a GraphQL query against the GitLab instance.
  * Reusable helper for work item operations.
@@ -2880,11 +2896,7 @@ async function executeGraphQL<T = any>(
   query: string,
   variables: Record<string, any> = {}
 ): Promise<T> {
-  const apiUrl = new URL(getEffectiveApiUrl());
-  const restPath = apiUrl.pathname || "";
-  const idx = restPath.lastIndexOf("/api/v4");
-  const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-  const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+  const graphqlUrl = getGraphQLUrl();
 
   const response = await fetch(graphqlUrl, {
     ...getFetchConfig(),
@@ -2906,6 +2918,54 @@ async function executeGraphQL<T = any>(
     throw new Error(`GraphQL errors: ${json.errors.map((e: any) => e.message).join(", ")}`);
   }
   return json.data as T;
+}
+
+// Work item widget types/fields the instance lacks, keyed by GraphQL endpoint.
+// Filled only after a validation error, so Premium/Ultimate sends queries unchanged.
+const unsupportedWorkItemSelections = new Map<string, UnsupportedWidgetSelections>();
+
+// GitLab reports at most five validation errors per response (validate_max_errors 5);
+// get_work_item selects about a dozen Premium-only widget types and fields, so CE
+// needs a few rounds before the document validates.
+const MAX_WORK_ITEM_QUERY_RETRIES = 5;
+
+/**
+ * executeGraphQL for work item documents whose `... on WorkItemWidget*` fragments
+ * exist only on Premium/Ultimate or newer GitLab (#959). When GitLab rejects the
+ * document because a widget type or field does not exist there, drop that selection
+ * and retry. The failure is static validation, so nothing ran yet and retrying a
+ * mutation is safe. Removals are remembered per endpoint so later calls skip the
+ * extra round trip.
+ */
+async function executeWorkItemGraphQL<T = any>(
+  query: string,
+  variables: Record<string, any> = {}
+): Promise<T> {
+  const endpoint = getGraphQLUrl();
+  const known = unsupportedWorkItemSelections.get(endpoint);
+  let current = known ? pruneUnsupportedWidgetSelections(query, known) : query;
+
+  for (let retries = 0; ; retries++) {
+    try {
+      return await executeGraphQL<T>(current, variables);
+    } catch (error) {
+      const found = error instanceof Error ? parseUnsupportedWidgetSelections(error.message) : null;
+      if (!found || retries >= MAX_WORK_ITEM_QUERY_RETRIES) throw error;
+
+      const pruned = pruneUnsupportedWidgetSelections(current, found);
+      if (pruned === current) throw error;
+
+      const remembered = unsupportedWorkItemSelections.get(endpoint);
+      if (remembered) {
+        mergeUnsupportedWidgetSelections(remembered, found);
+      } else {
+        const fresh = createUnsupportedWidgetSelections();
+        mergeUnsupportedWidgetSelections(fresh, found);
+        unsupportedWorkItemSelections.set(endpoint, fresh);
+      }
+      current = pruned;
+    }
+  }
 }
 
 /**
@@ -3126,7 +3186,7 @@ async function listIssueStatuses(projectId: string, workItemType: string = "issu
   const projectPath = await resolveProjectPath(projectId);
   const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
 
-  const data = await executeGraphQL<{
+  const data = await executeWorkItemGraphQL<{
     namespace: {
       workItemTypes: {
         nodes: Array<{
@@ -3221,7 +3281,7 @@ async function listCustomFieldDefinitions(
   const projectPath = await resolveProjectPath(projectId);
   const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
 
-  const data = await executeGraphQL<{
+  const data = await executeWorkItemGraphQL<{
     namespace: {
       workItemTypes: {
         nodes: Array<{
@@ -3848,7 +3908,7 @@ async function resolveProjectOrGroupPath(
 async function getWorkItem(projectId: string, iid: number): Promise<any> {
   const projectPath = await resolveProjectPath(projectId);
 
-  const data = await executeGraphQL<{
+  const data = await executeWorkItemGraphQL<{
     namespace: { workItem: any };
   }>(
     `query($path: ID!, $iid: String!) {
@@ -4130,7 +4190,7 @@ async function listWorkItems(
     variables.after = options.after;
   }
 
-  const data = await executeGraphQL<{ project?: any; group?: any }>(
+  const data = await executeWorkItemGraphQL<{ project?: any; group?: any }>(
     `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelName: [String!], $first: Int, $after: String) {
       ${rootField}(fullPath: $path) {
         workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelName: $labelName, first: $first, after: $after) {
@@ -4586,7 +4646,7 @@ async function updateWorkItem(
     }
   }`;
 
-  const data = await executeGraphQL<{
+  const data = await executeWorkItemGraphQL<{
     workItemUpdate: { workItem: any; errors: string[] };
   }>(mutation, variables);
 
