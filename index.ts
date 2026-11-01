@@ -17086,7 +17086,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         logger.info(
           authData
             ? `Session ${redactSessionIdForLog(sessionId)}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
-            : `Session ${redactSessionIdForLog(sessionId)}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
+            : REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH
+              ? `Session ${redactSessionIdForLog(sessionId)}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
+              : `Session ${redactSessionIdForLog(sessionId)}: closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
         );
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
@@ -17980,6 +17982,18 @@ async function startStreamableHTTPServer(): Promise<void> {
         }
       }
 
+      // Server-side token mode (no per-session auth): every POST to a live session is
+      // activity, so reset its inactivity timer. Without this, clients that disconnect
+      // without DELETE /mcp hold their slot until MAX_SESSIONS is exhausted.
+      if (
+        !REMOTE_AUTHORIZATION &&
+        !GITLAB_MCP_OAUTH &&
+        sessionId &&
+        streamableTransports[sessionId]
+      ) {
+        setAuthTimeout(sessionId);
+      }
+
       // Handle request with proper AsyncLocalStorage context
       const handleRequest = async () => {
         try {
@@ -18001,6 +18015,12 @@ async function startStreamableHTTPServer(): Promise<void> {
                 logger.warn(
                   `Streamable HTTP session initialized: ${redactSessionIdForLog(newSessionId)}`
                 );
+
+                // Server-side token mode: no per-session auth, but the session still
+                // expires after SESSION_TIMEOUT_SECONDS without activity.
+                if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH) {
+                  setAuthTimeout(newSessionId);
+                }
 
                 // Store auth for newly created session in remote mode
                 if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
@@ -18060,6 +18080,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                 );
                 delete streamableTransports[sid];
                 metrics.activeSessions--;
+                clearAuthTimeout(sid);
                 if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                   cleanupSessionAuth(sid);
                   delete sessionRequestCounts[sid];
@@ -18160,15 +18181,13 @@ async function startStreamableHTTPServer(): Promise<void> {
 
       metrics.requestsProcessed++;
 
-      const usesSessionTimeouts = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
-      if (usesSessionTimeouts) {
-        if (authBySession[sessionId]) {
-          authBySession[sessionId].lastUsed = Date.now();
-        }
-        // Listening on GET /mcp is session activity. Pause inactivity expiry for
-        // the life of the SSE stream so list_changed can still be pushed.
-        clearAuthTimeout(sessionId);
+      const usesPerSessionAuth = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
+      if (usesPerSessionAuth && authBySession[sessionId]) {
+        authBySession[sessionId].lastUsed = Date.now();
       }
+      // Listening on GET /mcp is session activity. Pause inactivity expiry for
+      // the life of the SSE stream so list_changed can still be pushed.
+      clearAuthTimeout(sessionId);
 
       const handleGetRequest = async () => {
         try {
@@ -18185,7 +18204,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       };
 
       try {
-        if (usesSessionTimeouts && authBySession[sessionId]) {
+        if (usesPerSessionAuth && authBySession[sessionId]) {
           const authData = authBySession[sessionId];
           const ctx: SessionAuth = {
             sessionId,
@@ -18201,7 +18220,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           await handleGetRequest();
         }
       } finally {
-        if (usesSessionTimeouts && streamableTransports[sessionId]) {
+        if (streamableTransports[sessionId]) {
           setAuthTimeout(sessionId);
         }
       }
