@@ -13,6 +13,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions.
 - [`get_issue`](#get_issue) — 📖 Read-only
 - [`update_issue`](#update_issue) — ✏️ Writes
 - [`update_issue_description_patch`](#update_issue_description_patch) — ✏️ Writes
+- [`reorder_issue`](#reorder_issue) — ✏️ Writes
 - [`delete_issue`](#delete_issue) — ✏️ Writes
 - [`list_todos`](#list_todos) — 📖 Read-only
 - [`mark_todo_done`](#mark_todo_done) — ✏️ Writes
@@ -163,6 +164,21 @@ Apply a patch (search/replace or unified diff) to an issue description. Reduces 
 | `dry_run` | boolean |  | If true, preview changes without updating the issue |
 | `create_note` | boolean |  | If true, add a note summarizing the change after update |
 | `allow_multiple` | boolean |  | For search_replace: allow multiple matches to all be replaced (default: false — fail on duplicate) |
+
+### `reorder_issue`
+
+*✏️ Writes*
+
+Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `issue_iid` | string | ✓ | The internal ID of the project issue |
+| `move_after_id` | integer |  | Global issue id (the `id` field, not the project-scoped `iid`) of the issue that should come after this one |
+| `move_before_id` | integer |  | Global issue id (the `id` field, not the project-scoped `iid`) of the issue that should come before this one |
 
 ### `delete_issue`
 

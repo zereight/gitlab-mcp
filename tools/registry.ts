@@ -257,6 +257,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
+  ReorderIssueSchema,
   UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestDiscussionNoteSchema,
@@ -682,6 +683,12 @@ export const allTools = [
       "Reduces token usage by allowing small changes without sending the full description. " +
       "Supports dry_run to preview changes and create_note to summarize updates.",
     inputSchema: toJSONSchema(UpdateIssueDescriptionPatchSchema),
+  },
+  {
+    name: "reorder_issue",
+    description:
+      "Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue.",
+    inputSchema: toJSONSchema(ReorderIssueSchema),
   },
   {
     name: "delete_issue",
@@ -2335,6 +2342,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_issue",
       "update_issue",
       "update_issue_description_patch",
+      "reorder_issue",
       "delete_issue",
       "list_todos",
       "mark_todo_done",
