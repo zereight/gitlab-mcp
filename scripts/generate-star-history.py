@@ -91,13 +91,20 @@ def font(size: int, bold: bool = False):
 
 
 def nice_max(value: int) -> int:
+    """Pick a Y-axis top just above ``value``, without 1-2-5 jumps that waste space.
+
+    The old 1/2/5/10 ladder mapped ~2001–5000 stars onto a 5K ceiling, so a
+    ~2K repo looked half-empty. Prefer denser steps (…, 2, 2.5, 3, 4, 5, …)
+    with ~8% headroom so the line fills most of the plot.
+    """
     if value <= 0:
         return 1
-    exp = 10 ** math.floor(math.log10(value))
-    for step in (1, 2, 5, 10):
-        top = step * exp
-        if top >= value:
-            return top
+    target = math.ceil(value * 1.08)
+    exp = 10 ** math.floor(math.log10(target))
+    for step in (1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10):
+        top = int(step * exp)
+        if top >= target:
+            return max(top, value)
     return 10 * exp
 
 
@@ -123,7 +130,12 @@ def draw(stars: list[dt.datetime]) -> None:
         val = round(max_stars * i / 5)
         yy = y(val)
         d.line((MARGIN_L, yy, WIDTH - MARGIN_R, yy), fill=GRID, width=1)
-        label = f"{val // 1000}K" if val >= 1000 and val % 1000 == 0 else str(val)
+        if val >= 1000 and val % 1000 == 0:
+            label = f"{val // 1000}K"
+        elif val >= 1000 and val % 100 == 0:
+            label = f"{val / 1000:g}K"
+        else:
+            label = str(val)
         bbox = d.textbbox((0, 0), label, font=f_tick)
         d.text((MARGIN_L - 12 - (bbox[2] - bbox[0]), yy - 8), label, fill=MUTED, font=f_tick)
     d.line((MARGIN_L, MARGIN_T, MARGIN_L, HEIGHT - MARGIN_B), fill=INK, width=2)
