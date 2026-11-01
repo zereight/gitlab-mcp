@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 287 |
-| Invoked | 187 |
-| Coverage | 65.2% |
+| Tools | 288 |
+| Invoked | 188 |
+| Coverage | 65.3% |
 
 ## By toolset
 
@@ -21,7 +21,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
 | [Merge Requests](#merge_requests) | 15 | 46 | 32.6% |
-| [Issues](#issues) | 11 | 24 | 45.8% |
+| [Issues](#issues) | 12 | 25 | 48.0% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 5 | 18 | 27.8% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
@@ -166,6 +166,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_issue`](../tools/issues.md#get_issue) — `test/test-issue-description-patch.ts`, `test/test-update-issue-slim.ts`
 - [x] [`update_issue`](../tools/issues.md#update_issue) — `test/test-update-issue-slim.ts`
 - [x] [`update_issue_description_patch`](../tools/issues.md#update_issue_description_patch) — `test/test-issue-description-patch.ts`
+- [x] [`reorder_issue`](../tools/issues.md#reorder_issue) — `test/test-reorder-issue.ts`
 - [x] [`delete_issue`](../tools/issues.md#delete_issue) — `test/test-permission-mode.ts`
 - [x] [`list_todos`](../tools/issues.md#list_todos) — `test/test-dynamic-project-scope.ts`, `test/test-todos.ts`
 - [x] [`mark_todo_done`](../tools/issues.md#mark_todo_done) — `test/test-todos.ts`

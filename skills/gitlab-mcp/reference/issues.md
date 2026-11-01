@@ -77,6 +77,21 @@ replacement text
 - Patch results in identical description → fails (no-op)
 - Unified diff doesn't match → fails
 
+## Reorder (board position)
+
+```
+reorder_issue
+  project_id: "my-group/my-project"
+  issue_iid: 10
+  move_after_id: 4321    # global id of the issue that should come after this one
+  move_before_id: 4322   # global id of the issue that should come before this one
+```
+
+Changes the manual sort order that issue boards show. At least one of move_after_id /
+move_before_id is required. Both take the neighbor issue's **global id** (the id field
+returned by `get_issue` / `list_issues`), not its project-scoped iid. Write tool: hidden in
+`GITLAB_PERMISSION_MODE=readonly`.
+
 ## Delete
 
 ```

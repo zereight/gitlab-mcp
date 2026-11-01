@@ -448,6 +448,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "create_issue",
       "update_issue",
       "update_issue_description_patch",
+      "reorder_issue",
       "delete_issue",
       "mark_todo_done",
       "mark_all_todos_done",

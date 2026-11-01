@@ -238,7 +238,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 ### [Issues](issues.md)
 
-Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools)*
+Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
 
@@ -250,6 +250,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools
 | [`get_issue`](issues.md#get_issue) | Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first. | 📖 |
 | [`update_issue`](issues.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion. | ✏️ |
 | [`update_issue_description_patch`](issues.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. | ✏️ |
+| [`reorder_issue`](issues.md#reorder_issue) | Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue. | ✏️ |
 | [`delete_issue`](issues.md#delete_issue) | Delete an issue. Permanently delete an issue. Use `update_issue` to close or edit without deleting. | ✏️ |
 | [`list_todos`](issues.md#list_todos) | List GitLab to-do items for the current user. | 📖 |
 | [`mark_todo_done`](issues.md#mark_todo_done) | Mark a GitLab to-do item as done. | ✏️ |

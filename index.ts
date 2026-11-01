@@ -743,6 +743,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
+  ReorderIssueSchema,
   UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -2848,6 +2849,36 @@ async function updateIssue(
     ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * Reorder an issue within the project's manual sort order (issue boards)
+ * 이슈 수동 정렬 순서 변경
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} issueIid - The internal ID of the project issue
+ * @param {Object} options - move_after_id / move_before_id (global issue ids)
+ * @returns {Promise<GitLabIssue>} The reordered issue
+ */
+async function reorderIssue(
+  projectId: string,
+  issueIid: number | string,
+  options: Omit<z.infer<typeof ReorderIssueSchema>, "project_id" | "issue_iid">
+): Promise<GitLabIssue> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/reorder`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(options),
   });
 
   await handleGitLabError(response);
@@ -13427,6 +13458,15 @@ async function handleToolCall(params: any) {
             };
         return {
           content: [{ type: "text", text: JSON.stringify(responseBody) }],
+        };
+      }
+
+      case "reorder_issue": {
+        const args = ReorderIssueSchema.parse(params.arguments);
+        const { project_id, issue_iid, ...options } = args;
+        const issue = await reorderIssue(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue) }],
         };
       }
 

@@ -6,7 +6,7 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 287 个（toolset 中 284 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -138,7 +138,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 287 个** — 先精简，再用 `discover_tools` 在本会话扩展
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 288 个** — 先精简，再用 `discover_tools` 在本会话扩展
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -152,7 +152,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 287 个工具：toolset 中 284 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 288 个工具：toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |

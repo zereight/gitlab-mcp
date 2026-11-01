@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 287 tools: 284 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
+GitLab MCP server providing 288 tools: 285 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -15,7 +15,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 |---|---|---|
 | core (38 tools) | yes | default lean starter set |
 | merge_requests (46 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
-| issues (24 tools) | no | `GITLAB_TOOLSETS=issues` |
+| issues (25 tools) | no | `GITLAB_TOOLSETS=issues` |
 | repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
 | branches (16 tools) | no | `GITLAB_TOOLSETS=branches` |
 | projects (20 tools) | no | `GITLAB_TOOLSETS=projects` |
@@ -42,9 +42,9 @@ Enable all discoverable toolsets: `GITLAB_TOOLSETS=all` (does **not** enable `ap
 
 `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
-The per-toolset counts above sum to 324 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 325 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 284.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 285.
 
 ## Key Workflows
 
@@ -64,6 +64,8 @@ in their full category (`get_branch` and `list_branches` additionally appear in 
 `create_issue` -> `create_issue_link` -> `create_issue_note` -> `update_issue`
 
 Use `update_issue_description_patch` for small edits to long issue descriptions instead of resending the full body.
+
+Board order: `reorder_issue` with `move_after_id` / `move_before_id` (the neighbor issue's global `id`, not its `iid`).
 
 ### Projects & Namespaces
 

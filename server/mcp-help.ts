@@ -67,6 +67,7 @@ const GUIDES: Record<HelpTopic, string> = {
     "Issues: list_issues (default scope is issues you created; use scope=all), my_issues, get_issue.",
     "Write: create_issue, update_issue, create_issue_note, list_issue_discussions.",
     "Small description edits: update_issue_description_patch instead of resending the full body.",
+    "Board order: reorder_issue (move_after_id / move_before_id are global issue ids, not iids).",
     "project_id is a numeric ID or URL-encoded path.",
   ].join("\n"),
   pipelines: [

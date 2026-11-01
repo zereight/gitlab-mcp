@@ -3089,6 +3089,29 @@ export const DeleteIssueSchema = z.object({
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
 });
 
+export const ReorderIssueSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
+    move_after_id: z.coerce
+      .number()
+      .int()
+      .optional()
+      .describe(
+        "Global issue id (the `id` field, not the project-scoped `iid`) of the issue that should come after this one"
+      ),
+    move_before_id: z.coerce
+      .number()
+      .int()
+      .optional()
+      .describe(
+        "Global issue id (the `id` field, not the project-scoped `iid`) of the issue that should come before this one"
+      ),
+  })
+  .refine(data => data.move_after_id !== undefined || data.move_before_id !== undefined, {
+    message: "At least one of 'move_after_id' or 'move_before_id' must be provided",
+  });
+
 export const UpdateIssueDescriptionPatchSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
