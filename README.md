@@ -258,7 +258,7 @@ The store path is pinned by your lock file; update it with `nix flake update git
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.17`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.18`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Claude Desktop one-click install (MCP Bundle)
 
