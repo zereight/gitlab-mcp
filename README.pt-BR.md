@@ -558,6 +558,10 @@ Para detalhes do modo de proxy de callback, veja [GitLab MCP OAuth Callback Prox
 
 Ajuste esses limites com [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE` e `SESSION_TIMEOUT_SECONDS`.
 
+#### Timeout de sessão Streamable HTTP
+
+Sessões Streamable HTTP usam o mesmo timeout de inatividade `SESSION_TIMEOUT_SECONDS` em todos os modos, inclusive com um token do lado do servidor sem `REMOTE_AUTHORIZATION` ou `GITLAB_MCP_OAUTH`: uma sessão sem requisição `POST /mcp` durante esse tempo é encerrada, e a próxima requisição recebe `404`, então o cliente inicializa de novo. Um stream `GET /mcp` aberto pausa o timer até o stream fechar ou chegar o próximo `POST /mcp`; assim, um cliente com o stream aberto ainda expira `SESSION_TIMEOUT_SECONDS` após o último `POST`.
+
 ### Configuração de autorização remota (suporte multiusuário)
 
 Com `REMOTE_AUTHORIZATION=true`, o servidor MCP pode atender vários usuários, cada um fornecendo seu próprio token do GitLab por headers HTTP. Isso é útil para:
@@ -614,7 +618,7 @@ O token é armazenado por sessão (identificada pelo header `mcp-session-id`) e 
 
 - A autorização remota **funciona apenas com o transporte Streamable HTTP**
 - Cada sessão é isolada. O token de uma sessão não pode acessar os dados de outra sessão. Os tokens são limpos automaticamente quando a sessão é encerrada.
-- **Timeout de sessão:** os tokens de autenticação expiram após `SESSION_TIMEOUT_SECONDS` (padrão 1 hora) sem atividade. Após o timeout, o cliente precisa enviar novamente os headers de autenticação. A sessão de transporte permanece ativa.
+- **Timeout de sessão:** os tokens de autenticação expiram após `SESSION_TIMEOUT_SECONDS` (padrão 1 hora) sem atividade. Após o timeout a sessão é encerrada e a próxima requisição recebe `404`, então o cliente inicializa de novo com os headers de autenticação.
 - Cada requisição reinicia o timer de timeout da sessão.
 - **Rate limiting:** requisições a `/mcp` são limitadas por IP do cliente a `MAX_REQUESTS_PER_MINUTE`; ao usar OAuth ou autorização remota, também são limitadas por sessão MCP (padrão 60). O limite por IP usa uma janela fixa de 60 segundos, conta por processo do servidor e também cobre `GET /mcp`; o modo stateless ignora o limite por sessão. Veja [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute).
 - **Limite de capacidade:** o servidor aceita no máximo `MAX_SESSIONS` sessões simultâneas (padrão 1000).
