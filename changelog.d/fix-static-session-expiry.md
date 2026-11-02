@@ -12,7 +12,9 @@
 
 - In server-side token mode, `GET /mcp` now pauses the inactivity timer while
   the stream is open and re-arms it when the stream closes, and every
-  `POST /mcp` resets it, the same as in the per-session auth modes.
+  `POST /mcp` resets it, the same as in the per-session auth modes. In every
+  mode, a second `GET /mcp` rejected with `409` while a stream is open no longer
+  restarts the timer.
 
 ### Fixed
 

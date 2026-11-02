@@ -327,14 +327,16 @@ Security notes:
 
 Inactivity timeout in seconds for remote sessions.
 
-- Streamable HTTP: a session with no `POST /mcp` request for this long is closed and
-  its `MAX_SESSIONS` slot is released. This applies in every mode: with
+- Streamable HTTP (stateful sessions): a session with no `POST /mcp` request for
+  this long is closed and its `MAX_SESSIONS` slot is released. This applies in every mode: with
   `REMOTE_AUTHORIZATION` or `GITLAB_MCP_OAUTH` the stored per-session token is also
   dropped, and with a server-side token (`GITLAB_PERSONAL_ACCESS_TOKEN`, optionally
   behind `STREAMABLE_HTTP_AUTH_TOKEN`) the session is closed the same way. An open
   `GET /mcp` stream pauses the timer until the stream closes or the next `POST /mcp`
   arrives. A request to an expired session gets `404`, and the client must
-  re-initialize.
+  re-initialize. Stateless mode (`OAUTH_STATELESS_MODE=true`) keeps no server-side
+  sessions: it uses `OAUTH_STATELESS_SESSION_TTL_SECONDS` instead, and `GET /mcp`
+  returns `405`.
 - SSE: connections that receive no `POST /messages` request for this long are closed.
 
 Default:

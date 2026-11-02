@@ -16792,6 +16792,9 @@ async function startStreamableHTTPServer(): Promise<void> {
   const streamableTransports: Record<string, StreamableTransport> = Object.create(null);
 
   const authTimeouts: Record<string, NodeJS.Timeout> = {};
+  // Sessions with an open GET /mcp stream. The SDK allows one stream per session and
+  // rejects a second GET with 409; that request must not touch the session's timer.
+  const openGetStreams = new Set<string>();
 
   // Configuration and limits
   const MAX_SESSIONS = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
@@ -18080,6 +18083,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                 );
                 delete streamableTransports[sid];
                 metrics.activeSessions--;
+                openGetStreams.delete(sid);
                 clearAuthTimeout(sid);
                 if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                   cleanupSessionAuth(sid);
@@ -18186,8 +18190,13 @@ async function startStreamableHTTPServer(): Promise<void> {
         authBySession[sessionId].lastUsed = Date.now();
       }
       // Listening on GET /mcp is session activity. Pause inactivity expiry for
-      // the life of the SSE stream so list_changed can still be pushed.
-      clearAuthTimeout(sessionId);
+      // the life of the SSE stream so list_changed can still be pushed. A second GET
+      // while a stream is open is rejected by the SDK and leaves the timer alone.
+      const ownsStream = !openGetStreams.has(sessionId);
+      if (ownsStream) {
+        openGetStreams.add(sessionId);
+        clearAuthTimeout(sessionId);
+      }
 
       const handleGetRequest = async () => {
         try {
@@ -18220,8 +18229,11 @@ async function startStreamableHTTPServer(): Promise<void> {
           await handleGetRequest();
         }
       } finally {
-        if (streamableTransports[sessionId]) {
-          setAuthTimeout(sessionId);
+        if (ownsStream) {
+          openGetStreams.delete(sessionId);
+          if (streamableTransports[sessionId]) {
+            setAuthTimeout(sessionId);
+          }
         }
       }
     }

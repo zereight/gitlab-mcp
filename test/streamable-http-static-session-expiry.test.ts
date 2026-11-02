@@ -193,6 +193,15 @@ describe("Streamable HTTP server-token mode session expiry", { timeout: 60_000 }
     assert.equal(snapshot.activeSessions, 1);
     assert.equal(snapshot.expiredSessions, 0);
 
+    // A second GET is rejected while the first stream is open and must not restart the timer.
+    const second = await openStream(port, sessionId, new AbortController().signal);
+    assert.equal(second.status, 409);
+    await second.text();
+    await sleep(TIMEOUT_SECONDS * 2 * 1000);
+    snapshot = await metrics(port);
+    assert.equal(snapshot.activeSessions, 1, "rejected GET must not end the pause");
+    assert.equal(snapshot.expiredSessions, 0);
+
     // Close the stream; with no further activity the session expires.
     abort.abort();
     await waitForExpired(port, 1);
