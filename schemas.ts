@@ -1431,6 +1431,12 @@ export const GetRepositoryTreeSchema = z.object({
     .describe("The name of a repository branch or tag. Defaults to the default branch."),
   recursive: coerceBooleanString.optional().describe("Boolean value to get a recursive tree"),
   per_page: z.coerce.number().optional().describe("Number of results to show per page"),
+  page: z.coerce
+    .number()
+    .optional()
+    .describe(
+      "Page number for offset pagination. Passing it returns a structured response with items and, when more pages are available, next_page."
+    ),
   page_token: z
     .string()
     .optional()

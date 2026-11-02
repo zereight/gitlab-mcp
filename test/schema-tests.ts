@@ -1418,6 +1418,11 @@ function runGetRepositoryTreeSchemaTests(): { passed: number; failed: number } {
       expected: { project_id: 'my/project', pagination: 'keyset', per_page: 100, page_token: 'eyJpZCI6IjEyMyJ9' },
     },
     {
+      name: 'schema:get_repository_tree:page-coerces-from-string',
+      input: { project_id: 'my/project', per_page: 100, page: '2' },
+      expected: { project_id: 'my/project', per_page: 100, page: 2 },
+    },
+    {
       name: 'schema:get_repository_tree:per-page-coerces-from-string',
       input: { project_id: 'my/project', per_page: '50' },
       expected: { project_id: 'my/project', per_page: 50 },

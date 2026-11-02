@@ -311,17 +311,64 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
       headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
         assert.strictEqual(req.headers['authorization'], `Bearer ${MOCK_TOKEN_HEADER}`);
         assert.strictEqual(req.query.pagination, 'keyset');
-        res.set('x-next-page', 'fallback-token');
-        res.json([createMockTreeItem('fallback-blob')]);
+        res.set('x-next-page', '2');
+        res.json([createMockTreeItem('page-number-blob')]);
       });
 
-      const fallbackResult = await client.callTool('get_repository_tree', {
+      const pageNumberResult = await client.callTool('get_repository_tree', {
         project_id: '4',
         pagination: 'keyset',
       });
-      const fallbackContent = JSON.parse((fallbackResult.content[0] as any).text);
-      assert.strictEqual(fallbackContent.items[0].id, 'fallback-blob');
-      assert.strictEqual(fallbackContent.next_page_token, 'fallback-token');
+      const pageNumberContent = JSON.parse((pageNumberResult.content[0] as any).text);
+      assert.strictEqual(pageNumberContent.items[0].id, 'page-number-blob');
+      assert.strictEqual(pageNumberContent.next_page_token, undefined);
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.query.page, undefined);
+        res.set('x-next-page', '2');
+        res.json([createMockTreeItem('multi-page-legacy-blob')]);
+      });
+
+      const multiPageLegacyResult = await client.callTool('get_repository_tree', { project_id: '4' });
+      const multiPageLegacyContent = JSON.parse((multiPageLegacyResult.content[0] as any).text);
+      assert.ok(Array.isArray(multiPageLegacyContent));
+      assert.strictEqual(multiPageLegacyContent[0].id, 'multi-page-legacy-blob');
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.query.page, '2');
+        res.set('x-next-page', '3');
+        res.json([createMockTreeItem('page-2-blob')]);
+      });
+
+      const pageResult = await client.callTool('get_repository_tree', {
+        project_id: '4',
+        per_page: 1,
+        page: 2,
+      });
+      const pageContent = JSON.parse((pageResult.content[0] as any).text);
+      assert.strictEqual(pageContent.items[0].id, 'page-2-blob');
+      assert.strictEqual(pageContent.next_page, '3');
+      assert.strictEqual(pageContent.next_page_token, undefined);
+      assert.match(pageContent.pagination_note, /next_page as page/);
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.query.page, '3');
+        res.set('x-next-page', '');
+        res.json([createMockTreeItem('last-page-blob')]);
+      });
+
+      const lastPageResult = await client.callTool('get_repository_tree', {
+        project_id: '4',
+        per_page: 1,
+        page: 3,
+      });
+      const lastPageContent = JSON.parse((lastPageResult.content[0] as any).text);
+      assert.strictEqual(lastPageContent.items[0].id, 'last-page-blob');
+      assert.strictEqual(lastPageContent.next_page, undefined);
+      assert.match(lastPageContent.pagination_note, /final page/);
 
       await client.disconnect();
     });
