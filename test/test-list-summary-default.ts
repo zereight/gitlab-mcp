@@ -5,9 +5,11 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 
 // #963: with GITLAB_MCP_LIST_SUMMARY_DEFAULT on and `summary` omitted, a summary-safe
 // list tool is summarized and an excluded one returns its full reply, through the
-// server's tool call path.
+// server's tool call path. `summary: true` still summarizes an excluded one.
 
 const MOCK_TOKEN = "glpat-...2345";
+const GROUP_ID = "5";
+const PROJECT_ID = "9";
 
 const NAMESPACE = {
   id: 1,
@@ -19,6 +21,39 @@ const NAMESPACE = {
   avatar_url: null,
   web_url: "https://gitlab.mock/groups/test-group",
 };
+
+const ITERATION = {
+  id: 53,
+  iid: 13,
+  sequence: 1,
+  group_id: 5,
+  title: "Sprint 1",
+  description: "Initial goal",
+  state: 2,
+  created_at: "2026-08-01T00:00:00Z",
+  updated_at: "2026-08-01T00:00:00Z",
+  start_date: "2026-09-01",
+  due_date: "2026-09-07",
+  web_url: "https://gitlab.mock/groups/test-group/-/iterations/13",
+};
+
+// GraphQL node; list_group_iteration_cadences maps it to snake_case fields.
+const CADENCE_NODE = {
+  id: "gid://gitlab/Iterations::Cadence/7",
+  title: "Sprints",
+  description: "Two-week sprints",
+  automatic: true,
+  active: true,
+  startDate: "2026-09-01",
+  durationInWeeks: 2,
+  iterationsInAdvance: 3,
+  rollOver: false,
+};
+
+const ITERATION_LIST_CALLS: ReadonlyArray<[string, Record<string, unknown>]> = [
+  ["list_group_iterations", { group_id: GROUP_ID }],
+  ["list_project_iterations", { project_id: PROJECT_ID }],
+];
 
 async function callListTool(
   client: StdioTestClient,
@@ -43,6 +78,33 @@ describe("list summary default through the tool call path (#963)", () => {
     mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
     mockGitLab.addMockHandler("get", "/namespaces", (_req, res) => {
       res.json([NAMESPACE]);
+    });
+    mockGitLab.addMockHandler("get", `/groups/${GROUP_ID}/iterations`, (_req, res) => {
+      res.json([ITERATION]);
+    });
+    mockGitLab.addMockHandler("get", `/projects/${PROJECT_ID}/iterations`, (_req, res) => {
+      res.json([ITERATION]);
+    });
+    // list_group_iteration_cadences resolves the group path before its GraphQL query.
+    mockGitLab.addMockHandler("get", `/groups/${GROUP_ID}`, (_req, res) => {
+      res.json({ id: 5, full_path: NAMESPACE.full_path });
+    });
+    mockGitLab.addRootHandler("post", "/api/graphql", (req, res) => {
+      const query = String(req.body.query ?? "");
+      if (!query.includes("query GroupIterationCadences(")) {
+        res.status(400).json({ errors: [{ message: `Unexpected GraphQL operation: ${query}` }] });
+        return;
+      }
+      res.json({
+        data: {
+          group: {
+            iterationCadences: {
+              nodes: [CADENCE_NODE],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
     });
     await mockGitLab.start();
     client = new StdioTestClient();
@@ -76,5 +138,51 @@ describe("list summary default through the tool call path (#963)", () => {
     assert.strictEqual(item.full_path, NAMESPACE.full_path);
     assert.strictEqual(item.path, NAMESPACE.path);
     assert.strictEqual(item.kind, NAMESPACE.kind);
+  });
+
+  for (const [tool, args] of ITERATION_LIST_CALLS) {
+    test(`returns the full ${tool} reply with start_date and due_date`, async () => {
+      const item = await callListTool(client, tool, args);
+      assert.strictEqual(item.id, String(ITERATION.id));
+      assert.strictEqual(item.start_date, ITERATION.start_date);
+      assert.strictEqual(item.due_date, ITERATION.due_date);
+    });
+
+    test(`summarizes ${tool} when summary is true`, async () => {
+      const item = await callListTool(client, tool, { ...args, summary: true });
+      assert.strictEqual(item.id, String(ITERATION.id));
+      assert.strictEqual(item.title, ITERATION.title);
+      assert.strictEqual("start_date" in item, false, `${tool} summary should drop start_date`);
+      assert.strictEqual("due_date" in item, false, `${tool} summary should drop due_date`);
+    });
+  }
+
+  test("returns the full list_group_iteration_cadences reply with the cadence settings", async () => {
+    const item = await callListTool(client, "list_group_iteration_cadences", {
+      group_id: GROUP_ID,
+    });
+    assert.strictEqual(item.id, CADENCE_NODE.id);
+    assert.strictEqual(item.start_date, CADENCE_NODE.startDate);
+    assert.strictEqual(item.duration_in_weeks, CADENCE_NODE.durationInWeeks);
+    assert.strictEqual(item.iterations_in_advance, CADENCE_NODE.iterationsInAdvance);
+  });
+
+  test("summarizes list_group_iteration_cadences when summary is true", async () => {
+    const item = await callListTool(client, "list_group_iteration_cadences", {
+      group_id: GROUP_ID,
+      summary: true,
+    });
+    assert.strictEqual(item.id, CADENCE_NODE.id);
+    assert.strictEqual(item.title, CADENCE_NODE.title);
+    assert.strictEqual(
+      "start_date" in item,
+      false,
+      "list_group_iteration_cadences summary should drop start_date"
+    );
+    assert.strictEqual(
+      "duration_in_weeks" in item,
+      false,
+      "list_group_iteration_cadences summary should drop duration_in_weeks"
+    );
   });
 });
