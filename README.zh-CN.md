@@ -557,6 +557,10 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 可通过 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions)、`MAX_REQUESTS_PER_MINUTE` 和 `SESSION_TIMEOUT_SECONDS` 调整这些限制。
 
+#### Streamable HTTP 会话超时
+
+Streamable HTTP 会话在所有模式下都使用同一个 `SESSION_TIMEOUT_SECONDS` 空闲超时，包括不启用 `REMOTE_AUTHORIZATION` 或 `GITLAB_MCP_OAUTH`、只用服务端 token 的模式：超过该时长没有 `POST /mcp` 请求的会话会被关闭，之后的请求返回 `404`，客户端会重新 initialize。`GET /mcp` 流打开时计时器暂停，直到流关闭或收到下一个 `POST /mcp`；因此保持流打开的客户端，在最后一次 `POST` 之后经过 `SESSION_TIMEOUT_SECONDS` 仍会过期。
+
 ### 远程授权设置（多用户支持）
 
 使用 `REMOTE_AUTHORIZATION=true` 时，MCP 服务器可以支持多个用户，每个用户通过 HTTP 请求头传入自己的 GitLab token。适用于：
@@ -613,7 +617,7 @@ token 按会话存储（由 `mcp-session-id` 请求头标识），并在同一�
 
 - 远程授权**仅适用于 Streamable HTTP 传输**
 - 每个会话相互隔离。一个会话的 token 不能访问另一个会话的数据。会话关闭后 token 会自动清理。
-- **会话超时：** 认证 token 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）无活动后过期。超时后，客户端必须再次发送认证请求头。传输会话仍保持活动。
+- **会话超时：** 认证 token 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）无活动后过期。超时后会话被关闭，之后的请求返回 `404`，客户端需带上认证请求头重新 initialize。
 - 每个请求都会重置该会话的超时计时器。
 - **Rate limiting：** `/mcp` 请求按客户端 IP 限制为每分钟 `MAX_REQUESTS_PER_MINUTE` 次；使用 OAuth 或远程授权时还按 MCP 会话限制（默认 60）。按 IP 的限制使用固定 60 秒窗口，按服务器进程分别计数，并同样覆盖 `GET /mcp`；stateless 模式会跳过按会话的限制。详见 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)。
 - **Capacity limit：** 服务器最多接受 `MAX_SESSIONS` 个并发会话（默认 1000）。

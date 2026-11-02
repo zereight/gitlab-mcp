@@ -595,6 +595,10 @@ For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/au
 
 Tune these with [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, and `SESSION_TIMEOUT_SECONDS`.
 
+#### Streamable HTTP session timeout
+
+Streamable HTTP sessions use the same `SESSION_TIMEOUT_SECONDS` idle timeout in every mode, including a server-side token without `REMOTE_AUTHORIZATION` or `GITLAB_MCP_OAUTH`: a session with no `POST /mcp` request for that long is closed, and its next request gets `404` so the client re-initializes. An open `GET /mcp` stream pauses the timer until the stream closes or the next `POST /mcp` arrives, so a client with a stream open still expires `SESSION_TIMEOUT_SECONDS` after its last `POST`.
+
 ### Remote Authorization Setup (Multi-User Support)
 
 When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple users, each with their own GitLab token passed via HTTP headers. This is useful for:
@@ -653,7 +657,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 - Remote authorization **only works with Streamable HTTP transport**
 - Each session is isolated - tokens from one session cannot access another session's data
   Tokens are automatically cleaned up when sessions close
-- **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout, the client must send auth headers again. The transport session remains active.
+- **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout the session is closed and its next request gets `404`, so the client re-initializes with its auth headers.
 - Each request resets the timeout timer for that session
 - **Rate limiting:** `/mcp` requests are limited to `MAX_REQUESTS_PER_MINUTE` per client IP, and per MCP session when using OAuth or remote authorization (default 60). The per-IP limit uses a fixed 60-second window, counts per server process, and also covers `GET /mcp`; stateless mode skips the per-session limit. See [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute).
 - **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)

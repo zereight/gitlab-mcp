@@ -558,6 +558,10 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 설정은 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, `SESSION_TIMEOUT_SECONDS`를 참고하세요.
 
+#### Streamable HTTP 세션 타임아웃
+
+Streamable HTTP 세션도 모든 모드에서 같은 `SESSION_TIMEOUT_SECONDS` 유휴 타임아웃을 사용합니다. `REMOTE_AUTHORIZATION`이나 `GITLAB_MCP_OAUTH` 없이 서버 측 토큰을 쓰는 경우도 포함됩니다. 그 시간 동안 `POST /mcp` 요청이 없는 세션은 종료되고, 다음 요청은 `404`를 받으므로 클라이언트가 다시 initialize합니다. `GET /mcp` 스트림이 열려 있으면 스트림이 닫히거나 다음 `POST /mcp`가 올 때까지 타이머가 멈춥니다. 따라서 스트림을 열어 둔 클라이언트도 마지막 `POST` 이후 `SESSION_TIMEOUT_SECONDS`가 지나면 만료됩니다.
+
 ### 원격 인증 설정(멀티 유저 지원)
 
 `REMOTE_AUTHORIZATION=true`를 사용하면 MCP 서버는 여러 사용자를 지원할 수 있습니다. 각 사용자는 HTTP 헤더로 자신의 GitLab 토큰을 전달합니다. 다음 경우 유용합니다.
@@ -614,7 +618,7 @@ Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 
 - 원격 인증은 **Streamable HTTP 전송에서만** 동작합니다.
 - 각 세션은 격리됩니다. 한 세션의 토큰은 다른 세션 데이터에 접근할 수 없습니다. 세션이 종료되면 토큰은 자동으로 정리됩니다.
-- **세션 타임아웃:** 인증 토큰은 `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 비활성 상태가 지속되면 만료됩니다. 만료 후 클라이언트는 인증 헤더를 다시 보내야 합니다. 전송 세션은 유지됩니다.
+- **세션 타임아웃:** 인증 토큰은 `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 비활성 상태가 지속되면 만료됩니다. 만료되면 세션이 종료되고 다음 요청은 `404`를 받으므로, 클라이언트는 인증 헤더와 함께 다시 initialize합니다.
 - 각 요청은 해당 세션의 타임아웃 타이머를 초기화합니다.
 - **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). IP당 한도는 고정 60초 윈도우를 사용하고 서버 프로세스별로 집계되며 `GET /mcp`에도 적용됩니다. stateless 모드에서는 세션당 한도를 건너뜁니다. 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
 - **Capacity limit:** 서버는 최대 `MAX_SESSIONS` 동시 세션을 허용합니다(기본 1000).
