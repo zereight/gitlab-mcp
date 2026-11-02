@@ -1433,9 +1433,11 @@ export const GetRepositoryTreeSchema = z.object({
   per_page: z.coerce.number().optional().describe("Number of results to show per page"),
   page: z.coerce
     .number()
+    .int()
+    .positive()
     .optional()
     .describe(
-      "Page number for offset pagination. Passing it returns a structured response with items and, when more pages are available, next_page."
+      "Page number for offset pagination, starting at 1. Passing it returns a structured response with items and, when more pages are available, next_page."
     ),
   page_token: z
     .string()
@@ -1447,7 +1449,7 @@ export const GetRepositoryTreeSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Non-keyset calls keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available."
+      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Calls without page or pagination keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available."
     ),
 });
 
