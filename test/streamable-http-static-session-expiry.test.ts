@@ -229,6 +229,28 @@ describe("Streamable HTTP server-token mode session expiry", { timeout: 60_000 }
     abort.abort();
   });
 
+  test("a rejected GET leaves an armed expiry timer running", async () => {
+    const port = await findAvailablePort(4358);
+    startServer(port);
+    await waitForHealth(port);
+
+    const sessionId = await initialize(port);
+    const abort = new AbortController();
+    const stream = await openStream(port, sessionId, abort.signal);
+    assert.equal(stream.status, 200);
+
+    // A POST arms the timer while the stream is open; a rejected second GET must not clear it.
+    assert.equal((await ping(port, sessionId)).status, 200);
+    const second = await openStream(port, sessionId, new AbortController().signal);
+    assert.equal(second.status, 409);
+    await second.text();
+
+    await waitForExpired(port, 1);
+    assert.equal((await ping(port, sessionId)).status, 404);
+    assert.equal((await metrics(port)).activeSessions, 0);
+    abort.abort();
+  });
+
   test("DELETE /mcp releases the session without a later expiry", async () => {
     const port = await findAvailablePort(4360);
     startServer(port);
