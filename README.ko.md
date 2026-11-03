@@ -77,8 +77,8 @@ MCP 없는 동등 경로: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-
 }
 ```
 
-- 호스팅 / Claude.ai: 서버에서 `GITLAB_MCP_OAUTH=true` ([MCP OAuth](#mcp-oauth-프록시-사용하기-gitlab_mcp_oauth) 참고)
-- 사용자별 PAT 헤더: `REMOTE_AUTHORIZATION=true` ([원격 인증](#원격-인증-사용하기-remote_authorization) 참고)
+- 호스팅 / Claude.ai: 서버에서 `GITLAB_MCP_OAUTH=true` ([MCP OAuth](#mcp-oauth-프록시-사용하기gitlab_mcp_oauth) 참고)
+- 사용자별 PAT 헤더: `REMOTE_AUTHORIZATION=true` ([원격 인증](#원격-인증-사용하기remote_authorization) 참고)
 - 로컬 Docker 예시는 [사용법](#사용법)에 있습니다
 
 ### Skill + CLI (MCP 불필요)
