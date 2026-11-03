@@ -140,6 +140,13 @@ describe("list summary default through the tool call path (#963)", () => {
     assert.strictEqual(item.kind, NAMESPACE.kind);
   });
 
+  test("summarizes list_namespaces when summary is true", async () => {
+    const item = await callListTool(client, "list_namespaces", { summary: true });
+    assert.strictEqual(item.id, String(NAMESPACE.id));
+    assert.strictEqual(item.name, NAMESPACE.name);
+    assert.strictEqual("full_path" in item, false, "list_namespaces summary should drop full_path");
+  });
+
   for (const [tool, args] of ITERATION_LIST_CALLS) {
     test(`returns the full ${tool} reply with start_date and due_date`, async () => {
       const item = await callListTool(client, tool, args);
@@ -165,6 +172,9 @@ describe("list summary default through the tool call path (#963)", () => {
     assert.strictEqual(item.start_date, CADENCE_NODE.startDate);
     assert.strictEqual(item.duration_in_weeks, CADENCE_NODE.durationInWeeks);
     assert.strictEqual(item.iterations_in_advance, CADENCE_NODE.iterationsInAdvance);
+    assert.strictEqual(item.automatic, CADENCE_NODE.automatic);
+    assert.strictEqual(item.active, CADENCE_NODE.active);
+    assert.strictEqual(item.roll_over, CADENCE_NODE.rollOver);
   });
 
   test("summarizes list_group_iteration_cadences when summary is true", async () => {
