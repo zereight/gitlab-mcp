@@ -145,6 +145,8 @@ describe("list summary default through the tool call path (#963)", () => {
     assert.strictEqual(item.id, String(NAMESPACE.id));
     assert.strictEqual(item.name, NAMESPACE.name);
     assert.strictEqual("full_path" in item, false, "list_namespaces summary should drop full_path");
+    assert.strictEqual("path" in item, false, "list_namespaces summary should drop path");
+    assert.strictEqual("kind" in item, false, "list_namespaces summary should drop kind");
   });
 
   for (const [tool, args] of ITERATION_LIST_CALLS) {
