@@ -74,6 +74,9 @@ summary would drop the content they return or does not read their reply shape:
 `list_job_artifacts`, `list_protected_branches` (`*_access_levels`,
 `allow_force_push`), `list_protected_tags` (`create_access_levels`),
 `list_project_members` and `list_group_members` (`access_level`, `expires_at`),
+`list_group_iterations` and `list_project_iterations` (`start_date`,
+`due_date`), `list_group_iteration_cadences` (`start_date`,
+`duration_in_weeks`),
 `list_project_vulnerabilities`, `list_dependency_proxy_blobs`,
 `list_ci_catalog_resources`, `list_work_item_notes`,
 `list_custom_field_definitions`, and `list_work_item_statuses`. These also keep the full reply, because the summary
@@ -81,7 +84,8 @@ would drop an id or type that other tools need: `list_issue_links`
 (`issue_link_id`, `link_type`), `list_pipeline_trigger_jobs`
 (`downstream_pipeline.id`), `list_project_variables` and `list_group_variables`
 (`environment_scope`), `list_merge_request_changed_files` (`old_path` and the
-new/deleted/renamed flags), and `list_work_items` (`type`). `list_wiki_pages`
+new/deleted/renamed flags), `list_work_items` (`type`), and `list_namespaces`
+(`full_path`, `path`, `kind`). `list_wiki_pages`
 and `list_group_wiki_pages` keep the full reply only when the call sets
 `with_content` or `render_html`, because the summary would drop `content`.
 Passing `summary: true` to any of them works as before.
