@@ -26,6 +26,8 @@ npm install -g @zereight/mcp-gitlab
 
 If VS Code cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
 
+Leave `GITLAB_TOOLSETS` unset (lean default, ~40 tools). Call `discover_tools` to activate a category for this session. Do not set `GITLAB_TOOLSETS=all` — that loads ~all schemas (~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
+
 ## PAT setup
 
 Recommended secure example:

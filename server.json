@@ -105,7 +105,7 @@
         },
         {
           "name": "GITLAB_TOOLSETS",
-          "description": "Optional comma-separated list of toolsets to enable, such as projects, issues, merge_requests, pipelines, releases, users, groups, wiki, or search.",
+          "description": "Optional comma-separated toolset ids (projects, issues, merge_requests, …). Unset keeps the lean core default plus discover_tools. Do not set all unless you accept loading ~all schemas (~73k tokens).",
           "isRequired": false,
           "isSecret": false,
           "format": "string"
@@ -268,7 +268,7 @@
         },
         {
           "name": "GITLAB_TOOLSETS",
-          "description": "Optional comma-separated list of toolsets to enable, such as projects, issues, merge_requests, pipelines, releases, users, groups, wiki, or search.",
+          "description": "Optional comma-separated toolset ids (projects, issues, merge_requests, …). Unset keeps the lean core default plus discover_tools. Do not set all unless you accept loading ~all schemas (~73k tokens).",
           "isRequired": false,
           "isSecret": false,
           "format": "string"

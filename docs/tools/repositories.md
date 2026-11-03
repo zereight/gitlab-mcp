@@ -3,7 +3,7 @@
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=repositories` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=repositories` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 
@@ -29,8 +29,8 @@ Search for GitLab projects. If the identifier is known, use a typed get or list 
 |---|---|:-:|---|
 | `search` | string |  | Search query |
 | `query` | string |  | Search query (alias for 'search') |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `create_repository`
 
@@ -121,11 +121,11 @@ List files and directories in a repository.
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | The ID or URL-encoded path of the project |
-| `path` | string |  | The path inside the repository |
-| `ref` | string |  | The name of a repository branch or tag. Defaults to the default branch. |
-| `recursive` | boolean |  | Boolean value to get a recursive tree |
-| `per_page` | number |  | Number of results to show per page |
-| `page` | integer |  | Page number for offset pagination, starting at 1. Passing it returns a structured response with items and, when more pages are available, next_page. |
-| `page_token` | string |  | Token for keyset pagination. Use the next_page_token value returned in the previous response to retrieve the next page. |
-| `pagination` | string |  | Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Calls without page or pagination keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available. |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `path` | string |  | Path inside the repository |
+| `ref` | string |  | Branch or tag. Defaults to the default branch. |
+| `recursive` | boolean |  | Recursive tree |
+| `per_page` | number |  | Items per page |
+| `page` | integer |  | Offset page number from 1 (items + next_page) |
+| `page_token` | string |  | Keyset token from the previous next_page_token |
+| `pagination` | string |  | Use keyset for large trees (items + next_page_token). Omit both page and pagination for the legacy array (deprecated). |

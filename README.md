@@ -14,6 +14,8 @@
 
 **Default: 40 tools** (38 `core` + `discover_tools` + `help`). 288 tools exist in total (285 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
 
+> **Token budget:** MCP clients send the whole `tools/list` to the model at session start. Keep the default (~40 tools, ~12k schema tokens). Call `discover_tools` to activate a category for this session, or use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) and skip MCP schemas. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all tools and costs ~73k schema tokens. See [tools/list size](#toolslist-size-measured-2026-11-03) and [comparison](./docs/comparison/index.md).
+
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
 
 ### Without → With
@@ -64,7 +66,7 @@ Local: claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSON
 Or: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: use the README deeplink or docs/clients/cursor.md.
 Remote HTTP: point the client at https://mcp.example.com/mcp (Streamable HTTP). Claude.ai needs GITLAB_MCP_OAUTH on that host.
-Default list: 40 tools (38 core + discover_tools + help). Call discover_tools to expand. Do not enable the api toolset unless you accept its bypass risk.
+Default list: 40 tools (38 core + discover_tools + help). Call discover_tools to expand. Do not set GITLAB_TOOLSETS=all (loads ~all schemas, ~73k tokens). Do not enable the api toolset unless you accept its bypass risk.
 Equal non-MCP path: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill plus the zereight-mcp-gitlab CLI.
 ```
 
@@ -117,7 +119,7 @@ Human CLI is never compacted. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE`
 
 **How do I authenticate?** Local desktop: `GITLAB_PERSONAL_ACCESS_TOKEN` (or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) is the simplest. Local OAuth is `GITLAB_USE_OAUTH=true`. Remote Claude.ai uses `GITLAB_MCP_OAUTH`. Multi-user HTTP uses `REMOTE_AUTHORIZATION` and a per-request token header.
 
-**Why do I only see ~40 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools` and `help`. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. `GITLAB_TOOLSETS=all` still does **not** enable `api`.
+**Why do I only see ~40 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools` and `help`. That is intentional: a client sends every listed schema to the model up front. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all schemas (~73k tokens) and still does **not** enable `api`.
 
 **Local OAuth vs MCP OAuth vs remote auth?** Local OAuth opens a browser on the same machine as the server. MCP OAuth is for a public HTTPS server and clients such as Claude.ai. Remote authorization forwards the caller's PAT or job token; there is no OAuth dance.
 
@@ -129,7 +131,7 @@ Human CLI is never compacted. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE`
 
 ```
 GitLab merge requests, issues, and pipelines go through this MCP (@zereight/mcp-gitlab).
-Start with the default core tools. Call discover_tools to expand.
+Start with the default core tools. Call discover_tools to expand. Do not set GITLAB_TOOLSETS=all.
 Prefer list_merge_request_changed_files, then batched get_merge_request_file_diff.
 Use jmespath or compact results; use the CLI for full diffs and job logs.
 ```
@@ -144,7 +146,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **Default 40 tools (38 `core` + `discover_tools` + `help`); 288 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping
+- **Default 40 tools (38 `core` + `discover_tools` + `help`); 288 total** — start lean; call `discover_tools` to activate more without CQRS-style grouping. `GITLAB_TOOLSETS=all` loads ~all schemas (~73k tokens); prefer discover-on-demand or Skill + CLI
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -163,15 +165,15 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | **Node.js**    | >=20.0.0                                                          | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
 
-### tools/list size (measured 2026-10-24)
+### tools/list size (measured 2026-11-03)
 
 A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4.
 
 | Profile | Tools | JSON bytes | Est. tokens |
 | ------- | ----: | ---------: | ----------: |
-| Default (`core` + `discover_tools` + `help`) | 40 | 50,682 | 12,671 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
-| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
+| Default (`core` + `discover_tools` + `help`) | 40 | 46,491 | 11,623 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
 
 Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
@@ -288,7 +290,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead (replaces `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
-- `--toolsets=all` - Enable named toolsets except the explicit-only `api` toolset (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default). `gitlab_api_request` needs `--toolsets=api`
+- `--toolsets` - Named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default). Do not pass `all` unless you accept ~73k schema tokens. `gitlab_api_request` needs `--toolsets=api`
 - `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` instead (replaces `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` instead (replaces `USE_MILESTONE`)
@@ -852,9 +854,9 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 69. `delete_issue_note_emoji_reaction` - Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.
 70. `list_issues` - List issues (default: created by current user; use scope='all' for all)
 71. `my_issues` - List issues assigned to the authenticated user
-72. `get_issue` - Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object
-73. `update_issue` - Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object
-74. `update_issue_description_patch` - Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
+72. `get_issue` - Get one issue. Slim nested milestone by default; full_response=true for the complete milestone
+73. `update_issue` - Update an issue. Slim confirmation by default; full_response=true for the complete object
+74. `update_issue_description_patch` - Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes
 75. `reorder_issue` - Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue.
 76. `delete_issue` - Delete an issue
 77. `list_todos` - List GitLab to-do items for the current user
@@ -990,7 +992,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 207. `delete_group_iteration_cadence` - Delete an iteration cadence
 208. `upload_markdown` - Upload a file for use in markdown content
 209. `download_attachment` - Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)
-210. `health_check` - Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
+210. `health_check` - Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing
 211. `list_events` - List events for the authenticated user (before/after: YYYY-MM-DD)
 212. `get_project_events` - List events for a project (before/after: YYYY-MM-DD)
 213. `list_releases` - List all releases for a project
@@ -1067,7 +1069,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 284. `get_runner` - Get a runner's tag_list, run_untagged, locked, and access_level. When a project allowlist is active, the runner must be available to an allowed project. Omits registration and authentication tokens.
 285. `rebase_merge_request` - Rebase the source branch of a merge request onto its target branch
 286. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
-287. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+287. `discover_tools` - List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas).
 288. `help` - Return a short GitLab workflow guide. Omit topic for the overview and topic list.
 
 <!-- TOOLS-END -->

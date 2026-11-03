@@ -3,7 +3,7 @@
 Project label CRUD.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=labels` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=labels` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 
@@ -29,8 +29,8 @@ List labels for a project. For one known resource, use the matching get tool.
 | `with_counts` | boolean |  | Whether to include issue and merge request counts |
 | `include_ancestor_groups` | boolean |  | Include ancestor groups |
 | `search` | string |  | Keyword to filter labels by |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_label`
 

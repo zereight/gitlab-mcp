@@ -24,14 +24,14 @@ directly from `TOOLSET_DEFINITIONS` in
 | **Explicit opt-in** — not included in `all` or `discover_tools` | [Raw API](api.md) |
 | **Not a toolset** — `discover_tools` and `help` are always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
-**How to enable opt-in groups** (any one is sufficient):
+**How to enable opt-in groups:**
 
-- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.
-- `GITLAB_TOOLSETS=all` — enables every group except explicit-only toolsets (`api`).
-- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
+- **Preferred:** call `discover_tools` (omit `category` to list; pass a category to activate for this session).
+- `GITLAB_TOOLSETS=<group,…>` — persist named toolset IDs. An explicit list replaces `core`; it does not merge.
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.
+- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` or a named toolset.
+- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
-- Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Permission modes control which tools are exposed:
 
@@ -77,14 +77,14 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 | [`create_merge_request_thread`](core.md#create_merge_request_thread) | Create a new thread on a merge request. Start a review thread. Use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply. | ✏️ |
 | [`resolve_merge_request_thread`](core.md#resolve_merge_request_thread) | Resolve a thread on a merge request. Mark an existing review thread resolved. Use `update_merge_request_discussion_note` to change note text. | ✏️ |
 | [`update_merge_request`](core.md#update_merge_request) | Update a merge request (merge_request_iid or source_branch required). Use the create tool for new resources and a note tool for comments. | ✏️ |
-| [`list_issues`](core.md#list_issues) | List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments. | 📖 |
-| [`my_issues`](core.md#my_issues) | List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read. | 📖 |
-| [`get_issue`](core.md#get_issue) | Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first. | 📖 |
+| [`list_issues`](core.md#list_issues) | List issues (default: created by current user; use scope='all' for all). Use this for issue management. Optional `project_id`. Use `get_issue` when the iid is known and `my_issues` for assignments. | 📖 |
+| [`my_issues`](core.md#my_issues) | List issues assigned to the authenticated user. Use this for issue management. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read. | 📖 |
+| [`get_issue`](core.md#get_issue) | Get one issue. Slim nested milestone by default; full_response=true for the complete milestone. Use this for issue management. Use `list_issues` or `my_issues` to discover issues first. | 📖 |
 | [`create_issue`](core.md#create_issue) | Create a new issue. Open a new issue. Use `update_issue` for an existing issue and `create_issue_note` for discussion. | ✏️ |
-| [`update_issue`](core.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion. | ✏️ |
+| [`update_issue`](core.md#update_issue) | Update an issue. Slim confirmation by default; full_response=true for the complete object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion. | ✏️ |
 | [`create_issue_note`](core.md#create_issue_note) | Add a note to an issue, optionally replying to a discussion thread. Add a note to an existing issue, optionally as a reply. Use `update_issue` for issue fields. | ✏️ |
 | [`list_issue_discussions`](core.md#list_issue_discussions) | List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records. | 📖 |
-| [`update_issue_description_patch`](core.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. | ✏️ |
+| [`update_issue_description_patch`](core.md#update_issue_description_patch) | Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes. | ✏️ |
 | [`get_file_contents`](core.md#get_file_contents) | Get contents of a file or directory from a GitLab project. | 📖 |
 | [`get_repository_tree`](core.md#get_repository_tree) | List files and directories in a repository. | 📖 |
 | [`search_repositories`](core.md#search_repositories) | Search for GitLab projects. If the identifier is known, use a typed get or list tool. | 📖 |
@@ -99,13 +99,13 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 | [`list_project_members`](core.md#list_project_members) | List members of a GitLab project. Search project members by name or username. Use `list_group_members` for a group. | 📖 |
 | [`list_labels`](core.md#list_labels) | List labels for a project. For one known resource, use the matching get tool. | 📖 |
 | [`whoami`](core.md#whoami) | Get current authenticated user details. Requires classic read_user or fine-grained User:Read. Use `get_user` or `get_users` to look up another user. | 📖 |
-| [`health_check`](core.md#health_check) | Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
+| [`health_check`](core.md#health_check) | Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing. | 📖 |
 
 ### [Projects & Namespaces](projects.md)
 
 Project/namespace listing, member queries, group iterations, and server health. *(20 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=projects` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -128,13 +128,13 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`create_group_iteration_cadence`](projects.md#create_group_iteration_cadence) | Create an iteration cadence in a group. If the resource already exists, use the update tool. | ✏️ |
 | [`update_group_iteration_cadence`](projects.md#update_group_iteration_cadence) | Update an iteration cadence's title, description, schedule, or automation. Use the create tool for new resources. | ✏️ |
 | [`delete_group_iteration_cadence`](projects.md#delete_group_iteration_cadence) | Delete an iteration cadence. Verify the target first with a get or list tool. | ✏️ |
-| [`health_check`](projects.md#health_check) | Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
+| [`health_check`](projects.md#health_check) | Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing. | 📖 |
 
 ### [Projects & Files](repositories.md)
 
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=repositories` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=repositories` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -150,7 +150,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(16 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=branches` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=branches` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -175,7 +175,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 Create new groups and subgroups. *(1 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=groups` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=groups` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -185,7 +185,7 @@ Create new groups and subgroups. *(1 tools)*
 
 MR lifecycle — create, update, merge, approve, plus diff/conflict inspection and the full discussion/note/draft API. *(46 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=merge_requests` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=merge_requests` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -240,16 +240,16 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=issues` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`create_issue`](issues.md#create_issue) | Create a new issue. Open a new issue. Use `update_issue` for an existing issue and `create_issue_note` for discussion. | ✏️ |
-| [`list_issues`](issues.md#list_issues) | List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments. | 📖 |
-| [`my_issues`](issues.md#my_issues) | List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read. | 📖 |
-| [`get_issue`](issues.md#get_issue) | Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first. | 📖 |
-| [`update_issue`](issues.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion. | ✏️ |
-| [`update_issue_description_patch`](issues.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. | ✏️ |
+| [`list_issues`](issues.md#list_issues) | List issues (default: created by current user; use scope='all' for all). Use this for issue management. Optional `project_id`. Use `get_issue` when the iid is known and `my_issues` for assignments. | 📖 |
+| [`my_issues`](issues.md#my_issues) | List issues assigned to the authenticated user. Use this for issue management. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read. | 📖 |
+| [`get_issue`](issues.md#get_issue) | Get one issue. Slim nested milestone by default; full_response=true for the complete milestone. Use this for issue management. Use `list_issues` or `my_issues` to discover issues first. | 📖 |
+| [`update_issue`](issues.md#update_issue) | Update an issue. Slim confirmation by default; full_response=true for the complete object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion. | ✏️ |
+| [`update_issue_description_patch`](issues.md#update_issue_description_patch) | Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes. | ✏️ |
 | [`reorder_issue`](issues.md#reorder_issue) | Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue. | ✏️ |
 | [`delete_issue`](issues.md#delete_issue) | Delete an issue. Permanently delete an issue. Use `update_issue` to close or edit without deleting. | ✏️ |
 | [`list_todos`](issues.md#list_todos) | List GitLab to-do items for the current user. | 📖 |
@@ -274,7 +274,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools
 
 Project label CRUD. *(5 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=labels` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=labels` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -288,7 +288,7 @@ Project label CRUD. *(5 tools)*
 
 Modern unified API for issues, tasks, incidents, and other typed work items — including notes, emoji reactions, and incident timeline events. *(18 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=workitems` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=workitems` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -315,7 +315,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=ci` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=ci` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -328,7 +328,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view. *(58 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -395,7 +395,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=core,milestones` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -421,7 +421,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=core,wiki` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it. `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it. `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -440,7 +440,7 @@ Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools
 
 Release lifecycle, release evidence, and asset download. *(7 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=releases` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=releases` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -456,7 +456,7 @@ Release lifecycle, release evidence, and asset download. *(7 tools)*
 
 Tag listing, creation, deletion, signature inspection, and protected tag rules. *(9 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=tags` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=tags` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -474,7 +474,7 @@ Tag listing, creation, deletion, signature inspection, and protected tag rules. 
 
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download. *(7 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=users` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -490,7 +490,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 Project and group CI/CD variable CRUD. *(10 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=variables` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=variables` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -509,7 +509,7 @@ Project and group CI/CD variable CRUD. *(10 tools)*
 
 Create, update, and delete project or group webhooks, and inspect recent webhook events. *(6 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=webhooks` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -524,7 +524,7 @@ Create, update, and delete project or group webhooks, and inspect recent webhook
 
 Code search across all visible projects, a specific project, or a specific group. *(3 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=search` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=search` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -536,7 +536,7 @@ Code search across all visible projects, a specific project, or a specific group
 
 Inspect and manage the GitLab dependency proxy cache settings, blob storage, and purge operations. *(4 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=dependency_proxy` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=dependency_proxy` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -549,7 +549,7 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 
 AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate. *(4 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=vulnerabilities` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=vulnerabilities` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -562,7 +562,7 @@ AI-assisted vulnerability triage — list findings, inspect details, dismiss wit
 
 Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries consume GitLab credits; schema, status, and tool listing are free. *(4 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=orbit` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=orbit` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -575,7 +575,7 @@ Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries con
 
 Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets. *(5 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=snippets` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=snippets` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -604,8 +604,8 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(3 tools)*
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query. Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations. | 📖✏️ |
-| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS. | 📖 |
-| [`help`](meta.md#help) | Return a short GitLab workflow guide. Omit topic for the overview and topic list. Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools. | 📖 |
+| [`discover_tools`](meta.md#discover_tools) | List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only. | 📖 |
+| [`help`](meta.md#help) | Return a short GitLab workflow guide. Omit topic for the overview and topic list. Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all. | 📖 |
 
 ---
 
@@ -614,5 +614,5 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(3 tools)*
 Each group page includes a parameter table per tool, generated from
 the authoritative Zod schemas in
 [`schemas.ts`](https://github.com/zereight/gitlab-mcp/blob/main/schemas.ts).
-For runtime schema inspection from a connected MCP client, call the
-`discover_tools` tool.
+To activate extra toolsets at runtime without `GITLAB_TOOLSETS=all`, call
+`discover_tools`.

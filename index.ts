@@ -1112,7 +1112,7 @@ function createServer(): McpServer {
                 type: "text",
                 text: JSON.stringify({
                   categories,
-                  hint: "Call discover_tools with a category name to activate it",
+                  hint: "Call discover_tools with a category name to activate it. Prefer a category over GITLAB_TOOLSETS=all.",
                 }),
               },
             ],

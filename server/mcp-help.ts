@@ -23,10 +23,7 @@ export const HelpInputSchema = z.object({
   topic: z
     .enum(HELP_TOPICS)
     .optional()
-    .describe(
-      "Guide to return. Omit for the overview and the list of topics. " +
-        "Values: overview, code-review, merge-requests, issues, pipelines, search, token-saving."
-    ),
+    .describe("Guide to return. Omit for the overview and the list of topics."),
 });
 
 export function isHelpTopic(value: string): value is HelpTopic {
@@ -46,7 +43,7 @@ const GUIDES: Record<HelpTopic, string> = {
   overview: [
     "GitLab MCP workflow guide. Default tools/list is 38 core tools plus discover_tools and help (40).",
     "Call help with topic: code-review, merge-requests, issues, pipelines, search, token-saving.",
-    "Activate more categories with discover_tools. api is explicit-only (GITLAB_TOOLSETS=api).",
+    "Activate more categories with discover_tools. Do not set GITLAB_TOOLSETS=all (loads ~all schemas). api is explicit-only (GITLAB_TOOLSETS=api).",
     "project_id is a numeric ID or URL-encoded path (group%2Fproject). MR !123 → merge_request_iid=123.",
   ].join("\n"),
   "code-review": [
@@ -82,6 +79,8 @@ const GUIDES: Record<HelpTopic, string> = {
     "If you already have an id or path, use get_project / get_issue / get_merge_request instead.",
   ].join("\n"),
   "token-saving": [
+    "Do not set GITLAB_TOOLSETS=all; it loads ~all schemas into tools/list.",
+    "Activate one category with discover_tools, or use the CLI/Skill path.",
     "Do not dump get_merge_request_diffs for a whole MR. Use list_merge_request_changed_files",
     "then batched get_merge_request_file_diff.",
     "Pass jmespath on any tool to shrink JSON. GITLAB_MCP_COMPACT_RESULTS replaces oversized",

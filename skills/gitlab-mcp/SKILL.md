@@ -38,7 +38,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | orbit (4 tools) | no | `GITLAB_TOOLSETS=orbit` |
 | api (1 tool) | no | `GITLAB_TOOLSETS=api` only (not `all`, not `discover_tools`, not `GITLAB_TOOLS`) |
 
-Enable all discoverable toolsets: `GITLAB_TOOLSETS=all` (does **not** enable `api`). Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset, except explicit-only tools such as `gitlab_api_request`. `discover_tools` can list and activate opt-in categories for the current session, except `api`. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` are deprecated (removed in next major (v3.0.0)). If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
+Prefer `discover_tools` to list and activate an opt-in category for this session (except `api`). `GITLAB_TOOLSETS=all` loads every discoverable toolset except `api` and costs ~73k schema tokens — avoid it. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset, except explicit-only tools such as `gitlab_api_request`. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` are deprecated (removed in next major (v3.0.0)). If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
 
 `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
@@ -149,7 +149,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 
 ## Advanced
 
-- **Dynamic discovery**: `discover_tools` lists and activates opt-in toolsets at runtime. It cannot activate `api`
+- **Dynamic discovery**: `discover_tools` lists and activates opt-in toolsets at runtime. Prefer it over `GITLAB_TOOLSETS=all`. It cannot activate `api`
 - **Workflow guide**: `help` returns on-demand guides (code-review, pipelines, issues, token-saving). Omit topic for the overview
 - **Raw API**: `gitlab_api_request` only when `GITLAB_TOOLSETS` lists `api`. Readonly is GET-only; modify rejects DELETE
 - **GraphQL**: `execute_graphql` for queries not covered by REST tools

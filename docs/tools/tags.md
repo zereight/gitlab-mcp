@@ -3,7 +3,7 @@
 Tag listing, creation, deletion, signature inspection, and protected tag rules.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=tags` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=tags` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 
@@ -33,8 +33,8 @@ List repository tags for a project. For one known resource, use the matching get
 | `order_by` | enum (`name` \| `updated` \| `version`) |  | Return tags ordered by name, updated, or version. Default is updated. |
 | `sort` | enum (`asc` \| `desc`) |  | Sort direction |
 | `search` | string |  | Restrict on tag name. You can use ^term and term$ to find tags that begin and end with term. No other regular expressions are supported. |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_tag`
 
@@ -101,8 +101,8 @@ List protected tags in a project. For one known resource, use the matching get t
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_protected_tag`
 

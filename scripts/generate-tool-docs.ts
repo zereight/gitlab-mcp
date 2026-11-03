@@ -92,14 +92,15 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
     return (
-      `Opt-in. Enable via ${legacyToolsetReplacement(id)} (or \`GITLAB_TOOLSETS=all\`). ` +
+      `Opt-in. Prefer \`discover_tools\`, or persist with ${legacyToolsetReplacement(id)}. ` +
+      `Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list). ` +
       `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it.` +
       `${legacyToolsAppendNote(id)} ` +
       `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
       formatDefaultOverlapNote(toolNames)
     );
   }
-  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=${id}\` / \`GITLAB_TOOLS=\`. Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatDefaultOverlapNote(toolNames)}`;
 }
 
 const META_GROUP_ID = "meta";
@@ -435,19 +436,18 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
         ]
       : []),
     "",
-    "**How to enable opt-in groups** (any one is sufficient):",
+    "**How to enable opt-in groups:**",
     "",
-    "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
-    "- `GITLAB_TOOLSETS=all` — enables every group except explicit-only toolsets (`api`).",
-    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
+    "- **Preferred:** call `discover_tools` (omit `category` to list; pass a category to activate for this session).",
+    "- `GITLAB_TOOLSETS=<group,…>` — persist named toolset IDs. An explicit list replaces `core`; it does not merge.",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
+    "- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` or a named toolset.",
+    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
     "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
       " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
       " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
       " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it." +
       " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
-    "- Call the `discover_tools` MCP tool at runtime to activate categories" +
-      " for the current session.",
   ];
 }
 
@@ -530,8 +530,8 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
   lines.push("Each group page includes a parameter table per tool, generated from");
   lines.push("the authoritative Zod schemas in");
   lines.push("[`schemas.ts`](https://github.com/zereight/gitlab-mcp/blob/main/schemas.ts).");
-  lines.push("For runtime schema inspection from a connected MCP client, call the");
-  lines.push("`discover_tools` tool.");
+  lines.push("To activate extra toolsets at runtime without `GITLAB_TOOLSETS=all`, call");
+  lines.push("`discover_tools`.");
   return lines.join("\n");
 }
 

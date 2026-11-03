@@ -970,12 +970,16 @@ CLI: `--tool-profile`
 
 Comma-separated list of toolset IDs to enable. If unset, the server exposes the lean `core` toolset plus the always-on `discover_tools` meta-tool.
 
+!!! warning "GITLAB_TOOLSETS=all is expensive"
+
+    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`) and activate extra categories with `discover_tools`, persist a named list, or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [README tools/list table](../../README.md#toolslist-size-measured-2026-11-03).
+
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Special values:
 
-- `all` — enable every toolset except the explicit-only `api` toolset.
+- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 

@@ -63,7 +63,7 @@ unreachable.
 | `HOST`                           | `127.0.0.1`                  | Set `0.0.0.0` inside containers                    |
 | `PORT`                           | `3002`                       | HTTP port for SSE / Streamable HTTP                |
 | `GITLAB_PERMISSION_MODE`         | `full`                       | `readonly`, `modify`, or `full`                    |
-| `GITLAB_TOOLSETS`                | lean `core` when unset       | Comma-separated toolset IDs. A non-empty value replaces the default core set. Include `core` to keep that set. |
+| `GITLAB_TOOLSETS`                | lean `core` when unset       | Comma-separated toolset IDs. A non-empty value replaces the default core set. Include `core` to keep that set. Do not set `all` unless you accept ~73k schema tokens; prefer `discover_tools`. |
 | `GITLAB_ALLOWED_PROJECT_IDS`     | —                            | Comma-separated project allowlist                  |
 | `REMOTE_AUTHORIZATION`           | `false`                      | Multi-user mode, each caller sends its own token   |
 

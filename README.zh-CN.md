@@ -8,6 +8,8 @@
 
 **默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
+> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别，或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-03-实测) 和 [对比](./docs/comparison/index.md)。
+
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
 ### Without → With
@@ -58,7 +60,7 @@ codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS
 或：codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor：使用 README deeplink 或 docs/clients/cursor.md。
 远程 HTTP：将客户端指向 https://mcp.example.com/mcp（Streamable HTTP）。Claude.ai 需要该主机启用 GITLAB_MCP_OAUTH。
-默认列表：40 个工具（38 个 core + discover_tools + help）。用 discover_tools 扩展。除非接受绕过风险，否则不要启用 api toolset。
+默认列表：40 个工具（38 个 core + discover_tools + help）。用 discover_tools 扩展。不要设置 GITLAB_TOOLSETS=all（约 73k schema token）。除非接受绕过风险，否则不要启用 api toolset。
 同等非 MCP 路径：npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 加上 zereight-mcp-gitlab CLI。
 ```
 
@@ -111,7 +113,7 @@ Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工�
 
 **如何认证？** 本地桌面最简单的是 `GITLAB_PERSONAL_ACCESS_TOKEN`（或 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`）。本地 OAuth 用 `GITLAB_USE_OAUTH=true`。远程 Claude.ai 用 `GITLAB_MCP_OAUTH`。多用户 HTTP 用 `REMOTE_AUTHORIZATION` 和每请求令牌头。
 
-**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。`GITLAB_TOOLSETS=all` 仍然**不会**启用 `api`。
+**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。这是有意为之：客户端会把列出的 schema 一次性发给模型。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。**不要设置 `GITLAB_TOOLSETS=all`** — schema 约 73k token，而且仍然**不会**启用 `api`。
 
 **本地 OAuth、MCP OAuth 和远程授权有何区别？** 本地 OAuth 在服务器同一台机器上打开浏览器。MCP OAuth 用于公网 HTTPS 服务器和 Claude.ai 这类客户端。远程授权转发调用者的 PAT 或 job token，没有 OAuth 流程。
 
@@ -123,7 +125,7 @@ Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工�
 
 ```
 GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
-从默认 core 工具开始，用 discover_tools 扩展。
+从默认 core 工具开始，用 discover_tools 扩展。不要设置 GITLAB_TOOLSETS=all。
 优先 list_merge_request_changed_files，再批量 get_merge_request_file_diff。
 结果用 jmespath 或 compact；完整 diff 和 job 日志用 CLI。
 ```
@@ -138,7 +140,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 288 个** — 先精简，再用 `discover_tools` 在本会话扩展
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 288 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -157,15 +159,15 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-### tools/list 体积（2026-10-24 实测）
+### tools/list 体积（2026-11-03 实测）
 
 客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools` + `help`） | 40 | 50,682 | 12,671 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
-| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 46,491 | 11,623 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
 
 更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
@@ -282,7 +284,7 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--permission-mode=readonly`（替代 `GITLAB_READ_ONLY_MODE`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
-- `--toolsets=all` - 启用指定工具集，但不包括必须显式列出的 `api`（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。`gitlab_api_request` 需要 `--toolsets=api`
+- `--toolsets` - 指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。不要传 `all`，除非接受约 73k schema token。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）

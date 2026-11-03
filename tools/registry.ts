@@ -667,21 +667,19 @@ export const allTools = [
   {
     name: "get_issue",
     description:
-      "Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object",
+      "Get one issue. Slim nested milestone by default; full_response=true for the complete milestone",
     inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
     name: "update_issue",
     description:
-      "Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object",
+      "Update an issue. Slim confirmation by default; full_response=true for the complete object",
     inputSchema: toJSONSchema(UpdateIssueSchema),
   },
   {
     name: "update_issue_description_patch",
     description:
-      "Apply a patch (search/replace or unified diff) to an issue description. " +
-      "Reduces token usage by allowing small changes without sending the full description. " +
-      "Supports dry_run to preview changes and create_note to summarize updates.",
+      "Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes",
     inputSchema: toJSONSchema(UpdateIssueDescriptionPatchSchema),
   },
   {
@@ -1389,7 +1387,7 @@ export const allTools = [
   {
     name: "health_check",
     description:
-      "Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
+      "Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing",
     inputSchema: toJSONSchema(HealthCheckSchema),
   },
   {
@@ -1797,14 +1795,14 @@ export const allTools = [
   {
     name: "discover_tools",
     description:
-      "Discover and activate additional tool categories for this session. Call without arguments to see available categories.",
+      "List or activate a toolset for this session. Omit category to list; pass one to enable.",
     inputSchema: {
       type: "object" as const,
       properties: {
         category: {
           type: "string",
           description:
-            "Toolset category to activate (e.g. 'pipelines', 'wiki'). Omit to list available categories.",
+            "Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all.",
         },
       },
     },
@@ -2751,7 +2749,7 @@ export function findSmallestToolsetForTool(toolName: string): ToolsetId | undefi
 // Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
 const discoverTool = allTools.find(t => t.name === "discover_tools");
 if (discoverTool) {
-  discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.`;
+  discoverTool.description = `List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Response lists already-active ones. api is explicit-only.`;
 }
 
 const allToolNames: ReadonlySet<string> = new Set(allTools.map(tool => tool.name));

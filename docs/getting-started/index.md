@@ -2,8 +2,10 @@
 
 This page helps you pick the right **authentication method** and the right
 **transport** for your environment. The default tool list is **40 tools**
-(38 `core` + `discover_tools` + `help`); call `discover_tools` to expand. Skill + CLI
-is an equal path with no MCP registration — see [CLI without MCP](cli-without-mcp.md).
+(38 `core` + `discover_tools` + `help`); call `discover_tools` to expand.
+Do not set `GITLAB_TOOLSETS=all` — it loads ~all schemas (~73k tokens) into
+`tools/list`. Skill + CLI is an equal path with no MCP registration and no MCP
+schema cost — see [CLI without MCP](cli-without-mcp.md).
 
 ## 1. Pick an authentication method
 
@@ -55,8 +57,10 @@ Jump to the guide for your client:
 ## 4. Configure feature toggles (optional)
 
 Wiki, milestones, and pipeline tools are opt-in to keep the tool list small
-for clients with strict tool limits. Enable what you need with environment
-variables or CLI flags — see [Environment Variables](../configuration/environment-variables.md).
+for clients with strict tool limits. Prefer `discover_tools` for this session.
+Do not set `GITLAB_TOOLSETS=all` (~73k schema tokens). Persist a named list
+with environment variables or CLI flags — see
+[Environment Variables](../configuration/environment-variables.md).
 
 If you can't use environment variables (some clients have issues with them),
 use [CLI Arguments](cli-arguments.md) instead.

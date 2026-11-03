@@ -6,6 +6,8 @@ This guide explains how to use `@zereight/mcp-gitlab` with Cursor.
 
 Set `GITLAB_PERSONAL_ACCESS_TOKEN` in the environment of the Cursor process. In `mcp.json`, Cursor substitutes `${env:GITLAB_PERSONAL_ACCESS_TOKEN}` in the `env` field.
 
+The deeplink leaves `GITLAB_TOOLSETS` unset (lean default, ~40 tools). Call `discover_tools` to activate a category for this session. Do not set `GITLAB_TOOLSETS=all` — that loads ~all schemas (~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
+
 ## Recommended config location
 
 Use a common Cursor MCP config file pattern such as:

@@ -46,6 +46,13 @@ describe("When the help workflow guide is requested", () => {
       assert.match(guide, /GITLAB_MCP_COMPACT_RESULTS/);
       assert.match(guide, /get_pipeline_job_output/);
     });
+
+    it("should steer away from GITLAB_TOOLSETS=all", () => {
+      const guide = getWorkflowGuide("token-saving");
+
+      assert.match(guide, /GITLAB_TOOLSETS=all/);
+      assert.match(guide, /discover_tools/);
+    });
   });
 
   describe("with an unknown topic argument", () => {

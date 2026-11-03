@@ -38,6 +38,10 @@ describe("When MCP initialize instructions are published", () => {
       assert.match(MCP_INSTRUCTIONS, /jmespath/);
       assert.match(MCP_INSTRUCTIONS, /help/);
     });
+
+    it("should prefer discover_tools over GITLAB_TOOLSETS=all", () => {
+      assert.match(MCP_INSTRUCTIONS, /Prefer this over GITLAB_TOOLSETS=all/);
+    });
   });
 
   describe("with a live stdio initialize handshake", () => {

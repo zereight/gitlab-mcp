@@ -3,7 +3,7 @@
 Project/namespace listing, member queries, group iterations, and server health.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=projects` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 
@@ -52,21 +52,21 @@ List projects accessible by the current user. For one known resource, use the ma
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `search` | string |  | Search term for projects |
-| `search_namespaces` | boolean |  | Needs to be true if search is full path |
-| `owned` | boolean |  | Filter for projects owned by current user |
-| `membership` | boolean |  | Filter for projects where current user is a member |
-| `simple` | boolean |  | Return only limited fields |
-| `archived` | boolean |  | Filter for archived projects |
-| `visibility` | enum (`public` \| `internal` \| `private`) |  | Filter by project visibility |
-| `order_by` | enum (`id` \| `name` \| `path` \| `created_at` \| `updated_at` \| `last_activity_at`) |  | Return projects ordered by field |
-| `sort` | enum (`asc` \| `desc`) |  | Return projects sorted in ascending or descending order |
-| `with_issues_enabled` | boolean |  | Filter projects with issues feature enabled |
-| `with_merge_requests_enabled` | boolean |  | Filter projects with merge requests feature enabled |
-| `min_access_level` | number |  | Filter by minimum access level |
-| `topic` | string |  | Filter by topic (projects tagged with this topic) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `search` | string |  | Search term |
+| `search_namespaces` | boolean |  | Set true when search is a full path |
+| `owned` | boolean |  | Owned by current user |
+| `membership` | boolean |  | Current user is a member |
+| `simple` | boolean |  | Limited fields only |
+| `archived` | boolean |  | Archived projects |
+| `visibility` | enum (`public` \| `internal` \| `private`) |  | public, internal, or private |
+| `order_by` | enum (`id` \| `name` \| `path` \| `created_at` \| `updated_at` \| `last_activity_at`) |  | Sort field |
+| `sort` | enum (`asc` \| `desc`) |  | asc or desc |
+| `with_issues_enabled` | boolean |  | Issues enabled |
+| `with_merge_requests_enabled` | boolean |  | Merge requests enabled |
+| `min_access_level` | number |  | Minimum access level |
+| `topic` | string |  | Topic tag |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `update_project`
 
@@ -150,8 +150,8 @@ List all namespaces (users and groups) available to the current user. Filter by 
 |---|---|:-:|---|
 | `search` | string |  | Search term for namespaces |
 | `owned` | boolean |  | Filter for namespaces owned by current user |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_namespace`
 
@@ -204,8 +204,8 @@ List projects in a group.
 | `with_custom_attributes` | boolean |  | Include custom attributes |
 | `with_security_reports` | boolean |  | Include security reports |
 | `topic` | string |  | Filter by topic (projects tagged with this topic) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `list_group_iterations`
 
@@ -225,8 +225,8 @@ List group iterations with filtering options. For one known resource, use the ma
 | `include_descendants` | boolean |  | Include iterations for group and its descendants. Defaults to false. |
 | `updated_before` | string |  | Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
 | `updated_after` | string |  | Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_iteration`
 
@@ -305,8 +305,8 @@ List the iterations available to a project with filtering options.
 | `include_descendants` | boolean |  | Include iterations for group and its descendants. Defaults to false. |
 | `updated_before` | string |  | Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
 | `updated_after` | string |  | Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 
 ### `list_group_iteration_cadences`
@@ -383,7 +383,7 @@ Delete an iteration cadence. Verify the target first with a get or list tool.
 
 *📖 Read-only*
 
-Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
+Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing.
 
 **Parameters**
 

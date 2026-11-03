@@ -1,0 +1,10 @@
+### Changed
+
+- Documented the MCP `tools/list` token budget on the default install path: keep
+  core + `discover_tools` (or Skill/CLI). `GITLAB_TOOLSETS=all` loads ~all
+  schemas (~73k tokens) and is not the recommended default.
+- Shortened default-tool descriptions and redundant core schema field copy.
+  Default `tools/list` is now 46,491 bytes (~11.6k tokens), down from 50,682
+  bytes (~12.7k). Tool behavior is unchanged.
+- `discover_tools` and `help` now steer agents to activate a category on demand
+  instead of `GITLAB_TOOLSETS=all`.

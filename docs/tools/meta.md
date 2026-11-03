@@ -30,22 +30,22 @@ Execute a GitLab GraphQL query. Use only when no typed REST tool covers the oper
 
 *📖 Read-only*
 
-Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.
+List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `category` | string |  | Toolset category to activate (e.g. 'pipelines', 'wiki'). Omit to list available categories. |
+| `category` | string |  | Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all. |
 
 ### `help`
 
 *📖 Read-only*
 
-Return a short GitLab workflow guide. Omit topic for the overview and topic list. Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools.
+Return a short GitLab workflow guide. Omit topic for the overview and topic list. Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `topic` | enum (`overview` \| `code-review` \| `merge-requests` \| `issues` \| `pipelines` \| `search` \| `token-saving`) |  | Guide to return. Omit for the overview and the list of topics. Values: overview, code-review, merge-requests, issues, pipelines, search, token-saving. |
+| `topic` | enum (`overview` \| `code-review` \| `merge-requests` \| `issues` \| `pipelines` \| `search` \| `token-saving`) |  | Guide to return. Omit for the overview and the list of topics. |

@@ -20,11 +20,11 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   create_issue:
     "Open a new issue. Use `update_issue` for an existing issue and `create_issue_note` for discussion.",
   list_issues:
-    "Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments.",
+    "Use this for issue management. Optional `project_id`. Use `get_issue` when the iid is known and `my_issues` for assignments.",
   my_issues:
-    "Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.",
+    "Use this for issue management. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.",
   get_issue:
-    "Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first.",
+    "Use this for issue management. Use `list_issues` or `my_issues` to discover issues first.",
   create_merge_request:
     "Open a merge request from an existing source branch to a target. Use `update_merge_request` after it exists.",
   fork_repository:
@@ -78,7 +78,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
     "Send one GitLab REST call under /api/v4. Readonly allows GET only; modify rejects DELETE. Enable only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. With GITLAB_ALLOWED_PROJECT_IDS or a session project scope, only /projects/:id paths for an allowed project are accepted; body and query parameters that name another project are not checked.",
   execute_graphql:
     "Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations.",
-  help: "Use this for a short workflow guide (code-review, pipelines, issues, token-saving). Omit topic for the overview. Detailed GitLab operations stay on the typed tools.",
+  help: "Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all.",
   whoami:
     "Requires classic read_user or fine-grained User:Read. Use `get_user` or `get_users` to look up another user.",
   list_project_members:
