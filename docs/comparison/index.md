@@ -15,6 +15,16 @@ and GitLab's official MCP server.
 | **Multi-instance** | Planned ([design doc](../configuration/multi-instance-design.md)) | Supported in some variants |
 | **Agent Skill** | Built in (`skills/gitlab-mcp/`) | Not typical |
 
+### tools/list size (measured 2026-11-03) {: #toolslist-size-measured-2026-11-03 }
+
+A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4. Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`).
+
+| Profile | Tools | JSON bytes | Est. tokens |
+| ------- | ----: | ---------: | ----------: |
+| Default (`core` + `discover_tools` + `help`) | 40 | 46,491 | 11,623 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
+
 ## Documents
 
 - [GitLab MCP A (community CQRS-style)](community-gitlab-mcp-a.md) — architectural comparison

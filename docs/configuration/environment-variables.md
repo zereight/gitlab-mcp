@@ -972,7 +972,7 @@ Comma-separated list of toolset IDs to enable. If unset, the server exposes the 
 
 !!! warning "GITLAB_TOOLSETS=all is expensive"
 
-    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`) and activate extra categories with `discover_tools`, persist a named list, or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [README tools/list table](../../README.md#toolslist-size-measured-2026-11-03).
+    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`) and activate extra categories with `discover_tools`, persist a named list, or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-03).
 
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
