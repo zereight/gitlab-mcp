@@ -64,7 +64,7 @@ Optional flags you can add as extra `--env` values:
 - `GITLAB_TOOLSETS=core,wiki,milestones,pipelines`
 - `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
 
-Leave `GITLAB_TOOLSETS` unset unless you need a persistent extra group. Call `discover_tools` to activate a category for this session. Do not set `GITLAB_TOOLSETS=all` (loads ~all schemas, ~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
+Leave `GITLAB_TOOLSETS` unset unless you need a persistent extra group. Call `discover_tools` to activate a category for this session (session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list). Do not set `GITLAB_TOOLSETS=all` (loads ~all schemas, ~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
 
 `GITLAB_TOOLS` keeps the two CI lint tools that deprecated `USE_PIPELINE=true` exposed; they live in the `ci` toolset, not `pipelines`. If you already set `GITLAB_TOOLSETS`, append `wiki`, `milestones`, and `pipelines` to your existing list instead of replacing it.
 

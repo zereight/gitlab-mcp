@@ -3,7 +3,7 @@
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=repositories` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,repositories`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 

@@ -3,7 +3,7 @@
 Release lifecycle, release evidence, and asset download.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=releases` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,releases`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 

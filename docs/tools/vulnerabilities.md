@@ -3,7 +3,7 @@
 AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=vulnerabilities` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,vulnerabilities`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 

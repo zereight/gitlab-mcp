@@ -20,7 +20,7 @@ const SERVER_PATH = path.resolve("build/index.js");
 
 /**
  * Default (core + discover_tools + help). Measured 2026-11-03 after Uber-style
- * description/schema shortening: 40 tools, 46,491 bytes (~11,623 tokens).
+ * description/schema shortening: 40 tools, 46,703 bytes (~11,676 tokens).
  * Ceiling keeps ~16% headroom.
  */
 const DEFAULT_TOOLS_LIST_MAX_BYTES = 54_000;
@@ -29,7 +29,7 @@ const DEFAULT_TOOL_COUNT_MAX = 50;
 
 /**
  * GITLAB_TOOL_PROFILE=slim on the default toolsets. Measured 2026-11-03:
- * 39 tools, 45,483 bytes (~11,371 tokens). Ceiling keeps ~16% headroom.
+ * 39 tools, 45,695 bytes (~11,424 tokens). Ceiling keeps ~16% headroom.
  */
 const SLIM_TOOLS_LIST_MAX_BYTES = 53_000;
 const SLIM_TOOL_COUNT_MIN = 25;
@@ -37,7 +37,7 @@ const SLIM_TOOL_COUNT_MAX = 50;
 
 /**
  * GITLAB_TOOLSETS=all (discoverable toolsets + discover_tools, not api).
- * Measured 2026-11-03: 286 tools, 293,454 bytes (~73,364 tokens).
+ * Measured 2026-11-03: 286 tools, 293,666 bytes (~73,417 tokens).
  */
 const ALL_TOOLS_LIST_MAX_BYTES = 320_000;
 const ALL_TOOL_COUNT_MIN = 250;

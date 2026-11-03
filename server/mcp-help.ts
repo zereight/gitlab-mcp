@@ -43,7 +43,7 @@ const GUIDES: Record<HelpTopic, string> = {
   overview: [
     "GitLab MCP workflow guide. Default tools/list is 38 core tools plus discover_tools and help (40).",
     "Call help with topic: code-review, merge-requests, issues, pipelines, search, token-saving.",
-    "Activate more categories with discover_tools. Do not set GITLAB_TOOLSETS=all (loads ~all schemas). api is explicit-only (GITLAB_TOOLSETS=api).",
+    "Activate more categories with discover_tools (session-only). Do not set GITLAB_TOOLSETS=all (loads ~all schemas). With OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead. api is explicit-only (GITLAB_TOOLSETS=api).",
     "project_id is a numeric ID or URL-encoded path (group%2Fproject). MR !123 → merge_request_iid=123.",
   ].join("\n"),
   "code-review": [
@@ -80,7 +80,9 @@ const GUIDES: Record<HelpTopic, string> = {
   ].join("\n"),
   "token-saving": [
     "Do not set GITLAB_TOOLSETS=all; it loads ~all schemas into tools/list.",
-    "Activate one category with discover_tools, or use the CLI/Skill path.",
+    "Activate one category with discover_tools in a stateful session, or persist GITLAB_TOOLSETS.",
+    "With OAUTH_STATELESS_MODE=true set GITLAB_TOOLSETS; discover_tools does not survive the next request.",
+    "Or use the CLI/Skill path.",
     "Do not dump get_merge_request_diffs for a whole MR. Use list_merge_request_changed_files",
     "then batched get_merge_request_file_diff.",
     "Pass jmespath on any tool to shrink JSON. GITLAB_MCP_COMPACT_RESULTS replaces oversized",

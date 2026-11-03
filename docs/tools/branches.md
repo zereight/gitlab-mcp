@@ -3,7 +3,7 @@
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=branches` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,branches`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 

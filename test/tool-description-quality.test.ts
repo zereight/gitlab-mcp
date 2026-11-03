@@ -132,6 +132,14 @@ describe("When MCP tool descriptions are exposed", () => {
 
       assert.match(tool.description, /prefer this over GITLAB_TOOLSETS=all/i);
     });
+
+    it("should warn that session discovery does not persist in stateless mode", () => {
+      const tool = getExposedTool("discover_tools");
+
+      assert.match(tool.description, /session-only/i);
+      assert.match(tool.description, /OAUTH_STATELESS_MODE/);
+      assert.match(tool.description, /GITLAB_TOOLSETS/);
+    });
   });
 
   describe("with help", () => {

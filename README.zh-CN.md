@@ -8,7 +8,7 @@
 
 **默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
-> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别，或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-03-实测) 和 [对比](./docs/comparison/index.md)。
+> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-03-实测) 和 [对比](./docs/comparison/index.md)。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -113,7 +113,7 @@ Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工�
 
 **如何认证？** 本地桌面最简单的是 `GITLAB_PERSONAL_ACCESS_TOKEN`（或 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`）。本地 OAuth 用 `GITLAB_USE_OAUTH=true`。远程 Claude.ai 用 `GITLAB_MCP_OAUTH`。多用户 HTTP 用 `REMOTE_AUTHORIZATION` 和每请求令牌头。
 
-**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。这是有意为之：客户端会把列出的 schema 一次性发给模型。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。**不要设置 `GITLAB_TOOLSETS=all`** — schema 约 73k token，而且仍然**不会**启用 `api`。
+**为什么只看到大约 40 个工具？** 默认 `core` toolset 有 38 个工具，外加始终开启的 `discover_tools` 和 `help`。这是有意为之：客户端会把列出的 schema 一次性发给模型。不带参数调用 `discover_tools` 可列出类别，再传入类别（`pipelines`、`wiki` 等）即可在本会话激活。仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`。**不要设置 `GITLAB_TOOLSETS=all`** — schema 约 73k token，而且仍然**不会**启用 `api`。
 
 **本地 OAuth、MCP OAuth 和远程授权有何区别？** 本地 OAuth 在服务器同一台机器上打开浏览器。MCP OAuth 用于公网 HTTPS 服务器和 Claude.ai 这类客户端。远程授权转发调用者的 PAT 或 job token，没有 OAuth 流程。
 
@@ -165,9 +165,9 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools` + `help`） | 40 | 46,491 | 11,623 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 46,703 | 11,676 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,695 | 11,424 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,666 | 73,417 |
 
 更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 

@@ -42,6 +42,11 @@ describe("When MCP initialize instructions are published", () => {
     it("should prefer discover_tools over GITLAB_TOOLSETS=all", () => {
       assert.match(MCP_INSTRUCTIONS, /Prefer this over GITLAB_TOOLSETS=all/);
     });
+
+    it("should warn that session discovery does not persist in stateless mode", () => {
+      assert.match(MCP_INSTRUCTIONS, /Session-only/);
+      assert.match(MCP_INSTRUCTIONS, /OAUTH_STATELESS_MODE/);
+    });
   });
 
   describe("with a live stdio initialize handshake", () => {

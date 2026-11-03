@@ -78,7 +78,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
     "Send one GitLab REST call under /api/v4. Readonly allows GET only; modify rejects DELETE. Enable only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. With GITLAB_ALLOWED_PROJECT_IDS or a session project scope, only /projects/:id paths for an allowed project are accepted; body and query parameters that name another project are not checked.",
   execute_graphql:
     "Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations.",
-  help: "Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all.",
+  help: "Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all. With OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead.",
   whoami:
     "Requires classic read_user or fine-grained User:Read. Use `get_user` or `get_users` to look up another user.",
   list_project_members:

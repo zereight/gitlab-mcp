@@ -17,7 +17,8 @@ It does not set `GITLAB_PERMISSION_MODE`, so the server default (`full`) applies
 deprecated `GITLAB_READ_ONLY_MODE=true` is set.
 
 It also leaves `GITLAB_TOOLSETS` unset, so the server stays on the lean default (~40 tools).
-Call `discover_tools` to expand this session. Do not add `GITLAB_TOOLSETS=all` — that loads
+Call `discover_tools` to expand this session (session-only; with `OAUTH_STATELESS_MODE=true`
+persist a named `GITLAB_TOOLSETS` list). Do not add `GITLAB_TOOLSETS=all` — that loads
 ~all schemas (~73k tokens). Skill + CLI skips MCP schemas:
 [CLI without MCP](../getting-started/cli-without-mcp.md).
 

@@ -3,7 +3,7 @@
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=users` / `GITLAB_TOOLS=`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,users`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 

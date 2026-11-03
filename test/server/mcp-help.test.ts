@@ -53,6 +53,13 @@ describe("When the help workflow guide is requested", () => {
       assert.match(guide, /GITLAB_TOOLSETS=all/);
       assert.match(guide, /discover_tools/);
     });
+
+    it("should warn that session discovery does not persist in stateless mode", () => {
+      const guide = getWorkflowGuide("token-saving");
+
+      assert.match(guide, /OAUTH_STATELESS_MODE/);
+      assert.match(guide, /does not survive the next request/);
+    });
   });
 
   describe("with an unknown topic argument", () => {

@@ -14,7 +14,7 @@
 
 **Default: 40 tools** (38 `core` + `discover_tools` + `help`). 288 tools exist in total (285 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
 
-> **Token budget:** MCP clients send the whole `tools/list` to the model at session start. Keep the default (~40 tools, ~12k schema tokens). Call `discover_tools` to activate a category for this session, or use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) and skip MCP schemas. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all tools and costs ~73k schema tokens. See [tools/list size](#toolslist-size-measured-2026-11-03) and [comparison](./docs/comparison/index.md).
+> **Token budget:** MCP clients send the whole `tools/list` to the model at session start. Keep the default (~40 tools, ~12k schema tokens). Call `discover_tools` to activate a category for this session (session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list), or use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) and skip MCP schemas. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all tools and costs ~73k schema tokens. See [tools/list size](#toolslist-size-measured-2026-11-03) and [comparison](./docs/comparison/index.md).
 
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -119,7 +119,7 @@ Human CLI is never compacted. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE`
 
 **How do I authenticate?** Local desktop: `GITLAB_PERSONAL_ACCESS_TOKEN` (or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) is the simplest. Local OAuth is `GITLAB_USE_OAUTH=true`. Remote Claude.ai uses `GITLAB_MCP_OAUTH`. Multi-user HTTP uses `REMOTE_AUTHORIZATION` and a per-request token header.
 
-**Why do I only see ~40 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools` and `help`. That is intentional: a client sends every listed schema to the model up front. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all schemas (~73k tokens) and still does **not** enable `api`.
+**Why do I only see ~40 tools?** The default `core` toolset is 38 tools plus always-on `discover_tools` and `help`. That is intentional: a client sends every listed schema to the model up front. Call `discover_tools` with no args to list categories, then pass a category (`pipelines`, `wiki`, …) to activate it for this session. Session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all schemas (~73k tokens) and still does **not** enable `api`.
 
 **Local OAuth vs MCP OAuth vs remote auth?** Local OAuth opens a browser on the same machine as the server. MCP OAuth is for a public HTTPS server and clients such as Claude.ai. Remote authorization forwards the caller's PAT or job token; there is no OAuth dance.
 
@@ -171,9 +171,9 @@ A client sends the whole `tools/list` result to the model at session start. Toke
 
 | Profile | Tools | JSON bytes | Est. tokens |
 | ------- | ----: | ---------: | ----------: |
-| Default (`core` + `discover_tools` + `help`) | 40 | 46,491 | 11,623 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
+| Default (`core` + `discover_tools` + `help`) | 40 | 46,703 | 11,676 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,695 | 11,424 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,666 | 73,417 |
 
 Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
@@ -1069,7 +1069,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 284. `get_runner` - Get a runner's tag_list, run_untagged, locked, and access_level. When a project allowlist is active, the runner must be available to an allowed project. Omits registration and authentication tokens.
 285. `rebase_merge_request` - Rebase the source branch of a merge request onto its target branch
 286. `gitlab_api_request` - Send one GitLab REST call under /api/v4. Enabled only when GITLAB_TOOLSETS lists api. Readonly allows GET; modify rejects DELETE.
-287. `discover_tools` - List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas).
+287. `discover_tools` - List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS.
 288. `help` - Return a short GitLab workflow guide. Omit topic for the overview and topic list.
 
 <!-- TOOLS-END -->

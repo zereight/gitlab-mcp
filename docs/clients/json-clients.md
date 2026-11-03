@@ -23,7 +23,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-Leave `GITLAB_TOOLSETS` unset so the server stays on the lean default (~40 tools). Call `discover_tools` to expand this session. Do not set `GITLAB_TOOLSETS=all` (loads ~all schemas, ~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
+Leave `GITLAB_TOOLSETS` unset so the server stays on the lean default (~40 tools). Call `discover_tools` to expand this session (session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list). Do not set `GITLAB_TOOLSETS=all` (loads ~all schemas, ~73k tokens). Skill + CLI skips MCP schemas: [CLI without MCP](../getting-started/cli-without-mcp.md).
 
 Use the local stdio server fields that your client expects and map in these values:
 

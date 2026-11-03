@@ -8,7 +8,7 @@
 
 **Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
-> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão, ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-03) e [comparação](./docs/comparison/index.md).
+> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-03) e [comparação](./docs/comparison/index.md).
 
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -113,7 +113,7 @@ A CLI humana nunca é compactada. Ferramentas destrutivas e `GITLAB_TOOL_POLICY_
 
 **Como autenticar?** No desktop local, `GITLAB_PERSONAL_ACCESS_TOKEN` (ou `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) é o mais simples. OAuth local é `GITLAB_USE_OAUTH=true`. Claude.ai remoto usa `GITLAB_MCP_OAUTH`. HTTP multi-usuário usa `REMOTE_AUTHORIZATION` e um cabeçalho de token por requisição.
 
-**Por que vejo só ~40 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` e o `help` sempre ligados. Isso é intencional: o cliente envia todos os schemas listados ao modelo de uma vez. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. **Não defina `GITLAB_TOOLSETS=all`** — custa ~73k tokens de schema e ainda **não** habilita `api`.
+**Por que vejo só ~40 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` e o `help` sempre ligados. Isso é intencional: o cliente envia todos os schemas listados ao modelo de uma vez. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. Somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`. **Não defina `GITLAB_TOOLSETS=all`** — custa ~73k tokens de schema e ainda **não** habilita `api`.
 
 **OAuth local vs MCP OAuth vs auth remota?** OAuth local abre o navegador na mesma máquina do servidor. MCP OAuth é para um servidor HTTPS público e clientes como Claude.ai. Autorização remota encaminha o PAT ou job token do chamador; não há fluxo OAuth.
 
@@ -165,9 +165,9 @@ O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estima
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 46,491 | 11,623 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 46,703 | 11,676 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,695 | 11,424 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,666 | 73,417 |
 
 Após alterar descrições ou schemas, meça de novo com `npm run test:mock` (`test/tools-list-budget.test.ts`).
 

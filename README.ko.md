@@ -8,7 +8,7 @@
 
 **기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 288개(toolset 285개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
-> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나, [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-03-실측)와 [비교](./docs/comparison/index.md)를 보세요.
+> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-03-실측)와 [비교](./docs/comparison/index.md)를 보세요.
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -113,7 +113,7 @@ Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY
 
 **인증은 어떻게 하나요?** 로컬 데스크톱은 `GITLAB_PERSONAL_ACCESS_TOKEN`(또는 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`)이 가장 단순합니다. 로컬 OAuth는 `GITLAB_USE_OAUTH=true`. 원격 Claude.ai는 `GITLAB_MCP_OAUTH`. 멀티유저 HTTP는 `REMOTE_AUTHORIZATION`과 요청별 토큰 헤더입니다.
 
-**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 클라이언트가 나열된 스키마를 모델에 한꺼번에 보내기 때문입니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 스키마만 ~73k 토큰이고, `api`도 켜지지 않습니다.
+**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 클라이언트가 나열된 스키마를 모델에 한꺼번에 보내기 때문입니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. 세션 한정이며, `OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 스키마만 ~73k 토큰이고, `api`도 켜지지 않습니다.
 
 **로컬 OAuth / MCP OAuth / 원격 인증 차이는?** 로컬 OAuth는 서버와 같은 머신에서 브라우저를 엽니다. MCP OAuth는 공개 HTTPS 서버와 Claude.ai 같은 클라이언트용입니다. 원격 인증은 호출자의 PAT 또는 job token을 전달하며 OAuth 흐름이 없습니다.
 
@@ -165,9 +165,9 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,491 | 11,623 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,483 | 11,371 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,454 | 73,364 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,703 | 11,676 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,695 | 11,424 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,666 | 73,417 |
 
 설명이나 스키마를 바꾼 뒤에는 `npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 

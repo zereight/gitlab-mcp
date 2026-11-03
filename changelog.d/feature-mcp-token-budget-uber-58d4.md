@@ -4,7 +4,8 @@
   core + `discover_tools` (or Skill/CLI). `GITLAB_TOOLSETS=all` loads ~all
   schemas (~73k tokens) and is not the recommended default.
 - Shortened default-tool descriptions and redundant core schema field copy.
-  Default `tools/list` is now 46,491 bytes (~11.6k tokens), down from 50,682
+  Default `tools/list` is now 46,703 bytes (~11.6k tokens), down from 50,682
   bytes (~12.7k). Tool behavior is unchanged.
 - `discover_tools` and `help` now steer agents to activate a category on demand
-  instead of `GITLAB_TOOLSETS=all`.
+  instead of `GITLAB_TOOLSETS=all`. Session discovery is session-only; with
+  `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list.
