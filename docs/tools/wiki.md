@@ -3,7 +3,7 @@
 Project and group wiki page CRUD. Attachment uploads where supported.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it. `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 

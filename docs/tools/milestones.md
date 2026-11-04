@@ -3,7 +3,7 @@
 Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 
