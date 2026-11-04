@@ -126,5 +126,6 @@ List files and directories in a repository.
 | `ref` | string |  | The name of a repository branch or tag. Defaults to the default branch. |
 | `recursive` | boolean |  | Boolean value to get a recursive tree |
 | `per_page` | number |  | Number of results to show per page |
+| `page` | integer |  | Page number for offset pagination, starting at 1. Passing it returns a structured response with items and, when more pages are available, next_page. |
 | `page_token` | string |  | Token for keyset pagination. Use the next_page_token value returned in the previous response to retrieve the next page. |
-| `pagination` | string |  | Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Non-keyset calls keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available. |
+| `pagination` | string |  | Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Calls without page or pagination keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available. |
