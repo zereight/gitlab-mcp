@@ -30,13 +30,13 @@ Execute a GitLab GraphQL query. Use only when no typed REST tool covers the oper
 
 *📖 Read-only*
 
-List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead. Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only.
+List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist `GITLAB_TOOLSETS=core,<category>` instead. Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `category` | string |  | Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all. Session-only; persist GITLAB_TOOLSETS when OAUTH_STATELESS_MODE=true. |
+| `category` | string |  | Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all. Session-only; persist `GITLAB_TOOLSETS=core,<category>` when OAUTH_STATELESS_MODE=true. |
 
 ### `help`
 

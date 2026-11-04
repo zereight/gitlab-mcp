@@ -1112,7 +1112,7 @@ function createServer(): McpServer {
                 type: "text",
                 text: JSON.stringify({
                   categories,
-                  hint: "Call discover_tools with a category name to activate it for this session. Prefer a category over GITLAB_TOOLSETS=all. Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS.",
+                  hint: "Call discover_tools with a category name to activate it for this session. Prefer a category over GITLAB_TOOLSETS=all. Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS=core,<category> (if GITLAB_TOOLSETS is already set, append the category and keep core).",
                 }),
               },
             ],

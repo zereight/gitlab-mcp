@@ -100,7 +100,7 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
       formatDefaultOverlapNote(toolNames)
     );
   }
-  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatDefaultOverlapNote(toolNames)}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it. Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatDefaultOverlapNote(toolNames)}`;
 }
 
 const META_GROUP_ID = "meta";
@@ -438,7 +438,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "",
     "**How to enable opt-in groups:**",
     "",
-    "- **Preferred (stateful sessions):** call `discover_tools` (omit `category` to list; pass a category to activate for this session). Session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS=core,<group>` instead.",
+    "- **Preferred (stateful sessions):** call `discover_tools` (omit `category` to list; pass a category to activate for this session). Session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS=core,<group>` instead. If you already set `GITLAB_TOOLSETS`, append `<group>` to your existing list and keep `core`.",
     "- `GITLAB_TOOLSETS=<group,…>` — persist named toolset IDs. An explicit list replaces `core`; include `core` to keep the default set (for example `GITLAB_TOOLSETS=core,branches`).",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
     "- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.",

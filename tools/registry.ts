@@ -1795,14 +1795,14 @@ export const allTools = [
   {
     name: "discover_tools",
     description:
-      "List or activate a toolset for this session. Omit category to list; pass one to enable. Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead.",
+      "List or activate a toolset for this session. Omit category to list; pass one to enable. Session-only; with OAUTH_STATELESS_MODE=true persist `GITLAB_TOOLSETS=core,<category>` instead.",
     inputSchema: {
       type: "object" as const,
       properties: {
         category: {
           type: "string",
           description:
-            "Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all. Session-only; persist GITLAB_TOOLSETS when OAUTH_STATELESS_MODE=true.",
+            "Toolset to activate (e.g. pipelines, wiki). Omit to list. Prefer a category over GITLAB_TOOLSETS=all. Session-only; persist `GITLAB_TOOLSETS=core,<category>` when OAUTH_STATELESS_MODE=true.",
         },
       },
     },
@@ -2749,7 +2749,7 @@ export function findSmallestToolsetForTool(toolName: string): ToolsetId | undefi
 // Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
 const discoverTool = allTools.find(t => t.name === "discover_tools");
 if (discoverTool) {
-  discoverTool.description = `List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead. Categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Response lists already-active ones. api is explicit-only.`;
+  discoverTool.description = `List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist \`GITLAB_TOOLSETS=core,<category>\` instead. Categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Response lists already-active ones. api is explicit-only.`;
 }
 
 const allToolNames: ReadonlySet<string> = new Set(allTools.map(tool => tool.name));

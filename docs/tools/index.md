@@ -26,7 +26,7 @@ directly from `TOOLSET_DEFINITIONS` in
 
 **How to enable opt-in groups:**
 
-- **Preferred (stateful sessions):** call `discover_tools` (omit `category` to list; pass a category to activate for this session). Session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS=core,<group>` instead.
+- **Preferred (stateful sessions):** call `discover_tools` (omit `category` to list; pass a category to activate for this session). Session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS=core,<group>` instead. If you already set `GITLAB_TOOLSETS`, append `<group>` to your existing list and keep `core`.
 - `GITLAB_TOOLSETS=<group,…>` — persist named toolset IDs. An explicit list replaces `core`; include `core` to keep the default set (for example `GITLAB_TOOLSETS=core,branches`).
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.
 - `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.
@@ -105,7 +105,7 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 
 Project/namespace listing, member queries, group iterations, and server health. *(20 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,projects`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,projects`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `projects` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -134,7 +134,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,repositories`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,repositories`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `repositories` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -150,7 +150,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(16 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,branches`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,branches`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `branches` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -175,7 +175,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 Create new groups and subgroups. *(1 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,groups`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,groups`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `groups` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -185,7 +185,7 @@ Create new groups and subgroups. *(1 tools)*
 
 MR lifecycle — create, update, merge, approve, plus diff/conflict inspection and the full discussion/note/draft API. *(46 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,merge_requests`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,merge_requests`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `merge_requests` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -240,7 +240,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `issues` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -274,7 +274,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools
 
 Project label CRUD. *(5 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `labels` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -288,7 +288,7 @@ Project label CRUD. *(5 tools)*
 
 Modern unified API for issues, tasks, incidents, and other typed work items — including notes, emoji reactions, and incident timeline events. *(18 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,workitems`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,workitems`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `workitems` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -315,7 +315,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,ci`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,ci`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `ci` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -440,7 +440,7 @@ Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools
 
 Release lifecycle, release evidence, and asset download. *(7 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,releases`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,releases`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `releases` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -456,7 +456,7 @@ Release lifecycle, release evidence, and asset download. *(7 tools)*
 
 Tag listing, creation, deletion, signature inspection, and protected tag rules. *(9 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,tags`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,tags`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `tags` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -474,7 +474,7 @@ Tag listing, creation, deletion, signature inspection, and protected tag rules. 
 
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download. *(7 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,users`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,users`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `users` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -490,7 +490,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 Project and group CI/CD variable CRUD. *(10 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,variables`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,variables`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `variables` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -509,7 +509,7 @@ Project and group CI/CD variable CRUD. *(10 tools)*
 
 Create, update, and delete project or group webhooks, and inspect recent webhook events. *(6 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,webhooks`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,webhooks`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `webhooks` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -524,7 +524,7 @@ Create, update, and delete project or group webhooks, and inspect recent webhook
 
 Code search across all visible projects, a specific project, or a specific group. *(3 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,search`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,search`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `search` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -536,7 +536,7 @@ Code search across all visible projects, a specific project, or a specific group
 
 Inspect and manage the GitLab dependency proxy cache settings, blob storage, and purge operations. *(4 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,dependency_proxy`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,dependency_proxy`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `dependency_proxy` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -549,7 +549,7 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 
 AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate. *(4 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,vulnerabilities`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,vulnerabilities`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `vulnerabilities` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -562,7 +562,7 @@ AI-assisted vulnerability triage — list findings, inspect details, dismiss wit
 
 Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries consume GitLab credits; schema, status, and tool listing are free. *(4 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,orbit`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,orbit`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `orbit` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -575,7 +575,7 @@ Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries con
 
 Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets. *(5 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,snippets`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,snippets`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `snippets` to your existing list instead of replacing it. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -604,7 +604,7 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(3 tools)*
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query. Use only when no typed REST tool covers the operation. The query is sent directly and may include mutations. | 📖✏️ |
-| [`discover_tools`](meta.md#discover_tools) | List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead. Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only. | 📖 |
+| [`discover_tools`](meta.md#discover_tools) | List or activate a toolset for this session. Omit category to list; pass one to enable. Prefer this over GITLAB_TOOLSETS=all (loads ~all schemas). Session-only; with OAUTH_STATELESS_MODE=true persist `GITLAB_TOOLSETS=core,<category>` instead. Categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Response lists already-active ones. api is explicit-only. | 📖 |
 | [`help`](meta.md#help) | Return a short GitLab workflow guide. Omit topic for the overview and topic list. Topics: code-review, merge-requests, issues, pipelines, search, token-saving. Prefer discover_tools over GITLAB_TOOLSETS=all. With OAUTH_STATELESS_MODE=true persist GITLAB_TOOLSETS instead. | 📖 |
 
 ---
