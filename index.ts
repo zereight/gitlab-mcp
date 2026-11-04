@@ -13628,8 +13628,11 @@ async function handleToolCall(params: any) {
         if (next_page_token) {
           pagination_note =
             "Pass next_page_token as page_token with pagination=keyset to retrieve the next page.";
-        } else if (args.page !== undefined && next_page) {
-          pagination_note = "Pass next_page as page to retrieve the next page.";
+        } else if (next_page) {
+          pagination_note =
+            args.pagination === "keyset"
+              ? "GitLab returned offset pagination for this request; pass next_page as page to retrieve the next page."
+              : "Pass next_page as page to retrieve the next page.";
         } else if (args.pagination === "keyset") {
           pagination_note = "No next_page_token was returned; this is the final keyset page.";
         } else {
@@ -13641,7 +13644,7 @@ async function handleToolCall(params: any) {
             ? {
                 items,
                 ...(next_page_token ? { next_page_token } : {}),
-                ...(args.page !== undefined && next_page ? { next_page } : {}),
+                ...(next_page ? { next_page } : {}),
                 pagination_note,
               }
             : items;

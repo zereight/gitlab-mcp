@@ -322,6 +322,9 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
       const pageNumberContent = JSON.parse((pageNumberResult.content[0] as any).text);
       assert.strictEqual(pageNumberContent.items[0].id, 'page-number-blob');
       assert.strictEqual(pageNumberContent.next_page_token, undefined);
+      assert.strictEqual(pageNumberContent.next_page, '2');
+      assert.match(pageNumberContent.pagination_note, /GitLab returned offset pagination/);
+      assert.match(pageNumberContent.pagination_note, /next_page as page/);
 
       headerMockServer.clearCustomHandlers();
       headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
