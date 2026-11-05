@@ -19,17 +19,17 @@ import { StdioTestClient } from "./clients/stdio-client.js";
 const SERVER_PATH = path.resolve("build/index.js");
 
 /**
- * Default (core + discover_tools + help). Measured 2026-11-03 after Uber-style
- * description/schema shortening: 40 tools, 46,703 bytes (~11,676 tokens).
- * Ceiling keeps ~16% headroom.
+ * Default (core + discover_tools + help). Measured 2026-11-05 after Uber-style
+ * description/schema shortening: 40 tools, 46,900 bytes (~11,725 tokens).
+ * Ceiling keeps ~15% headroom.
  */
 const DEFAULT_TOOLS_LIST_MAX_BYTES = 54_000;
 const DEFAULT_TOOL_COUNT_MIN = 30;
 const DEFAULT_TOOL_COUNT_MAX = 50;
 
 /**
- * GITLAB_TOOL_PROFILE=slim on the default toolsets. Measured 2026-11-03:
- * 39 tools, 45,695 bytes (~11,424 tokens). Ceiling keeps ~16% headroom.
+ * GITLAB_TOOL_PROFILE=slim on the default toolsets. Measured 2026-11-05:
+ * 39 tools, 45,892 bytes (~11,473 tokens). Ceiling keeps ~15% headroom.
  */
 const SLIM_TOOLS_LIST_MAX_BYTES = 53_000;
 const SLIM_TOOL_COUNT_MIN = 25;
@@ -37,7 +37,7 @@ const SLIM_TOOL_COUNT_MAX = 50;
 
 /**
  * GITLAB_TOOLSETS=all (discoverable toolsets + discover_tools, not api).
- * Measured 2026-11-03: 286 tools, 293,666 bytes (~73,417 tokens).
+ * Measured 2026-11-05: 286 tools, 293,863 bytes (~73,466 tokens).
  */
 const ALL_TOOLS_LIST_MAX_BYTES = 320_000;
 const ALL_TOOL_COUNT_MIN = 250;

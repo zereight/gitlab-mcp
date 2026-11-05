@@ -8,7 +8,7 @@
 
 **Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
-> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-03) e [comparação](./docs/comparison/index.md).
+> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-05) e [comparação](./docs/comparison/index.md).
 
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -159,15 +159,15 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 | **Node.js**               | >=20.0.0                                                                | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-### Tamanho do tools/list (medido em 2026-11-03)
+### Tamanho do tools/list (medido em 2026-11-05)
 
 O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estimativa de tokens é bytes UTF-8 / 4.
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 46,703 | 11,676 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,695 | 11,424 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,666 | 73,417 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 46,900 | 11,725 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,892 | 11,473 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,863 | 73,466 |
 
 Após alterar descrições ou schemas, meça de novo com `npm run test:mock` (`test/tools-list-budget.test.ts`).
 

@@ -3,7 +3,7 @@
 Project label CRUD.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `labels` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `labels` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips every tool in this group; add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 ## Tools in this group
 

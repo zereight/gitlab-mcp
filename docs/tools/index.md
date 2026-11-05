@@ -175,7 +175,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 Create new groups and subgroups. *(1 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,groups`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `groups` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,groups`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `groups` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips every tool in this group; add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -185,7 +185,7 @@ Create new groups and subgroups. *(1 tools)*
 
 MR lifecycle — create, update, merge, approve, plus diff/conflict inspection and the full discussion/note/draft API. *(46 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,merge_requests`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `merge_requests` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,merge_requests`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `merge_requests` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 17 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `get_merge_request_discussion`, `get_merge_request_note`, `get_merge_request_notes`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips 13 of these tools (`get_draft_note`, `list_draft_notes`, `create_draft_note`, `update_draft_note`, `delete_draft_note`, `publish_draft_note`, `bulk_publish_draft_notes`, `list_merge_request_emoji_reactions`, `list_merge_request_note_emoji_reactions`, `create_merge_request_emoji_reaction`, `delete_merge_request_emoji_reaction`, `create_merge_request_note_emoji_reaction`, `delete_merge_request_note_emoji_reaction`); add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -240,7 +240,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `issues` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `issues` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips 6 of these tools (`list_issue_emoji_reactions`, `list_issue_note_emoji_reactions`, `create_issue_emoji_reaction`, `delete_issue_emoji_reaction`, `create_issue_note_emoji_reaction`, `delete_issue_note_emoji_reaction`); add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -274,7 +274,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools
 
 Project label CRUD. *(5 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `labels` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,labels`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `labels` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips every tool in this group; add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -315,7 +315,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,ci`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `ci` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,ci`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `ci` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips every tool in this group; add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

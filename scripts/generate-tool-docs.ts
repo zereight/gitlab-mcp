@@ -18,6 +18,7 @@ import {
   TOOLSET_DEFINITIONS,
   type ToolsetId,
 } from "../tools/registry.js";
+import { SLIM_PROFILE_EXCLUDED_TOOLS } from "../tools/tool-profile.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -78,6 +79,16 @@ function formatDefaultOverlapNote(toolNames: readonly string[]): string {
   return ` ${overlap.length} of these tools (${list}) are already enabled by default via \`core\`; the toggle applies to the rest.`;
 }
 
+function formatSlimOverlapNote(toolNames: readonly string[]): string {
+  const excluded = toolNames.filter(name => SLIM_PROFILE_EXCLUDED_TOOLS.has(name));
+  if (excluded.length === 0) return "";
+  const skipped =
+    excluded.length === toolNames.length
+      ? "every tool in this group"
+      : `${excluded.length} of these tools (${excluded.map(name => `\`${name}\``).join(", ")})`;
+  return ` With \`GITLAB_TOOL_PROFILE=slim\` and \`GITLAB_TOOLSETS\` unset, \`discover_tools\` skips ${skipped}; add a tool name to \`GITLAB_TOOLS\` to expose it. Setting \`GITLAB_TOOLSETS\` disables the slim profile.`;
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
@@ -89,6 +100,7 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   if ((id as string) === "meta") {
     return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
+  const overlapNotes = formatDefaultOverlapNote(toolNames) + formatSlimOverlapNote(toolNames);
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
     return (
@@ -97,10 +109,10 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
       `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged).` +
       `${legacyToolsAppendNote(id)} ` +
       `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
-      formatDefaultOverlapNote(toolNames)
+      overlapNotes
     );
   }
-  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatDefaultOverlapNote(toolNames)}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${overlapNotes}`;
 }
 
 const META_GROUP_ID = "meta";
