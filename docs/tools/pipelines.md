@@ -3,7 +3,7 @@
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 
@@ -89,8 +89,8 @@ List pipelines with filtering options. For one known resource, use the matching 
 | `updated_before` | string |  | Return pipelines updated before the specified date |
 | `order_by` | enum (`id` \| `status` \| `ref` \| `updated_at` \| `user_id`) |  | Order pipelines by |
 | `sort` | enum (`asc` \| `desc`) |  | Sort pipelines |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_pipeline`
 
@@ -117,8 +117,8 @@ Get variables configured for a pipeline.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_pipeline_test_report`
 
@@ -132,8 +132,8 @@ Get pipeline test report.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_pipeline_test_report_summary`
 
@@ -147,8 +147,8 @@ Get pipeline test report summary.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `delete_pipeline`
 
@@ -196,8 +196,8 @@ List deployments with filtering options. For one known resource, use the matchin
 | `updated_before` | string |  | Return deployments updated before the specified date |
 | `order_by` | enum (`id` \| `iid` \| `created_at` \| `updated_at` \| `ref` \| `status` \| `environment`) |  | Order deployments by |
 | `sort` | enum (`asc` \| `desc`) |  | Sort deployments |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_deployment`
 
@@ -268,8 +268,8 @@ List merge requests shipped with a deployment.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `deployment_id` | string | ✓ | The ID of the deployment |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `approve_deployment`
 
@@ -301,8 +301,8 @@ List environments in a project. For one known resource, use the matching get too
 | `name` | string |  | Return environments with this exact name |
 | `search` | string |  | Search environments by name |
 | `states` | enum (`available` \| `stopped`) |  | Filter environments by state |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_environment`
 
@@ -483,8 +483,8 @@ List all jobs in a specific pipeline. For one known resource, use the matching g
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
 | `scope` | enum (`created` \| `pending` \| `running` \| `failed` \| `success` \| `canceled` \| `skipped` \| `manual`) |  | The scope of jobs to show |
 | `include_retried` | boolean |  | Whether to include retried jobs |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `list_pipeline_trigger_jobs`
 
@@ -499,8 +499,8 @@ List trigger jobs (bridges) in a pipeline.
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
 | `scope` | enum (`canceled` \| `canceling` \| `created` \| `failed` \| `manual` \| `pending` \| `preparing` \| `running` \| `scheduled` \| `skipped` \| `success` \| `waiting_for_resource`) |  | The scope of trigger jobs to show |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_pipeline_job`
 
@@ -588,8 +588,8 @@ List pipeline schedules in a project, optionally filtered to active or inactive.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `scope` | enum (`active` \| `inactive`) |  | Return only active or only inactive pipeline schedules |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_pipeline_schedule`
 
@@ -623,8 +623,8 @@ List the pipelines that a pipeline schedule has triggered. List pipelines a sche
 | `updated_before` | string |  | Return pipelines updated before the specified ISO 8601 date |
 | `created_after` | string |  | Return pipelines created after the specified ISO 8601 date |
 | `created_before` | string |  | Return pipelines created before the specified ISO 8601 date |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `create_pipeline_schedule`
 
@@ -922,8 +922,8 @@ List runners available to a project. List runners a project can use, including a
 | `status` | enum (`online` \| `offline` \| `stale` \| `never_contacted` \| `active` \| `paused`) |  | Runner status: online, offline, stale, or never_contacted. active and paused are deprecated; use the paused filter instead. offline may also include stale runners |
 | `paused` | boolean |  | true returns only runners ignoring new jobs; false returns only runners accepting new jobs |
 | `tag_list` | array<string> |  | Runner tags that must match. Sent to GitLab as a comma-separated tag_list |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_runner`
 

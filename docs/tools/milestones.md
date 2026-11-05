@@ -3,7 +3,7 @@
 Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=core,milestones` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 
@@ -45,8 +45,8 @@ List milestones with filtering options. For one known resource, use the matching
 | `include_ancestors` | boolean |  | Include ancestor groups |
 | `updated_before` | string |  | Return milestones updated before the specified date (ISO 8601 format) |
 | `updated_after` | string |  | Return milestones updated after the specified date (ISO 8601 format) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_milestone`
 
@@ -120,8 +120,8 @@ Get issues associated with a specific milestone.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `milestone_id` | string | ✓ | The ID of a project milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_milestone_merge_requests`
 
@@ -135,8 +135,8 @@ Get merge requests associated with a specific milestone.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `milestone_id` | string | ✓ | The ID of a project milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `promote_milestone`
 
@@ -163,8 +163,8 @@ Get burndown events for a specific milestone.
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `milestone_id` | string | ✓ | The ID of a project milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `list_group_milestones`
 
@@ -185,8 +185,8 @@ List group milestones with filtering options. For one known resource, use the ma
 | `include_descendants` | boolean |  | Include descendant groups |
 | `updated_before` | string |  | Return milestones updated before the specified date (ISO 8601 format) |
 | `updated_after` | string |  | Return milestones updated after the specified date (ISO 8601 format) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_milestone`
 
@@ -260,8 +260,8 @@ Get issues associated with a specific group milestone.
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `milestone_id` | string | ✓ | The ID of a group milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_milestone_merge_requests`
 
@@ -275,8 +275,8 @@ Get merge requests associated with a specific group milestone.
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `milestone_id` | string | ✓ | The ID of a group milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_milestone_burndown_events`
 
@@ -290,5 +290,5 @@ Get burndown events for a specific group milestone.
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `milestone_id` | string | ✓ | The ID of a group milestone |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |

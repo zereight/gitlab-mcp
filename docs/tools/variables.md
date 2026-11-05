@@ -3,7 +3,7 @@
 Project and group CI/CD variable CRUD.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=variables` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,variables`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `variables` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 
@@ -32,8 +32,8 @@ List CI/CD variables for a project. For one known resource, use the matching get
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `filter` | object |  | Filter by environment scope (e.g. '*', 'production') |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_project_variable`
 
@@ -116,8 +116,8 @@ List CI/CD variables for a group. For one known resource, use the matching get t
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `filter` | object |  | Filter by environment scope (e.g. '*', 'production') |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_variable`
 

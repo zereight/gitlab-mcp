@@ -3,7 +3,7 @@
 Release lifecycle, release evidence, and asset download.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=releases` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,releases`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `releases` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 
@@ -31,8 +31,8 @@ List all releases for a project. For one known resource, use the matching get to
 | `order_by` | enum (`released_at` \| `created_at`) |  | The field to use as order. Either released_at (default) or created_at. |
 | `sort` | enum (`desc` \| `asc`) |  | The direction of the order. Either desc (default) for descending order or asc for ascending order. |
 | `include_html_description` | boolean |  | If true, a response includes HTML rendered Markdown of the release description. |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_release`
 

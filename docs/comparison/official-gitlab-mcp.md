@@ -99,6 +99,10 @@ is available. `wikis`, `code_security`, and `orbit` (added in 19.6) are opt-in. 
 toolsets or single tools with HTTP headers. Listing a tool does not grant access: each call checks
 the user's project and namespace permissions.
 
+The default `@zereight/mcp-gitlab` list is the lean `core` toolset plus `discover_tools` and
+`help` (~40 tools). `GITLAB_TOOLSETS=all` loads almost every schema (~73k `tools/list` tokens);
+prefer `discover_tools` or a named toolset. Skill + CLI skips MCP schemas entirely.
+
 `@zereight/mcp-gitlab` calls GitLab as the token's user, so GitLab permissions apply too. In
 addition, the server can narrow what an agent sees or runs:
 

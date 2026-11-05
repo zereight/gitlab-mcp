@@ -3,7 +3,7 @@
 Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=snippets` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,snippets`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `snippets` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 
@@ -26,8 +26,8 @@ List snippets — project snippets when project_id is given, otherwise personal 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string |  | Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set. |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_snippet`
 

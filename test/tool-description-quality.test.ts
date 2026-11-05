@@ -125,4 +125,29 @@ describe("When MCP tool descriptions are exposed", () => {
       assert.doesNotMatch(tool.description, /mergeRequestIid|branchName/);
     });
   });
+
+  describe("with discover_tools", () => {
+    it("should steer agents to activate categories instead of GITLAB_TOOLSETS=all", () => {
+      const tool = getExposedTool("discover_tools");
+
+      assert.match(tool.description, /prefer this over GITLAB_TOOLSETS=all/i);
+    });
+
+    it("should warn that session discovery does not persist in stateless mode", () => {
+      const tool = getExposedTool("discover_tools");
+
+      assert.match(tool.description, /session-only/i);
+      assert.match(tool.description, /OAUTH_STATELESS_MODE/);
+      assert.match(tool.description, /GITLAB_TOOLSETS/);
+    });
+  });
+
+  describe("with help", () => {
+    it("should prefer discover_tools over GITLAB_TOOLSETS=all", () => {
+      const tool = getExposedTool("help");
+
+      assert.match(tool.description, /discover_tools/);
+      assert.match(tool.description, /GITLAB_TOOLSETS=all/);
+    });
+  });
 });

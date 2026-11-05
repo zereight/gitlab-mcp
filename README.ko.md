@@ -8,6 +8,8 @@
 
 **기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 288개(toolset 285개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
+> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-05-실측)와 [비교](./docs/comparison/index.md)를 보세요.
+
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
 ### Without → With
@@ -58,7 +60,7 @@ MCP 설정을 고칠 수 있는 에이전트에 그대로 붙여넣으세요:
 또는: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: README deeplink 또는 docs/clients/cursor.md.
 원격 HTTP: 클라이언트를 https://mcp.example.com/mcp (Streamable HTTP)로 연결. Claude.ai는 그 호스트에 GITLAB_MCP_OAUTH가 필요합니다.
-기본 목록: 40개 도구(core 38 + discover_tools + help). 확장은 discover_tools. api toolset은 우회 위험을 받아들일 때만.
+기본 목록: 40개 도구(core 38 + discover_tools + help). 확장은 discover_tools. GITLAB_TOOLSETS=all은 쓰지 마세요(스키마 ~73k 토큰). api toolset은 우회 위험을 받아들일 때만.
 MCP 없는 동등 경로: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill 와 zereight-mcp-gitlab CLI.
 ```
 
@@ -111,7 +113,7 @@ Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY
 
 **인증은 어떻게 하나요?** 로컬 데스크톱은 `GITLAB_PERSONAL_ACCESS_TOKEN`(또는 `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`)이 가장 단순합니다. 로컬 OAuth는 `GITLAB_USE_OAUTH=true`. 원격 Claude.ai는 `GITLAB_MCP_OAUTH`. 멀티유저 HTTP는 `REMOTE_AUTHORIZATION`과 요청별 토큰 헤더입니다.
 
-**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. `GITLAB_TOOLSETS=all`도 `api`는 켜지 않습니다.
+**도구가 40개만 보이는 이유는?** 기본 `core` toolset 38개에 항상 켜진 `discover_tools`와 `help`가 더해집니다. 클라이언트가 나열된 스키마를 모델에 한꺼번에 보내기 때문입니다. 인자 없이 `discover_tools`를 호출하면 카테고리 목록이 나오고, 카테고리(`pipelines`, `wiki` 등)를 넘기면 이 세션에 활성화됩니다. 세션 한정이며, `OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 스키마만 ~73k 토큰이고, `api`도 켜지지 않습니다.
 
 **로컬 OAuth / MCP OAuth / 원격 인증 차이는?** 로컬 OAuth는 서버와 같은 머신에서 브라우저를 엽니다. MCP OAuth는 공개 HTTPS 서버와 Claude.ai 같은 클라이언트용입니다. 원격 인증은 호출자의 PAT 또는 job token을 전달하며 OAuth 흐름이 없습니다.
 
@@ -123,7 +125,7 @@ Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY
 
 ```
 GitLab 머지 리퀘스트, 이슈, 파이프라인은 이 MCP(@zereight/mcp-gitlab)로 처리하세요.
-기본 core 도구로 시작하고, 확장은 discover_tools를 호출하세요.
+기본 core 도구로 시작하고, 확장은 discover_tools를 호출하세요. GITLAB_TOOLSETS=all은 쓰지 마세요.
 list_merge_request_changed_files 다음 배치 get_merge_request_file_diff를 우선하세요.
 결과는 jmespath 또는 compact를 쓰고, 전체 diff와 job 로그는 CLI를 쓰세요.
 ```
@@ -138,7 +140,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 288개** — 작게 시작하고, `discover_tools`로 세션에서 확장
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 288개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -157,17 +159,17 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-### tools/list 크기 (2026-10-24 실측)
+### tools/list 크기 (2026-11-05 실측)
 
 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 토큰 추정은 UTF-8 바이트 / 4입니다.
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools` + `help`) | 40 | 50,682 | 12,671 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
-| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
 
-설명이나 스키마를 바꾼 뒤에는 `npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
+설명이나 스키마를 바꾼 뒤에는 `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
 GitLab은 [공식 MCP 서버](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)도 제공합니다.
 
@@ -282,7 +284,7 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
-- `--toolsets=all` - 지정한 툴셋 활성화. 명시적 `api` 툴셋은 빠짐 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값 사용). `gitlab_api_request`는 `--toolsets=api`
+- `--toolsets` - 지정한 툴셋 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값). `all`은 스키마 ~73k 토큰이므로 쓰지 마세요. `gitlab_api_request`는 `--toolsets=api`
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,milestones`를 사용 (`USE_MILESTONE` 대체)

@@ -3,7 +3,7 @@
 Project and group wiki page CRUD. Attachment uploads where supported.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=core,wiki` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it. `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 
@@ -33,8 +33,8 @@ List wiki pages in a project. For one known resource, use the matching get tool.
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
 | `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_wiki_page`
 
@@ -107,8 +107,8 @@ List wiki pages in a group. For one known resource, use the matching get tool.
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
 | `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_group_wiki_page`
 

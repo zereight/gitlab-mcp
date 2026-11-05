@@ -55,31 +55,31 @@ List merge requests (without project_id: user's MRs; with project_id: project MR
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or URL-encoded path (optional - if not provided, lists all merge requests the user has access to) |
-| `assignee_id` | string |  | Return MRs assigned to the given user ID (integer), 'none', or 'any'. Mutually exclusive with assignee_username. |
-| `assignee_username` | string |  | Returns merge requests assigned to the given username. Mutually exclusive with assignee_id. |
-| `author_id` | string |  | Returns merge requests created by the given user ID (integer). Mutually exclusive with author_username. |
-| `author_username` | string |  | Returns merge requests created by the given username. Mutually exclusive with author_id. |
-| `reviewer_id` | string |  | Returns merge requests which have the user as a reviewer. Must be an integer, 'none', or 'any'. Mutually exclusive with reviewer_username. |
-| `reviewer_username` | string |  | Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id. |
-| `approved_by_usernames` | array<string> |  | Returns merge requests approved by the given usernames (array). |
-| `created_after` | string |  | Return merge requests created after the given time |
-| `created_before` | string |  | Return merge requests created before the given time |
-| `updated_after` | string |  | Return merge requests updated after the given time |
-| `updated_before` | string |  | Return merge requests updated before the given time |
-| `labels` | array<string> |  | Array of label names |
+| `project_id` | string |  | Project ID or URL-encoded path. Omit to list the user's accessible MRs. |
+| `assignee_id` | string |  | User ID, none, or any. Mutually exclusive with assignee_username. |
+| `assignee_username` | string |  | Username. Mutually exclusive with assignee_id. |
+| `author_id` | string |  | Author user ID. Mutually exclusive with author_username. |
+| `author_username` | string |  | Author username. Mutually exclusive with author_id. |
+| `reviewer_id` | string |  | Reviewer user ID, none, or any. Mutually exclusive with reviewer_username. |
+| `reviewer_username` | string |  | Reviewer username. Mutually exclusive with reviewer_id. |
+| `approved_by_usernames` | array<string> |  | Approved by these usernames |
+| `created_after` | string |  | Created after |
+| `created_before` | string |  | Created before |
+| `updated_after` | string |  | Updated after |
+| `updated_before` | string |  | Updated before |
+| `labels` | array<string> |  | Label names |
 | `milestone` | string |  | Milestone title |
-| `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Return merge requests from a specific scope |
-| `search` | string |  | Search for specific terms |
-| `state` | enum (`opened` \| `closed` \| `locked` \| `merged` \| `all`) |  | Return merge requests with a specific state |
-| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `label_priority` \| `milestone_due` \| `popularity`) |  | Return merge requests ordered by the given field |
-| `sort` | enum (`asc` \| `desc`) |  | Return merge requests sorted in ascending or descending order |
-| `target_branch` | string |  | Return merge requests targeting a specific branch |
-| `source_branch` | string |  | Return merge requests from a specific source branch |
-| `wip` | enum (`yes` \| `no`) |  | Filter merge requests against their wip status |
-| `with_labels_details` | boolean |  | Return more details for each label |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | MR scope |
+| `search` | string |  | Search terms |
+| `state` | enum (`opened` \| `closed` \| `locked` \| `merged` \| `all`) |  | MR state |
+| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `label_priority` \| `milestone_due` \| `popularity`) |  | Sort field |
+| `sort` | enum (`asc` \| `desc`) |  | asc or desc |
+| `target_branch` | string |  | Target branch |
+| `source_branch` | string |  | Source branch |
+| `wip` | enum (`yes` \| `no`) |  | WIP filter |
+| `with_labels_details` | boolean |  | Include label details |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_merge_request`
 
@@ -91,10 +91,10 @@ Get details of a merge request (merge_request_iid or source_branch required). Se
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
-| `include_summaries` | boolean |  | If true, include deployment_summary, commit_addition_summary and approval_summary (extra API calls, larger response). Default false to reduce token usage. |
+| `include_summaries` | boolean |  | If true, include deployment, commit, and approval summaries (extra API calls). Default false. |
 
 ### `get_merge_request_approval_state`
 
@@ -119,8 +119,8 @@ List changed file paths in a merge request without diff content (merge_request_i
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files. Examples: ["^vendor/", "\.pb\.go$"] |
 
@@ -134,8 +134,8 @@ Get diffs for specific files from a merge request (merge_request_iid or source_b
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `file_paths` | array<string> | ✓ | List of file paths to retrieve diffs for (e.g. ['src/api/users.ts', 'src/repo/user.go']). Call list_merge_request_changed_files first to get the full list of changed paths. |
 | `unidiff` | boolean |  | Present diff in the unified diff format. Default is false. |
@@ -150,8 +150,8 @@ List merge request diffs with pagination (merge_request_iid or source_branch req
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
@@ -167,8 +167,8 @@ Get the changes/diffs of a merge request (merge_request_iid or source_branch req
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `view` | enum (`inline` \| `parallel`) |  | Diff view type |
 | `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
@@ -185,8 +185,8 @@ List discussion items for a merge request. List complete discussion threads. Use
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `merge_request_iid` | string | ✓ | The IID of a merge request |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_merge_request_discussion`
 
@@ -246,16 +246,16 @@ Create a new merge request. Open a merge request from an existing source branch 
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `title` | string | ✓ | Merge request title |
 | `description` | string |  | Merge request description |
-| `source_branch` | string | ✓ | Branch containing changes |
-| `target_branch` | string | ✓ | Branch to merge into |
-| `target_project_id` | string |  | Numeric ID of the target project. |
-| `assignee_ids` | array<number> |  | The ID of the users to assign the MR to |
-| `reviewer_ids` | array<number> |  | The ID of the users to assign as reviewers of the MR |
-| `labels` | array<string> |  | Labels for the MR |
-| `draft` | boolean |  | Create as draft merge request |
-| `allow_collaboration` | boolean |  | Allow commits from upstream members |
-| `remove_source_branch` | boolean \| null |  | Flag indicating if a merge request should remove the source branch when merging. |
-| `squash` | boolean \| null |  | If true, squash all commits into a single commit on merge. |
+| `source_branch` | string | ✓ | Source branch |
+| `target_branch` | string | ✓ | Target branch |
+| `target_project_id` | string |  | Target project numeric ID |
+| `assignee_ids` | array<number> |  | Assignee user IDs |
+| `reviewer_ids` | array<number> |  | Reviewer user IDs |
+| `labels` | array<string> |  | MR labels |
+| `draft` | boolean |  | Create as draft |
+| `allow_collaboration` | boolean |  | Allow eligible upstream members to push to the fork source branch |
+| `remove_source_branch` | boolean \| null |  | Remove source branch on merge |
+| `squash` | boolean \| null |  | Squash commits on merge |
 
 ### `create_merge_request_thread`
 
@@ -298,58 +298,58 @@ Update a merge request (merge_request_iid or source_branch required). Use the cr
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
-| `title` | string |  | The title of the merge request |
-| `description` | string |  | The description of the merge request |
-| `target_branch` | string |  | The target branch |
-| `assignee_ids` | array<number> |  | The ID of the users to assign the MR to |
-| `reviewer_ids` | array<number> |  | The ID of the users to assign as reviewers of the MR |
-| `labels` | array<string> |  | Labels for the MR |
-| `state_event` | enum (`close` \| `reopen`) |  | New state (close/reopen) for the MR |
-| `remove_source_branch` | boolean |  | Flag indicating if the source branch should be removed |
-| `squash` | boolean |  | Squash commits into a single commit when merging |
-| `draft` | boolean |  | Work in progress merge request |
-| `milestone_id` | string |  | Milestone ID to assign. Set to 0 to unassign. Null is treated as omitted. |
+| `title` | string |  | MR title |
+| `description` | string |  | MR description |
+| `target_branch` | string |  | Target branch |
+| `assignee_ids` | array<number> |  | Assignee user IDs |
+| `reviewer_ids` | array<number> |  | Reviewer user IDs |
+| `labels` | array<string> |  | MR labels |
+| `state_event` | enum (`close` \| `reopen`) |  | close or reopen |
+| `remove_source_branch` | boolean |  | Remove source branch on merge |
+| `squash` | boolean |  | Squash commits on merge |
+| `draft` | boolean |  | Draft / WIP |
+| `milestone_id` | string |  | Milestone ID. 0 unassigns. Null is omitted. |
 
 ### `list_issues`
 
 *📖 Read-only*
 
-List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the iid is known and `my_issues` for the current user's assignments.
+List issues (default: created by current user; use scope='all' for all). Use this for issue management. Optional `project_id`. Use `get_issue` when the iid is known and `my_issues` for assignments.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects) |
-| `assignee_id` | string |  | Return issues assigned to the given user ID (user id, none, or any). Mutually exclusive with assignee_username. |
-| `assignee_username` | array<string> |  | Return issues assigned to the given username. Mutually exclusive with assignee_id. |
-| `author_id` | string |  | Return issues created by the given user ID. Mutually exclusive with author_username. |
-| `author_username` | string |  | Return issues created by the given username. Mutually exclusive with author_id. |
-| `confidential` | boolean |  | Filter confidential or public issues |
-| `created_after` | string |  | Return issues created after the given time |
-| `created_before` | string |  | Return issues created before the given time |
-| `due_date` | string |  | Return issues that have the due date |
-| `labels` | array<string> |  | Array of label names |
+| `project_id` | string |  | Project ID or URL-encoded path. Omit to list issues across accessible projects. |
+| `assignee_id` | string |  | User ID, none, or any. Mutually exclusive with assignee_username. |
+| `assignee_username` | array<string> |  | Username. Mutually exclusive with assignee_id. |
+| `author_id` | string |  | Author user ID. Mutually exclusive with author_username. |
+| `author_username` | string |  | Author username. Mutually exclusive with author_id. |
+| `confidential` | boolean |  | Confidential or public |
+| `created_after` | string |  | Created after |
+| `created_before` | string |  | Created before |
+| `due_date` | string |  | Due date |
+| `labels` | array<string> |  | Label names |
 | `milestone` | string |  | Milestone title |
-| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | Filter to a given type of issue. One of issue, incident, test_case or task |
-| `iteration_id` | string |  | Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration.  |
-| `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Return issues from a specific scope |
-| `search` | string |  | Search for specific terms |
-| `state` | enum (`opened` \| `closed` \| `all`) |  | Return issues with a specific state |
-| `updated_after` | string |  | Return issues updated after the given time |
-| `updated_before` | string |  | Return issues updated before the given time |
-| `with_labels_details` | boolean |  | Return more details for each label |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | issue, incident, test_case, or task |
+| `iteration_id` | string |  | Iteration ID, none (no iteration), or any (has an iteration). |
+| `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Issue scope |
+| `search` | string |  | Search terms |
+| `state` | enum (`opened` \| `closed` \| `all`) |  | Issue state |
+| `updated_after` | string |  | Updated after |
+| `updated_before` | string |  | Updated before |
+| `with_labels_details` | boolean |  | Include label details |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `my_issues`
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.
+List issues assigned to the authenticated user. Use this for issue management. Use `list_issues` for project-wide listing and `get_issue` for one issue. Requires classic read_user or fine-grained User:Read.
 
 **Parameters**
 
@@ -371,15 +371,15 @@ List issues assigned to the authenticated user. Use this for issue management: l
 
 *📖 Read-only*
 
-Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue. Use `list_issues` or `my_issues` to discover issues first.
+Get one issue. Slim nested milestone by default; full_response=true for the complete milestone. Use this for issue management. Use `list_issues` or `my_issues` to discover issues first.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
-| `issue_iid` | string | ✓ | The internal ID of the project issue |
-| `full_response` | boolean |  | If true, include the complete milestone object, including its description, on the returned issue. Default returns the issue with a slim milestone (id, iid, title, state, web_url) to reduce token usage. |
+| `issue_iid` | string | ✓ | Issue IID |
+| `full_response` | boolean |  | If true, include the complete milestone (including description). Default is slim (id, iid, title, state, web_url). |
 
 ### `create_issue`
 
@@ -394,36 +394,36 @@ Create a new issue. Open a new issue. Use `update_issue` for an existing issue a
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `title` | string | ✓ | Issue title |
 | `description` | string |  | Issue description |
-| `assignee_ids` | array<number> |  | Array of user IDs to assign |
-| `labels` | array<string> |  | Array of label names |
-| `milestone_id` | string |  | Milestone ID to assign |
-| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | The type of issue. One of issue, incident, test_case or task. |
-| `weight` | number |  | Weight of the issue (numeric, typically hours of work) |
+| `assignee_ids` | array<number> |  | Assignee user IDs |
+| `labels` | array<string> |  | Label names |
+| `milestone_id` | string |  | Milestone ID |
+| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | issue, incident, test_case, or task |
+| `weight` | number |  | Issue weight |
 
 ### `update_issue`
 
 *✏️ Writes*
 
-Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion.
+Update an issue. Slim confirmation by default; full_response=true for the complete object. Change fields on an existing issue. Use `update_issue_description_patch` for a targeted description edit and `create_issue_note` for discussion.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
-| `issue_iid` | string | ✓ | The internal ID of the project issue |
-| `title` | string |  | The title of the issue |
-| `description` | string |  | The description of the issue |
-| `assignee_ids` | array<number> |  | Array of user IDs to assign issue to |
-| `confidential` | boolean |  | Set the issue to be confidential |
-| `discussion_locked` | boolean |  | Flag to lock discussions |
-| `due_date` | string |  | Date the issue is due (YYYY-MM-DD) |
-| `labels` | array<string> |  | Array of label names |
-| `milestone_id` | string |  | Milestone ID to assign |
-| `state_event` | enum (`close` \| `reopen`) |  | Update issue state (close/reopen) |
-| `weight` | number |  | Weight of the issue (numeric, typically hours of work) |
-| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | The type of issue. One of issue, incident, test_case or task. |
-| `full_response` | boolean |  | If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage. |
+| `issue_iid` | string | ✓ | Issue IID |
+| `title` | string |  | Issue title |
+| `description` | string |  | Issue description |
+| `assignee_ids` | array<number> |  | Assignee user IDs |
+| `confidential` | boolean |  | Confidential |
+| `discussion_locked` | boolean |  | Lock discussions |
+| `due_date` | string |  | Due date (YYYY-MM-DD) |
+| `labels` | array<string> |  | Label names |
+| `milestone_id` | string |  | Milestone ID |
+| `state_event` | enum (`close` \| `reopen`) |  | close or reopen |
+| `weight` | number |  | Issue weight |
+| `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | issue, incident, test_case, or task |
+| `full_response` | boolean |  | If true, return the complete updated issue. Default is slim (iid, title, state, web_url, updated_at). |
 
 ### `create_issue_note`
 
@@ -453,14 +453,14 @@ List discussions for an issue. List threaded discussions for an issue. Use `list
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `issue_iid` | string | ✓ | The internal ID of the project issue |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `update_issue_description_patch`
 
 *✏️ Writes*
 
-Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
+Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes.
 
 **Parameters**
 
@@ -499,14 +499,14 @@ List files and directories in a repository.
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | The ID or URL-encoded path of the project |
-| `path` | string |  | The path inside the repository |
-| `ref` | string |  | The name of a repository branch or tag. Defaults to the default branch. |
-| `recursive` | boolean |  | Boolean value to get a recursive tree |
-| `per_page` | number |  | Number of results to show per page |
-| `page` | integer |  | Page number for offset pagination, starting at 1. Passing it returns a structured response with items and, when more pages are available, next_page. |
-| `page_token` | string |  | Token for keyset pagination. Use the next_page_token value returned in the previous response to retrieve the next page. |
-| `pagination` | string |  | Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Calls without page or pagination keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available. |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `path` | string |  | Path inside the repository |
+| `ref` | string |  | Branch or tag. Defaults to the default branch. |
+| `recursive` | boolean |  | Recursive tree |
+| `per_page` | number |  | Items per page |
+| `page` | integer |  | Offset page number from 1 (items + next_page) |
+| `page_token` | string |  | Keyset token from the previous next_page_token |
+| `pagination` | string |  | Use keyset for large trees (items + next_page_token). Omit both page and pagination for the legacy array (deprecated). |
 
 ### `search_repositories`
 
@@ -520,8 +520,8 @@ Search for GitLab projects. If the identifier is known, use a typed get or list 
 |---|---|:-:|---|
 | `search` | string |  | Search query |
 | `query` | string |  | Search query (alias for 'search') |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_branch`
 
@@ -548,8 +548,8 @@ List branches in project with search filter. For one known resource, use the mat
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `search` | string |  | Search term to filter branches by name |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `list_commits`
 
@@ -561,19 +561,19 @@ List repository commits with filtering options. For one known resource, use the 
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `ref_name` | string |  | The name of a repository branch, tag or revision range, or if not given the default branch |
-| `since` | string |  | Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ |
-| `until` | string |  | Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ |
-| `path` | string |  | The file path |
-| `author` | string |  | Search commits by commit author |
-| `all` | boolean |  | Retrieve every commit from the repository |
-| `with_stats` | boolean |  | Stats about each commit are added to the response |
-| `first_parent` | boolean |  | Follow only the first parent commit upon seeing a merge commit |
-| `order` | enum (`default` \| `topo`) |  | List commits in order |
-| `trailers` | boolean |  | Parse and include Git trailers for every commit |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `ref_name` | string |  | Branch, tag, or revision range. Default: default branch. |
+| `since` | string |  | Commits on or after this ISO 8601 datetime |
+| `until` | string |  | Commits on or before this ISO 8601 datetime |
+| `path` | string |  | File path |
+| `author` | string |  | Commit author |
+| `all` | boolean |  | Every commit in the repository |
+| `with_stats` | boolean |  | Include per-commit stats |
+| `first_parent` | boolean |  | Follow only the first parent of merges |
+| `order` | enum (`default` \| `topo`) |  | default or topo |
+| `trailers` | boolean |  | Include Git trailers |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_commit`
 
@@ -641,21 +641,21 @@ List projects accessible by the current user. For one known resource, use the ma
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `search` | string |  | Search term for projects |
-| `search_namespaces` | boolean |  | Needs to be true if search is full path |
-| `owned` | boolean |  | Filter for projects owned by current user |
-| `membership` | boolean |  | Filter for projects where current user is a member |
-| `simple` | boolean |  | Return only limited fields |
-| `archived` | boolean |  | Filter for archived projects |
-| `visibility` | enum (`public` \| `internal` \| `private`) |  | Filter by project visibility |
-| `order_by` | enum (`id` \| `name` \| `path` \| `created_at` \| `updated_at` \| `last_activity_at`) |  | Return projects ordered by field |
-| `sort` | enum (`asc` \| `desc`) |  | Return projects sorted in ascending or descending order |
-| `with_issues_enabled` | boolean |  | Filter projects with issues feature enabled |
-| `with_merge_requests_enabled` | boolean |  | Filter projects with merge requests feature enabled |
-| `min_access_level` | number |  | Filter by minimum access level |
-| `topic` | string |  | Filter by topic (projects tagged with this topic) |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `search` | string |  | Search term |
+| `search_namespaces` | boolean |  | Set true when search is a full path |
+| `owned` | boolean |  | Owned by current user |
+| `membership` | boolean |  | Current user is a member |
+| `simple` | boolean |  | Limited fields only |
+| `archived` | boolean |  | Archived projects |
+| `visibility` | enum (`public` \| `internal` \| `private`) |  | public, internal, or private |
+| `order_by` | enum (`id` \| `name` \| `path` \| `created_at` \| `updated_at` \| `last_activity_at`) |  | Sort field |
+| `sort` | enum (`asc` \| `desc`) |  | asc or desc |
+| `with_issues_enabled` | boolean |  | Issues enabled |
+| `with_merge_requests_enabled` | boolean |  | Merge requests enabled |
+| `min_access_level` | number |  | Minimum access level |
+| `topic` | string |  | Topic tag |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `list_project_members`
 
@@ -689,8 +689,8 @@ List labels for a project. For one known resource, use the matching get tool.
 | `with_counts` | boolean |  | Whether to include issue and merge request counts |
 | `include_ancestor_groups` | boolean |  | Include ancestor groups |
 | `search` | string |  | Keyword to filter labels by |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `whoami`
 
@@ -706,7 +706,7 @@ _No parameters._
 
 *📖 Read-only*
 
-Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
+Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing.
 
 **Parameters**
 

@@ -3,7 +3,7 @@
 Create, update, and delete project or group webhooks, and inspect recent webhook events.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,webhooks`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `webhooks` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 
@@ -28,8 +28,8 @@ List webhooks for a project or group.
 |---|---|:-:|---|
 | `project_id` | string |  | Project ID or URL-encoded path. Provide either project_id or group_id, not both. |
 | `group_id` | string |  | Group ID or URL-encoded path. Provide either project_id or group_id, not both. |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `create_webhook`
 

@@ -46,6 +46,20 @@ describe("When the help workflow guide is requested", () => {
       assert.match(guide, /GITLAB_MCP_COMPACT_RESULTS/);
       assert.match(guide, /get_pipeline_job_output/);
     });
+
+    it("should steer away from GITLAB_TOOLSETS=all", () => {
+      const guide = getWorkflowGuide("token-saving");
+
+      assert.match(guide, /GITLAB_TOOLSETS=all/);
+      assert.match(guide, /discover_tools/);
+    });
+
+    it("should warn that session discovery does not persist in stateless mode", () => {
+      const guide = getWorkflowGuide("token-saving");
+
+      assert.match(guide, /OAUTH_STATELESS_MODE/);
+      assert.match(guide, /does not survive the next request/);
+    });
   });
 
   describe("with an unknown topic argument", () => {

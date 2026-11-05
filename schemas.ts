@@ -215,11 +215,8 @@ export const GitLabPipelineTriggerJobSchema = z.object({
 // Shared base schema for various pagination options
 // See https://docs.gitlab.com/api/rest/#pagination
 export const PaginationOptionsSchema = z.object({
-  page: z.coerce.number().optional().describe("Page number for pagination (default: 1)"),
-  per_page: z.coerce
-    .number()
-    .optional()
-    .describe("Number of items per page (max: 100, default: 20)"),
+  page: z.coerce.number().optional().describe("Page number (default 1)"),
+  per_page: z.coerce.number().optional().describe("Items per page (max 100, default 20)"),
 });
 
 // Schema for listing pipelines
@@ -1423,33 +1420,23 @@ export const GitLabTreeItemSchema = z.object({
 });
 
 export const GetRepositoryTreeSchema = z.object({
-  project_id: z.coerce.string().describe("The ID or URL-encoded path of the project"),
-  path: z.string().optional().describe("The path inside the repository"),
-  ref: z
-    .string()
-    .optional()
-    .describe("The name of a repository branch or tag. Defaults to the default branch."),
-  recursive: coerceBooleanString.optional().describe("Boolean value to get a recursive tree"),
-  per_page: z.coerce.number().optional().describe("Number of results to show per page"),
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  path: z.string().optional().describe("Path inside the repository"),
+  ref: z.string().optional().describe("Branch or tag. Defaults to the default branch."),
+  recursive: coerceBooleanString.optional().describe("Recursive tree"),
+  per_page: z.coerce.number().optional().describe("Items per page"),
   page: z.coerce
     .number()
     .int()
     .positive()
     .optional()
-    .describe(
-      "Page number for offset pagination, starting at 1. Passing it returns a structured response with items and, when more pages are available, next_page."
-    ),
-  page_token: z
-    .string()
-    .optional()
-    .describe(
-      "Token for keyset pagination. Use the next_page_token value returned in the previous response to retrieve the next page."
-    ),
+    .describe("Offset page number from 1 (items + next_page)"),
+  page_token: z.string().optional().describe("Keyset token from the previous next_page_token"),
   pagination: z
     .string()
     .optional()
     .describe(
-      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Calls without page or pagination keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available."
+      "Use keyset for large trees (items + next_page_token). Omit both page and pagination for the legacy array (deprecated)."
     ),
 });
 
@@ -2216,18 +2203,15 @@ export const PushFilesSchema = ProjectParamsSchema.extend({
 export const CreateIssueSchema = ProjectParamsSchema.extend({
   title: z.string().describe("Issue title"),
   description: z.string().optional().describe("Issue description"),
-  assignee_ids: z.array(z.coerce.number()).optional().describe("Array of user IDs to assign"),
-  labels: coerceStringArray.optional().describe("Array of label names"),
-  milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
+  assignee_ids: z.array(z.coerce.number()).optional().describe("Assignee user IDs"),
+  labels: coerceStringArray.optional().describe("Label names"),
+  milestone_id: z.coerce.string().optional().describe("Milestone ID"),
   issue_type: z
     .enum(["issue", "incident", "test_case", "task"])
     .optional()
     .default("issue")
-    .describe("The type of issue. One of issue, incident, test_case or task."),
-  weight: z.coerce
-    .number()
-    .optional()
-    .describe("Weight of the issue (numeric, typically hours of work)"),
+    .describe("issue, incident, test_case, or task"),
+  weight: z.coerce.number().optional().describe("Issue weight"),
 });
 
 export const GitLabTodoSchema = z.object({
@@ -2291,30 +2275,19 @@ export const MarkAllTodosDoneSchema = z.object({});
 const MergeRequestOptionsSchema = {
   title: z.string().describe("Merge request title"),
   description: z.string().optional().describe("Merge request description"),
-  source_branch: z.string().describe("Branch containing changes"),
-  target_branch: z.string().describe("Branch to merge into"),
-  target_project_id: z.coerce.string().optional().describe("Numeric ID of the target project."),
-  assignee_ids: z
-    .array(z.coerce.number())
-    .optional()
-    .describe("The ID of the users to assign the MR to"),
-  reviewer_ids: z
-    .array(z.coerce.number())
-    .optional()
-    .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: coerceStringArray.optional().describe("Labels for the MR"),
-  draft: coerceBooleanString.optional().describe("Create as draft merge request"),
-  allow_collaboration: coerceBooleanString
-    .optional()
-    .describe("Allow commits from upstream members"),
+  source_branch: z.string().describe("Source branch"),
+  target_branch: z.string().describe("Target branch"),
+  target_project_id: z.coerce.string().optional().describe("Target project numeric ID"),
+  assignee_ids: z.array(z.coerce.number()).optional().describe("Assignee user IDs"),
+  reviewer_ids: z.array(z.coerce.number()).optional().describe("Reviewer user IDs"),
+  labels: coerceStringArray.optional().describe("MR labels"),
+  draft: coerceBooleanString.optional().describe("Create as draft"),
+  allow_collaboration: coerceBooleanString.optional().describe("Allow eligible upstream members to push to the fork source branch"),
   remove_source_branch: coerceBooleanString
     .nullable()
     .optional()
-    .describe("Flag indicating if a merge request should remove the source branch when merging."),
-  squash: coerceBooleanString
-    .nullable()
-    .optional()
-    .describe("If true, squash all commits into a single commit on merge."),
+    .describe("Remove source branch on merge"),
+  squash: coerceBooleanString.nullable().optional().describe("Squash commits on merge"),
 };
 export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchema);
 export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
@@ -2605,44 +2578,31 @@ const MergeRequestParamsSchema = ProjectParamsSchema.extend({
         .refine(value => value === "" || value.trim().length > 0, "project_id is required")
         .transform(value => (value === "" ? value : value.trim()))
     )
-    .describe("Project ID or complete URL-encoded path to project"),
-  merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
+    .describe("Project ID or URL-encoded path"),
+  merge_request_iid: z.coerce.string().optional().describe("Merge request IID"),
   source_branch: z.string().optional().describe("Source branch name"),
 });
 
 export const GetMergeRequestSchema = MergeRequestParamsSchema.extend({
   include_summaries: flexibleBooleanOptional.describe(
-    "If true, include deployment_summary, commit_addition_summary and approval_summary (extra API calls, larger response). Default false to reduce token usage."
+    "If true, include deployment, commit, and approval summaries (extra API calls). Default false."
   ),
 });
 
 export const UpdateMergeRequestSchema = MergeRequestParamsSchema.extend({
-  title: z.string().optional().describe("The title of the merge request"),
-  description: z.string().optional().describe("The description of the merge request"),
-  target_branch: z.string().optional().describe("The target branch"),
-  assignee_ids: z
-    .array(z.coerce.number())
-    .optional()
-    .describe("The ID of the users to assign the MR to"),
-  reviewer_ids: z
-    .array(z.coerce.number())
-    .optional()
-    .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: coerceStringArray.optional().describe("Labels for the MR"),
-  state_event: z
-    .enum(["close", "reopen"])
-    .optional()
-    .describe("New state (close/reopen) for the MR"),
-  remove_source_branch: coerceBooleanString
-    .optional()
-    .describe("Flag indicating if the source branch should be removed"),
-  squash: coerceBooleanString
-    .optional()
-    .describe("Squash commits into a single commit when merging"),
-  draft: coerceBooleanString.optional().describe("Work in progress merge request"),
+  title: z.string().optional().describe("MR title"),
+  description: z.string().optional().describe("MR description"),
+  target_branch: z.string().optional().describe("Target branch"),
+  assignee_ids: z.array(z.coerce.number()).optional().describe("Assignee user IDs"),
+  reviewer_ids: z.array(z.coerce.number()).optional().describe("Reviewer user IDs"),
+  labels: coerceStringArray.optional().describe("MR labels"),
+  state_event: z.enum(["close", "reopen"]).optional().describe("close or reopen"),
+  remove_source_branch: coerceBooleanString.optional().describe("Remove source branch on merge"),
+  squash: coerceBooleanString.optional().describe("Squash commits on merge"),
+  draft: coerceBooleanString.optional().describe("Draft / WIP"),
   milestone_id: z
     .preprocess(val => (val === null ? undefined : val), z.coerce.string().optional())
-    .describe("Milestone ID to assign. Set to 0 to unassign. Null is treated as omitted."),
+    .describe("Milestone ID. 0 unassigns. Null is omitted."),
 });
 
 export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
@@ -2874,62 +2834,47 @@ export const ListIssuesSchema = z
     project_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects)"
-      ),
+      .describe("Project ID or URL-encoded path. Omit to list issues across accessible projects."),
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Return issues assigned to the given user ID (user id, none, or any). Mutually exclusive with assignee_username."
-      ),
+      .describe("User ID, none, or any. Mutually exclusive with assignee_username."),
     assignee_username: z
       .array(z.string())
       .optional()
-      .describe(
-        "Return issues assigned to the given username. Mutually exclusive with assignee_id."
-      ),
+      .describe("Username. Mutually exclusive with assignee_id."),
     author_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Return issues created by the given user ID. Mutually exclusive with author_username."
-      ),
+      .describe("Author user ID. Mutually exclusive with author_username."),
     author_username: z
       .string()
       .optional()
-      .describe("Return issues created by the given username. Mutually exclusive with author_id."),
-    confidential: coerceBooleanString.optional().describe("Filter confidential or public issues"),
-    created_after: z.string().optional().describe("Return issues created after the given time"),
-    created_before: z.string().optional().describe("Return issues created before the given time"),
-    due_date: z.string().optional().describe("Return issues that have the due date"),
-    labels: coerceStringArray.optional().describe("Array of label names"),
+      .describe("Author username. Mutually exclusive with author_id."),
+    confidential: coerceBooleanString.optional().describe("Confidential or public"),
+    created_after: z.string().optional().describe("Created after"),
+    created_before: z.string().optional().describe("Created before"),
+    due_date: z.string().optional().describe("Due date"),
+    labels: coerceStringArray.optional().describe("Label names"),
     milestone: z.string().optional().describe("Milestone title"),
 
     issue_type: z
       .enum(["issue", "incident", "test_case", "task"])
       .optional()
-      .describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
+      .describe("issue, incident, test_case, or task"),
     iteration_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "
-      ),
+      .describe("Iteration ID, none (no iteration), or any (has an iteration)."),
     scope: z
       .enum(["created_by_me", "assigned_to_me", "all"])
       .optional()
-      .describe("Return issues from a specific scope"),
-    search: z.string().optional().describe("Search for specific terms"),
-    state: z
-      .enum(["opened", "closed", "all"])
-      .optional()
-      .describe("Return issues with a specific state"),
-    updated_after: z.string().optional().describe("Return issues updated after the given time"),
-    updated_before: z.string().optional().describe("Return issues updated before the given time"),
-    with_labels_details: coerceBooleanString
-      .optional()
-      .describe("Return more details for each label"),
+      .describe("Issue scope"),
+    search: z.string().optional().describe("Search terms"),
+    state: z.enum(["opened", "closed", "all"]).optional().describe("Issue state"),
+    updated_after: z.string().optional().describe("Updated after"),
+    updated_before: z.string().optional().describe("Updated before"),
+    with_labels_details: coerceBooleanString.optional().describe("Include label details"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -2939,75 +2884,47 @@ export const ListMergeRequestsSchema = z
     project_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Project ID or URL-encoded path (optional - if not provided, lists all merge requests the user has access to)"
-      ),
+      .describe("Project ID or URL-encoded path. Omit to list the user's accessible MRs."),
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Return MRs assigned to the given user ID (integer), 'none', or 'any'. Mutually exclusive with assignee_username."
-      ),
+      .describe("User ID, none, or any. Mutually exclusive with assignee_username."),
     assignee_username: z
       .string()
       .optional()
-      .describe(
-        "Returns merge requests assigned to the given username. Mutually exclusive with assignee_id."
-      ),
+      .describe("Username. Mutually exclusive with assignee_id."),
     author_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Returns merge requests created by the given user ID (integer). Mutually exclusive with author_username."
-      ),
+      .describe("Author user ID. Mutually exclusive with author_username."),
     author_username: z
       .string()
       .optional()
-      .describe(
-        "Returns merge requests created by the given username. Mutually exclusive with author_id."
-      ),
+      .describe("Author username. Mutually exclusive with author_id."),
     reviewer_id: z.coerce
       .string()
       .optional()
-      .describe(
-        "Returns merge requests which have the user as a reviewer. Must be an integer, 'none', or 'any'. Mutually exclusive with reviewer_username."
-      ),
+      .describe("Reviewer user ID, none, or any. Mutually exclusive with reviewer_username."),
     reviewer_username: z
       .string()
       .optional()
-      .describe(
-        "Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id."
-      ),
-    approved_by_usernames: coerceStringArray
-      .optional()
-      .describe("Returns merge requests approved by the given usernames (array)."),
-    created_after: z
-      .string()
-      .optional()
-      .describe("Return merge requests created after the given time"),
-    created_before: z
-      .string()
-      .optional()
-      .describe("Return merge requests created before the given time"),
-    updated_after: z
-      .string()
-      .optional()
-      .describe("Return merge requests updated after the given time"),
-    updated_before: z
-      .string()
-      .optional()
-      .describe("Return merge requests updated before the given time"),
-    labels: coerceStringArray.optional().describe("Array of label names"),
+      .describe("Reviewer username. Mutually exclusive with reviewer_id."),
+    approved_by_usernames: coerceStringArray.optional().describe("Approved by these usernames"),
+    created_after: z.string().optional().describe("Created after"),
+    created_before: z.string().optional().describe("Created before"),
+    updated_after: z.string().optional().describe("Updated after"),
+    updated_before: z.string().optional().describe("Updated before"),
+    labels: coerceStringArray.optional().describe("Label names"),
     milestone: z.string().optional().describe("Milestone title"),
     scope: z
       .enum(["created_by_me", "assigned_to_me", "all"])
       .optional()
-      .describe("Return merge requests from a specific scope"),
-    search: z.string().optional().describe("Search for specific terms"),
+      .describe("MR scope"),
+    search: z.string().optional().describe("Search terms"),
     state: z
       .enum(["opened", "closed", "locked", "merged", "all"])
       .optional()
-      .describe("Return merge requests with a specific state"),
+      .describe("MR state"),
     order_by: z
       .enum([
         "created_at",
@@ -3018,26 +2935,12 @@ export const ListMergeRequestsSchema = z
         "popularity",
       ])
       .optional()
-      .describe("Return merge requests ordered by the given field"),
-    sort: z
-      .enum(["asc", "desc"])
-      .optional()
-      .describe("Return merge requests sorted in ascending or descending order"),
-    target_branch: z
-      .string()
-      .optional()
-      .describe("Return merge requests targeting a specific branch"),
-    source_branch: z
-      .string()
-      .optional()
-      .describe("Return merge requests from a specific source branch"),
-    wip: z
-      .enum(["yes", "no"])
-      .optional()
-      .describe("Filter merge requests against their wip status"),
-    with_labels_details: coerceBooleanString
-      .optional()
-      .describe("Return more details for each label"),
+      .describe("Sort field"),
+    sort: z.enum(["asc", "desc"]).optional().describe("asc or desc"),
+    target_branch: z.string().optional().describe("Target branch"),
+    source_branch: z.string().optional().describe("Source branch"),
+    wip: z.enum(["yes", "no"]).optional().describe("WIP filter"),
+    with_labels_details: coerceBooleanString.optional().describe("Include label details"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -3056,39 +2959,33 @@ export const ListGroupMergeRequestsSchema = ListMergeRequestsSchema.omit({
 
 export const GetIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
+  issue_iid: z.coerce.string().describe("Issue IID"),
   full_response: flexibleBooleanOptional.describe(
-    "If true, include the complete milestone object, including its description, on the returned issue. Default returns the issue with a slim milestone (id, iid, title, state, web_url) to reduce token usage."
+    "If true, include the complete milestone (including description). Default is slim (id, iid, title, state, web_url)."
   ),
 });
 
 export const UpdateIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
-  title: z.string().optional().describe("The title of the issue"),
-  description: z.string().optional().describe("The description of the issue"),
-  assignee_ids: z
-    .array(z.coerce.number())
-    .optional()
-    .describe("Array of user IDs to assign issue to"),
-  confidential: coerceBooleanString.optional().describe("Set the issue to be confidential"),
-  discussion_locked: coerceBooleanString.optional().describe("Flag to lock discussions"),
-  due_date: z.string().optional().describe("Date the issue is due (YYYY-MM-DD)"),
-  labels: coerceStringArray.optional().describe("Array of label names"),
-  milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
-  state_event: z.enum(["close", "reopen"]).optional().describe("Update issue state (close/reopen)"),
-  weight: z.coerce
-    .number()
-    .optional()
-    .describe("Weight of the issue (numeric, typically hours of work)"),
+  issue_iid: z.coerce.string().describe("Issue IID"),
+  title: z.string().optional().describe("Issue title"),
+  description: z.string().optional().describe("Issue description"),
+  assignee_ids: z.array(z.coerce.number()).optional().describe("Assignee user IDs"),
+  confidential: coerceBooleanString.optional().describe("Confidential"),
+  discussion_locked: coerceBooleanString.optional().describe("Lock discussions"),
+  due_date: z.string().optional().describe("Due date (YYYY-MM-DD)"),
+  labels: coerceStringArray.optional().describe("Label names"),
+  milestone_id: z.coerce.string().optional().describe("Milestone ID"),
+  state_event: z.enum(["close", "reopen"]).optional().describe("close or reopen"),
+  weight: z.coerce.number().optional().describe("Issue weight"),
   issue_type: z
     .preprocess(
       val => (typeof val === "string" ? val.toLowerCase() : val),
       z.enum(["issue", "incident", "test_case", "task"]).optional()
     )
-    .describe("The type of issue. One of issue, incident, test_case or task."),
+    .describe("issue, incident, test_case, or task"),
   full_response: flexibleBooleanOptional.describe(
-    "If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage."
+    "If true, return the complete updated issue. Default is slim (iid, title, state, web_url, updated_at)."
   ),
 });
 
@@ -3271,36 +3168,29 @@ export const UpdateProjectSchema = ProjectParamsSchema.extend({
 
 export const ListProjectsSchema = z
   .object({
-    search: z.string().optional().describe("Search term for projects"),
+    search: z.string().optional().describe("Search term"),
     search_namespaces: coerceBooleanString
       .optional()
-      .describe("Needs to be true if search is full path"),
-    owned: coerceBooleanString.optional().describe("Filter for projects owned by current user"),
-    membership: coerceBooleanString
-      .optional()
-      .describe("Filter for projects where current user is a member"),
-    simple: coerceBooleanString.optional().describe("Return only limited fields"),
-    archived: coerceBooleanString.optional().describe("Filter for archived projects"),
+      .describe("Set true when search is a full path"),
+    owned: coerceBooleanString.optional().describe("Owned by current user"),
+    membership: coerceBooleanString.optional().describe("Current user is a member"),
+    simple: coerceBooleanString.optional().describe("Limited fields only"),
+    archived: coerceBooleanString.optional().describe("Archived projects"),
     visibility: z
       .enum(["public", "internal", "private"])
       .optional()
-      .describe("Filter by project visibility"),
+      .describe("public, internal, or private"),
     order_by: z
       .enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at"])
       .optional()
-      .describe("Return projects ordered by field"),
-    sort: z
-      .enum(["asc", "desc"])
-      .optional()
-      .describe("Return projects sorted in ascending or descending order"),
-    with_issues_enabled: coerceBooleanString
-      .optional()
-      .describe("Filter projects with issues feature enabled"),
+      .describe("Sort field"),
+    sort: z.enum(["asc", "desc"]).optional().describe("asc or desc"),
+    with_issues_enabled: coerceBooleanString.optional().describe("Issues enabled"),
     with_merge_requests_enabled: coerceBooleanString
       .optional()
-      .describe("Filter projects with merge requests feature enabled"),
-    min_access_level: z.coerce.number().optional().describe("Filter by minimum access level"),
-    topic: z.string().optional().describe("Filter by topic (projects tagged with this topic)"),
+      .describe("Merge requests enabled"),
+    min_access_level: z.coerce.number().optional().describe("Minimum access level"),
+    topic: z.string().optional().describe("Topic tag"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -3895,43 +3785,19 @@ export const GetGroupMilestoneBurndownEventsSchema =
 
 // Add schemas for commit operations
 export const ListCommitsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
-  ref_name: z
-    .string()
-    .optional()
-    .describe(
-      "The name of a repository branch, tag or revision range, or if not given the default branch"
-    ),
-  since: z
-    .string()
-    .optional()
-    .describe(
-      "Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"
-    ),
-  until: z
-    .string()
-    .optional()
-    .describe(
-      "Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"
-    ),
-  path: z.string().optional().describe("The file path"),
-  author: z.string().optional().describe("Search commits by commit author"),
-  all: coerceBooleanString.optional().describe("Retrieve every commit from the repository"),
-  with_stats: coerceBooleanString
-    .optional()
-    .describe("Stats about each commit are added to the response"),
-  first_parent: coerceBooleanString
-    .optional()
-    .describe("Follow only the first parent commit upon seeing a merge commit"),
-  order: z.enum(["default", "topo"]).optional().describe("List commits in order"),
-  trailers: coerceBooleanString
-    .optional()
-    .describe("Parse and include Git trailers for every commit"),
-  page: z.coerce.number().optional().describe("Page number for pagination (default: 1)"),
-  per_page: z.coerce
-    .number()
-    .optional()
-    .describe("Number of items per page (max: 100, default: 20)"),
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  ref_name: z.string().optional().describe("Branch, tag, or revision range. Default: default branch."),
+  since: z.string().optional().describe("Commits on or after this ISO 8601 datetime"),
+  until: z.string().optional().describe("Commits on or before this ISO 8601 datetime"),
+  path: z.string().optional().describe("File path"),
+  author: z.string().optional().describe("Commit author"),
+  all: coerceBooleanString.optional().describe("Every commit in the repository"),
+  with_stats: coerceBooleanString.optional().describe("Include per-commit stats"),
+  first_parent: coerceBooleanString.optional().describe("Follow only the first parent of merges"),
+  order: z.enum(["default", "topo"]).optional().describe("default or topo"),
+  trailers: coerceBooleanString.optional().describe("Include Git trailers"),
+  page: z.coerce.number().optional().describe("Page number (default 1)"),
+  per_page: z.coerce.number().optional().describe("Items per page (max 100, default 20)"),
 });
 
 export const GetCommitSchema = z.object({

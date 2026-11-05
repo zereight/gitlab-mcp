@@ -9,11 +9,21 @@ and GitLab's official MCP server.
 |---|----------------------|--------------|
 | **Best for** | AI agent workflows (MR review, pipelines, issues) | Enterprise platform teams (multi-instance, CQRS tooling) |
 | **Tool model** | 288 tools: 285 in toolsets + `execute_graphql` + `discover_tools` + `help` | CQRS-style grouped tools with action parameters |
-| **Token budget** | Start minimal via `discover_tools` / toolsets | Fewer listed tools by default |
+| **Token budget** | Default ~40 tools (~12k schema tokens). `GITLAB_TOOLSETS=all` is ~73k — prefer `discover_tools` or Skill + CLI | Fewer listed tools by default |
 | **Node.js** | >=20 | Typically >=24 |
 | **License** | MIT | Varies (often Apache-2.0) |
 | **Multi-instance** | Planned ([design doc](../configuration/multi-instance-design.md)) | Supported in some variants |
 | **Agent Skill** | Built in (`skills/gitlab-mcp/`) | Not typical |
+
+### tools/list size (measured 2026-11-05) {: #toolslist-size-measured-2026-11-05 }
+
+A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4. Re-measure with `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`).
+
+| Profile | Tools | JSON bytes | Est. tokens |
+| ------- | ----: | ---------: | ----------: |
+| Default (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
 
 ## Documents
 
@@ -28,7 +38,7 @@ Pick this server when you want:
 
 - MR 2-step review (`list_merge_request_changed_files` → batched diff)
 - Broad GitLab API coverage with fine-grained tool names
-- `discover_tools` or `GITLAB_TOOLSETS` for token control without CQRS
+- `discover_tools` or a named `GITLAB_TOOLSETS` list for token control without CQRS (`all` loads ~all schemas)
 - Remote auth, stateless OAuth (HPA), and dynamic API URL routing
 - MIT license and Node 20+ support
 - Setup guides for Claude, Cursor, Copilot, VS Code, and more

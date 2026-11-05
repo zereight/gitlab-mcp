@@ -1,6 +1,6 @@
 # GitLab MCP Server
 
-> Agent-workflow-optimized GitLab MCP. Default list: 40 tools (38 `core` + `discover_tools` + `help`). 288 tools exist in total. Activate more at runtime with `discover_tools`.
+> Agent-workflow-optimized GitLab MCP. Default list: 40 tools (38 `core` + `discover_tools` + `help`). 288 tools exist in total. Activate more at runtime with `discover_tools` (session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS`). Do not set `GITLAB_TOOLSETS=all` (~73k schema tokens).
 
 Package: `@zereight/mcp-gitlab` · Binary: `zereight-mcp-gitlab` · License: MIT
 Docs: https://zereight.github.io/gitlab-mcp/ · Full text: ./llms-full.txt
@@ -31,4 +31,5 @@ Docs: https://zereight.github.io/gitlab-mcp/ · Full text: ./llms-full.txt
 - `project_id` is a numeric ID or URL-encoded path (`group%2Fproject`). MR `!123` → `merge_request_iid=123`.
 - MR review: `list_merge_request_changed_files` then batched `get_merge_request_file_diff`. Do not dump full `get_merge_request_diffs`.
 - Shrink results with `jmespath` or `GITLAB_MCP_COMPACT_RESULTS`. Paginate job logs. Use the CLI for full payloads.
+- Keep the default ~40-tool list. Call `discover_tools` to expand this session. With `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS`. Do not set `GITLAB_TOOLSETS=all` (loads ~all schemas, ~73k tokens). Skill + CLI skips MCP schemas.
 - Do not enable the `api` toolset unless you accept that `gitlab_api_request` bypasses allowlists and tool filters.

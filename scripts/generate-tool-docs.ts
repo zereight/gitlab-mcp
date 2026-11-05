@@ -18,6 +18,7 @@ import {
   TOOLSET_DEFINITIONS,
   type ToolsetId,
 } from "../tools/registry.js";
+import { SLIM_PROFILE_EXCLUDED_TOOLS } from "../tools/tool-profile.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -78,6 +79,16 @@ function formatDefaultOverlapNote(toolNames: readonly string[]): string {
   return ` ${overlap.length} of these tools (${list}) are already enabled by default via \`core\`; the toggle applies to the rest.`;
 }
 
+function formatSlimOverlapNote(toolNames: readonly string[]): string {
+  const excluded = toolNames.filter(name => SLIM_PROFILE_EXCLUDED_TOOLS.has(name));
+  if (excluded.length === 0) return "";
+  const skipped =
+    excluded.length === toolNames.length
+      ? "every tool in this group"
+      : `${excluded.length} of these tools (${excluded.map(name => `\`${name}\``).join(", ")})`;
+  return ` With \`GITLAB_TOOL_PROFILE=slim\` and \`GITLAB_TOOLSETS\` unset, \`discover_tools\` skips ${skipped}; add a tool name to \`GITLAB_TOOLS\` to expose it. Setting \`GITLAB_TOOLSETS\` disables the slim profile.`;
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
@@ -89,17 +100,19 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   if ((id as string) === "meta") {
     return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
+  const overlapNotes = formatDefaultOverlapNote(toolNames) + formatSlimOverlapNote(toolNames);
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
     return (
-      `Opt-in. Enable via ${legacyToolsetReplacement(id)} (or \`GITLAB_TOOLSETS=all\`). ` +
-      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it.` +
+      `Opt-in. Prefer \`discover_tools\`, or persist with ${legacyToolsetReplacement(id)}. ` +
+      `Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list). ` +
+      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged).` +
       `${legacyToolsAppendNote(id)} ` +
       `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
-      formatDefaultOverlapNote(toolNames)
+      overlapNotes
     );
   }
-  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${overlapNotes}`;
 }
 
 const META_GROUP_ID = "meta";
@@ -435,19 +448,18 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
         ]
       : []),
     "",
-    "**How to enable opt-in groups** (any one is sufficient):",
+    "**How to enable opt-in groups:**",
     "",
-    "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
-    "- `GITLAB_TOOLSETS=all` — enables every group except explicit-only toolsets (`api`).",
-    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
+    "- **Preferred (stateful sessions):** call `discover_tools` (omit `category` to list; pass a category to activate for this session). Session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS=core,<group>` instead. If you already set `GITLAB_TOOLSETS`, append `<group>` to your existing list and keep `core` (leave `GITLAB_TOOLSETS=all` unchanged).",
+    "- `GITLAB_TOOLSETS=<group,…>` — persist named toolset IDs. An explicit list replaces `core`; include `core` to keep the default set (for example `GITLAB_TOOLSETS=core,branches`).",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
+    "- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.",
+    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
     "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
       " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
       " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
-      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it." +
+      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged)." +
       " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
-    "- Call the `discover_tools` MCP tool at runtime to activate categories" +
-      " for the current session.",
   ];
 }
 
@@ -530,8 +542,8 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
   lines.push("Each group page includes a parameter table per tool, generated from");
   lines.push("the authoritative Zod schemas in");
   lines.push("[`schemas.ts`](https://github.com/zereight/gitlab-mcp/blob/main/schemas.ts).");
-  lines.push("For runtime schema inspection from a connected MCP client, call the");
-  lines.push("`discover_tools` tool.");
+  lines.push("To activate extra toolsets at runtime without `GITLAB_TOOLSETS=all`, call");
+  lines.push("`discover_tools`.");
   return lines.join("\n");
 }
 

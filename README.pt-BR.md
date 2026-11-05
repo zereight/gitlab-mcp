@@ -8,6 +8,8 @@
 
 **Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
+> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-05) e [comparação](./docs/comparison/index.md).
+
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
 ### Without → With
@@ -58,7 +60,7 @@ Local: claude mcp add gitlab --transport stdio --scope local --env GITLAB_PERSON
 Ou: codex mcp add gitlab --env GITLAB_PERSONAL_ACCESS_TOKEN="$GITLAB_PERSONAL_ACCESS_TOKEN" --env GITLAB_API_URL=https://gitlab.com/api/v4 -- zereight-mcp-gitlab
 Cursor: use o deeplink do README ou docs/clients/cursor.md.
 HTTP remoto: aponte o cliente para https://mcp.example.com/mcp (Streamable HTTP). Claude.ai precisa de GITLAB_MCP_OAUTH nesse host.
-Lista padrão: 40 ferramentas (38 core + discover_tools + help). Expanda com discover_tools. Não habilite o toolset api sem aceitar o risco de bypass.
+Lista padrão: 40 ferramentas (38 core + discover_tools + help). Expanda com discover_tools. Não defina GITLAB_TOOLSETS=all (carrega ~todos os schemas, ~73k tokens). Não habilite o toolset api sem aceitar o risco de bypass.
 Caminho equivalente sem MCP: npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill mais a CLI zereight-mcp-gitlab.
 ```
 
@@ -111,7 +113,7 @@ A CLI humana nunca é compactada. Ferramentas destrutivas e `GITLAB_TOOL_POLICY_
 
 **Como autenticar?** No desktop local, `GITLAB_PERSONAL_ACCESS_TOKEN` (ou `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) é o mais simples. OAuth local é `GITLAB_USE_OAUTH=true`. Claude.ai remoto usa `GITLAB_MCP_OAUTH`. HTTP multi-usuário usa `REMOTE_AUTHORIZATION` e um cabeçalho de token por requisição.
 
-**Por que vejo só ~40 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` e o `help` sempre ligados. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. `GITLAB_TOOLSETS=all` ainda **não** habilita `api`.
+**Por que vejo só ~40 ferramentas?** O toolset `core` padrão tem 38 ferramentas mais o `discover_tools` e o `help` sempre ligados. Isso é intencional: o cliente envia todos os schemas listados ao modelo de uma vez. Chame `discover_tools` sem args para listar categorias e passe uma (`pipelines`, `wiki`, …) para ativá-la nesta sessão. Somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`. **Não defina `GITLAB_TOOLSETS=all`** — custa ~73k tokens de schema e ainda **não** habilita `api`.
 
 **OAuth local vs MCP OAuth vs auth remota?** OAuth local abre o navegador na mesma máquina do servidor. MCP OAuth é para um servidor HTTPS público e clientes como Claude.ai. Autorização remota encaminha o PAT ou job token do chamador; não há fluxo OAuth.
 
@@ -123,7 +125,7 @@ A CLI humana nunca é compactada. Ferramentas destrutivas e `GITLAB_TOOL_POLICY_
 
 ```
 Merge requests, issues e pipelines do GitLab passam por este MCP (@zereight/mcp-gitlab).
-Comece pelas ferramentas core padrão. Chame discover_tools para expandir.
+Comece pelas ferramentas core padrão. Chame discover_tools para expandir. Não defina GITLAB_TOOLSETS=all.
 Prefira list_merge_request_changed_files e depois get_merge_request_file_diff em lote.
 Use jmespath ou resultados compactos; use a CLI para diffs e logs completos.
 ```
@@ -138,7 +140,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 288 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão
+- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 288 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão. `GITLAB_TOOLSETS=all` custa ~73k tokens de schema; prefira descoberta sob demanda ou Skill + CLI
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -157,17 +159,17 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 | **Node.js**               | >=20.0.0                                                                | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-### Tamanho do tools/list (medido em 2026-10-24)
+### Tamanho do tools/list (medido em 2026-11-05)
 
 O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estimativa de tokens é bytes UTF-8 / 4.
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 50,682 | 12,671 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 49,646 | 12,412 |
-| `GITLAB_TOOLSETS=all` | 276 | 285,677 | 71,420 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 46.943 | 11.736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45.935 | 11.484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293.906 | 73.477 |
 
-Após alterar descrições ou schemas, meça de novo com `npm run test:mock` (`test/tools-list-budget.test.ts`).
+Após alterar descrições ou schemas, meça de novo com `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`).
 
 O GitLab também inclui um [servidor MCP oficial](https://docs.gitlab.com/user/model_context_protocol/mcp_server/).
 
@@ -282,7 +284,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` (substitui `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
-- `--toolsets=all` - ativa toolsets nomeados, exceto o toolset explícito `api` (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). `gitlab_api_request` exige `--toolsets=api`
+- `--toolsets` - toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). Não passe `all` a menos que aceite ~73k tokens de schema. `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` (substitui `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` (substitui `USE_MILESTONE`)

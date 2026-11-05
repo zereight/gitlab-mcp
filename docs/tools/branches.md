@@ -3,7 +3,7 @@
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=branches` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,branches`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `branches` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 
@@ -65,8 +65,8 @@ List branches in project with search filter. For one known resource, use the mat
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `search` | string |  | Search term to filter branches by name |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `delete_branch`
 
@@ -93,8 +93,8 @@ List protected branches in a project, supports search filter. For one known reso
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `search` | string |  | Search term to filter protected branches by name |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_protected_branch`
 
@@ -182,19 +182,19 @@ List repository commits with filtering options. For one known resource, use the 
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `ref_name` | string |  | The name of a repository branch, tag or revision range, or if not given the default branch |
-| `since` | string |  | Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ |
-| `until` | string |  | Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ |
-| `path` | string |  | The file path |
-| `author` | string |  | Search commits by commit author |
-| `all` | boolean |  | Retrieve every commit from the repository |
-| `with_stats` | boolean |  | Stats about each commit are added to the response |
-| `first_parent` | boolean |  | Follow only the first parent commit upon seeing a merge commit |
-| `order` | enum (`default` \| `topo`) |  | List commits in order |
-| `trailers` | boolean |  | Parse and include Git trailers for every commit |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `ref_name` | string |  | Branch, tag, or revision range. Default: default branch. |
+| `since` | string |  | Commits on or after this ISO 8601 datetime |
+| `until` | string |  | Commits on or before this ISO 8601 datetime |
+| `path` | string |  | File path |
+| `author` | string |  | Commit author |
+| `all` | boolean |  | Every commit in the repository |
+| `with_stats` | boolean |  | Include per-commit stats |
+| `first_parent` | boolean |  | Follow only the first parent of merges |
+| `order` | enum (`default` \| `topo`) |  | default or topo |
+| `trailers` | boolean |  | Include Git trailers |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `get_commit`
 
@@ -259,8 +259,8 @@ List statuses for a commit.
 | `order_by` | enum (`id` \| `pipeline_id`) |  | Field to order statuses by |
 | `sort` | enum (`asc` \| `desc`) |  | Sort direction |
 | `all` | boolean |  | Return all statuses, not only latest ones |
-| `page` | number |  | Page number for pagination (default: 1) |
-| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
 
 ### `create_commit_status`
 

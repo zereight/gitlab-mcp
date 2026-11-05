@@ -13,7 +13,7 @@ vendor or fork.
 |-----------|----------------------|---------------------------|
 | Tool count (listed) | 288 tools: 285 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped tools |
 | Operations | 1 tool ≈ 1 API call | 1 tool × many `action` values |
-| Token control | `discover_tools`, `GITLAB_TOOLSETS`, `GITLAB_TOOLS` | Smaller default tool list |
+| Token control | Default ~40 tools; `discover_tools` / named `GITLAB_TOOLSETS` (avoid `all`, ~73k schema tokens) | Smaller default tool list |
 | Tool discovery | Explicit names (`get_merge_request`, `list_pipelines`, …) | Category + action (`browse_merge_requests`, …) |
 | MR code review | 2-step batched diff workflow | Often single browse tool per domain |
 | Multi-instance | [Design in progress](../configuration/multi-instance-design.md) | Often built-in (env/YAML) |
@@ -33,9 +33,9 @@ Each major GitLab operation is a named MCP tool. Agents can call `get_merge_requ
 
 Token budget is managed without collapsing the model:
 
-1. **Default toolsets** — only expose categories you need via `GITLAB_TOOLSETS`
-2. **`discover_tools`** — activate categories at runtime; server sends `list_changed`
-3. **Agent Skill** — workflow guidance without loading every tool description
+1. **Default toolsets** — unset `GITLAB_TOOLSETS` keeps the lean `core` list (~40 tools)
+2. **`discover_tools`** — activate categories at runtime; server sends `list_changed`. Prefer this over `GITLAB_TOOLSETS=all`
+3. **Agent Skill + CLI** — workflow guidance and full payloads without loading every MCP schema
 
 ### GitLab MCP A — CQRS grouping
 
@@ -112,7 +112,7 @@ config, a GraphQL client, or an MCP prompts/resources layer) — none is a small
 If you are evaluating a switch in either direction:
 
 1. Compare **your actual prompts** — MR review and pipeline debug are the most sensitive flows
-2. Map **toolsets** — `GITLAB_TOOLSETS=all` on our side vs CQRS `browse_*` groups on theirs
+2. Map **toolsets** — named `GITLAB_TOOLSETS` or `discover_tools` on our side (avoid `all` unless you are measuring the full schema cost) vs CQRS `browse_*` groups on theirs
 3. Check **auth** — PAT-only multi-instance is simpler; OAuth multi-instance needs extra design
 4. Run **`health_check`** on both against the same GitLab instance
 

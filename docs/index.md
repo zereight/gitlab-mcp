@@ -5,7 +5,11 @@ merge requests, issues, pipelines, wikis, releases, tags, milestones, and more
 from any MCP-compatible AI client.
 
 **Default: 40 tools** (38 `core` + `discover_tools` + `help`). 288 tools exist in total.
-Start lean; call `discover_tools` to activate more. Machine-readable index:
+Start lean; call `discover_tools` to activate more for this session
+(session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS`).
+Do not set `GITLAB_TOOLSETS=all`
+(~73k schema tokens). Skill + CLI skips MCP schemas:
+[CLI without MCP](getting-started/cli-without-mcp.md). Machine-readable index:
 [llms.txt](llms.txt) · [llms-full.txt](llms-full.txt).
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
