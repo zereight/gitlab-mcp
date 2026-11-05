@@ -171,11 +171,11 @@ A client sends the whole `tools/list` result to the model at session start. Toke
 
 | Profile | Tools | JSON bytes | Est. tokens |
 | ------- | ----: | ---------: | ----------: |
-| Default (`core` + `discover_tools` + `help`) | 40 | 46,900 | 11,725 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,892 | 11,473 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,863 | 73,466 |
+| Default (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
 
-Re-measure with `npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
+Re-measure with `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
 GitLab also ships an [official MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/).
 

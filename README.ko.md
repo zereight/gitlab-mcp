@@ -165,11 +165,11 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,900 | 11,725 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,892 | 11,473 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,863 | 73,466 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
 
-설명이나 스키마를 바꾼 뒤에는 `npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
+설명이나 스키마를 바꾼 뒤에는 `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
 GitLab은 [공식 MCP 서버](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)도 제공합니다.
 

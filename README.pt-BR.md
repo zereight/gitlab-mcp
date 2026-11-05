@@ -165,11 +165,11 @@ O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estima
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 46,900 | 11,725 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,892 | 11,473 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,863 | 73,466 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 46.943 | 11.736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45.935 | 11.484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293.906 | 73.477 |
 
-Após alterar descrições ou schemas, meça de novo com `npm run test:mock` (`test/tools-list-budget.test.ts`).
+Após alterar descrições ou schemas, meça de novo com `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`).
 
 O GitLab também inclui um [servidor MCP oficial](https://docs.gitlab.com/user/model_context_protocol/mcp_server/).
 

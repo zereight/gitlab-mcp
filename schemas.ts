@@ -2282,7 +2282,7 @@ const MergeRequestOptionsSchema = {
   reviewer_ids: z.array(z.coerce.number()).optional().describe("Reviewer user IDs"),
   labels: coerceStringArray.optional().describe("MR labels"),
   draft: coerceBooleanString.optional().describe("Create as draft"),
-  allow_collaboration: coerceBooleanString.optional().describe("Allow upstream commits"),
+  allow_collaboration: coerceBooleanString.optional().describe("Allow eligible upstream members to push to the fork source branch"),
   remove_source_branch: coerceBooleanString
     .nullable()
     .optional()

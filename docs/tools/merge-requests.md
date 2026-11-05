@@ -342,7 +342,7 @@ Create a new merge request. Open a merge request from an existing source branch 
 | `reviewer_ids` | array<number> |  | Reviewer user IDs |
 | `labels` | array<string> |  | MR labels |
 | `draft` | boolean |  | Create as draft |
-| `allow_collaboration` | boolean |  | Allow upstream commits |
+| `allow_collaboration` | boolean |  | Allow eligible upstream members to push to the fork source branch |
 | `remove_source_branch` | boolean \| null |  | Remove source branch on merge |
 | `squash` | boolean \| null |  | Squash commits on merge |
 

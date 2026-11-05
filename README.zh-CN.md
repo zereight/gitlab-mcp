@@ -165,11 +165,11 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools` + `help`） | 40 | 46,900 | 11,725 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,892 | 11,473 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,863 | 73,466 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 46,943 | 11,736 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
+| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
 
-更改描述或 schema 后，用 `npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
+更改描述或 schema 后，用 `npm run build && npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
 GitLab 还提供[官方 MCP 服务器](https://docs.gitlab.com/user/model_context_protocol/mcp_server/)。
 
