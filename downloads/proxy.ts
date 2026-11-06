@@ -5,6 +5,7 @@ import { fetch as undiciFetch, type Dispatcher } from "undici";
 import { parseProjectScopeHeader } from "../server/request-helpers.js";
 import { decryptDownloadToken } from "../utils/download-token.js";
 import { fetchWithValidatedRedirects, UnsafeRedirectError } from "../utils/safe-redirect-fetch.js";
+import { uploadFilenameAlternatives } from "../utils/url.js";
 
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
 
@@ -194,6 +195,8 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
 
     const { type } = req.params;
     let gitlabUrl: string;
+    // Tried in turn while GitLab answers 404: an upload's name in its other Unicode forms.
+    let retryUrls: string[] = [];
 
     try {
       switch (type) {
@@ -226,7 +229,10 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
           );
           // The uploads route takes one filename segment; a slash inside the name must
           // stay inside that segment instead of turning into another route level.
-          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(filename)}`;
+          const uploadUrl = (name: string) =>
+            `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(name)}`;
+          gitlabUrl = uploadUrl(filename);
+          retryUrls = uploadFilenameAlternatives(filename).map(uploadUrl);
           break;
         }
         case "release-asset": {
@@ -261,13 +267,21 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     const timeout = setTimeout(() => controller.abort(), downloadTimeoutMs);
 
     try {
-      const gitlabResponse = await fetchWithValidatedRedirects(gitlabUrl, {
+      const fetchOptions = {
         headers,
         dispatcher: deps.getDispatcherForUrl(apiUrl),
         signal: controller.signal,
         fetchImpl: deps.fetch,
         isTrustedRedirectHost: deps.isTrustedRedirectHost,
-      });
+      };
+      let gitlabResponse = await fetchWithValidatedRedirects(gitlabUrl, fetchOptions);
+      for (const retryUrl of retryUrls) {
+        if (gitlabResponse.status !== 404) {
+          break;
+        }
+        await gitlabResponse.body?.cancel();
+        gitlabResponse = await fetchWithValidatedRedirects(retryUrl, fetchOptions);
+      }
 
       if (!gitlabResponse.ok) {
         res.status(gitlabResponse.status).json({
