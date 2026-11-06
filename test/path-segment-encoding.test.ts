@@ -7,6 +7,7 @@ const readSource = (relativePath: string): string =>
   readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
 const indexSource = readSource("../index.ts");
+const pathBuildingSources = [indexSource, readSource("../tools/milestones.ts")];
 
 const rawPathSegmentPatterns = [
   "/issues/${issueIid}",
@@ -29,7 +30,7 @@ const rawPathSegmentPatterns = [
 test("GitLab URL path IDs are encoded before interpolation", () => {
   for (const pattern of rawPathSegmentPatterns) {
     assert.equal(
-      indexSource.includes(pattern),
+      pathBuildingSources.some(source => source.includes(pattern)),
       false,
       `${pattern} must use encodeGitLabPathSegment`
     );
@@ -50,6 +51,7 @@ const queryStringEncoders = [
 
 const serverSources = [
   ["index.ts", "../index.ts"],
+  ["tools/milestones.ts", "../tools/milestones.ts"],
   ["downloads/proxy.ts", "../downloads/proxy.ts"],
   ["oauth-proxy.ts", "../oauth-proxy.ts"],
 ] as const;
