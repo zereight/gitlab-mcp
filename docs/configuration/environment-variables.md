@@ -851,16 +851,6 @@ Behavior:
 This is process-level and fixed at startup. To let a caller narrow the scope
 per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
 
-### `GITLAB_READ_ONLY_MODE`
-
-Set to `true` to expose only read-only tools.
-
-> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are deprecated
-> (removed in next major (v3.0.0)).
-> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
-
-When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
-
 ### `GITLAB_PERMISSION_MODE`
 
 Permission level for the exposed tool surface. One of:
@@ -877,7 +867,7 @@ CLI: `--permission-mode`
 
 Behavior:
 
-- `readonly` matches the legacy `GITLAB_READ_ONLY_MODE=true` behavior (deprecated; removed in next major (v3.0.0))
+- `readonly` exposes read-only tools and rejects writes in mixed tools.
 - `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
   `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
@@ -949,8 +939,7 @@ earlier archive of the same job before downloading it again. Point this outside
 your checkout (for example `~/Downloads/gitlab-mcp`) if you do not want
 downloaded files inside the project tree at all.
 
-In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
-`GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`
+In readonly mode (`GITLAB_PERMISSION_MODE=readonly`) neither tool writes files: `download_attachment`
 only returns images inline, and `download_job_artifacts` is rejected.
 
 ## Tool Exposure and Filtering
@@ -989,7 +978,7 @@ Special values:
 
     With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
-    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
+    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
 ### `GITLAB_TOOLS`
 
@@ -1051,6 +1040,14 @@ Examples:
 > Use `GITLAB_TOOLSETS` (include `core` so the default starter set stays enabled) and `GITLAB_TOOLS`
 > (individual tools) instead. An explicit `GITLAB_TOOLSETS` list replaces the default toolsets;
 > it does not merge.
+
+## Removed in v3.0.0
+
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+
+| Removed environment variable / CLI flag | Replacement                                                      |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 
 ## Logging
 

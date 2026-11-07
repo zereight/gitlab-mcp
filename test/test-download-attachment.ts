@@ -52,7 +52,7 @@ function callServer(
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       // Saving files is refused in readonly mode, so tests opt into it explicitly.
-      env: { ...process.env, GITLAB_READ_ONLY_MODE: 'false', GITLAB_PERMISSION_MODE: 'full', ...env },
+      env: { ...process.env, GITLAB_PERMISSION_MODE: 'full', ...env },
     });
 
     const timer = setTimeout(() => {
@@ -412,7 +412,7 @@ describe('download_attachment', () => {
       freshWorkspace();
       const raw = await callDownloadAttachment(
         { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, ...args },
-        { ...env, GITLAB_READ_ONLY_MODE: 'true' },
+        { ...env, GITLAB_PERMISSION_MODE: "readonly" },
         workspace
       );
 

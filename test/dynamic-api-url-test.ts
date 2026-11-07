@@ -64,7 +64,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
         REMOTE_AUTHORIZATION: 'true',
         ENABLE_DYNAMIC_API_URL: 'true',
         GITLAB_ALLOWED_HOSTS: `${mockGitLabUrl1}/api/v4,${mockGitLabUrl2}/api/v4`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

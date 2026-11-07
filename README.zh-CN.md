@@ -282,7 +282,6 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--permission-mode=readonly`（替代 `GITLAB_READ_ONLY_MODE`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--toolsets` - 指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。不要传 `all`，除非接受约 73k schema token。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
@@ -767,3 +766,11 @@ npm run test:integration
 ## 赞助 💖
 
 通过 [GitHub Sponsors](https://github.com/sponsors/zereight) 的赞助将用于 GitLab E2E 测试费用：用于测试免费测试实例无法覆盖的 Premium/Ultimate 功能（如 milestone burndown 图表和 iterations）的付费 GitLab 方案，以及 live API 测试基础设施。
+
+## Removed in v3.0.0
+
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |

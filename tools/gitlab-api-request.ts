@@ -113,7 +113,7 @@ export function assertGitLabApiRequestMethodAllowed(
   }
   if (permissionMode === "readonly") {
     throw new GitLabApiRequestInputError(
-      "gitlab_api_request allows only GET when GITLAB_READ_ONLY_MODE=true or GITLAB_PERMISSION_MODE=readonly"
+      "gitlab_api_request allows only GET when GITLAB_PERMISSION_MODE=readonly"
     );
   }
   if (permissionMode === "modify" && method === "DELETE") {

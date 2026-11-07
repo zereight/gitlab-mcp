@@ -1,5 +1,6 @@
 import { parseCliArgs } from "./cli-boolean-flags.js";
 import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
+import { assertNoRemovedConfig } from "./removed-config.js";
 import {
   readPersonalAccessTokenFile,
   resolvePersonalAccessToken,
@@ -9,6 +10,7 @@ import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 
 // Parse CLI arguments before anything else
+assertNoRemovedConfig(process.env, process.argv.slice(2));
 export const cliArgs: Record<string, string> = parseCliArgs(process.argv.slice(2));
 
 // Helper function to get config value (CLI args take precedence over env vars)
@@ -49,8 +51,6 @@ export const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 // Behavior flags
 // ---------------------------------------------------------------------------
 
-export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
-
 // Optional response masking. Disabled by default so existing deployments keep
 // the exact original response behavior unless explicitly opted in.
 export const GITLAB_MASKING_ENABLED =
@@ -70,17 +70,12 @@ export const GITLAB_DOWNLOAD_DIR = getConfig("download-dir", "GITLAB_DOWNLOAD_DI
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
-export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = GITLAB_PERMISSION_MODE_RAW;
+  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
     );
-  }
-  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
-  if (GITLAB_READ_ONLY_MODE) {
-    return "readonly";
   }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();

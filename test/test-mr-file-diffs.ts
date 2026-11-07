@@ -15,7 +15,7 @@ async function callListMergeRequestChangedFiles(args: Record<string, any> = {}, 
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: 'true'
+        GITLAB_PERMISSION_MODE: 'readonly'
       }
     });
 
@@ -68,7 +68,7 @@ async function callGetMergeRequestFileDiff(args: Record<string, any> = {}, env: 
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: 'true'
+        GITLAB_PERMISSION_MODE: 'readonly'
       }
     });
 

@@ -282,7 +282,6 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 
 - `--token` - GitLab Personal Access Token (substitui `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` (substitui `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
 - `--toolsets` - toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). Não passe `all` a menos que aceite ~73k tokens de schema. `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
@@ -768,3 +767,11 @@ Todos os testes de autorização remota usam um servidor GitLab mockado e não e
 ## Patrocínio 💖
 
 Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) ajudam a cobrir os custos dos testes E2E com o GitLab: um plano pago do GitLab para testar recursos Premium/Ultimate (como gráficos de burndown de milestones e iterations) que a instância de teste gratuita não alcança, e a infraestrutura dos testes de API ao vivo.
+
+## Removed in v3.0.0
+
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |

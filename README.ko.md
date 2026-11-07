@@ -282,7 +282,6 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
 - `--toolsets` - 지정한 툴셋 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값). `all`은 스키마 ~73k 토큰이므로 쓰지 마세요. `gitlab_api_request`는 `--toolsets=api`
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
@@ -768,3 +767,11 @@ npm run test:integration
 ## 후원 💖
 
 [GitHub Sponsors](https://github.com/sponsors/zereight) 후원금은 GitLab E2E 테스트 비용에 쓰입니다. 무료 테스트 인스턴스로는 확인할 수 없는 Premium/Ultimate 기능(milestone burndown 차트, iteration 등)을 테스트하기 위한 유료 GitLab 플랜과 live API 테스트 인프라 비용입니다.
+
+## v3.0.0에서 제거된 설정
+
+활성화된 구 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 구 설정도 구성에서 삭제하세요.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |

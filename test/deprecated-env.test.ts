@@ -14,8 +14,6 @@ import {
 
 function warningsFor(overrides: Partial<DeprecatedEnvInput>): string[] {
   return getDeprecatedEnvWarnings({
-    readOnlyMode: false,
-    permissionModeRaw: undefined,
     allowedGroupsRaw: undefined,
     oauthAllowedGroupsRaw: undefined,
     useWikiRaw: undefined,
@@ -29,31 +27,6 @@ describe("When no deprecated env is used", () => {
   describe("with default config", () => {
     test("should emit no warnings", () => {
       assert.deepEqual(warningsFor({}), []);
-    });
-  });
-});
-
-describe("When GITLAB_READ_ONLY_MODE is enabled", () => {
-  describe("with no permission mode configured", () => {
-    test("should warn about deprecation without an override notice", () => {
-      const [warning, ...rest] = warningsFor({ readOnlyMode: true });
-      assert.match(warning, /GITLAB_READ_ONLY_MODE is deprecated/);
-      assert.doesNotMatch(warning, /OVERRIDES/);
-      assert.equal(rest.length, 0);
-    });
-  });
-
-  describe("with permission mode already readonly", () => {
-    test("should not warn about an override", () => {
-      const [warning] = warningsFor({ readOnlyMode: true, permissionModeRaw: "readonly" });
-      assert.doesNotMatch(warning, /OVERRIDES/);
-    });
-  });
-
-  describe("with a conflicting permission mode", () => {
-    test("should warn that it overrides the configured mode", () => {
-      const [warning] = warningsFor({ readOnlyMode: true, permissionModeRaw: "full" });
-      assert.match(warning, /OVERRIDES the configured permission mode "full"/);
     });
   });
 });
@@ -131,7 +104,6 @@ describe("When deprecated settings are passed as empty values", () => {
     test("should emit no warnings", () => {
       assert.deepEqual(
         warningsFor({
-          readOnlyRaw: "",
           useWikiRaw: "",
           useMilestoneRaw: "",
           usePipelineRaw: "",
@@ -143,18 +115,6 @@ describe("When deprecated settings are passed as empty values", () => {
 });
 
 describe("When a deprecated setting comes from a CLI flag", () => {
-  describe("with --read-only", () => {
-    test("should show the flag and the env var", () => {
-      const [warning] = warningsFor({
-        readOnlyMode: true,
-        readOnlyRaw: "true",
-        readOnlyFromCli: true,
-      });
-      assert.match(warning, /`--read-only` \(GITLAB_READ_ONLY_MODE\)/);
-      assert.match(warning, /will be removed in v3\.0\.0/);
-    });
-  });
-
   describe("with --use-pipeline", () => {
     test("should show the flag and the env var", () => {
       const [warning] = warningsFor({
@@ -162,6 +122,7 @@ describe("When a deprecated setting comes from a CLI flag", () => {
         usePipelineFromCli: true,
       });
       assert.match(warning, /`--use-pipeline` \(USE_PIPELINE\)/);
+      assert.match(warning, /will be removed in v3\.0\.0/);
     });
   });
 
@@ -325,41 +286,10 @@ describe("When GITLAB_TOOLS is already set and GITLAB_TOOLSETS is not", () => {
   });
 });
 
-describe("When GITLAB_READ_ONLY_MODE is set to a non-true value", () => {
-  describe("with false and a permission mode", () => {
-    test("should say to remove it and should not claim an override", () => {
-      const [warning, ...rest] = warningsFor({
-        readOnlyRaw: "false",
-        permissionModeRaw: "full",
-      });
-      assert.match(warning, /GITLAB_READ_ONLY_MODE is set to "false"/);
-      assert.match(warning, /does not enable legacy read-only mode/);
-      assert.match(warning, /GITLAB_PERMISSION_MODE or --permission-mode/);
-      assert.match(warning, /Remove it/);
-      assert.match(warning, /will be removed in v3\.0\.0/);
-      assert.doesNotMatch(warning, /OVERRIDES/);
-      assert.equal(rest.length, 0);
-    });
-  });
-
-  describe("with --read-only false", () => {
-    test("should name the flag", () => {
-      const [warning] = warningsFor({
-        readOnlyRaw: "false",
-        readOnlyFromCli: true,
-      });
-      assert.match(warning, /`--read-only` \(GITLAB_READ_ONLY_MODE\) is set to "false"/);
-      assert.match(warning, /Remove it/);
-    });
-  });
-});
-
 describe("When deprecated env warnings are returned", () => {
-  describe("with read-only, allowed-groups, and USE_* flags", () => {
+  describe("with allowed-groups and USE_* flags", () => {
     test("should end every warning with the migration notice", () => {
       const warnings = [
-        ...warningsFor({ readOnlyMode: true }),
-        ...warningsFor({ readOnlyRaw: "false" }),
         ...warningsFor({ allowedGroupsRaw: "a" }),
         ...warningsFor({ allowedGroupsRaw: "a", oauthAllowedGroupsRaw: "b" }),
         ...warningsFor({ useWikiRaw: "true", useMilestoneRaw: "true", usePipelineRaw: "true" }),
@@ -368,7 +298,7 @@ describe("When deprecated env warnings are returned", () => {
       const suffix =
         " See https://github.com/zereight/gitlab-mcp/issues/815 for migration details.";
       assert.equal(
-        warnings.length >= 10 && warnings.every(warning => warning.endsWith(suffix)),
+        warnings.length >= 8 && warnings.every(warning => warning.endsWith(suffix)),
         true
       );
     });
@@ -376,18 +306,11 @@ describe("When deprecated env warnings are returned", () => {
 });
 
 describe("When a deprecated env var is scheduled for removal", () => {
-  describe("with GITLAB_READ_ONLY_MODE enabled", () => {
-    test("should name v3.0.0", () => {
-      const [warning] = warningsFor({ readOnlyMode: true });
-      assert.match(warning, /will be removed in v3\.0\.0/);
-      assert.doesNotMatch(warning, /next major version/);
-    });
-  });
-
   describe("with GITLAB_ALLOWED_GROUPS set", () => {
     test("should name v3.0.0", () => {
       const [warning] = warningsFor({ allowedGroupsRaw: "a" });
       assert.match(warning, /will be removed in v3\.0\.0/);
+      assert.doesNotMatch(warning, /next major version/);
     });
   });
 });
@@ -531,13 +454,13 @@ describe("When configuration validation fails", () => {
   describe("with a CLI flag and no credentials", () => {
     test("should print the deprecation warning on stderr before the missing-token exit", async () => {
       requireBuiltServer();
-      const result = await runBuiltServer(["--read-only=false", "--use-pipeline"], spawnEnv({}));
+      const result = await runBuiltServer(["--use-wiki=false", "--use-pipeline"], spawnEnv({}));
       assert.equal(result.stdout, "");
-      assert.match(result.stderr, /`--read-only` \(GITLAB_READ_ONLY_MODE\)/);
+      assert.match(result.stderr, /`--use-wiki` \(USE_GITLAB_WIKI\)/);
       assert.match(result.stderr, /Remove it/);
       assert.match(result.stderr, /`--use-pipeline` \(USE_PIPELINE\)/);
       assert.match(result.stderr, /will be removed in v3\.0\.0/);
-      const warningAt = result.stderr.indexOf("`--read-only`");
+      const warningAt = result.stderr.indexOf("`--use-wiki`");
       const failedAt = result.stderr.indexOf(
         "GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set"
       );
@@ -647,23 +570,23 @@ describe("When auth --help is requested", () => {
 });
 
 describe("When the auth CLI runs", () => {
-  describe("with GITLAB_READ_ONLY_MODE=false", () => {
+  describe("with USE_MILESTONE=false", () => {
     test("should write the warning to stderr and leave stdout empty", async () => {
       requireBuiltServer();
-      const result = await runBuiltServer(["auth"], spawnEnv({ GITLAB_READ_ONLY_MODE: "false" }));
+      const result = await runBuiltServer(["auth"], spawnEnv({ USE_MILESTONE: "false" }));
       assert.equal(result.stdout, "");
-      assert.match(result.stderr, /GITLAB_READ_ONLY_MODE is set to "false"/);
+      assert.match(result.stderr, /USE_MILESTONE is set to "false"/);
       assert.match(result.stderr, /Remove it/);
       assert.doesNotMatch(result.stdout, /deprecated/);
     });
   });
 
-  describe("with --read-only", () => {
+  describe("with --use-milestone", () => {
     test("should name the flag on stderr only", async () => {
       requireBuiltServer();
-      const result = await runBuiltServer(["--read-only", "auth"], spawnEnv({}));
+      const result = await runBuiltServer(["--use-milestone", "auth"], spawnEnv({}));
       assert.equal(result.stdout, "");
-      assert.match(result.stderr, /`--read-only` \(GITLAB_READ_ONLY_MODE\)/);
+      assert.match(result.stderr, /`--use-milestone` \(USE_MILESTONE\)/);
     });
   });
 });
