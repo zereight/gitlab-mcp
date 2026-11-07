@@ -763,3 +763,7 @@ npm run test:integration
 ```
 
 所有远程授权测试都使用 mock GitLab 服务器，不需要真实 GitLab 凭据。
+
+## 赞助 💖
+
+通过 [GitHub Sponsors](https://github.com/sponsors/zereight) 的赞助将用于 GitLab E2E 测试费用：用于测试免费测试实例无法覆盖的 Premium/Ultimate 功能（如 milestone burndown 图表和 iterations）的付费 GitLab 方案，以及 live API 测试基础设施。

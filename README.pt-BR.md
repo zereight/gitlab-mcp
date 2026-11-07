@@ -764,3 +764,7 @@ npm run test:integration
 ```
 
 Todos os testes de autorização remota usam um servidor GitLab mockado e não exigem credenciais reais do GitLab.
+
+## Patrocínio 💖
+
+Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) ajudam a cobrir os custos dos testes E2E com o GitLab: um plano pago do GitLab para testar recursos Premium/Ultimate (como gráficos de burndown de milestones e iterations) que a instância de teste gratuita não alcança, e a infraestrutura dos testes de API ao vivo.
