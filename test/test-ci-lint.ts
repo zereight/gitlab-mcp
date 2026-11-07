@@ -17,7 +17,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "all",
       },
     });
 
@@ -225,7 +225,7 @@ describe("GitLab CI lint tools", () => {
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
       GITLAB_TOOLSETS: "ci",
-      GITLAB_READ_ONLY_MODE: "true",
+      GITLAB_PERMISSION_MODE: "readonly",
     });
 
     assert.ok(tools.includes("validate_ci_lint"));

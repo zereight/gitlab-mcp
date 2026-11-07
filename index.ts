@@ -46,10 +46,7 @@ import {
   SSE,
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
-  USE_GITLAB_WIKI,
-  USE_MILESTONE,
   USE_OAUTH,
-  USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
@@ -59,9 +56,7 @@ import {
   GITLAB_MCP_LIST_SUMMARY_DEFAULT,
   GITLAB_TOOL_PROFILE,
   GITLAB_DOWNLOAD_DIR,
-  buildDeprecatedEnvInput,
 } from "./config.js";
-import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -358,7 +353,6 @@ import {
   deleteTools,
   parseEnabledToolsets,
   parseIndividualTools,
-  buildFeatureFlagOverrides,
   isToolInEnabledToolset,
   findSmallestToolsetForTool,
   isExplicitOnlyToolsetId,
@@ -831,7 +825,6 @@ function createServer(): McpServer {
     tools: allTools,
     isInEnabledToolset: (toolName: string) => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools,
-    featureFlagOverrides,
     isAllowedByPermissionMode: isToolAllowedByPermissionMode,
     deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
     hiddenToolNames: hiddenToolSet,
@@ -1661,7 +1654,7 @@ let oauthClient: GitLabOAuth | null = null;
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
 
 // Userinfo is dropped here, before the client pool or any request URL is built.
-// Defined before the first emitDeprecatedEnvWarnings() call, which reports it.
+// Defined before the first emitStartupConfigWarnings() call, which reports it.
 const CONFIGURED_GITLAB_API_URLS = parseConfiguredGitLabApiUrls(
   getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
 );
@@ -1674,23 +1667,20 @@ function configuredGitLabApiUrlErrors(): string[] {
   return configured === undefined ? [] : configuredApiUrlErrors(API_URL_SOURCE, configured);
 }
 
-let hasEmittedDeprecatedEnvWarnings = false;
+let hasEmittedStartupConfigWarnings = false;
 
-function emitDeprecatedEnvWarnings(): void {
-  if (hasEmittedDeprecatedEnvWarnings) {
+function emitStartupConfigWarnings(): void {
+  if (hasEmittedStartupConfigWarnings) {
     return;
   }
-  hasEmittedDeprecatedEnvWarnings = true;
+  hasEmittedStartupConfigWarnings = true;
   const warnings = [
-    ...getDeprecatedEnvWarnings(buildDeprecatedEnvInput()),
     ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo ? [apiUrlUserinfoWarning(API_URL_SOURCE)] : []),
   ];
   for (const warning of warnings) {
     logger.warn(warning);
   }
-  if (warnings.length > 0) {
-    flushStartupLogs(logger);
-  }
+  flushStartupLogs(logger);
 }
 
 try {
@@ -1706,7 +1696,7 @@ try {
     console.error("[gitlab-mcp] stateless OAuth mode enabled");
   }
 } catch (err) {
-  emitDeprecatedEnvWarnings();
+  emitStartupConfigWarnings();
   // eslint-disable-next-line no-console -- startup failure must be visible
   console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
@@ -2050,7 +2040,6 @@ const downloadRedirectOptions = () => ({
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
-const featureFlagOverrides = buildFeatureFlagOverrides();
 const applySlimProfile = shouldApplySlimToolProfile(GITLAB_TOOL_PROFILE, GITLAB_TOOLSETS_RAW);
 if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
   logger.warn("GITLAB_TOOL_PROFILE=slim is ignored because GITLAB_TOOLSETS is set");
@@ -2058,14 +2047,6 @@ if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
 
 function isExcludedFromToolsetListing(toolName: string): boolean {
   return isExcludedBySlimProfile(toolName, applySlimProfile, individuallyEnabledTools);
-}
-
-// Warn about potentially confusing configuration
-if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
-  logger.warn(
-    "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
-      "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
-  );
 }
 
 if (enabledToolsets.has("api")) {
@@ -2172,13 +2153,13 @@ const GITLAB_REPO_FILE_ENCODING =
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
   if (SSE) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
     exitAfterFlush(1);
@@ -2188,13 +2169,13 @@ if (REMOTE_AUTHORIZATION) {
 
 if (GITLAB_MCP_OAUTH) {
   if (SSE) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     exitAfterFlush(1);
@@ -2215,7 +2196,7 @@ if (
 ) {
   // Standard mode: token must be in environment (unless using OAuth).
   // This exit runs before runServer(), so warnings have to be printed here too.
-  emitDeprecatedEnvWarnings();
+  emitStartupConfigWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info(
     "Either set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), " +
@@ -17231,7 +17212,7 @@ async function runServer() {
   try {
     // Print before validateConfiguration(), which process.exit()s on failure.
     // logger.warn goes to stderr; stdio transport owns stdout for JSON-RPC.
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
 
     // Validate configuration before starting server
     validateConfiguration();
@@ -17284,12 +17265,12 @@ async function runServer() {
 async function main(): Promise<void> {
   const cli = resolveCli(process.argv);
   if (cli.kind === "help") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     process.stdout.write(cli.text);
     process.exit(0);
   }
   if (cli.kind === "usage" || cli.kind === "refused") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
@@ -17339,7 +17320,7 @@ async function main(): Promise<void> {
     }
   }
   if (cli.kind === "run") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     if (!hasCliCredentials()) {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"

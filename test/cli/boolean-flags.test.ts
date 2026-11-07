@@ -9,7 +9,6 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.resolve(__dirname, "load-config-snapshot.ts");
 
 interface BooleanConfigSnapshot {
-  GITLAB_READ_ONLY_MODE: boolean;
   USE_OAUTH: boolean;
 }
 
@@ -20,7 +19,6 @@ function loadConfig(argv: readonly string[]): BooleanConfigSnapshot {
       childEnv[key] = value;
     }
   }
-  delete childEnv.GITLAB_READ_ONLY_MODE;
   delete childEnv.GITLAB_USE_OAUTH;
   const stdout = execFileSync(process.execPath, ["--import", "tsx/esm", SNAPSHOT_PATH, ...argv], {
     env: childEnv,
@@ -34,14 +32,10 @@ function readBooleanConfigSnapshot(value: unknown): BooleanConfigSnapshot {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("config snapshot was not an object");
   }
-  if (!("GITLAB_READ_ONLY_MODE" in value) || typeof value.GITLAB_READ_ONLY_MODE !== "boolean") {
-    throw new Error("GITLAB_READ_ONLY_MODE missing");
-  }
   if (!("USE_OAUTH" in value) || typeof value.USE_OAUTH !== "boolean") {
     throw new Error("USE_OAUTH missing");
   }
   return {
-    GITLAB_READ_ONLY_MODE: value.GITLAB_READ_ONLY_MODE,
     USE_OAUTH: value.USE_OAUTH,
   };
 }
@@ -81,38 +75,27 @@ describe("When isBooleanFlagLiteral inspects a token", () => {
 });
 
 describe("When config.ts parses space-separated boolean flags", () => {
-  describe("with --read-only as the last argument", () => {
-    it("should turn read-only mode on", () => {
-      const cfg = loadConfig(["--read-only"]);
-      assert.equal(cfg.GITLAB_READ_ONLY_MODE, true);
+  describe("with --use-oauth as the last argument", () => {
+    it("should turn oauth on", () => {
+      assert.equal(loadConfig(["--use-oauth"]).USE_OAUTH, true);
     });
   });
 
-  describe("with --read-only followed by another flag", () => {
-    it("should turn read-only mode on", () => {
-      const cfg = loadConfig(["--read-only", "--use-pipeline"]);
-      assert.equal(cfg.GITLAB_READ_ONLY_MODE, true);
+  describe("with --use-oauth followed by another flag", () => {
+    it("should turn oauth on", () => {
+      assert.equal(loadConfig(["--use-oauth", "--sse"]).USE_OAUTH, true);
     });
   });
 
-  describe("with an empty --read-only= assignment", () => {
-    it("should leave read-only mode off", () => {
-      const cfg = loadConfig(["--read-only="]);
-      assert.equal(cfg.GITLAB_READ_ONLY_MODE, false);
+  describe("with an empty --use-oauth= assignment", () => {
+    it("should leave oauth off", () => {
+      assert.equal(loadConfig(["--use-oauth="]).USE_OAUTH, false);
     });
   });
 
-  describe("with --read-only false", () => {
-    it("should keep read-only off", () => {
-      const cfg = loadConfig(["--read-only", "false"]);
-      assert.equal(cfg.GITLAB_READ_ONLY_MODE, false);
-    });
-  });
-
-  describe("with --read-only before a command", () => {
-    it("should turn read-only on without consuming mr", () => {
-      const cfg = loadConfig(["--read-only", "mr", "list"]);
-      assert.equal(cfg.GITLAB_READ_ONLY_MODE, true);
+  describe("with --use-oauth before a command", () => {
+    it("should turn oauth on without consuming mr", () => {
+      assert.equal(loadConfig(["--use-oauth", "mr", "list"]).USE_OAUTH, true);
     });
   });
 

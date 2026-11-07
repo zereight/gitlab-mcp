@@ -133,7 +133,7 @@ describe("When enabling toolsets", () => {
         tools: allTools,
         isInEnabledToolset: () => false,
         individuallyEnabledTools: new Set(["gitlab_api_request"]),
-        featureFlagOverrides: new Set(),
+
         isAllowedByPermissionMode: () => true,
         deniedToolsRegex: undefined,
         hiddenToolNames: new Set(),
@@ -156,7 +156,7 @@ describe("When checking CLI exposure", () => {
         toolName: "gitlab_api_request",
         enabledToolsets: parseEnabledToolsets("core"),
         individuallyEnabledTools: new Set(["gitlab_api_request"]),
-        featureFlagOverrides: new Set(),
+
         deniedRegex: undefined,
         hiddenTools: new Set(),
       });

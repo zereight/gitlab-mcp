@@ -282,13 +282,9 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
 - `--toolsets` - 지정한 툴셋 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값). `all`은 스키마 ~73k 토큰이므로 쓰지 마세요. `gitlab_api_request`는 `--toolsets=api`
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,milestones`를 사용 (`USE_MILESTONE` 대체)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,pipelines`를 사용하고, 기존 `--tools` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가하세요. 목록이 없으면 `--tools=validate_ci_lint,validate_project_ci_lint`를 설정하세요 (`USE_PIPELINE` 대체)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 - `--masking-enabled=true` - 텍스트 응답 마스킹 활성화 (`GITLAB_MASKING_ENABLED` 대체)
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
@@ -318,7 +314,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는
-> deprecated (removed in next major (v3.0.0))입니다.
+> v3.0.0에서 제거되었습니다. 활성화된 구 설정은 시작 오류를 냅니다.
 > `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, `core,pipelines`를 사용하세요
 > (`USE_PIPELINE`은 기존 `GITLAB_TOOLS` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가해야 하며, 그 목록을 통째로 바꾸면 안 됩니다).
 > 이미 `GITLAB_TOOLSETS`를 설정했다면 toolset을 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
@@ -327,8 +323,8 @@ CLI 인자는 환경 변수보다 우선합니다.
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 > [!CAUTION]
-> `gitlab_api_request`(`api` 툴셋)는 `GITLAB_ALLOWED_GROUPS`와 그 밖의 그룹 제한, 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
-> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, 레거시 `USE_*`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`나 세션 프로젝트 범위가 있으면 허용된 프로젝트의 `/projects/:id` 경로만 받습니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 거부됩니다. 본문과 쿼리 파라미터가 가리키는 다른 프로젝트는 검사하지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
+> `gitlab_api_request`(`api` 툴셋)는 `GITLAB_OAUTH_ALLOWED_GROUPS`와 그 밖의 그룹 제한, 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
+> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`나 세션 프로젝트 범위가 있으면 허용된 프로젝트의 `/projects/:id` 경로만 받습니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 거부됩니다. 본문과 쿼리 파라미터가 가리키는 다른 프로젝트는 검사하지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
 
 - sse
 
@@ -768,3 +764,17 @@ npm run test:integration
 ## 후원 💖
 
 [GitHub Sponsors](https://github.com/sponsors/zereight) 후원금은 GitLab E2E 테스트 비용에 쓰입니다. 무료 테스트 인스턴스로는 확인할 수 없는 Premium/Ultimate 기능(milestone burndown 차트, iteration 등)을 테스트하기 위한 유료 GitLab 플랜과 live API 테스트 인프라 비용입니다.
+
+## v3.0.0에서 제거된 설정
+
+활성화된 구 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 구 설정도 구성에서 삭제하세요.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
+| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+
+툴셋 목록을 명시하면 기본 목록을 대체합니다. 기본 도구가 필요하면 `core`를 유지하고, 기존 `GITLAB_TOOLSETS`·`GITLAB_TOOLS` 목록을 덮어쓰지 말고 항목을 추가하세요. 기존 `GITLAB_TOOLSETS=all`은 그대로 두세요.

@@ -4,11 +4,7 @@
 export const BOOLEAN_CLI_FLAG_NAMES = new Set([
   "use-oauth",
   "is-old",
-  "read-only",
   "masking-enabled",
-  "use-wiki",
-  "use-milestone",
-  "use-pipeline",
   "disable-version-check",
   "sse",
   "streamable-http",
