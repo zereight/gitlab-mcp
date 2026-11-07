@@ -1111,3 +1111,7 @@ npm run test:integration
 ```
 
 All remote authorization tests use a mock GitLab server and do not require actual GitLab credentials.
+
+## Sponsor 💖
+
+Sponsorships through [GitHub Sponsors](https://github.com/sponsors/zereight) help cover GitLab E2E testing costs: a paid GitLab tier to test Premium/Ultimate features (such as milestone burndown charts and iterations) that the free test instance cannot reach, and the infrastructure for live API tests.

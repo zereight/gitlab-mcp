@@ -764,3 +764,7 @@ npm run test:integration
 ```
 
 모든 원격 인증 테스트는 mock GitLab 서버를 사용하므로 실제 GitLab 자격 증명이 필요하지 않습니다.
+
+## 후원 💖
+
+[GitHub Sponsors](https://github.com/sponsors/zereight) 후원금은 GitLab E2E 테스트 비용에 쓰입니다. 무료 테스트 인스턴스로는 확인할 수 없는 Premium/Ultimate 기능(milestone burndown 차트, iteration 등)을 테스트하기 위한 유료 GitLab 플랜과 live API 테스트 인프라 비용입니다.
