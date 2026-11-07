@@ -1,6 +1,6 @@
 # Pipeline Operations
 
-> **Opt-in toolset**: Enable with GITLAB_TOOLSETS=core,pipelines. If you already set GITLAB_TOOLSETS, append pipelines to your existing list instead of replacing it. USE_PIPELINE=true is deprecated (removed in next major (v3.0.0)); it also exposed `validate_ci_lint` and `validate_project_ci_lint` via GITLAB_TOOLS.
+> **Opt-in toolset**: Enable with GITLAB_TOOLSETS=core,pipelines. If you already set GITLAB_TOOLSETS, append pipelines to your existing list instead of replacing it. USE_PIPELINE=true was removed in v3.0.0; for the same CI lint coverage, add `validate_ci_lint` and `validate_project_ci_lint` via GITLAB_TOOLS.
 
 ## List & Inspect
 

@@ -1,7 +1,6 @@
 import * as os from "os";
 import * as path from "path";
 import { parseCliArgs } from "./cli-boolean-flags.js";
-import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import { stripUrlUserinfo } from "./utils/redact-url.js";
@@ -83,14 +82,6 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   const stdout = input.stdout ?? process.stdout;
 
   const parsedArgs = parseCliArgs(argv.slice(2));
-  const warnings = getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env));
-  for (const warning of warnings) {
-    logger.warn(warning);
-  }
-  if (warnings.length > 0) {
-    flushStartupLogs(logger);
-  }
-
   if (wantsHelp(argv)) {
     stdout.write(AUTH_CLI_HELP);
     return;

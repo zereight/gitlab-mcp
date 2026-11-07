@@ -969,7 +969,7 @@ Special values:
 
 - `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
+- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 
 !!! danger "gitlab_api_request bypasses other restrictions"
 
@@ -1012,42 +1012,19 @@ Examples:
 
 - `delete_issue,delete_wiki_page`
 
-### `USE_GITLAB_WIKI`
-
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for wiki-related tools.
-> Use `GITLAB_TOOLSETS=core,wiki` instead. If you already set `GITLAB_TOOLSETS`, append `wiki`
-> to your existing list instead of replacing it.
-
-### `USE_MILESTONE`
-
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for milestone-related tools.
-> Use `GITLAB_TOOLSETS=core,milestones` instead. If you already set `GITLAB_TOOLSETS`, append
-> `milestones` to your existing list instead of replacing it.
-
-### `USE_PIPELINE`
-
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for pipeline-related tools.
-> Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
-> instead. Those two lint tools live in the `ci` toolset, not `pipelines`. If you already set
-> `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it.
-> If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
-
-> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only, cover
-> just three toolsets, and will be removed in the next major (v3.0.0). Only `true` enables the
-> extra tools. Any other value, including `false`, does not enable that toolset — remove the
-> variable, and set the replacement above only if you want those tools in addition to `core`.
-> Use `GITLAB_TOOLSETS` (include `core` so the default starter set stays enabled) and `GITLAB_TOOLS`
-> (individual tools) instead. An explicit `GITLAB_TOOLSETS` list replaces the default toolsets;
-> it does not merge.
-
 ## Removed in v3.0.0
 
 Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
 
-| Removed environment variable / CLI flag      | Replacement                                                      |
-| -------------------------------------------- | ---------------------------------------------------------------- |
-| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`         |
+| Removed environment variable / CLI flag      | Replacement                                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                                                       |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`                                                                                                                                               |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki`                                                                                                                                                   |
+| `USE_MILESTONE` / `--use-milestone`          | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones`                                                                                                                                       |
+| `USE_PIPELINE` / `--use-pipeline`            | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+
+An explicit toolset list replaces the default: keep `core` and append to existing `GITLAB_TOOLSETS` and `GITLAB_TOOLS` lists rather than replacing them. Leave an existing `GITLAB_TOOLSETS=all` unchanged.
 
 ## Logging
 

@@ -1,5 +1,4 @@
 import { parseCliArgs } from "./cli-boolean-flags.js";
-import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
 import { assertNoRemovedConfig } from "./removed-config.js";
 import {
   readPersonalAccessTokenFile,
@@ -79,12 +78,6 @@ export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
   }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
-export const USE_GITLAB_WIKI_RAW = getConfig("use-wiki", "USE_GITLAB_WIKI");
-export const USE_GITLAB_WIKI = USE_GITLAB_WIKI_RAW === "true";
-export const USE_MILESTONE_RAW = getConfig("use-milestone", "USE_MILESTONE");
-export const USE_MILESTONE = USE_MILESTONE_RAW === "true";
-export const USE_PIPELINE_RAW = getConfig("use-pipeline", "USE_PIPELINE");
-export const USE_PIPELINE = USE_PIPELINE_RAW === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 /** https registry the startup version check queries instead of registry.npmjs.org. */
@@ -308,15 +301,6 @@ export const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
   "NODE_TLS_REJECT_UNAUTHORIZED"
 );
 export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
-
-/**
- * Snapshot of deprecated settings for startup warnings.
- * CLI flags win over env vars, matching getConfig, so the warning can name
- * the flag the user actually passed.
- */
-export function buildDeprecatedEnvInput(): DeprecatedEnvInput {
-  return deprecatedEnvInputFromSources(cliArgs, process.env);
-}
 
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");
 export const GITLAB_POOL_MAX_SIZE = _poolMaxSizeRaw ? Number.parseInt(_poolMaxSizeRaw, 10) : 100;

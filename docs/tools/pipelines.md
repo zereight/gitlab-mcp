@@ -3,7 +3,7 @@
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view.
 
 !!! note "Feature toggle"
-    Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+    Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,pipelines`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 ## Tools in this group
 

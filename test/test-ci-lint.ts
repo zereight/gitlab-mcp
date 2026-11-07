@@ -17,7 +17,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "all",
       },
     });
 
