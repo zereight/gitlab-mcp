@@ -14,8 +14,6 @@ import {
 
 function warningsFor(overrides: Partial<DeprecatedEnvInput>): string[] {
   return getDeprecatedEnvWarnings({
-    allowedGroupsRaw: undefined,
-    oauthAllowedGroupsRaw: undefined,
     useWikiRaw: undefined,
     useMilestoneRaw: undefined,
     usePipelineRaw: undefined,
@@ -27,22 +25,6 @@ describe("When no deprecated env is used", () => {
   describe("with default config", () => {
     test("should emit no warnings", () => {
       assert.deepEqual(warningsFor({}), []);
-    });
-  });
-});
-
-describe("When GITLAB_ALLOWED_GROUPS is set", () => {
-  describe("with GITLAB_OAUTH_ALLOWED_GROUPS also set", () => {
-    test("should warn that it is ignored", () => {
-      const [warning] = warningsFor({ allowedGroupsRaw: "a", oauthAllowedGroupsRaw: "b" });
-      assert.match(warning, /ignored/);
-    });
-  });
-
-  describe("with only the deprecated variable", () => {
-    test("should point to GITLAB_OAUTH_ALLOWED_GROUPS", () => {
-      const [warning] = warningsFor({ allowedGroupsRaw: "a" });
-      assert.match(warning, /Use GITLAB_OAUTH_ALLOWED_GROUPS/);
     });
   });
 });
@@ -133,16 +115,6 @@ describe("When a deprecated setting comes from a CLI flag", () => {
         useMilestoneFromCli: true,
       });
       assert.match(warning, /`--use-milestone` \(USE_MILESTONE\)/);
-    });
-  });
-
-  describe("with --allowed-groups", () => {
-    test("should show the flag and the env var", () => {
-      const [warning] = warningsFor({
-        allowedGroupsRaw: "my-group",
-        allowedGroupsFromCli: true,
-      });
-      assert.match(warning, /`--allowed-groups` \(GITLAB_ALLOWED_GROUPS\)/);
     });
   });
 
@@ -287,18 +259,16 @@ describe("When GITLAB_TOOLS is already set and GITLAB_TOOLSETS is not", () => {
 });
 
 describe("When deprecated env warnings are returned", () => {
-  describe("with allowed-groups and USE_* flags", () => {
+  describe("with USE_* flags", () => {
     test("should end every warning with the migration notice", () => {
       const warnings = [
-        ...warningsFor({ allowedGroupsRaw: "a" }),
-        ...warningsFor({ allowedGroupsRaw: "a", oauthAllowedGroupsRaw: "b" }),
         ...warningsFor({ useWikiRaw: "true", useMilestoneRaw: "true", usePipelineRaw: "true" }),
         ...warningsFor({ useWikiRaw: "false", useMilestoneRaw: "no", usePipelineRaw: "false" }),
       ];
       const suffix =
         " See https://github.com/zereight/gitlab-mcp/issues/815 for migration details.";
       assert.equal(
-        warnings.length >= 8 && warnings.every(warning => warning.endsWith(suffix)),
+        warnings.length >= 6 && warnings.every(warning => warning.endsWith(suffix)),
         true
       );
     });
@@ -306,9 +276,9 @@ describe("When deprecated env warnings are returned", () => {
 });
 
 describe("When a deprecated env var is scheduled for removal", () => {
-  describe("with GITLAB_ALLOWED_GROUPS set", () => {
+  describe("with USE_PIPELINE enabled", () => {
     test("should name v3.0.0", () => {
-      const [warning] = warningsFor({ allowedGroupsRaw: "a" });
+      const [warning] = warningsFor({ usePipelineRaw: "true" });
       assert.match(warning, /will be removed in v3\.0\.0/);
       assert.doesNotMatch(warning, /next major version/);
     });
