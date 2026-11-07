@@ -375,6 +375,7 @@ import {
 } from "./tools/gitlab-api-request.js";
 import { configureWikiTools, handleWikiToolCall } from "./tools/wiki.js";
 import { configureMilestoneTools, handleMilestoneToolCall } from "./tools/milestones.js";
+import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -403,7 +404,6 @@ import {
   CreateIssueNoteEmojiReactionSchema,
   ListIssueEmojiReactionsSchema,
   ListIssueNoteEmojiReactionsSchema,
-  CreateLabelSchema, // Added
   CreateMergeRequestNoteSchema,
   CreateMergeRequestDiscussionNoteSchema,
   CreateMergeRequestEmojiReactionSchema,
@@ -433,7 +433,6 @@ import {
   DeleteIssueSchema,
   DeleteIssueEmojiReactionSchema,
   DeleteIssueNoteEmojiReactionSchema,
-  DeleteLabelSchema,
   DeleteMergeRequestNoteSchema,
   DeleteMergeRequestEmojiReactionSchema,
   DeleteMergeRequestNoteEmojiReactionSchema,
@@ -451,7 +450,6 @@ import {
   GetFileContentsSchema,
   GetIssueLinkSchema,
   GetIssueSchema,
-  GetLabelSchema,
   GetMergeRequestDiffsSchema,
   GetMergeRequestSchema,
   GetDeploymentSchema,
@@ -524,7 +522,6 @@ import {
   GitLabIssueSchema,
   type GitLabIssueWithLinkDetails,
   GitLabIssueWithLinkDetailsSchema,
-  type GitLabLabel,
   GitLabMarkdownUpload,
   GitLabMarkdownUploadSchema,
   type GitLabMergeRequest,
@@ -630,7 +627,6 @@ import {
   ListIssuesSchema,
   type ListTodosOptions,
   ListTodosSchema,
-  ListLabelsSchema,
   ListMergeRequestDiffsSchema, // Added
   GetMergeRequestFileDiffSchema,
   ListMergeRequestChangedFilesSchema,
@@ -711,7 +707,6 @@ import {
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
   ReorderIssueSchema,
-  UpdateLabelSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestDiscussionNoteSchema,
@@ -1836,7 +1831,7 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki and milestone handlers call back into the fetch, error handling, and project
+// The wiki, milestone, and label handlers call back into the fetch, error handling, and project
 // scope helpers below; fetch is read at call time because the cookie reload replaces it.
 configureWikiTools({
   getFetch: () => fetch,
@@ -1849,6 +1844,11 @@ configureMilestoneTools({
   handleGitLabError,
   getEffectiveProjectId,
   rejectIfStrictProjectScope,
+});
+configureLabelTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
 });
 
 // Create cookie jar with clean Netscape file parsing
@@ -7231,164 +7231,6 @@ async function listProjects(
   // Parse and return the data
   const data = await response.json();
   return filterProjectsByAllowlist(z.array(GitLabProjectSchema).parse(data));
-}
-
-/**
- * List labels for a project
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Optional parameters for listing labels
- * @returns Array of GitLab labels
- */
-async function listLabels(
-  projectId: string,
-  options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {}
-): Promise<GitLabLabel[]> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  // Construct the URL with project path
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/labels`
-  );
-
-  // Add query parameters
-  appendFilterParams(url.searchParams, options);
-
-  // Make the API request
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  // Handle errors
-  await handleGitLabError(response);
-
-  // Parse and return the data
-  const data = await response.json();
-  return data as GitLabLabel[];
-}
-
-/**
- * Get a single label from a project
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param labelId The ID or name of the label
- * @param includeAncestorGroups Whether to include ancestor groups
- * @returns GitLab label
- */
-async function getLabel(
-  projectId: string,
-  labelId: number | string,
-  includeAncestorGroups?: boolean
-): Promise<GitLabLabel> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
-      getEffectiveProjectId(projectId)
-    )}/labels/${encodeGitLabPathSegment(String(labelId))}`
-  );
-
-  // Add query parameters
-  if (includeAncestorGroups !== undefined) {
-    url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
-  }
-
-  // Make the API request
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  // Handle errors
-  await handleGitLabError(response);
-
-  // Parse and return the data
-  const data = await response.json();
-  return data as GitLabLabel;
-}
-
-/**
- * Create a new label in a project
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Options for creating the label
- * @returns Created GitLab label
- */
-async function createLabel(
-  projectId: string,
-  options: Omit<z.infer<typeof CreateLabelSchema>, "project_id">
-): Promise<GitLabLabel> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  // Make the API request
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/labels`,
-    {
-      ...getFetchConfig(),
-      method: "POST",
-      body: JSON.stringify(options),
-    }
-  );
-
-  // Handle errors
-  await handleGitLabError(response);
-
-  // Parse and return the data
-  const data = await response.json();
-  return data as GitLabLabel;
-}
-
-/**
- * Update an existing label in a project
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param labelId The ID or name of the label to update
- * @param options Options for updating the label
- * @returns Updated GitLab label
- */
-async function updateLabel(
-  projectId: string,
-  labelId: number | string,
-  options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">
-): Promise<GitLabLabel> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  // Make the API request
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
-      getEffectiveProjectId(projectId)
-    )}/labels/${encodeGitLabPathSegment(String(labelId))}`,
-    {
-      ...getFetchConfig(),
-      method: "PUT",
-      body: JSON.stringify(options),
-    }
-  );
-
-  // Handle errors
-  await handleGitLabError(response);
-
-  // Parse and return the data
-  const data = await response.json();
-  return data as GitLabLabel;
-}
-
-/**
- * Delete a label from a project
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param labelId The ID or name of the label to delete
- */
-async function deleteLabel(projectId: string, labelId: number | string): Promise<void> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  // Make the API request
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
-      getEffectiveProjectId(projectId)
-    )}/labels/${encodeGitLabPathSegment(String(labelId))}`,
-    {
-      ...getFetchConfig(),
-      method: "DELETE",
-    }
-  );
-
-  // Handle errors
-  await handleGitLabError(response);
 }
 
 /**
@@ -13102,51 +12944,12 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_labels": {
-        const { project_id, ...options } = ListLabelsSchema.parse(params.arguments);
-        const labels = await listLabels(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(labels) }],
-        };
-      }
-
-      case "get_label": {
-        const args = GetLabelSchema.parse(params.arguments);
-        const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
-        return {
-          content: [{ type: "text", text: JSON.stringify(label) }],
-        };
-      }
-
-      case "create_label": {
-        const args = CreateLabelSchema.parse(params.arguments);
-        const label = await createLabel(args.project_id, args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(label) }],
-        };
-      }
-
-      case "update_label": {
-        const args = UpdateLabelSchema.parse(params.arguments);
-        const { project_id, label_id, ...options } = args;
-        const label = await updateLabel(project_id, label_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(label) }],
-        };
-      }
-
-      case "delete_label": {
-        const args = DeleteLabelSchema.parse(params.arguments);
-        await deleteLabel(args.project_id, args.label_id);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "success", message: "Label deleted successfully" }),
-            },
-          ],
-        };
-      }
+      case "list_labels":
+      case "get_label":
+      case "create_label":
+      case "update_label":
+      case "delete_label":
+        return await handleLabelToolCall(params);
 
       case "list_group_projects": {
         const args = ListGroupProjectsSchema.parse(params.arguments);
