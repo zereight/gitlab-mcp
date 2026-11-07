@@ -2,12 +2,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
-import {
-  TOOLSET_DEFINITIONS,
-  destructiveTools,
-  pipelineToolNames,
-  readOnlyTools,
-} from "../tools/registry.js";
+import { TOOLSET_DEFINITIONS, destructiveTools, readOnlyTools } from "../tools/registry.js";
 
 const MOCK_TOKEN = "glpat-runner-test-token";
 const TEST_PROJECT_ID = "123";
@@ -144,8 +139,6 @@ describe("When placing runner tools", () => {
       assert.equal(pipelines.tools.has("get_runner"), true);
       assert.equal(readOnlyTools.has("list_project_runners"), true);
       assert.equal(readOnlyTools.has("get_runner"), true);
-      assert.equal(pipelineToolNames.has("list_project_runners"), true);
-      assert.equal(pipelineToolNames.has("get_runner"), true);
       assert.equal(destructiveTools.has("list_project_runners"), false);
       assert.equal(destructiveTools.has("get_runner"), false);
       assert.equal(

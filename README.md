@@ -291,9 +291,6 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--toolsets` - Named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default). Do not pass `all` unless you accept ~73k schema tokens. `gitlab_api_request` needs `--toolsets=api`
 - `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` instead (replaces `USE_GITLAB_WIKI`)
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` instead (replaces `USE_MILESTONE`)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,pipelines` and append `validate_ci_lint,validate_project_ci_lint` to the existing `--tools` list (or set `--tools=validate_ci_lint,validate_project_ci_lint` when that list is unset) (replaces `USE_PIPELINE`)
 - `--disable-version-check=true` - Disable the startup new-version notice (replaces `GITLAB_DISABLE_VERSION_CHECK`)
 - `--masking-enabled=true` - Enable text-response masking (replaces `GITLAB_MASKING_ENABLED`)
 - `--masking-config` - Path to a masking configuration file (replaces `GITLAB_MASKING_CONFIG`)
@@ -324,7 +321,7 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
-> `USE_MILESTONE` / `USE_PIPELINE` flags are deprecated (removed in next major (v3.0.0)).
+> `USE_MILESTONE` / `USE_PIPELINE` flags are removed in v3.0.0.
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, or `core,pipelines`
 > (`USE_PIPELINE` also needs `validate_ci_lint,validate_project_ci_lint` appended to an existing `GITLAB_TOOLS` list instead of replacing it).
 > If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it.
@@ -334,7 +331,7 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 
 > [!CAUTION]
 > `gitlab_api_request` (toolset `api`) bypasses `GITLAB_OAUTH_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it.
-> Enable it only by listing `api` in `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not). With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted. Endpoints such as `/search`, `/users`, `/groups/:id`, and `/runners` are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
+> Enable it only by listing `api` in `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, and `GITLAB_TOOL_PROFILE` do not). With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted. Endpoints such as `/search`, `/users`, `/groups/:id`, and `/runners` are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
 - sse
 
@@ -1123,3 +1120,8 @@ Active legacy settings now stop startup with a migration error, rather than sile
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
+| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+
+An explicit toolset list replaces the default: keep `core` and append to existing `GITLAB_TOOLSETS` and `GITLAB_TOOLS` lists rather than replacing them. Leave an existing `GITLAB_TOOLSETS=all` unchanged.

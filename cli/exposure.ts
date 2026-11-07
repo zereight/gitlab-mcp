@@ -7,7 +7,6 @@ import {
 } from "../config.js";
 import { compileDeniedToolsRegex } from "../tools/denied-regex.js";
 import {
-  buildFeatureFlagOverrides,
   isExplicitToolsetOnlyTool,
   isToolInEnabledToolset,
   parseEnabledToolsets,
@@ -19,7 +18,6 @@ export interface ToolExposureInput {
   readonly toolName: string;
   readonly enabledToolsets: ReadonlySet<ToolsetId>;
   readonly individuallyEnabledTools: ReadonlySet<string>;
-  readonly featureFlagOverrides: ReadonlySet<string>;
   readonly deniedRegex: RegExp | undefined;
   readonly hiddenTools: ReadonlySet<string>;
 }
@@ -58,7 +56,7 @@ export function isToolExposed(input: ToolExposureInput): boolean {
   if (input.individuallyEnabledTools.has(input.toolName)) {
     return true;
   }
-  return input.featureFlagOverrides.has(input.toolName);
+  return false;
 }
 
 export function exposureRefusalMessage(input: ToolExposureInput): string | undefined {
@@ -74,13 +72,12 @@ export function exposureRefusalMessage(input: ToolExposureInput): string | undef
   if (isExplicitToolsetOnlyTool(input.toolName)) {
     return `${input.toolName} is enabled only by listing its toolset in GITLAB_TOOLSETS. GITLAB_TOOLS, GITLAB_TOOLSETS=all, and discover_tools do not enable it.`;
   }
-  return `${input.toolName} is not enabled by GITLAB_TOOLSETS, GITLAB_TOOLS, or legacy wiki/milestone/pipeline flags`;
+  return `${input.toolName} is not enabled by GITLAB_TOOLSETS or GITLAB_TOOLS`;
 }
 
 export function liveCliExposure(): CliExposure {
   const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
   const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
-  const featureFlagOverrides = buildFeatureFlagOverrides();
   const deniedRegex = compileDeniedToolsRegex(
     getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX")
   ).regex;
@@ -93,7 +90,6 @@ export function liveCliExposure(): CliExposure {
         toolName,
         enabledToolsets,
         individuallyEnabledTools,
-        featureFlagOverrides,
         deniedRegex,
         hiddenTools,
       });
@@ -106,7 +102,6 @@ export function liveCliExposure(): CliExposure {
         toolName,
         enabledToolsets,
         individuallyEnabledTools,
-        featureFlagOverrides,
         deniedRegex,
         hiddenTools,
       });

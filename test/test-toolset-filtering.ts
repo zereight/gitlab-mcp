@@ -2,8 +2,7 @@
  * Toolset Filtering Test Suite
  *
  * Tests GITLAB_TOOLSETS, GITLAB_TOOLS, and their interaction with
- * legacy flags (USE_GITLAB_WIKI, USE_PIPELINE, USE_MILESTONE),
- * GITLAB_PERMISSION_MODE, and GITLAB_DENIED_TOOLS_REGEX.
+ * GITLAB_PERMISSION_MODE and GITLAB_DENIED_TOOLS_REGEX.
  */
 
 import { describe, test, after, before } from "node:test";
@@ -34,9 +33,6 @@ const MCP_PORT_BASE = 3200;
 const TOOLSET_TOOL_COUNTS: Record<string, number> = Object.fromEntries(
   TOOLSET_DEFINITIONS.map(def => [def.id, def.tools.size])
 );
-
-const LEGACY_PIPELINE_CI_TOOL_COUNT = 2;
-const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + LEGACY_PIPELINE_CI_TOOL_COUNT;
 
 const DEFAULT_TOOLSETS = TOOLSET_DEFINITIONS.filter(def => def.isDefault).map(def => def.id);
 
@@ -371,17 +367,16 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
   });
 
-  // ---- 6. Legacy flag USE_PIPELINE as additive override ----
+  // ---- 6. Multiple toolsets combined ----
 
-  describe("GITLAB_TOOLSETS=issues + USE_PIPELINE=true", () => {
+  describe("GITLAB_TOOLSETS=issues,pipelines", () => {
     let server: ServerInstance;
     let tools: string[];
 
     before(async () => {
       const port = await nextMcpPort();
       server = await launchMcpServer(mockGitLabUrl, port, {
-        GITLAB_TOOLSETS: "issues",
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "issues,pipelines",
       });
       tools = await getToolNames(`http://${HOST}:${port}/mcp`);
     });
@@ -391,37 +386,12 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     test("returns issue tools + all pipeline tools + discover_tools", () => {
       assert.strictEqual(
         tools.length,
-        TOOLSET_TOOL_COUNTS.issues + LEGACY_PIPELINE_TOOL_COUNT + ALWAYS_LISTED_META_COUNT
+        TOOLSET_TOOL_COUNTS.issues + TOOLSET_TOOL_COUNTS.pipelines + ALWAYS_LISTED_META_COUNT
       );
     });
 
-    test("includes all pipeline tools via legacy flag", () => {
+    test("includes all pipeline tools", () => {
       assertContainsAll(tools, TOOLSET_SAMPLE_TOOLS.pipelines, "pipelines");
-    });
-  });
-
-  // ---- 7. Legacy flag USE_GITLAB_WIKI ----
-
-  describe("USE_GITLAB_WIKI=true (no GITLAB_TOOLSETS)", () => {
-    let server: ServerInstance;
-    let tools: string[];
-
-    before(async () => {
-      const port = await nextMcpPort();
-      server = await launchMcpServer(mockGitLabUrl, port, {
-        USE_GITLAB_WIKI: "true",
-      });
-      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
-    });
-
-    after(() => cleanupServers([server]));
-
-    test("returns default tools + wiki tools (wiki is NOT default, USE_GITLAB_WIKI adds it)", () => {
-      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + TOOLSET_TOOL_COUNTS.wiki);
-    });
-
-    test("includes wiki tools", () => {
-      assertContainsAll(tools, TOOLSET_SAMPLE_TOOLS.wiki, "wiki");
     });
   });
 
@@ -559,18 +529,17 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
   });
 
-  // ---- 10. Full combination: toolset + individual + legacy + read-only ----
+  // ---- 10. Full combination: toolsets + individual + read-only ----
 
-  describe("GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines + USE_GITLAB_WIKI=true + GITLAB_PERMISSION_MODE=readonly", () => {
+  describe("GITLAB_TOOLSETS=issues,wiki + GITLAB_TOOLS=list_pipelines + GITLAB_PERMISSION_MODE=readonly", () => {
     let server: ServerInstance;
     let tools: string[];
 
     before(async () => {
       const port = await nextMcpPort();
       server = await launchMcpServer(mockGitLabUrl, port, {
-        GITLAB_TOOLSETS: "issues",
+        GITLAB_TOOLSETS: "issues,wiki",
         GITLAB_TOOLS: "list_pipelines",
-        USE_GITLAB_WIKI: "true",
         GITLAB_PERMISSION_MODE: "readonly",
       });
       tools = await getToolNames(`http://${HOST}:${port}/mcp`);
@@ -586,7 +555,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       assertContainsAll(tools, ["list_pipelines"], "individual pipeline");
     });
 
-    test("includes read-only wiki tools from legacy flag", () => {
+    test("includes read-only wiki tools from the wiki toolset", () => {
       assertContainsAll(tools, ["list_wiki_pages", "get_wiki_page"], "read-only wiki");
     });
 
@@ -599,27 +568,6 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
   });
 
-  // ---- 11. Redundant legacy flag (toolset already includes it) ----
-
-  describe("GITLAB_TOOLSETS=pipelines + USE_PIPELINE=true (redundant)", () => {
-    let server: ServerInstance;
-    let tools: string[];
-
-    before(async () => {
-      const port = await nextMcpPort();
-      server = await launchMcpServer(mockGitLabUrl, port, {
-        GITLAB_TOOLSETS: "pipelines",
-        USE_PIPELINE: "true",
-      });
-      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
-    });
-
-    after(() => cleanupServers([server]));
-
-    test("returns exactly pipeline tool count + discover_tools (no duplicates)", () => {
-      assert.strictEqual(tools.length, LEGACY_PIPELINE_TOOL_COUNT + ALWAYS_LISTED_META_COUNT);
-    });
-  });
 
   // ---- 12. GITLAB_TOOLS with tool already in enabled toolset (no dupes) ----
 

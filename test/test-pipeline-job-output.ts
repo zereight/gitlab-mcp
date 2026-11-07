@@ -52,7 +52,7 @@ function callTool(
         ...process.env,
         ...env,
         GITLAB_PERMISSION_MODE: "readonly",
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "core,pipelines",
         GITLAB_DISABLE_VERSION_CHECK: "true",
       },
     });

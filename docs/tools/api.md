@@ -8,7 +8,7 @@ Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of
     With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
 
 !!! note "Feature toggle"
-    Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it.
+    Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, and `GITLAB_TOOL_PROFILE` do not enable it.
 
 ## Tools in this group
 

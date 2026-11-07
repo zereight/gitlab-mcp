@@ -31,33 +31,6 @@ interface GroupMeta {
   blurb: string;
 }
 
-// Legacy single-group env flags that pre-date GITLAB_TOOLSETS.
-// Only three groups have these for backward compatibility; everything else
-// opt-in is configured via GITLAB_TOOLSETS / GITLAB_TOOLS / discover_tools.
-const LEGACY_TOGGLE_ENV: Partial<Record<ToolsetId, string>> = {
-  pipelines: "USE_PIPELINE",
-  milestones: "USE_MILESTONE",
-  wiki: "USE_GITLAB_WIKI",
-};
-
-// USE_PIPELINE also exposes these two tools, but they live in `ci`, not `pipelines`.
-const LEGACY_PIPELINE_TOOLS = "validate_ci_lint,validate_project_ci_lint";
-
-function legacyToolsetReplacement(id: ToolsetId): string {
-  const toolsets = `\`GITLAB_TOOLSETS=core,${id}\``;
-  if (id === "pipelines") {
-    return `${toolsets} and \`GITLAB_TOOLS=${LEGACY_PIPELINE_TOOLS}\``;
-  }
-  return toolsets;
-}
-
-function legacyToolsAppendNote(id: ToolsetId): string {
-  if (id !== "pipelines") {
-    return "";
-  }
-  return ` If \`GITLAB_TOOLS\` is already set, append \`${LEGACY_PIPELINE_TOOLS}\` instead of replacing that list.`;
-}
-
 function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
@@ -93,7 +66,7 @@ function formatSlimOverlapNote(toolNames: readonly string[]): string {
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
   if (isExplicitOnlyToolset(id)) {
-    return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, legacy \`USE_*\` flags, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
+    return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
   }
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools and help are always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
@@ -101,17 +74,6 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
     return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
   const overlapNotes = formatDefaultOverlapNote(toolNames) + formatSlimOverlapNote(toolNames);
-  const legacy = LEGACY_TOGGLE_ENV[id];
-  if (legacy) {
-    return (
-      `Opt-in. Prefer \`discover_tools\`, or persist with ${legacyToolsetReplacement(id)}. ` +
-      `Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list). ` +
-      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged).` +
-      `${legacyToolsAppendNote(id)} ` +
-      `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
-      overlapNotes
-    );
-  }
   return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${overlapNotes}`;
 }
 
@@ -424,11 +386,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     items
       .map(([id]) => {
         const slug = id.replace(/_/g, "-");
-        const legacy = LEGACY_TOGGLE_ENV[id];
-        const suffix = legacy
-          ? ` (legacy \`${legacy}=true\` is deprecated; removed in next major (v3.0.0))`
-          : "";
-        return `[${GROUP_META[id].title}](${slug}.md)${suffix}`;
+        return `[${GROUP_META[id].title}](${slug}.md)`;
       })
       .join(", ");
 
@@ -455,11 +413,6 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
     "- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.",
     "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
-    "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
-      " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
-      " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
-      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged)." +
-      " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
   ];
 }
 

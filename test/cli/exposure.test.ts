@@ -11,7 +11,6 @@ function exposure(overrides: {
   toolName: string;
   enabledToolsets?: typeof ISSUES;
   individuallyEnabledTools?: ReadonlySet<string>;
-  featureFlagOverrides?: ReadonlySet<string>;
   deniedRegex?: RegExp;
   hiddenTools?: ReadonlySet<string>;
 }) {
@@ -19,7 +18,6 @@ function exposure(overrides: {
     toolName: overrides.toolName,
     enabledToolsets: overrides.enabledToolsets ?? ISSUES,
     individuallyEnabledTools: overrides.individuallyEnabledTools ?? EMPTY,
-    featureFlagOverrides: overrides.featureFlagOverrides ?? EMPTY,
     deniedRegex: overrides.deniedRegex,
     hiddenTools: overrides.hiddenTools ?? EMPTY,
   };
@@ -45,20 +43,6 @@ describe("When isToolExposed applies MCP filters", () => {
           exposure({
             toolName: "list_pipelines",
             individuallyEnabledTools: new Set(["list_pipelines"]),
-          })
-        ),
-        true
-      );
-    });
-  });
-
-  describe("with a legacy feature-flag override", () => {
-    it("should expose the overridden wiki tool", () => {
-      assert.equal(
-        isToolExposed(
-          exposure({
-            toolName: "list_wiki_pages",
-            featureFlagOverrides: new Set(["list_wiki_pages"]),
           })
         ),
         true

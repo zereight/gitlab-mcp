@@ -19,6 +19,27 @@ const REMOVED_CONFIGS: readonly RemovedConfig[] = [
     replacement: "GITLAB_OAUTH_ALLOWED_GROUPS (or --oauth-allowed-groups)",
     boolean: false,
   },
+  {
+    env: "USE_GITLAB_WIKI",
+    cliFlag: "use-wiki",
+    replacement:
+      "GITLAB_TOOLSETS=core,wiki (or --toolsets=core,wiki); append wiki to an existing toolset list",
+    boolean: true,
+  },
+  {
+    env: "USE_MILESTONE",
+    cliFlag: "use-milestone",
+    replacement:
+      "GITLAB_TOOLSETS=core,milestones (or --toolsets=core,milestones); append milestones to an existing toolset list",
+    boolean: true,
+  },
+  {
+    env: "USE_PIPELINE",
+    cliFlag: "use-pipeline",
+    replacement:
+      "GITLAB_TOOLSETS=core,pipelines (or --toolsets=core,pipelines); append pipelines to an existing toolset list, and add validate_ci_lint,validate_project_ci_lint to GITLAB_TOOLS if you use CI lint",
+    boolean: true,
+  },
 ];
 
 function isEnvSet(entry: RemovedConfig, env: NodeJS.ProcessEnv): boolean {
