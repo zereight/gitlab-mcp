@@ -63,9 +63,9 @@ describe("When parseArgv reads a command line", () => {
     });
   });
 
-  describe("with --read-only false before a curated command", () => {
+  describe("with --use-oauth false before a curated command", () => {
     it("should keep false as the flag value and mr list as positionals", () => {
-      const parsed = parseArgv(argv("--read-only", "false", "mr", "list"));
+      const parsed = parseArgv(argv("--use-oauth", "false", "mr", "list"));
 
       assert.deepEqual(parsed.positionals, ["mr", "list"]);
     });

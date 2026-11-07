@@ -1,0 +1,50 @@
+interface RemovedConfig {
+  readonly env: string;
+  readonly cliFlag: string;
+  readonly replacement: string;
+  /** Flags that were on/off switches; any other value means "set". */
+  readonly boolean: boolean;
+}
+
+const REMOVED_CONFIGS: readonly RemovedConfig[] = [
+  {
+    env: "GITLAB_READ_ONLY_MODE",
+    cliFlag: "read-only",
+    replacement: "GITLAB_PERMISSION_MODE=readonly (or --permission-mode=readonly)",
+    boolean: true,
+  },
+];
+
+function isEnvSet(entry: RemovedConfig, env: NodeJS.ProcessEnv): boolean {
+  const value = env[entry.env]?.trim();
+  if (!value) return false;
+  return entry.boolean ? value.toLowerCase() === "true" : true;
+}
+
+function isCliFlagSet(entry: RemovedConfig, argv: readonly string[]): boolean {
+  const flag = `--${entry.cliFlag}`;
+  return argv.some((arg, index) => {
+    if (arg !== flag && !arg.startsWith(`${flag}=`)) return false;
+    const inline = arg.startsWith(`${flag}=`) ? arg.slice(flag.length + 1) : null;
+    if (!entry.boolean) return inline === null || inline !== "";
+    const value = inline ?? argv[index + 1];
+    return value?.toLowerCase() !== "false" && inline !== "";
+  });
+}
+
+/**
+ * Removed settings must fail loudly, never be ignored: silently dropping
+ * GITLAB_READ_ONLY_MODE would widen access.
+ */
+export function getRemovedConfigErrors(env: NodeJS.ProcessEnv, argv: readonly string[]): string[] {
+  return REMOVED_CONFIGS.filter(entry => isEnvSet(entry, env) || isCliFlagSet(entry, argv)).map(
+    entry => `${entry.env} (--${entry.cliFlag}) was removed. Use ${entry.replacement} instead.`
+  );
+}
+
+export function assertNoRemovedConfig(env: NodeJS.ProcessEnv, argv: readonly string[]): void {
+  const errors = getRemovedConfigErrors(env, argv);
+  if (errors.length > 0) {
+    throw new Error(`Removed configuration detected:\n- ${errors.join("\n- ")}`);
+  }
+}

@@ -608,7 +608,7 @@ describe("Pipeline schedule tools", () => {
   });
 
   test("write tools are absent from tools/list in read-only mode", async () => {
-    const names = await listTools({ ...baseEnv, GITLAB_READ_ONLY_MODE: "true" });
+    const names = await listTools({ ...baseEnv, GITLAB_PERMISSION_MODE: "readonly" });
     for (const name of [
       "create_pipeline_schedule",
       "update_pipeline_schedule",
@@ -642,7 +642,7 @@ describe("Pipeline schedule tools", () => {
             ref: "main",
             cron: "0 1 * * *",
           },
-          { ...baseEnv, GITLAB_READ_ONLY_MODE: "true" }
+          { ...baseEnv, GITLAB_PERMISSION_MODE: "readonly" }
         ),
       /read-only|not allowed|Unknown tool/i
     );

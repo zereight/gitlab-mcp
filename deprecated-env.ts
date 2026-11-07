@@ -131,12 +131,6 @@ function legacyToolsetWarning(
 }
 
 export interface DeprecatedEnvInput {
-  readOnlyMode: boolean;
-  /** Raw `--read-only` / GITLAB_READ_ONLY_MODE value, including non-true values such as "false". */
-  readOnlyRaw?: string;
-  readOnlyFromCli?: boolean;
-  /** Value the user set for GITLAB_PERMISSION_MODE / --permission-mode, before GITLAB_READ_ONLY_MODE overrides it. */
-  permissionModeRaw: string | undefined;
   allowedGroupsRaw: string | undefined;
   allowedGroupsFromCli?: boolean;
   oauthAllowedGroupsRaw: string | undefined;
@@ -156,48 +150,12 @@ export interface DeprecatedEnvInput {
   toolsFromCli?: boolean;
 }
 
-function readOnlyRawValue(input: DeprecatedEnvInput): string | undefined {
-  if (input.readOnlyRaw !== undefined && input.readOnlyRaw !== "") {
-    return input.readOnlyRaw;
-  }
-  if (input.readOnlyMode) {
-    return "true";
-  }
-  return undefined;
-}
-
-function readOnlyWarning(input: DeprecatedEnvInput): string | undefined {
-  const raw = readOnlyRawValue(input);
-  if (raw === undefined) {
-    return undefined;
-  }
-  const name = settingName("GITLAB_READ_ONLY_MODE", "read-only", input.readOnlyFromCli === true);
-  if (raw === "true") {
-    const conflict =
-      input.permissionModeRaw !== undefined && input.permissionModeRaw !== "readonly"
-        ? ` It OVERRIDES the configured permission mode "${input.permissionModeRaw}"; the server runs as "readonly".`
-        : "";
-    return (
-      `${name} is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
-      `Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead.${conflict}`
-    );
-  }
-  return (
-    `${name} is set to "${shownEnvValue(raw)}" and is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
-    "This value does not enable legacy read-only mode. The effective permission mode comes from GITLAB_PERMISSION_MODE or --permission-mode. Remove it."
-  );
-}
-
 /**
  * Builds startup warnings for deprecated env vars / CLI flags.
  * Pure function so the messages and conflict detection are unit-testable.
  */
 export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
   const warnings: string[] = [];
-  const readOnly = readOnlyWarning(input);
-  if (readOnly !== undefined) {
-    warnings.push(readOnly);
-  }
 
   if (input.allowedGroupsRaw) {
     const name = settingName(
@@ -243,7 +201,7 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
   ];
   for (const flag of legacyToolsetFlags) {
     // An empty value (e.g. `USE_PIPELINE=${USE_PIPELINE}` in docker-compose with the
-    // variable unset) is not a configured flag, matching GITLAB_READ_ONLY_MODE above.
+    // variable unset) is not a configured flag.
     if (flag.rawValue !== undefined && flag.rawValue !== "") {
       warnings.push(
         legacyToolsetWarning(
@@ -281,17 +239,7 @@ export function deprecatedEnvInputFromSources(
   parsedArgs: Readonly<Record<string, string>>,
   env: NodeJS.ProcessEnv
 ): DeprecatedEnvInput {
-  const readOnlyRaw = readSuppliedSetting(parsedArgs, env, "read-only", "GITLAB_READ_ONLY_MODE");
   return {
-    readOnlyMode: readOnlyRaw === "true",
-    readOnlyRaw,
-    readOnlyFromCli: Boolean(parsedArgs["read-only"]),
-    permissionModeRaw: readSuppliedSetting(
-      parsedArgs,
-      env,
-      "permission-mode",
-      "GITLAB_PERMISSION_MODE"
-    ),
     allowedGroupsRaw: readSuppliedSetting(
       parsedArgs,
       env,
