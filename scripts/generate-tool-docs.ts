@@ -370,7 +370,7 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   if (isExplicitOnlyToolset(id)) {
     lines.push(`!!! danger "Raw API escape hatch"`);
     lines.push(
-      `    \`gitlab_api_request\` bypasses \`GITLAB_ALLOWED_GROUPS\` and other group restrictions, project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
+      `    \`gitlab_api_request\` bypasses \`GITLAB_OAUTH_ALLOWED_GROUPS\` and other group restrictions, project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
     );
     lines.push("    ");
     lines.push(

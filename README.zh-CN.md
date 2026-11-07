@@ -325,7 +325,7 @@ CLI 参数优先于环境变量。
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
 > [!CAUTION]
-> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
+> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_OAUTH_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
 > 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
@@ -774,3 +774,4 @@ Active legacy settings now stop startup with a migration error, rather than sile
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |

@@ -147,16 +147,12 @@ export const GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW = getConfig(
   "oauth-allowed-redirect-uris",
   "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS"
 );
-/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in v3.0.0. */
-export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
   "oauth-allowed-groups",
   "GITLAB_OAUTH_ALLOWED_GROUPS"
 );
 export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
-  const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
-  const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
-  const raw = newVar ?? oldVar;
+  const raw = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
   if (!raw) return undefined;
   const groups = raw
     .split(",")
