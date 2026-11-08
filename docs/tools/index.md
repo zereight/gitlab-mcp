@@ -326,7 +326,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view. *(58 tools)*
 
-> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,pipelines`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,pipelines`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). The removed `USE_PIPELINE=true` also exposed `validate_ci_lint` and `validate_project_ci_lint` (toolset `ci`): to keep them, append both to an existing `GITLAB_TOOLS` list, or set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` if it is unset.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

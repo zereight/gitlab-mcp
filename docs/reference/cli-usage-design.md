@@ -32,7 +32,7 @@ Non-goals for this design:
 - `Formula/zereight-mcp-gitlab.rb` wraps the npm tarball and symlinks the bins, so the Homebrew install is already a shell-runnable binary.
 - `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `setup`, `doctor`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`. Boolean MCP flags accept `--flag`, `--flag=true`, or `--flag false`; they do not swallow the next positional command.
-- Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS` / legacy flags, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
+- Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
 - Tool inventory: 288 tools in `allTools` (285 toolset tools plus `execute_graphql`, `discover_tools`, and `help`), grouped into 24 toolsets in `TOOLSET_DEFINITIONS`. The `api` toolset is explicit-only (`GITLAB_TOOLSETS=all` does not enable it). Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
 
 ---

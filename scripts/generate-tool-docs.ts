@@ -62,6 +62,12 @@ function formatSlimOverlapNote(toolNames: readonly string[]): string {
   return ` With \`GITLAB_TOOL_PROFILE=slim\` and \`GITLAB_TOOLSETS\` unset, \`discover_tools\` skips ${skipped}; add a tool name to \`GITLAB_TOOLS\` to expose it. Setting \`GITLAB_TOOLSETS\` disables the slim profile.`;
 }
 
+/** The removed USE_PIPELINE also exposed two `ci` tools that the `pipelines` toolset does not include. */
+function formatLegacyPipelineNote(id: ToolsetId): string {
+  if (id !== "pipelines") return "";
+  return " The removed `USE_PIPELINE=true` also exposed `validate_ci_lint` and `validate_project_ci_lint` (toolset `ci`): to keep them, append both to an existing `GITLAB_TOOLS` list, or set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` if it is unset.";
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
@@ -74,7 +80,7 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
     return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
   const overlapNotes = formatDefaultOverlapNote(toolNames) + formatSlimOverlapNote(toolNames);
-  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${overlapNotes}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatLegacyPipelineNote(id)}${overlapNotes}`;
 }
 
 const META_GROUP_ID = "meta";
