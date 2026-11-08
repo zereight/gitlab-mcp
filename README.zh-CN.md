@@ -767,9 +767,9 @@ npm run test:integration
 
 通过 [GitHub Sponsors](https://github.com/sponsors/zereight) 的赞助将用于 GitLab E2E 测试费用：用于测试免费测试实例无法覆盖的 Premium/Ultimate 功能（如 milestone burndown 图表和 iterations）的付费 GitLab 方案，以及 live API 测试基础设施。
 
-## Removed in v3.0.0
+## v3.0.0 中移除的设置
 
-Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+已启用的旧版设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的旧版设置也请删除。
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
