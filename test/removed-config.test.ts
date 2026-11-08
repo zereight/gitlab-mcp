@@ -49,9 +49,10 @@ describe("When removed configuration is detected", () => {
   });
 
   describe("with GITLAB_ALLOWED_GROUPS set", () => {
-    it("should point to GITLAB_OAUTH_ALLOWED_GROUPS", () => {
+    it("should point to GITLAB_OAUTH_ALLOWED_GROUPS and its GITLAB_MCP_OAUTH prerequisite", () => {
       const [error] = getRemovedConfigErrors({ GITLAB_ALLOWED_GROUPS: "team" }, []);
       assert.match(error, /GITLAB_OAUTH_ALLOWED_GROUPS/);
+      assert.match(error, /GITLAB_MCP_OAUTH=true/);
     });
   });
 

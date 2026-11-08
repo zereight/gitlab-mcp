@@ -16,7 +16,8 @@ const REMOVED_CONFIGS: readonly RemovedConfig[] = [
   {
     env: "GITLAB_ALLOWED_GROUPS",
     cliFlag: "allowed-groups",
-    replacement: "GITLAB_OAUTH_ALLOWED_GROUPS (or --oauth-allowed-groups)",
+    replacement:
+      "GITLAB_OAUTH_ALLOWED_GROUPS (or --oauth-allowed-groups; enforced only with GITLAB_MCP_OAUTH=true)",
     boolean: false,
   },
 ];

@@ -190,4 +190,4 @@ Active legacy settings now stop startup with a migration error, rather than sile
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](../configuration/environment-variables.md#gitlab_mcp_oauth)) |

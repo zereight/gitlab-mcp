@@ -333,8 +333,8 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 > [Environment Variables](./docs/configuration/environment-variables.md).
 
 > [!CAUTION]
-> `gitlab_api_request` (toolset `api`) bypasses `GITLAB_OAUTH_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it.
-> Enable it only by listing `api` in `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not). With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted. Endpoints such as `/search`, `/users`, `/groups/:id`, and `/runners` are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
+> `gitlab_api_request` (toolset `api`) bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it.
+> Enable it only by listing `api` in `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not). With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted. Endpoints such as `/search`, `/users`, `/groups/:id`, and `/runners` are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced by this tool.
 
 - sse
 
@@ -1122,4 +1122,4 @@ Active legacy settings now stop startup with a migration error, rather than sile
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [MCP OAuth](#using-mcp-oauth-proxy-gitlab_mcp_oauth)) |
