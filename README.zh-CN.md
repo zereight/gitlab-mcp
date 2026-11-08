@@ -420,7 +420,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | 环境变量                      | 必需 | 说明                                                                                                        |
 | ----------------------------- | ---- | ----------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                                                                        |
-| `GITLAB_API_URL`              | 是   | GitLab API base URL。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
+| `GITLAB_API_URL`              | 是   | GitLab API base URL。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。用户名或密码中的逗号必须写成 `%2C`；从 v3.0.0 起，可能位于用户名或密码内的逗号会导致启动失败。 |
 | `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                                                                                 |
 | `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                                                                               |
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
@@ -517,6 +517,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`（或 `GITLAB_MCP_OAUTH=true`）, `MCP_TRUST_PROXY=true`（反向代理后）, `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 或 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **并行运行多个部署**：为每个实例设置不同的 `MCP_SERVER_NAME`（例如 `gitlab-selfhosted-readonly`），以便在客户端、日志和遥测数据中区分它们
 - **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./docs/configuration/stateless-mode.md)。
+
+> **v3.0.0 破坏性变更：`GITLAB_API_URL` 列表。** `GITLAB_API_URL`（以及 `--api-url`）可以列出多个以逗号分隔的 URL，例如 `https://a.example/api/v4,https://b.example/api/v4`。用户名或密码中的逗号必须写成 `%2C`（`https://alice:p%2Cw@host`）。从 v3.0.0 起，如果值中的某个逗号可能位于用户名或密码内（例如 `https://alice:123,https:word@host`），服务不再猜测如何拆分，而是在启动时报错并退出；错误信息只给出逗号的位置，不会显示值本身。修复方法：把该逗号写成 `%2C`，或者从 URL 中删除用户名和密码（请求不会使用它们）。详见 [`GITLAB_API_URL`](./docs/configuration/environment-variables.md#gitlab_api_url)。
 
 常用变量：
 
@@ -694,7 +696,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 是   | 设置为 `true` 以启用                                                                                                                     |
 | `GITLAB_OAUTH_APP_ID`                       | 是   | 预先注册的 GitLab OAuth 应用 client ID                                                                                                   |
 | `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
-| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
+| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。用户名或密码中的逗号必须写成 `%2C`；从 v3.0.0 起，可能位于用户名或密码内的逗号会导致启动失败。 |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP 限制（固定 1 小时窗口）。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |

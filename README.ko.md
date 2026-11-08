@@ -421,7 +421,7 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | 환경 변수                     | 필수 | 설명                                                                                                                            |
 | ----------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                                                                                             |
-| `GITLAB_API_URL`              | 예   | GitLab API base URL. URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. |
+| `GITLAB_API_URL`              | 예   | GitLab API base URL. URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 사용자 이름이나 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. v3.0.0부터는 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 있으면 시작 단계에서 거부됩니다. |
 | `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                                                                                     |
 | `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
 | `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
@@ -518,6 +518,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`(또는 `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true`(리버스 프록시 뒤), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 또는 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **여러 배포를 동시에 운영**: 배포마다 `MCP_SERVER_NAME`을 다르게 설정(예: `gitlab-selfhosted-readonly`)하면 클라이언트, 로그, 텔레메트리에서 서로 구분할 수 있습니다
 - **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
+
+> **v3.0.0 호환성 변경(breaking change): `GITLAB_API_URL` 목록.** `GITLAB_API_URL`(및 `--api-url`)에는 `https://a.example/api/v4,https://b.example/api/v4`처럼 쉼표로 구분한 여러 URL을 넣을 수 있습니다. 사용자 이름이나 비밀번호 안의 쉼표는 반드시 `%2C`로 적어야 합니다(`https://alice:p%2Cw@host`). v3.0.0부터는 `https://alice:123,https:word@host`처럼 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 들어간 값을 추측해서 나누지 않고, 시작 단계에서 오류를 내고 멈춥니다. 오류 메시지에는 쉼표의 위치만 나오고 값은 나오지 않습니다. 쉼표를 `%2C`로 바꾸거나, 요청에 쓰이지 않는 사용자 이름과 비밀번호를 URL에서 빼면 됩니다. 자세한 내용은 [`GITLAB_API_URL`](./docs/configuration/environment-variables.md#gitlab_api_url)을 참고하세요.
 
 자주 참조하는 변수:
 
@@ -695,7 +697,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 예     | 활성화하려면 `true`                                                                                                                                                        |
 | `GITLAB_OAUTH_APP_ID`                       | 예     | 사전 등록 GitLab OAuth 애플리케이션의 client ID                                                                                                                            |
 | `MCP_SERVER_URL`                            | 예     | MCP 서버의 공개 HTTPS URL                                                                                                                                                  |
-| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다.             |
+| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 사용자 이름이나 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. v3.0.0부터는 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 있으면 시작 단계에서 거부됩니다.             |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 한도(고정 1시간 윈도우). 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
