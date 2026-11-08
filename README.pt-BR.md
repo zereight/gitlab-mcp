@@ -768,9 +768,9 @@ Todos os testes de autorização remota usam um servidor GitLab mockado e não e
 
 Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) ajudam a cobrir os custos dos testes E2E com o GitLab: um plano pago do GitLab para testar recursos Premium/Ultimate (como gráficos de burndown de milestones e iterations) que a instância de teste gratuita não alcança, e a infraestrutura dos testes de API ao vivo.
 
-## Removed in v3.0.0
+## Configurações removidas na v3.0.0
 
-Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+Configurações legadas ativas agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações legadas vazias ou false.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
