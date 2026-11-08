@@ -332,11 +332,11 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   if (isExplicitOnlyToolset(id)) {
     lines.push(`!!! danger "Raw API escape hatch"`);
     lines.push(
-      `    \`gitlab_api_request\` bypasses \`GITLAB_OAUTH_ALLOWED_GROUPS\` and other group restrictions, project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
+      `    \`gitlab_api_request\` bypasses project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. With \`GITLAB_MCP_OAUTH=true\`, the \`GITLAB_OAUTH_ALLOWED_GROUPS\` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
     );
     lines.push("    ");
     lines.push(
-      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
+      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced by this tool.`
     );
     lines.push("");
   }

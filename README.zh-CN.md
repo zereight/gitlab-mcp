@@ -321,7 +321,7 @@ CLI 参数优先于环境变量。
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
 > [!CAUTION]
-> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_OAUTH_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
+> `gitlab_api_request`（`api` 工具集）会绕过项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。启用 `GITLAB_MCP_OAUTH=true` 时，`GITLAB_OAUTH_ALLOWED_GROUPS` 的成员检查仍然决定谁可以使用服务器，但已获准的用户可以请求这些群组之外的资源。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
 > 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
@@ -763,14 +763,14 @@ npm run test:integration
 
 通过 [GitHub Sponsors](https://github.com/sponsors/zereight) 的赞助将用于 GitLab E2E 测试费用：用于测试免费测试实例无法覆盖的 Premium/Ultimate 功能（如 milestone burndown 图表和 iterations）的付费 GitLab 方案，以及 live API 测试基础设施。
 
-## Removed in v3.0.0
+## v3.0.0 中移除的设置
 
-Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+已启用的旧版设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的旧版设置也请删除。
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`（仅在 `GITLAB_MCP_OAUTH=true` 时检查群组成员资格，见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)） |
 | `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
 | `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
 | `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |

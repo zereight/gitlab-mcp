@@ -323,7 +323,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
 > [!CAUTION]
-> `gitlab_api_request` (toolset `api`) ignora `GITLAB_OAUTH_ALLOWED_GROUPS` e outras restrições de grupo, allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
+> `gitlab_api_request` (toolset `api`) ignora allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. Com `GITLAB_MCP_OAUTH=true`, a checagem de membros de `GITLAB_OAUTH_ALLOWED_GROUPS` continua decidindo quem pode usar o servidor, mas um usuário admitido pode solicitar recursos fora desses grupos. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
 > Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
@@ -765,14 +765,14 @@ Todos os testes de autorização remota usam um servidor GitLab mockado e não e
 
 Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) ajudam a cobrir os custos dos testes E2E com o GitLab: um plano pago do GitLab para testar recursos Premium/Ultimate (como gráficos de burndown de milestones e iterations) que a instância de teste gratuita não alcança, e a infraestrutura dos testes de API ao vivo.
 
-## Removed in v3.0.0
+## Configurações removidas na v3.0.0
 
-Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+Configurações legadas ativas agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações legadas vazias ou false.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (a checagem de membros do grupo só acontece com `GITLAB_MCP_OAUTH=true`; veja [MCP OAuth](#usando-o-proxy-mcp-oauth-gitlab_mcp_oauth)) |
 | `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
 | `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
 | `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
