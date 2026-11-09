@@ -770,7 +770,7 @@ Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) aju
 
 ## Configurações removidas na v3.0.0
 
-Configurações legadas ativas agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações legadas vazias ou false.
+`GITLAB_READ_ONLY_MODE` / `--read-only` ativos agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações vazias ou false de `GITLAB_READ_ONLY_MODE` / `--read-only`.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |

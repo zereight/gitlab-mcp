@@ -770,7 +770,7 @@ npm run test:integration
 
 ## v3.0.0에서 제거된 설정
 
-활성화된 구 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 구 설정도 구성에서 삭제하세요.
+활성화된 `GITLAB_READ_ONLY_MODE` / `--read-only` 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 `GITLAB_READ_ONLY_MODE` / `--read-only` 설정도 구성에서 삭제하세요.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
