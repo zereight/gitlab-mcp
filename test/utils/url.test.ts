@@ -486,7 +486,9 @@ describe("When a GITLAB_API_URL value has an ambiguous comma", () => {
       ];
       let seed = 876;
       const next = (limit: number): number => {
-        seed = (seed * 1_103_515_245 + 12_345) & 0x7fffffff;
+        // Math.imul keeps the low 32 bits of the product exact; `seed * 1_103_515_245`
+        // exceeds 2^53 and rounds before the mask is applied.
+        seed = (Math.imul(seed, 1_103_515_245) + 12_345) & 0x7fffffff;
         return seed % limit;
       };
       let checked = 0;
