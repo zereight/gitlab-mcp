@@ -835,7 +835,10 @@ There is no CLI flag; the server reads this name from the environment directly.
 
 ### `GITLAB_PROJECT_ID`
 
-Optional default project ID.
+Optional default project ID. When set, the server is locked to that project.
+Tools that cannot be limited to one project are refused, including
+`execute_graphql`, `create_repository`, `create_group`, `fork_repository`, and
+the group variable and dependency proxy tools.
 
 ### `GITLAB_ALLOWED_PROJECT_IDS`
 
@@ -847,9 +850,15 @@ Behavior:
 - Multiple project IDs: restricts access to those projects only
 - `gitlab_api_request` (opt-in `api` toolset) accepts only `/projects/:id` and
   `/projects/:id/...` paths for an allowed project and rejects every other path
+- Tools that cannot be limited to those projects are refused, not scoped:
+  `execute_graphql`, `create_repository`, `create_group`, `fork_repository`, and
+  the group variable and dependency proxy tools. `execute_graphql` hard-fails
+  while this allowlist is non-empty; it does not send the query against only
+  the allowed projects.
 
 This is process-level and fixed at startup. To let a caller narrow the scope
-per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
+per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`
+refusal applies to a session project scope.
 
 ### `GITLAB_READ_ONLY_MODE`
 
