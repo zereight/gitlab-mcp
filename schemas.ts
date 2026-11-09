@@ -4009,7 +4009,11 @@ export const MarkdownUploadRemoteSchema = z.object({
 export const DownloadAttachmentSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
-  filename: z.string().describe("The filename of the upload"),
+  filename: z
+    .string()
+    .describe(
+      "The filename of the upload, copied from its URL as is, percent-encoding included (e.g. `Capture_d_e%CC%81cran.png` from `/uploads/<secret>/Capture_d_e%CC%81cran.png`): retyping accented characters can change their bytes"
+    ),
   local_path: z
     .string()
     .optional()
@@ -4027,7 +4031,11 @@ export const DownloadAttachmentSchema = z.object({
 export const DownloadAttachmentRemoteSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
-  filename: z.string().describe("The filename of the upload"),
+  filename: z
+    .string()
+    .describe(
+      "The filename of the upload, copied from its URL as is, percent-encoding included (e.g. `Capture_d_e%CC%81cran.png` from `/uploads/<secret>/Capture_d_e%CC%81cran.png`): retyping accented characters can change their bytes"
+    ),
 });
 
 export const GroupIteration = z.object({

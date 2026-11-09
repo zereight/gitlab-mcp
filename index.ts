@@ -247,6 +247,7 @@ import {
   normalizeGitLabApiUrl,
   parseConfiguredGitLabApiUrls,
   type ApiUrlSource,
+  uploadFilenameForms,
 } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -10685,13 +10686,32 @@ async function downloadAttachment(
   metadataOnly = false
 ): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const safeFilename = getSafeAttachmentFilename(filename);
+  const requestedFilename = getSafeAttachmentFilename(filename);
 
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
-  );
+  const fetchUpload = (name: string) =>
+    fetchWithValidatedRedirects(
+      new URL(
+        `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(name)}`
+      ).toString(),
+      downloadRedirectOptions()
+    );
 
-  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
+  // GitLab answers 404 when the name's accents are in another Unicode form than the
+  // stored one. The result and a saved file take the name decoded, as GitLab stores it,
+  // so no form may hold a separator.
+  const [firstName = requestedFilename, ...alternatives] = uploadFilenameForms(
+    requestedFilename
+  ).filter(name => !name.includes("/") && !name.includes("\\"));
+  let safeFilename = firstName;
+  let response = await fetchUpload(safeFilename);
+  for (const candidate of alternatives) {
+    if (response.status !== 404) {
+      break;
+    }
+    await response.body?.cancel();
+    safeFilename = candidate;
+    response = await fetchUpload(candidate);
+  }
 
   if (!response.ok) {
     await handleGitLabError(response);
