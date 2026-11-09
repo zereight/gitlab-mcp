@@ -770,7 +770,7 @@ npm run test:integration
 
 ## v3.0.0에서 제거된 설정
 
-활성화된 `GITLAB_READ_ONLY_MODE` / `--read-only` 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 `GITLAB_READ_ONLY_MODE` / `--read-only` 설정도 구성에서 삭제하세요.
+활성화된 `GITLAB_READ_ONLY_MODE` / `--read-only` 및 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 `GITLAB_READ_ONLY_MODE` / `--read-only` 설정도 구성에서 삭제하세요. 비어 있지 않은 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups`는 `false`여도 시작을 중단하므로 삭제하고 `GITLAB_OAUTH_ALLOWED_GROUPS`를 사용하세요.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |

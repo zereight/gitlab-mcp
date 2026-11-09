@@ -770,7 +770,7 @@ Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) aju
 
 ## Configurações removidas na v3.0.0
 
-`GITLAB_READ_ONLY_MODE` / `--read-only` ativos agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações vazias ou false de `GITLAB_READ_ONLY_MODE` / `--read-only`.
+`GITLAB_READ_ONLY_MODE` / `--read-only` e `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` ativos agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações vazias ou false de `GITLAB_READ_ONLY_MODE` / `--read-only`. Qualquer `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` com valor não vazio interrompe a inicialização, mesmo se for `false`, então remova-o e use `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |

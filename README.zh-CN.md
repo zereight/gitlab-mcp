@@ -769,7 +769,7 @@ npm run test:integration
 
 ## v3.0.0 中移除的设置
 
-已启用的 `GITLAB_READ_ONLY_MODE` / `--read-only` 设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的 `GITLAB_READ_ONLY_MODE` / `--read-only` 设置也请删除。
+已启用的 `GITLAB_READ_ONLY_MODE` / `--read-only` 和 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` 设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的 `GITLAB_READ_ONLY_MODE` / `--read-only` 设置也请删除。任何非空的 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` 即使值为 `false` 也会中止启动，请删除并改用 `GITLAB_OAUTH_ALLOWED_GROUPS`。
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |

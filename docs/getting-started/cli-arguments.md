@@ -68,7 +68,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 > If you already set `GITLAB_TOOLSETS` or `--toolsets`, append the toolset to your existing list instead of replacing it.
 > If `GITLAB_TOOLS` or `--tools` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
-> **Removed in v3.0.0:** See the migration table below. Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings stop startup with a migration error.
+> **Removed in v3.0.0:** See the migration table below. Active `GITLAB_READ_ONLY_MODE` / `--read-only` and `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` settings stop startup with a migration error.
 
 ## Subcommands
 
@@ -185,7 +185,7 @@ For the full list of configuration options, see
 
 ## Removed in v3.0.0
 
-Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings.
+Active `GITLAB_READ_ONLY_MODE` / `--read-only` and `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings. Any non-empty `GITLAB_ALLOWED_GROUPS` / `--allowed-groups`, even `false`, stops startup, so remove it and use `GITLAB_OAUTH_ALLOWED_GROUPS` instead.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
