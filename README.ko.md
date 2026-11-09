@@ -775,6 +775,6 @@ npm run test:integration
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (그룹 멤버십은 `GITLAB_MCP_OAUTH=true`일 때만 검사합니다. [MCP OAuth](#mcp-oauth-프록시-사용하기gitlab_mcp_oauth) 참고) |
 | `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
 | `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, 추가로 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` (CI lint를 사용하는 경우) |
 
 툴셋 목록을 명시하면 기본 목록을 대체합니다. 기본 도구가 필요하면 `core`를 유지하고, 기존 `GITLAB_TOOLSETS`·`GITLAB_TOOLS` 목록을 덮어쓰지 말고 항목을 추가하세요. 기존 `GITLAB_TOOLSETS=all`은 그대로 두세요.

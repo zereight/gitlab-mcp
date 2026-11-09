@@ -775,6 +775,6 @@ Configurações legadas ativas agora interrompem a inicialização com um erro d
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (a checagem de membros do grupo só acontece com `GITLAB_MCP_OAUTH=true`; veja [MCP OAuth](#usando-o-proxy-mcp-oauth-gitlab_mcp_oauth)) |
 | `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
 | `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
 
-An explicit toolset list replaces the default: keep `core` and append to existing `GITLAB_TOOLSETS` and `GITLAB_TOOLS` lists rather than replacing them. Leave an existing `GITLAB_TOOLSETS=all` unchanged.
+Uma lista explícita de toolsets substitui o padrão: mantenha `core` e acrescente às listas existentes de `GITLAB_TOOLSETS` e `GITLAB_TOOLS`, em vez de substituí-las. Deixe um `GITLAB_TOOLSETS=all` existente sem alterações.

@@ -773,6 +773,6 @@ npm run test:integration
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`（仅在 `GITLAB_MCP_OAUTH=true` 时检查群组成员资格，见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)） |
 | `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
 | `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`，另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
 
-An explicit toolset list replaces the default: keep `core` and append to existing `GITLAB_TOOLSETS` and `GITLAB_TOOLS` lists rather than replacing them. Leave an existing `GITLAB_TOOLSETS=all` unchanged.
+显式的工具集列表会替换默认值：请保留 `core`，并把内容追加到现有的 `GITLAB_TOOLSETS` 和 `GITLAB_TOOLS` 列表中，而不是替换它们。现有的 `GITLAB_TOOLSETS=all` 保持不变。
