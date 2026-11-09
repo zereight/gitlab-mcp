@@ -1117,7 +1117,7 @@ Sponsorships through [GitHub Sponsors](https://github.com/sponsors/zereight) hel
 
 ## Removed in v3.0.0
 
-Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
