@@ -2860,7 +2860,7 @@ export const ListIssuesSchema = z
       .string()
       .optional()
       .describe(
-        "Exact milestone title, not an ID. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset)."
+        "Exact milestone title, not an ID; None for no milestone, Any for any milestone. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset); the group tool omits subgroup issues."
       ),
 
     issue_type: z

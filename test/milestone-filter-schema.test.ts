@@ -17,6 +17,13 @@ describe("When an agent filters issues by milestone", () => {
       assert.match(description, /milestone title, not an ID/i);
       assert.match(description, /get_milestone_issue\b[\s\S]*get_group_milestone_issue\b/);
     });
+
+    it("should name None and Any as the no-milestone and any-milestone filters", () => {
+      const description = exposedPropertyDescription("list_issues", "milestone");
+
+      assert.match(description, /\bNone\b[^.;]*\bno milestone\b/);
+      assert.match(description, /\bAny\b[^.;]*\bany milestone\b/);
+    });
   });
 
   describe("with the milestone issue tools", () => {
