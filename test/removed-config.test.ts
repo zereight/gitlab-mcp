@@ -67,6 +67,16 @@ describe("When removed configuration is detected", () => {
       assert.match(errors[1], /GITLAB_TOOLSETS=core,milestones/);
       assert.match(errors[2], /GITLAB_TOOLSETS=core,pipelines/);
     });
+
+    it("should tell users to leave an exact GITLAB_TOOLSETS=all unchanged, since appending breaks it", () => {
+      const errors = getRemovedConfigErrors(
+        { USE_GITLAB_WIKI: "true", USE_MILESTONE: "true", USE_PIPELINE: "true" },
+        []
+      );
+      for (const error of errors) {
+        assert.match(error, /leave exactly `all` unchanged/);
+      }
+    });
   });
 
   describe("with each removed CLI flag", () => {
