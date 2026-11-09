@@ -41,11 +41,23 @@ describe("When removed configuration is detected", () => {
   describe("with a repeated removed flag after a false value", () => {
     it("should reject an active occurrence rather than checking only the first", () => {
       assert.equal(getRemovedConfigErrors({}, ["--read-only=false", "--read-only=true"]).length, 1);
+      assert.equal(
+        getRemovedConfigErrors({}, ["--allowed-groups=", "--allowed-groups=team"]).length,
+        1
+      );
+    });
+  });
+
+  describe("with GITLAB_ALLOWED_GROUPS set", () => {
+    it("should point to GITLAB_OAUTH_ALLOWED_GROUPS and its GITLAB_MCP_OAUTH prerequisite", () => {
+      const [error] = getRemovedConfigErrors({ GITLAB_ALLOWED_GROUPS: "team" }, []);
+      assert.match(error, /GITLAB_OAUTH_ALLOWED_GROUPS/);
+      assert.match(error, /GITLAB_MCP_OAUTH=true/);
     });
   });
 
   describe("with each removed CLI flag", () => {
-    for (const flag of ["read-only"]) {
+    for (const flag of ["read-only", "allowed-groups"]) {
       it(`should reject --${flag} in bare, equals, and split-value forms`, () => {
         assert.equal(getRemovedConfigErrors({}, [`--${flag}`]).length, 1);
         assert.equal(getRemovedConfigErrors({}, [`--${flag}=true`]).length, 1);

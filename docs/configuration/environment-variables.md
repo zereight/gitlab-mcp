@@ -457,8 +457,7 @@ Requests from users who are not members of any matching group are denied:
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
-> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but is
-> deprecated (removed in next major (v3.0.0)). Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
+> **Removed in v3.0.0:** `GITLAB_ALLOWED_GROUPS` stops startup. Use `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 Examples:
 
@@ -974,9 +973,9 @@ Special values:
 
 !!! danger "gitlab_api_request bypasses other restrictions"
 
-    `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
+    `gitlab_api_request` bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
+    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
     When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
@@ -1043,11 +1042,12 @@ Examples:
 
 ## Removed in v3.0.0
 
-Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings.
+Active `GITLAB_READ_ONLY_MODE` / `--read-only` and `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings. Any non-empty `GITLAB_ALLOWED_GROUPS` / `--allowed-groups`, even `false`, stops startup, so remove it and use `GITLAB_OAUTH_ALLOWED_GROUPS` instead.
 
-| Removed environment variable / CLI flag | Replacement                                                      |
-| --------------------------------------- | ---------------------------------------------------------------- |
-| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| Removed environment variable / CLI flag      | Replacement                                                                                                                                                           |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                      |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth)) |
 
 ## Logging
 

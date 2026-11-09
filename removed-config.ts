@@ -13,6 +13,13 @@ const REMOVED_CONFIGS: readonly RemovedConfig[] = [
     replacement: "GITLAB_PERMISSION_MODE=readonly (or --permission-mode=readonly)",
     boolean: true,
   },
+  {
+    env: "GITLAB_ALLOWED_GROUPS",
+    cliFlag: "allowed-groups",
+    replacement:
+      "GITLAB_OAUTH_ALLOWED_GROUPS (or --oauth-allowed-groups; enforced only with GITLAB_MCP_OAUTH=true)",
+    boolean: false,
+  },
 ];
 
 function isEnvSet(entry: RemovedConfig, env: NodeJS.ProcessEnv): boolean {
@@ -34,7 +41,7 @@ function isCliFlagSet(entry: RemovedConfig, argv: readonly string[]): boolean {
 
 /**
  * Removed settings must fail loudly, never be ignored: silently dropping
- * GITLAB_READ_ONLY_MODE would widen access.
+ * GITLAB_READ_ONLY_MODE or GITLAB_ALLOWED_GROUPS would widen access.
  */
 export function getRemovedConfigErrors(env: NodeJS.ProcessEnv, argv: readonly string[]): string[] {
   return REMOVED_CONFIGS.filter(entry => isEnvSet(entry, env) || isCliFlagSet(entry, argv)).map(
