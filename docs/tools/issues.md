@@ -74,7 +74,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 | `created_before` | string |  | Created before |
 | `due_date` | string |  | Due date |
 | `labels` | array<string> |  | Label names |
-| `milestone` | string |  | Milestone title |
+| `milestone` | string |  | Exact milestone title, not an ID. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset). |
 | `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | issue, incident, test_case, or task |
 | `iteration_id` | string |  | Iteration ID, none (no iteration), or any (has an iteration). |
 | `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Issue scope |
