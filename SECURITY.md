@@ -19,6 +19,10 @@ Security fixes are provided for the latest 2.x release.
 
 The support policy, including security-only support for 2.x after v3.0 is released, is in [RELEASING.md](RELEASING.md#supported-versions).
 
+## Supply chain
+
+npm releases of `@zereight/mcp-gitlab` are published with npm provenance ([`.github/workflows/npm-publish.yml`](.github/workflows/npm-publish.yml)), and GitHub CodeQL runs on this repository.
+
 ## Security controls
 
 The controls below are implemented in this repository and described in the linked docs.
