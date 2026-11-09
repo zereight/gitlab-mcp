@@ -69,7 +69,7 @@ function buildServerEnv(port: number, tmpDir: string): Record<string, string> {
     GITLAB_OAUTH_CLIENT_ID: "client-id",
     GITLAB_OAUTH_TOKEN_PATH: tokenPath,
     GITLAB_IS_OLD: "true",
-    USE_PIPELINE: "true",
+    GITLAB_TOOLSETS: "core,pipelines",
     DOWNLOAD_TOKEN_SECRET,
     STREAMABLE_HTTP_AUTH_TOKEN: MCP_ACCESS_TOKEN,
   };

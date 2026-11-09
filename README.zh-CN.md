@@ -285,9 +285,6 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--toolsets` - 指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。不要传 `all`，除非接受约 73k schema token。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,pipelines`，并把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `--tools` 列表（如果还没有该列表，则设置 `--tools=validate_ci_lint,validate_project_ci_lint`）（替代 `USE_PIPELINE`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
@@ -315,8 +312,7 @@ CLI 参数优先于环境变量。
 > `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
-> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 已弃用
-> （Deprecated, removed in next major (v3.0.0)）。
+> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 已在 v3.0.0 中移除。
 > 请改用 `GITLAB_TOOLSETS=core,wiki`、`core,milestones` 或 `core,pipelines`
 > （`USE_PIPELINE` 还需要把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `GITLAB_TOOLS`，不要整段替换）。
 > 如果已经设置了 `GITLAB_TOOLSETS`，请把 toolset 追加到现有列表，不要整段替换。
@@ -326,7 +322,7 @@ CLI 参数优先于环境变量。
 
 > [!CAUTION]
 > `gitlab_api_request`（`api` 工具集）会绕过项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。启用 `GITLAB_MCP_OAUTH=true` 时，`GITLAB_OAUTH_ALLOWED_GROUPS` 的成员检查仍然决定谁可以使用服务器，但已获准的用户可以请求这些群组之外的资源。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
-> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
+> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
 
@@ -769,9 +765,14 @@ npm run test:integration
 
 ## v3.0.0 中移除的设置
 
-已启用的 `GITLAB_READ_ONLY_MODE` / `--read-only` 和 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` 设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的 `GITLAB_READ_ONLY_MODE` / `--read-only` 设置也请删除。任何非空的 `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` 即使值为 `false` 也会中止启动，请删除并改用 `GITLAB_OAUTH_ALLOWED_GROUPS`。
+已启用的旧版设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的旧版设置也请删除。
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`（仅在 `GITLAB_MCP_OAUTH=true` 时检查群组成员资格，见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)） |
+| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
+| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`，另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
+
+显式的工具集列表会替换默认值：请保留 `core`，并把内容追加到现有的 `GITLAB_TOOLSETS` 和 `GITLAB_TOOLS` 列表中，而不是替换它们。现有的 `GITLAB_TOOLSETS=all` 保持不变。

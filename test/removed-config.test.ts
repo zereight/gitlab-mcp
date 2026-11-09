@@ -56,8 +56,37 @@ describe("When removed configuration is detected", () => {
     });
   });
 
+  describe("with legacy toolset flags", () => {
+    it("should report each with its GITLAB_TOOLSETS replacement", () => {
+      const errors = getRemovedConfigErrors(
+        { USE_GITLAB_WIKI: "true", USE_MILESTONE: "true", USE_PIPELINE: "true" },
+        []
+      );
+      assert.equal(errors.length, 3);
+      assert.match(errors[0], /GITLAB_TOOLSETS=core,wiki/);
+      assert.match(errors[1], /GITLAB_TOOLSETS=core,milestones/);
+      assert.match(errors[2], /GITLAB_TOOLSETS=core,pipelines/);
+    });
+
+    it("should tell users to leave an exact GITLAB_TOOLSETS=all unchanged, since appending breaks it", () => {
+      const errors = getRemovedConfigErrors(
+        { USE_GITLAB_WIKI: "true", USE_MILESTONE: "true", USE_PIPELINE: "true" },
+        []
+      );
+      for (const error of errors) {
+        assert.match(error, /leave exactly `all` unchanged/);
+      }
+    });
+  });
+
   describe("with each removed CLI flag", () => {
-    for (const flag of ["read-only", "allowed-groups"]) {
+    for (const flag of [
+      "read-only",
+      "allowed-groups",
+      "use-wiki",
+      "use-milestone",
+      "use-pipeline",
+    ]) {
       it(`should reject --${flag} in bare, equals, and split-value forms`, () => {
         assert.equal(getRemovedConfigErrors({}, [`--${flag}`]).length, 1);
         assert.equal(getRemovedConfigErrors({}, [`--${flag}=true`]).length, 1);
@@ -78,7 +107,7 @@ describe("When removed configuration is detected", () => {
   describe("with assertNoRemovedConfig", () => {
     it("should throw listing the removed settings", () => {
       assert.throws(
-        () => assertNoRemovedConfig({ GITLAB_READ_ONLY_MODE: "true" }, []),
+        () => assertNoRemovedConfig({ USE_PIPELINE: "true" }, []),
         /Removed configuration detected/
       );
     });

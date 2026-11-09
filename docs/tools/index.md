@@ -20,7 +20,7 @@ directly from `TOOLSET_DEFINITIONS` in
 | Status | Groups |
 |---|---|
 | **Default** — always exposed | [Core](core.md) |
-| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (legacy `USE_PIPELINE=true` is deprecated; removed in next major (v3.0.0)), [Milestones](milestones.md) (legacy `USE_MILESTONE=true` is deprecated; removed in next major (v3.0.0)), [Wiki](wiki.md) (legacy `USE_GITLAB_WIKI=true` is deprecated; removed in next major (v3.0.0)), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
+| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md), [Milestones](milestones.md), [Wiki](wiki.md), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
 | **Explicit opt-in** — not included in `all` or `discover_tools` | [Raw API](api.md) |
 | **Not a toolset** — `discover_tools` and `help` are always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
@@ -31,7 +31,6 @@ directly from `TOOLSET_DEFINITIONS` in
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.
 - `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
 Permission modes control which tools are exposed:
 
@@ -327,7 +326,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view. *(58 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,pipelines`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). The removed `USE_PIPELINE=true` also exposed `validate_ci_lint` and `validate_project_ci_lint` (toolset `ci`): to keep them, append both to an existing `GITLAB_TOOLS` list, or set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` if it is unset.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -394,7 +393,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,milestones`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -420,7 +419,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,wiki`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -588,7 +587,7 @@ Snippet CRUD — list, get (with optional file content), create, update, and del
 
 Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of core, not enabled by GITLAB_TOOLSETS=all, and not activatable with discover_tools. *(1 tools)*
 
-> Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it.
+> Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, and `GITLAB_TOOL_PROFILE` do not enable it.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

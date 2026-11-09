@@ -23,7 +23,7 @@ function selection(
     tools: [],
     isInEnabledToolset: () => false,
     individuallyEnabledTools: new Set(),
-    featureFlagOverrides: new Set(),
+
     isAllowedByPermissionMode: () => true,
     deniedToolsRegex: undefined,
     hiddenToolNames: new Set(),
@@ -45,7 +45,7 @@ function defaultExposed(
     tools: allTools,
     isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools,
-    featureFlagOverrides: new Set(),
+
     isAllowedByPermissionMode: () => true,
     deniedToolsRegex: undefined,
     hiddenToolNames: new Set(),
@@ -128,7 +128,7 @@ function callableHidden(
     tools: allTools,
     isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools: new Set(),
-    featureFlagOverrides: new Set(),
+
     isAllowedByPermissionMode: () => true,
     deniedToolsRegex: undefined,
     hiddenToolNames,
@@ -152,10 +152,10 @@ describe("When selecting hidden tools that stay callable", () => {
     });
   });
 
-  describe("with a hidden tool whose legacy flag is set", () => {
+  describe("with a hidden tool enabled individually", () => {
     it("should keep the tool callable", () => {
       const callable = callableHidden(new Set(["delete_wiki_page"]), {
-        featureFlagOverrides: new Set(["delete_wiki_page"]),
+        individuallyEnabledTools: new Set(["delete_wiki_page"]),
       });
 
       assert.deepEqual(callable, ["delete_wiki_page"]);
