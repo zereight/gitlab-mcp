@@ -62,7 +62,7 @@ jobs:
           cache-dependency-path: requirements-docs.txt
 
       - name: Install dependencies
-        run: pip install -r requirements-docs.txt
+        run: pip install --require-hashes -r requirements-docs.txt
 
       - name: Build site
         run: |
