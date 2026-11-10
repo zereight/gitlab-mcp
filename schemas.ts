@@ -2856,7 +2856,12 @@ export const ListIssuesSchema = z
     created_before: z.string().optional().describe("Created before"),
     due_date: z.string().optional().describe("Due date"),
     labels: coerceStringArray.optional().describe("Label names"),
-    milestone: z.string().optional().describe("Milestone title"),
+    milestone: z
+      .string()
+      .optional()
+      .describe(
+        "Exact milestone title, not an ID; None for no milestone, Any for any milestone. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset); the group tool omits subgroup issues."
+      ),
 
     issue_type: z
       .enum(["issue", "incident", "test_case", "task"])
@@ -3672,7 +3677,11 @@ export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
 
 // Schema for getting a single milestone
 export const GetProjectMilestoneSchema = ProjectParamsSchema.extend({
-  milestone_id: z.coerce.string().describe("The ID of a project milestone"),
+  milestone_id: z.coerce
+    .string()
+    .describe(
+      "Project milestone id (not iid, the number in its web URL). list_milestones returns both."
+    ),
 });
 
 // Schema for creating a new milestone
@@ -3750,7 +3759,11 @@ export const ListGroupMilestonesSchema = z
 
 export const GetGroupMilestoneSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  milestone_id: z.coerce.string().describe("The ID of a group milestone"),
+  milestone_id: z.coerce
+    .string()
+    .describe(
+      "Group milestone id (not iid, the number in its web URL). list_group_milestones returns both."
+    ),
 });
 
 export const CreateGroupMilestoneSchema = z.object({
