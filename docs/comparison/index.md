@@ -8,7 +8,7 @@ and GitLab's official MCP server.
 | | @zereight/mcp-gitlab | GitLab MCP A |
 |---|----------------------|--------------|
 | **Best for** | AI agent workflows (MR review, pipelines, issues) | Enterprise platform teams (multi-instance, CQRS tooling) |
-| **Tool model** | 288 tools: 285 in toolsets + `execute_graphql` + `discover_tools` + `help` | CQRS-style grouped tools with action parameters |
+| **Tool model** | 290 tools: 287 in toolsets + `execute_graphql` + `discover_tools` + `help` | CQRS-style grouped tools with action parameters |
 | **Token budget** | Default ~40 tools (~12k schema tokens). `GITLAB_TOOLSETS=all` is ~73k — prefer `discover_tools` or Skill + CLI | Fewer listed tools by default |
 | **Node.js** | >=20 | Typically >=24 |
 | **License** | MIT | Varies (often Apache-2.0) |

@@ -523,6 +523,8 @@ import {
   GitLabIssueSchema,
   type GitLabIssueWithLinkDetails,
   GitLabIssueWithLinkDetailsSchema,
+  GitLabResourceLabelEventSchema,
+  GitLabResourceStateEventSchema,
   GitLabMarkdownUpload,
   GitLabMarkdownUploadSchema,
   type GitLabMergeRequest,
@@ -625,6 +627,8 @@ import {
   ConfirmVulnerabilitySchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
+  ListIssueLabelEventsSchema,
+  ListIssueStateEventsSchema,
   ListIssuesSchema,
   type ListTodosOptions,
   ListTodosSchema,
@@ -4831,6 +4835,91 @@ async function listIssueLinks(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueWithLinkDetailsSchema).parse(data);
+}
+
+function toLeanEventUser(user: { username: string } | null | undefined) {
+  return user ? { username: user.username } : null;
+}
+
+function toLeanLabelEvent(event: z.infer<typeof GitLabResourceLabelEventSchema>) {
+  return {
+    created_at: event.created_at,
+    user: toLeanEventUser(event.user),
+    action: event.action,
+    label: event.label ? { name: event.label.name } : null,
+  };
+}
+
+function toLeanStateEvent(event: z.infer<typeof GitLabResourceStateEventSchema>) {
+  return {
+    created_at: event.created_at,
+    user: toLeanEventUser(event.user),
+    state: event.state,
+  };
+}
+
+async function fetchIssueResourceEvents(
+  projectId: string,
+  issueIid: number | string,
+  resource: "resource_label_events" | "resource_state_events",
+  options: PaginationOptions
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
+      getEffectiveProjectId(projectId)
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/${resource}`
+  );
+
+  appendFilterParams(url.searchParams, options);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  return response.json();
+}
+
+/**
+ * List the label events of an issue (who added or removed which label, when)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns Lean label events in GitLab's order
+ */
+async function listIssueLabelEvents(
+  projectId: string,
+  issueIid: number | string,
+  options: PaginationOptions = {}
+) {
+  const data = await fetchIssueResourceEvents(
+    projectId,
+    issueIid,
+    "resource_label_events",
+    options
+  );
+  return z.array(GitLabResourceLabelEventSchema).parse(data).map(toLeanLabelEvent);
+}
+
+/**
+ * List the state events of an issue (who closed or reopened it, when)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns Lean state events in GitLab's order
+ */
+async function listIssueStateEvents(
+  projectId: string,
+  issueIid: number | string,
+  options: PaginationOptions = {}
+) {
+  const data = await fetchIssueResourceEvents(
+    projectId,
+    issueIid,
+    "resource_state_events",
+    options
+  );
+  return z.array(GitLabResourceStateEventSchema).parse(data).map(toLeanStateEvent);
 }
 
 /**
@@ -12816,6 +12905,26 @@ async function handleToolCall(params: any) {
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(links) }],
+        };
+      }
+
+      case "list_issue_label_events": {
+        const { project_id, issue_iid, ...options } = ListIssueLabelEventsSchema.parse(
+          params.arguments
+        );
+        const events = await listIssueLabelEvents(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events) }],
+        };
+      }
+
+      case "list_issue_state_events": {
+        const { project_id, issue_iid, ...options } = ListIssueStateEventsSchema.parse(
+          params.arguments
+        );
+        const events = await listIssueStateEvents(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events) }],
         };
       }
 

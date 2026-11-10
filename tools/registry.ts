@@ -181,6 +181,8 @@ import {
   ListGroupWikiPagesSchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
+  ListIssueLabelEventsSchema,
+  ListIssueStateEventsSchema,
   ListIssuesSchema,
   ListJobArtifactsSchema,
   ListLabelsSchema,
@@ -717,6 +719,18 @@ export const allTools = [
     name: "list_issue_discussions",
     description: "List discussions for an issue",
     inputSchema: toJSONSchema(ListIssueDiscussionsSchema),
+  },
+  {
+    name: "list_issue_label_events",
+    description:
+      "List an issue's label history: who added or removed which label, when. Lean events: created_at, user.username, action, label.name (label is null if deleted). Paginated via page/per_page.",
+    inputSchema: toJSONSchema(ListIssueLabelEventsSchema),
+  },
+  {
+    name: "list_issue_state_events",
+    description:
+      "List an issue's state history: who closed or reopened it, when. Lean events: created_at, user.username, state. Paginated via page/per_page.",
+    inputSchema: toJSONSchema(ListIssueStateEventsSchema),
   },
   {
     name: "get_issue_link",
@@ -1855,6 +1869,8 @@ export const readOnlyTools = new Set([
   "get_issue",
   "list_issue_links",
   "list_issue_discussions",
+  "list_issue_label_events",
+  "list_issue_state_events",
   "get_issue_link",
   "list_namespaces",
   "get_namespace",
@@ -2349,6 +2365,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "update_issue_note",
       "list_issue_links",
       "list_issue_discussions",
+      "list_issue_label_events",
+      "list_issue_state_events",
       "get_issue_link",
       "create_issue_link",
       "delete_issue_link",

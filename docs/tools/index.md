@@ -238,7 +238,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 ### [Issues](issues.md)
 
-Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
+Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(27 tools)*
 
 > Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `issues` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips 6 of these tools (`list_issue_emoji_reactions`, `list_issue_note_emoji_reactions`, `create_issue_emoji_reaction`, `delete_issue_emoji_reaction`, `create_issue_note_emoji_reaction`, `delete_issue_note_emoji_reaction`); add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
@@ -259,6 +259,8 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools
 | [`update_issue_note`](issues.md#update_issue_note) | Modify an existing issue thread note. Use the create tool for new resources. | ✏️ |
 | [`list_issue_links`](issues.md#list_issue_links) | List all issue links for a specific issue. For one known resource, use the matching get tool. | 📖 |
 | [`list_issue_discussions`](issues.md#list_issue_discussions) | List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records. | 📖 |
+| [`list_issue_label_events`](issues.md#list_issue_label_events) | List an issue's label history: who added or removed which label, when. Lean events: created_at, user.username, action, label.name (label is null if deleted). Paginated via page/per_page. | 📖 |
+| [`list_issue_state_events`](issues.md#list_issue_state_events) | List an issue's state history: who closed or reopened it, when. Lean events: created_at, user.username, state. Paginated via page/per_page. | 📖 |
 | [`get_issue_link`](issues.md#get_issue_link) | Get a specific issue link. To find resources, use the matching list or search tool. | 📖 |
 | [`create_issue_link`](issues.md#create_issue_link) | Create an issue link between two issues. | ✏️ |
 | [`delete_issue_link`](issues.md#delete_issue_link) | Delete an issue link. Remove a relationship between two issues. Verify first with `list_issue_links` or `get_issue_link`. | ✏️ |

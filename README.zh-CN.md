@@ -6,7 +6,7 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 290 个（toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
 > **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-05-实测) 和 [对比](./docs/comparison/index.md)。
 
@@ -140,7 +140,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 288 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 290 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -154,7 +154,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 288 个工具：toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 290 个工具：toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |

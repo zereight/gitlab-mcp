@@ -55,7 +55,7 @@
     "test:mock": "bash scripts/run-mock-tests.sh",
     "test:stateless": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/stateless/codec.test.ts test/stateless/client-id.test.ts test/stateless/callback-proxy.test.ts test/stateless/session-id.test.ts test/stateless/session-id-integration.test.ts test/stateless/config-ttl.test.ts test/stateless/consumed-proxy-code-cache.test.ts",
     "test:mcp-oauth": "npm run build && node --import tsx/esm --test test/mcp-oauth-tests.ts",
-    "test:live": "node test/validate-api.js",
+    "test:live": "node test/validate-api.js && node --import tsx/esm --test --experimental-test-isolation=none test/live/*.test.ts",
     "test:consumer-smoke": "bash scripts/consumer-install-smoke.sh",
     "test:remote-auth": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/remote-auth-simple-test.ts",
     "test:schema": "tsx test/schema-tests.ts && tsx test/test-json-schema.ts && node --import tsx/esm --test --experimental-test-isolation=none --test-concurrency=1 test/*-schema.test.ts",
