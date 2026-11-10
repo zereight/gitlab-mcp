@@ -5,13 +5,16 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
+    # `gh pr merge --auto` needs write access to contents and pull requests.
+    permissions:
+      contents: write
+      pull-requests: write
     
     steps:
     - name: Checkout code
