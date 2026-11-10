@@ -10,7 +10,7 @@ Commands are the `scripts` entries in `package.json`.
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm test` / `npm run test:all`    | `npm run build`, then `test:mock`, then `test:live`. Live checks skip (exit 0) when the token or `TEST_PROJECT_ID` is unset.                                                                                                                                                                                      |
 | `npm run test:mock`                | `bash scripts/run-mock-tests.sh`. Does not build. Suites that spawn `build/index.js` need a prior `npm run build`.                                                                                                                                                                                                |
-| `npm run test:live`                | `node test/validate-api.js`. REST smoke check against a real GitLab. Not MCP tool coverage.                                                                                                                                                                                                                       |
+| `npm run test:live`                | `node test/validate-api.js` (REST smoke check against a real GitLab), then `node --import tsx/esm --test --experimental-test-isolation=none test/live/*.test.ts` (MCP E2E against the same GitLab; spawns `build/index.js`, so build first). See [`test:live` environment](#testlive-environment).                |
 | `npm run test:schema`              | `tsx test/schema-tests.ts`, then `tsx test/test-json-schema.ts`, then `node --import tsx/esm --test --experimental-test-isolation=none --test-concurrency=1` on `test/*-schema.test.ts`.                                                                                                                          |
 | `npm run test:oauth`               | `tsx test/oauth-tests.ts`, then `node --import tsx/esm --test --experimental-test-isolation=none test/oauth-device-flow-tests.ts`.                                                                                                                                                                                |
 | `npm run test:stateless`           | `npm run build`, then those seven files with `node --import tsx/esm --test --experimental-test-isolation=none`: `test/stateless/codec.test.ts`, `client-id.test.ts`, `callback-proxy.test.ts`, `session-id.test.ts`, `session-id-integration.test.ts`, `config-ttl.test.ts`, `consumed-proxy-code-cache.test.ts`. |
@@ -68,6 +68,7 @@ node --import tsx/esm --test --experimental-test-isolation=none --test-concurren
 | `test/stateless/*.test.ts`         | Stateless OAuth helpers. The six files named in pass 1 run in parallel; `session-id-integration.test.ts` is pass 3. `npm run test:stateless` runs all seven after a build. |
 | `test/clients/`                    | MCP client helpers (`client.ts`, `stdio-client.ts`, `sse-client.ts`, `streamable-http-client.ts`, `custom-header-client.ts`). Not tests.                                   |
 | `test/validate-api.js`             | `test:live` only.                                                                                                                                                          |
+| `test/live/*.test.ts`              | Live MCP E2E. `test:live` only. Spawns `build/index.js` over stdio.                                                                                                        |
 
 ## Golden `tools/list` fixture
 
@@ -92,7 +93,7 @@ No live GitLab token is required for `test:mock`.
 
 ## Not selected by `test:mock`
 
-`find` skips `test/clients/*`, `mock-gitlab-server.ts`, and `server-launcher.ts` (helpers).
+`find` skips `test/clients/*`, `mock-gitlab-server.ts`, and `server-launcher.ts` (helpers), and `test/live/*` (needs a live GitLab; `npm run test:live` runs it).
 
 It also skips these names. `oauth-tests.ts` is still step 4 of `test:mock` (`tsx test/oauth-tests.ts`). The others are not run by `test:mock`:
 
@@ -107,15 +108,17 @@ It also skips these names. `oauth-tests.ts` is still step 4 of `test:mock` (`tsx
 
 ## `test:live` environment
 
-`test/validate-api.js` loads `.env` via `dotenv`, then reads:
+`test/validate-api.js` and `test/live/*.test.ts` load `.env` via `dotenv`, then read:
 
 | Variable                                                                      | Behavior                                                                                                                                                                                                                                      |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITLAB_TOKEN_TEST`, else `GITLAB_TOKEN`, else `GITLAB_PERSONAL_ACCESS_TOKEN` | Bearer token. If all are unset, the script prints a skip message and exits 0. The token is not printed.                                                                                                                                       |
+| `GITLAB_TOKEN_TEST`, else `GITLAB_TOKEN`, else `GITLAB_PERSONAL_ACCESS_TOKEN` | Bearer token. If all are unset, both print a skip message and exit 0. The token is not printed.                                                                                                                                               |
 | `TEST_PROJECT_ID`                                                             | Required. No other project-id variable is read. If unset, skip and exit 0.                                                                                                                                                                    |
 | `GITLAB_API_URL`                                                              | Optional. Default `https://gitlab.com`. Trimmed; trailing slashes removed; one trailing `/api/v4` removed; request URLs then append `/api/v4`. `https://gitlab.com` and `https://gitlab.com/api/v4` both hit `https://gitlab.com/api/v4/...`. |
 
-Checks, in order: project, issues, merge requests, branches, pipelines. If a pipeline comes back, also pipeline detail, jobs, and bridges.
+`validate-api.js` checks, in order: project, issues, merge requests, branches, pipelines. If a pipeline comes back, also pipeline detail, jobs, and bridges.
+
+`test/live/issue-resource-events.test.ts` needs a token with `api` scope and a prior `npm run build`. In `TEST_PROJECT_ID` it creates the label `gitlab-mcp-e2e` once (later runs reuse it), creates one issue, adds and removes that label, and closes the issue. Then it starts `build/index.js` over stdio with `GITLAB_TOOLSETS=issues` and `GITLAB_PERMISSION_MODE=readonly` and checks the lean replies of `list_issue_label_events` and `list_issue_state_events`. At the end it deletes the issue. Deleting needs the Owner role; with a lower role the issue stays closed and the test prints one line. With a token and `TEST_PROJECT_ID` set, a failed setup step fails the test; it does not skip.
 
 ```bash
 GITLAB_PERSONAL_ACCESS_TOKEN=glpat-xxxx \
