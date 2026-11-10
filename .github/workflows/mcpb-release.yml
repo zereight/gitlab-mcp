@@ -91,12 +91,16 @@ jobs:
           subject-path: gitlab-mcp.mcpb
 
       # Stable asset names so releases/latest/download/gitlab-mcp.mcpb always resolves.
-      # gitlab-mcp.mcpb.sigstore.json is the full Sigstore bundle.
-      # gitlab-mcp.mcpb.intoto.jsonl is its signed DSSE envelope on one line,
-      # the in-toto SLSA provenance layout that slsa-github-generator also
-      # publishes. Check that it is in-toto and names this bundle's digest.
+      # gitlab-mcp.mcpb.sigstore.json is the full Sigstore bundle, with the
+      # signing certificate and transparency log entry needed to verify it.
+      # gitlab-mcp.mcpb.intoto.jsonl is the same signed SLSA provenance as an
+      # in-toto attestation bundle: one DSSE envelope per line. Verify it
+      # through the .sigstore.json file. Check that it is in-toto and names
+      # this bundle's digest.
       - name: Attach bundle to release
         if: github.event_name != 'pull_request'
+        # bash (not the default `bash -e`) adds pipefail for the digest pipes.
+        shell: bash
         run: |
           cp "$BUNDLE_PATH" gitlab-mcp.mcpb.sigstore.json
           jq -c '.dsseEnvelope' "$BUNDLE_PATH" > gitlab-mcp.mcpb.intoto.jsonl
