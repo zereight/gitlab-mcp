@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 288 |
-| Invoked | 188 |
-| Coverage | 65.3% |
+| Invoked | 189 |
+| Coverage | 65.6% |
 
 ## By toolset
 
@@ -20,7 +20,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
-| [Merge Requests](#merge_requests) | 15 | 46 | 32.6% |
+| [Merge Requests](#merge_requests) | 16 | 46 | 34.8% |
 | [Issues](#issues) | 12 | 25 | 48.0% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 5 | 18 | 27.8% |
@@ -116,7 +116,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_merge_request_approval_state`](../tools/merge-requests.md#get_merge_request_approval_state) — `test/test-merge-request-approval-state-tools.ts`, `test/test-merge-request-approvals.ts`
 - [ ] [`get_branch`](../tools/merge-requests.md#get_branch)
 - [ ] [`list_branches`](../tools/merge-requests.md#list_branches)
-- [ ] [`get_merge_request_conflicts`](../tools/merge-requests.md#get_merge_request_conflicts)
+- [x] [`get_merge_request_conflicts`](../tools/merge-requests.md#get_merge_request_conflicts) — `test/test-merge-request-conflicts.ts`
 - [x] [`list_merge_request_pipelines`](../tools/merge-requests.md#list_merge_request_pipelines) — `test/test-merge-request-pipelines.ts`
 - [x] [`get_merge_request`](../tools/merge-requests.md#get_merge_request) — `test/gitlab-api-tool-errors.test.ts`, `test/test-deployment-tools.ts`
 - [x] [`get_merge_request_diffs`](../tools/merge-requests.md#get_merge_request_diffs) — `test/test-mr-diffs-filter.ts`, `test/test-structured-content-675.ts`
