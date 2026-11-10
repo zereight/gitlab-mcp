@@ -54,6 +54,17 @@ jobs:
           ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
           persist-credentials: false
 
+      # The provenance records the run's commit (GITHUB_SHA). Stop if the tag
+      # moved after the run started and checkout got a different commit.
+      - name: Check checked-out commit
+        if: github.event_name != 'pull_request'
+        run: |
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked out ${head}, but this run is for ${GITHUB_SHA}."
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
