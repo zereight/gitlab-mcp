@@ -6,12 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   update-star-history:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create-pull-request pushes the update branch
+      pull-requests: write # create-pull-request opens the PR
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 

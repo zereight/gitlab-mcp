@@ -13,7 +13,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to attach the bundle to (e.g. v2.4.0)"
+        # Run it from that same tag ("Use workflow from"), so the provenance
+        # records the commit the bundle was built from.
+        description: "Release tag to attach the bundle to (e.g. v2.4.0). Run from the same tag."
         required: true
         type: string
 
@@ -26,14 +28,42 @@ jobs:
     # releases/latest/download/gitlab-mcp.mcpb.
     if: github.event_name != 'release' || !github.event.release.prerelease
     runs-on: ubuntu-latest
+    # Job-level permissions also apply to pull_request runs from branches in
+    # this repository. Those runs skip the attest and upload steps, and fork
+    # pull requests get a read-only token without id-token.
     permissions:
-      contents: write
+      contents: write # upload the bundle and its attestation to the release
+      id-token: write # Sigstore signing certificate for the attestation
+      attestations: write # store the attestation in this repository
     steps:
+      # The provenance names the ref the workflow ran from, so a manual run
+      # must start from the tag it attaches the bundle to.
+      - name: Check dispatch ref
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/tags/${TAG}" ]; then
+            echo "::error::Run this workflow from tag ${TAG} (got ${GITHUB_REF})."
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
           persist-credentials: false
+
+      # The provenance records the run's commit (GITHUB_SHA). Stop if the tag
+      # moved after the run started and checkout got a different commit.
+      - name: Check checked-out commit
+        if: github.event_name != 'pull_request'
+        run: |
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked out ${head}, but this run is for ${GITHUB_SHA}."
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -46,10 +76,27 @@ jobs:
       - name: Pack MCP Bundle
         run: npm run pack:mcpb
 
-      # Stable asset name so releases/latest/download/gitlab-mcp.mcpb always resolves.
+      # Signed SLSA build provenance for the bundle, stored in the repository's
+      # attestations and attached to the release below. Check it with
+      # `gh attestation verify gitlab-mcp.mcpb --repo zereight/gitlab-mcp
+      # --signer-workflow zereight/gitlab-mcp/.github/workflows/mcpb-release.yml
+      # --source-ref refs/tags/<tag>`.
+      # If this step fails, the bundle is not uploaded either. Use "Re-run
+      # failed jobs" on the release run to recover.
+      - name: Attest bundle provenance
+        id: attest
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: gitlab-mcp.mcpb
+
+      # Stable asset names so releases/latest/download/gitlab-mcp.mcpb always resolves.
       - name: Attach bundle to release
         if: github.event_name != 'pull_request'
-        run: gh release upload "$TAG" gitlab-mcp.mcpb --clobber --repo "$GITHUB_REPOSITORY"
+        run: |
+          cp "$BUNDLE_PATH" gitlab-mcp.mcpb.sigstore.json
+          gh release upload "$TAG" gitlab-mcp.mcpb gitlab-mcp.mcpb.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
