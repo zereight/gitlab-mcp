@@ -67,7 +67,7 @@ Use `update_issue_description_patch` for small edits to long issue descriptions 
 
 Board order: `reorder_issue` with `move_after_id` / `move_before_id` (the neighbor issue's global `id`, not its `iid`).
 
-History: `list_issue_label_events` / `list_issue_state_events` for label and state changes over time (board column flow).
+History: `list_issue_label_events` / `list_issue_state_events` for label and state changes over time (flow of label-based board columns).
 
 ### Projects & Namespaces
 

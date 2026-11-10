@@ -108,8 +108,9 @@ list_issue_state_events
 Each returns a bare array in GitLab's order (oldest first). A label event has created_at,
 user.username, action (add or remove) and label.name; label is null when the label was
 deleted, and user can be null. A state event has created_at, user.username and state (closed,
-reopened, ...). Use them for board column flow: a board column is a label, so its add and
-remove events give the time per column. Read tools: available in every permission mode.
+reopened, ...). Use them for the flow of label-based board columns: the add and remove events
+of a column's label give the time per column. They do not cover assignee, milestone, iteration
+or status columns. Read tools: available in every permission mode.
 
 ## Delete
 
