@@ -37,13 +37,13 @@ If they are missing, maintainers should create these labels: `approved`,
 
 ### Prerequisites
 
-| Tool           | Version              | Notes                                                 |
-| -------------- | -------------------- | ----------------------------------------------------- |
-| Node.js        | **22.23.4**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match. |
-| npm            | bundled with Node 22 |                                                       |
-| Git            | any recent version   |                                                       |
-| Python 3.10+   | (only for docs)      | Required if you want to preview the docs site.        |
-| GitLab account | optional             | Needed only for live integration tests.               |
+| Tool           | Version              | Notes                                                                                                     |
+| -------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Node.js        | **22.23.4**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match.                                                     |
+| npm            | bundled with Node 22 |                                                                                                           |
+| Git            | any recent version   |                                                                                                           |
+| Python 3.12+   | (only for docs)      | Required to preview the docs site. If `.venv-docs` was made with an older Python, run `make clean` first. |
+| GitLab account | optional             | Needed only for live integration tests.                                                                   |
 
 The intended local and CI pin is [`.nvmrc`](.nvmrc) (22.23.4); `package.json` `engines` only requires `node >= 20`, and some workflows may still lag that pin.
 
