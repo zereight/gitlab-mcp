@@ -6,7 +6,7 @@
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 288개(toolset 285개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 290개(toolset 287개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
 > **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-05-실측)와 [비교](./docs/comparison/index.md)를 보세요.
 
@@ -140,7 +140,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 288개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 290개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -154,7 +154,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 288개 도구: toolset 285개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 290개 도구: toolset 287개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |

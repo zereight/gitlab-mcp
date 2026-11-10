@@ -92,6 +92,25 @@ move_before_id is required. Both take the neighbor issue's **global id** (the id
 returned by `get_issue` / `list_issues`), not its project-scoped iid. Write tool: hidden in
 `GITLAB_PERMISSION_MODE=readonly`.
 
+## History (label and state events)
+
+```
+list_issue_label_events
+  project_id: "my-group/my-project"
+  issue_iid: 10
+  per_page: 100          # optional, with page
+
+list_issue_state_events
+  project_id: "my-group/my-project"
+  issue_iid: 10
+```
+
+Each returns a bare array in GitLab's order (oldest first). A label event has created_at,
+user.username, action (add or remove) and label.name; label is null when the label was
+deleted, and user can be null. A state event has created_at, user.username and state (closed,
+reopened, ...). Use them for board column flow: a board column is a label, so its add and
+remove events give the time per column. Read tools: available in every permission mode.
+
 ## Delete
 
 ```

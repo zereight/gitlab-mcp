@@ -6,7 +6,7 @@
 
 📖 **[Documentação →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
+**Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 290 no total (287 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
 > **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-05) e [comparação](./docs/comparison/index.md).
 
@@ -140,7 +140,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 288 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão. `GITLAB_TOOLSETS=all` custa ~73k tokens de schema; prefira descoberta sob demanda ou Skill + CLI
+- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 290 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão. `GITLAB_TOOLSETS=all` custa ~73k tokens de schema; prefira descoberta sob demanda ou Skill + CLI
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -154,7 +154,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
-| **Modelo de ferramentas** | 288 ferramentas: 285 em toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Modelo de ferramentas** | 290 ferramentas: 287 em toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
 | **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
 | **Node.js**               | >=20.0.0                                                                | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
