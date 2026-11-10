@@ -91,11 +91,23 @@ jobs:
           subject-path: gitlab-mcp.mcpb
 
       # Stable asset names so releases/latest/download/gitlab-mcp.mcpb always resolves.
+      # gitlab-mcp.mcpb.sigstore.json is the full Sigstore bundle.
+      # gitlab-mcp.mcpb.intoto.jsonl is its signed DSSE envelope on one line,
+      # the in-toto SLSA provenance layout that slsa-github-generator also
+      # publishes. Check that it is in-toto and names this bundle's digest.
       - name: Attach bundle to release
         if: github.event_name != 'pull_request'
         run: |
           cp "$BUNDLE_PATH" gitlab-mcp.mcpb.sigstore.json
-          gh release upload "$TAG" gitlab-mcp.mcpb gitlab-mcp.mcpb.sigstore.json --clobber --repo "$GITHUB_REPOSITORY"
+          jq -c '.dsseEnvelope' "$BUNDLE_PATH" > gitlab-mcp.mcpb.intoto.jsonl
+          payload_type="$(jq -r '.payloadType' gitlab-mcp.mcpb.intoto.jsonl)"
+          subject_digests="$(jq -r '.payload' gitlab-mcp.mcpb.intoto.jsonl | base64 -d | jq -r '.subject[].digest.sha256')"
+          bundle_digest="$(sha256sum gitlab-mcp.mcpb | cut -d' ' -f1)"
+          if [ "$payload_type" != "application/vnd.in-toto+json" ] || ! grep -qx "$bundle_digest" <<< "$subject_digests"; then
+            echo "::error::Provenance is not in-toto for gitlab-mcp.mcpb (${payload_type}; subjects: ${subject_digests}; bundle: ${bundle_digest})."
+            exit 1
+          fi
+          gh release upload "$TAG" gitlab-mcp.mcpb gitlab-mcp.mcpb.sigstore.json gitlab-mcp.mcpb.intoto.jsonl --clobber --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
