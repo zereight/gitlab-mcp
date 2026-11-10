@@ -56,6 +56,10 @@ jobs:
           INPUT_REF: ${{ inputs.ref }}
         run: |
           if [ "$EVENT_NAME" != "workflow_run" ]; then
+            if ! [[ "${INPUT_REF:-$GITHUB_SHA}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::Invalid ref: ${INPUT_REF}"
+              exit 1
+            fi
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "ref=${INPUT_REF:-$GITHUB_SHA}" >> "$GITHUB_OUTPUT"
             exit 0
