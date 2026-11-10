@@ -6,5 +6,5 @@
   GitLab's GraphQL API for `conflicts`, and for `conflictStatus`/
   `conflictFiles` where the instance supports them (GitLab 19.4+), falling
   back to just `conflicts` on older instances. The response shape changes
-  from an unreachable REST payload to `{ has_conflicts, conflict_status?,
-conflict_files? }`.
+  from an unreachable REST payload to a JSON object with `has_conflicts`,
+  `conflict_status`, and `conflict_files`.
