@@ -9,3 +9,9 @@
 - The Scorecard workflow reads an optional `SCORECARD_TOKEN` secret so the
   Branch-Protection check can run. Without the secret it uses `GITHUB_TOKEN` as
   before.
+
+### Changed
+
+- Previewing the docs site locally (`make install`) now needs Python 3.12 or
+  later, the version CI uses. The pinned docs packages need Python 3.11.5 or
+  later.

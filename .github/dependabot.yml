@@ -60,6 +60,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 2
+    # Same soak as npm: hashes pin the files, not how new a release is.
+    cooldown:
+      default-days: 3
     labels:
       - dependencies
       - no-changelog

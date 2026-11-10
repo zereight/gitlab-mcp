@@ -48,7 +48,9 @@ jobs:
           # Branch-Protection needs a token that can read classic branch
           # protection, which GITHUB_TOKEN cannot. Add a read-only
           # fine-grained PAT as the SCORECARD_TOKEN secret; until then this
-          # falls back to GITHUB_TOKEN (the action's default).
+          # falls back to GITHUB_TOKEN (the action's default). An expired or
+          # revoked PAT is still a non-empty secret and does not fall back,
+          # so renew it before it expires.
           # https://github.com/ossf/scorecard-action/blob/main/docs/authentication/fine-grained-auth-token.md
           repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
 
