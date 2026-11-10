@@ -34,7 +34,7 @@ const SUMMARY_FIELDS = [
 
 /**
  * Extra fields a tool's summary keeps on top of SUMMARY_FIELDS: the access and
- * protection fields these tools exist to answer (#942).
+ * protection fields (#942) or the event fields these tools exist to answer.
  */
 const TOOL_SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
   list_branches: [
@@ -55,6 +55,8 @@ const TOOL_SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
   list_protected_tags: ["create_access_levels"],
   list_project_members: ["access_level", "expires_at"],
   list_group_members: ["access_level", "expires_at"],
+  list_issue_label_events: ["created_at", "user", "action", "label"],
+  list_issue_state_events: ["created_at", "user"],
 };
 
 /** Fields kept per note when a summarized item carries discussion `notes`. */
@@ -79,11 +81,13 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_group_iterations", // start_date, due_date
   "list_project_iterations", // start_date, due_date
   "list_group_iteration_cadences", // start_date, duration_in_weeks, iterations_in_advance
-  // Small replies whose access fields are the point; summary: true keeps them (TOOL_SUMMARY_FIELDS).
+  // Small replies whose access or event fields are the point; summary: true keeps them (TOOL_SUMMARY_FIELDS).
   "list_protected_branches", // *_access_levels, allow_force_push
   "list_protected_tags", // create_access_levels
   "list_project_members", // access_level, expires_at
   "list_group_members", // access_level, expires_at
+  "list_issue_label_events", // created_at, user, action, label
+  "list_issue_state_events", // created_at, user, state
   // The reply is an envelope summarizeListPayload does not read.
   "list_project_vulnerabilities", // { vulnerabilities, pageInfo }
   "list_dependency_proxy_blobs", // { blobs, pageInfo }

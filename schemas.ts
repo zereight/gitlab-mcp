@@ -5663,6 +5663,31 @@ export const ListWorkItemNoteEmojiReactionsSchema = z.object({
     ),
 });
 
+// --- Resource event schemas (issue label and state history) ---
+
+// See https://docs.gitlab.com/api/resource_label_events/ and https://docs.gitlab.com/api/resource_state_events/
+export const ListIssueLabelEventsSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+}).merge(PaginationOptionsSchema);
+
+export const ListIssueStateEventsSchema = ListIssueLabelEventsSchema;
+
+const GitLabResourceEventUserSchema = z.object({ username: z.string() }).nullable().optional();
+
+export const GitLabResourceLabelEventSchema = z.object({
+  created_at: z.string(),
+  action: z.string(), // "add" or "remove"
+  user: GitLabResourceEventUserSchema,
+  // GitLab returns null for a label that was deleted since the event.
+  label: z.object({ name: z.string() }).nullable().optional(),
+});
+
+export const GitLabResourceStateEventSchema = z.object({
+  created_at: z.string(),
+  state: z.string(),
+  user: GitLabResourceEventUserSchema,
+});
+
 // --- Incident Timeline Event schemas ---
 
 export const GetTimelineEventsSchema = z.object({
