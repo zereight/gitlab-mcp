@@ -6605,8 +6605,36 @@ async function getMergeRequestApprovalState(
   };
 }
 
+// `conflictStatus` and `conflictFiles` are experimental fields (GitLab 19.4+); an
+// instance that lacks them answers with a validation error naming exactly these
+// fields, which getMergeRequestConflicts retries without.
+const EXPERIMENTAL_CONFLICT_FIELDS = new Set(["conflictStatus", "conflictFiles"]);
+
+function isUnsupportedConflictFieldsError(message: string): boolean {
+  const fields = [...message.matchAll(/Field '(\w+)' doesn't exist on type 'MergeRequest'/g)].map(
+    match => match[1]
+  );
+  return fields.length > 0 && fields.every(field => EXPERIMENTAL_CONFLICT_FIELDS.has(field));
+}
+
+type MergeRequestConflictsQueryResult = {
+  project: {
+    mergeRequest: {
+      conflicts: boolean;
+      conflictStatus?: string | null;
+      conflictFiles?:
+        { ourPath: string | null; theirPath: string | null; content: string | null }[] | null;
+    } | null;
+  } | null;
+};
+
 /**
- * Get the conflicts of a merge request
+ * Get the conflicts of a merge request.
+ *
+ * There is no REST endpoint for this; GitLab only exposes conflict data over
+ * GraphQL. `conflicts` (a boolean) is stable, while `conflictStatus` and
+ * `conflictFiles` are experimental (GitLab 19.4+), so instances that lack them
+ * are retried with just `conflicts`.
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string | number} mergeRequestIid - The internal ID of the merge request
@@ -6616,19 +6644,59 @@ async function getMergeRequestConflicts(
   projectId: string,
   mergeRequestIid: string | number
 ): Promise<Record<string, unknown>> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
-  );
+  const fullPath = await resolveProjectFullPath(projectId);
+  const variables = { fullPath, iid: String(mergeRequestIid) };
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "GET",
-  });
+  let data: MergeRequestConflictsQueryResult;
+  try {
+    data = await executeGraphQL<MergeRequestConflictsQueryResult>(
+      `query getMergeRequestConflicts($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+          mergeRequest(iid: $iid) {
+            conflicts
+            conflictStatus
+            conflictFiles {
+              ourPath
+              theirPath
+              content
+            }
+          }
+        }
+      }`,
+      variables
+    );
+  } catch (error) {
+    if (!(error instanceof Error) || !isUnsupportedConflictFieldsError(error.message)) {
+      throw error;
+    }
+    data = await executeGraphQL<MergeRequestConflictsQueryResult>(
+      `query getMergeRequestConflicts($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+          mergeRequest(iid: $iid) {
+            conflicts
+          }
+        }
+      }`,
+      variables
+    );
+  }
 
-  await handleGitLabError(response);
+  if (!data.project) {
+    throw new Error(`Project not found or not accessible: ${fullPath}`);
+  }
+  if (!data.project.mergeRequest) {
+    throw new Error(`Merge request !${mergeRequestIid} not found in project ${fullPath}`);
+  }
 
-  return (await response.json()) as Record<string, unknown>;
+  const { conflicts, conflictStatus, conflictFiles } = data.project.mergeRequest;
+  const result: Record<string, unknown> = { has_conflicts: conflicts };
+  if (conflictStatus !== undefined) {
+    result.conflict_status = conflictStatus;
+  }
+  if (conflictFiles !== undefined) {
+    result.conflict_files = conflictFiles;
+  }
+  return result;
 }
 
 async function getMergeRequestApprovalsFallback(
