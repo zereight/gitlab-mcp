@@ -4931,7 +4931,8 @@ export const GitLabTagSchema = z.object({
     })
     .nullish(),
   protected: z.boolean(),
-  created_at: z.string().nullable(),
+  // Top-level created_at was added in GitLab 16.11 (#1015). Older servers omit the key.
+  created_at: z.string().nullish(),
 });
 
 // --- Snippet schemas ---

@@ -36,6 +36,13 @@ function buildTag(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// GitLab 16.0.x tag responses have no top-level created_at key at all (#1015).
+function withoutCreatedAt(tag: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(tag).filter(([key]) => key !== "created_at"));
+}
+
+const NO_CREATED_AT_TAG_NAME = "v-no-created-at";
+
 async function callTool(
   toolName: string,
   args: Record<string, unknown>,
@@ -111,6 +118,10 @@ describe("tag tools", () => {
     });
 
     mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/repository/tags`, (req, res) => {
+      if (req.query.search === "^v-no-created") {
+        res.json([withoutCreatedAt(buildTag({ name: NO_CREATED_AT_TAG_NAME }))]);
+        return;
+      }
       assert.strictEqual(req.query.search, "^v");
       assert.strictEqual(req.query.order_by, "version");
       assert.strictEqual(req.query.sort, "desc");
@@ -128,6 +139,14 @@ describe("tag tools", () => {
     );
 
     mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/tags/${NO_CREATED_AT_TAG_NAME}`,
+      (_req, res) => {
+        res.json(withoutCreatedAt(buildTag({ name: NO_CREATED_AT_TAG_NAME })));
+      }
+    );
+
+    mockGitLab.addMockHandler(
       "post",
       `/projects/${TEST_PROJECT_ID}/repository/tags`,
       (req, res) => {
@@ -136,6 +155,11 @@ describe("tag tools", () => {
           res.json(
             Object.fromEntries(Object.entries(tag).filter(([key]) => key !== "release"))
           );
+          return;
+        }
+
+        if (req.body.tag_name === NO_CREATED_AT_TAG_NAME) {
+          res.json(withoutCreatedAt(buildTag({ name: NO_CREATED_AT_TAG_NAME })));
           return;
         }
 
@@ -255,6 +279,43 @@ describe("tag tools", () => {
 
     assert.strictEqual(result.name, "v-no-release");
     assert.strictEqual(result.release, undefined);
+  });
+
+  test("list_tags succeeds when GitLab omits the top-level created_at (#1015)", async () => {
+    const result = await callTool(
+      "list_tags",
+      { project_id: TEST_PROJECT_ID, search: "^v-no-created" },
+      env()
+    );
+
+    assert.ok(Array.isArray(result));
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].name, NO_CREATED_AT_TAG_NAME);
+    assert.ok(!("created_at" in result[0]));
+  });
+
+  test("get_tag succeeds when GitLab omits the top-level created_at (#1015)", async () => {
+    const result = await callTool(
+      "get_tag",
+      { project_id: TEST_PROJECT_ID, tag_name: NO_CREATED_AT_TAG_NAME },
+      env()
+    );
+
+    assert.strictEqual(result.name, NO_CREATED_AT_TAG_NAME);
+    assert.strictEqual(result.commit.short_id, "abc123de");
+    assert.ok(!("created_at" in result));
+  });
+
+  test("create_tag succeeds when GitLab omits the top-level created_at (#1015)", async () => {
+    const result = await callTool(
+      "create_tag",
+      { project_id: TEST_PROJECT_ID, tag_name: NO_CREATED_AT_TAG_NAME, ref: "main" },
+      env()
+    );
+
+    assert.strictEqual(result.name, NO_CREATED_AT_TAG_NAME);
+    assert.strictEqual(result.release.description, "Release notes");
+    assert.ok(!("created_at" in result));
   });
 
   test("delete_tag returns a success payload", async () => {

@@ -54,4 +54,31 @@ describe("When parsing a GitLab tag response", () => {
       assert.strictEqual(parsed.release?.description, "notes");
     });
   });
+
+  // #1015: GitLab 16.0.x tag responses have no top-level created_at key at all.
+  describe("without a top-level created_at key (GitLab < 16.11)", () => {
+    const withoutCreatedAt = Object.fromEntries(
+      Object.entries(validTag()).filter(([key]) => key !== "created_at")
+    );
+
+    it("should accept the tag", () => {
+      const parsed = GitLabTagSchema.parse(withoutCreatedAt);
+      assert.strictEqual(parsed.name, "v1.0.0");
+      assert.strictEqual(parsed.target, "abc123def456");
+    });
+
+    it("should not add a created_at key to the parsed output", () => {
+      const parsed = GitLabTagSchema.parse(withoutCreatedAt);
+      assert.ok(!("created_at" in parsed));
+    });
+
+    it("should still accept a null created_at (GitLab 16.11+ lightweight tags)", () => {
+      const parsed = GitLabTagSchema.parse(validTag({ created_at: null }));
+      assert.strictEqual(parsed.created_at, null);
+    });
+
+    it("should still reject a created_at that is not a string or null", () => {
+      assert.throws(() => GitLabTagSchema.parse(validTag({ created_at: 42 })));
+    });
+  });
 });
