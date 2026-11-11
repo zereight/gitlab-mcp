@@ -5,6 +5,8 @@
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
 [![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 [![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/zereight/gitlab-mcp)
 [![MCP Toplist](https://mcptoplist.com/badge/io.github.zereight%2Fgitlab-mcp.svg)](https://mcptoplist.com/server/io.github.zereight%2Fgitlab-mcp)
 [![mcpindex](https://mcpindex.ai/api/v1/badge/io-github-zereight-gitlab-mcp)](https://mcpindex.ai/server/io-github-zereight-gitlab-mcp)
