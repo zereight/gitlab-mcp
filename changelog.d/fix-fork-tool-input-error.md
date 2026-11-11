@@ -4,4 +4,4 @@
   returns an `isError` tool result with the `Next:` hint, like the other
   argument errors from #1029. Before, its own catch turned the error into a
   normal result, `{"error":"Failed to fork repository: No project ID provided
-  ..."}`, without `isError`. Other fork failures keep their current shape.
+..."}`, without `isError`. Other fork failures keep their current shape.
