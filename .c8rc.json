@@ -1,0 +1,19 @@
+{
+  "all": true,
+  "src": ["."],
+  "include": ["**/*.ts"],
+  "exclude": [
+    "build/**",
+    "coverage/**",
+    "mcp-server/**",
+    "node_modules/**",
+    "scripts/**",
+    "test/**",
+    "test-*.ts",
+    "**/*.d.ts"
+  ],
+  "exclude-after-remap": true,
+  "merge-async": true,
+  "reporter": ["text-summary", "json-summary", "lcov"],
+  "reports-dir": "coverage"
+}
