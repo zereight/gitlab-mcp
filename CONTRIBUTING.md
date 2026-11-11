@@ -243,12 +243,15 @@ outages or severe regressions ship as out-of-band hotfixes. A PR merged to
 [stable-release conditions](RELEASING.md#what-goes-into-a-stable-release)
 (reviewed PR, green CI, maintainer approval where required).
 
-Releases are cut by maintainers via `scripts/release.sh` and published to
-npm via [`npm-publish.yml`](.github/workflows/npm-publish.yml), plus Docker
-Hub, the MCP Registry, and the MCP Bundle. External contributors don't need to
-do anything for release — the maintainer will handle versioning and the
-changelog. See [`RELEASING.md`](RELEASING.md) for the full process, approval
-rules, and supported versions.
+Releases are cut by maintainers via `scripts/release.sh` and published to npm
+via [`npm-publish.yml`](.github/workflows/npm-publish.yml), plus Docker Hub,
+the MCP Registry, and the MCP Bundle. The script opens a
+`chore(release): vX.Y.Z` release PR, merges it once CI passes and CodeRabbit
+approves, and then tags the merge commit. Leave `release/v*` branches and
+release PRs alone. External contributors don't need to do anything for release —
+the maintainer
+will handle versioning and the changelog. See [`RELEASING.md`](RELEASING.md)
+for the full process, approval rules, and supported versions.
 
 ## Getting help
 

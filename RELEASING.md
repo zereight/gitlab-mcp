@@ -46,7 +46,8 @@ Process:
 4. Check `git log <last tag>..origin/main`. `scripts/release.sh` releases `main`
    as it is, so everything merged since the last tag ships with the hotfix.
    Revert anything that isn't ready.
-5. Cut the release with `scripts/release.sh`. There is no local publish: no
+5. Cut the release with `scripts/release.sh`. It opens a release PR and merges
+   it once CI passes and CodeRabbit approves. There is no local publish: no
    `npm publish` and no image push from a checkout. If a publish step fails,
    retry it as described in [How publishing works](#how-publishing-works).
 6. Comment on the issue with the published version.
@@ -109,21 +110,20 @@ a `v2` maintenance branch and a script change when v3.0 ships.
 is the version bump: `patch` (default), `minor`, or `major`, as in
 `scripts/release.sh minor` or `npm run release -- minor`. Any other argument,
 or more than one, prints the usage and stops the script before it checks
-anything.
+anything. Options are environment variables; see [Options](#options).
+
+The release commit reaches `main` through a release PR, like any other change.
+The script opens the PR, waits for CI and a review, merges it, and then tags
+and publishes the merge commit. Expect a run to take as long as CI plus the
+review.
 
 1. It checks that `gh` is installed, the working tree is clean, the branch is
    `main`, and `HEAD` matches `origin/main`. It refuses to release when no
    commit since the last tag references a PR (`#123`), and exits without a
    release when `HEAD` is already the current tag.
-2. It bumps the version (`npm version patch`, `minor`, or `major`). If the
-   current version is tagged locally but not on the remote, it releases that
-   tag instead, without a bump, and ignores the argument. That path skips the
-   PR-reference check, step 3, and the commit and tag in step 4. Use `minor` or
-   `major` rather than tagging a version by hand: a hand-made tag's commit must
-   also bump `server.json` (`version`, the npm package `version`, and the image
-   tag; the MCP Registry publish fails on a mismatch), pin the `npx` examples
-   to the previous release, regenerate `docs/tools/*.md` with `make docs`, and
-   pass `npm run release:mcp-registry -- --check`.
+2. It bumps the version (`npm version patch`, `minor`, or `major`). A release
+   that stopped part way is resumed instead, without a bump; see
+   [Resuming a release](#resuming-a-release).
 3. It syncs the version into `server.json` and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good
    version. It runs the MCP Registry preflight
@@ -132,15 +132,120 @@ anything.
    `#### [vX.Y.Z]` section of `CHANGELOG.md` and deletes those files. No
    fragments is a no-op, so a release with an empty `changelog.d/` is unchanged
    from the previous path.
-4. It commits `chore(release): vX.Y.Z`, tags `vX.Y.Z`, pushes both, and creates
-   the GitHub release with generated notes.
+4. It commits `chore(release): vX.Y.Z` on a new local branch `release/vX.Y.Z`,
+   switches back to `main`, and pushes the branch. Local `main` doesn't change
+   and there is no tag yet.
+5. It opens the release PR against `main`, titled `chore(release): vX.Y.Z`,
+   with the `no-changelog` label and the release notes as its body. Mentions in
+   the body are in code spans, so the PR notifies nobody.
+6. It waits for `main`'s required checks to pass on the PR. It reads their
+   names from the branch protection, or uses `test`, `code-quality`,
+   `docs-build`, `schema-tests`, and `Release notes` when it can't read them.
+   A check that failed and then passed on a re-run counts as passed.
+7. It waits for a review that approves the PR's head commit, from someone
+   other than the PR author. That is normally CodeRabbit. An approval of an
+   older commit doesn't count, and a reviewer whose latest review requests
+   changes blocks the merge.
+8. It checks that the PR branch still contains the latest `main`, then merges
+   with `gh pr merge <N> --merge --admin --match-head-commit <sha>` and the
+   merge subject `chore(release): vX.Y.Z (#N)`. `--match-head-commit` makes the
+   merge fail if the branch changed after the checks and the review.
+9. It fetches `main`, checks that `package.json` in the merge commit is
+   `X.Y.Z`, fast-forwards local `main`, tags the merge commit `vX.Y.Z`, pushes
+   the tag, and runs `gh release create vX.Y.Z --verify-tag` with the notes.
+   The GitHub release starts the publish workflows below. The script deletes
+   the local `release/vX.Y.Z` branch, not the one on GitHub.
+
+Use `minor` or `major` rather than tagging a version by hand. A hand-made
+tag's commit must also bump `server.json` (`version`, the npm package
+`version`, and the image tag; the MCP Registry publish fails on a mismatch),
+pin the `npx` examples to the previous release, regenerate `docs/tools/*.md`
+with `make docs`, and pass `npm run release:mcp-registry -- --check`.
 
 The GitHub release notes list the PRs referenced since the previous tag, grouped
 by PR title prefix (`feat`, `fix`, `docs`, ...), followed by contributors. The
 script reads at most 20 PR numbers, so check the notes when more PRs merged. PRs
 opened by `github-actions[bot]` (Homebrew formula, tool docs, Star History) are
-left out. Dependabot PRs stay in. Releases below v3.0.0 also carry the
+left out, and so are release PRs (title `chore(release): v...` or branch
+`release/v...`). Dependabot PRs stay in. Releases below v3.0.0 also carry the
 [#815](https://github.com/zereight/gitlab-mcp/issues/815) deprecation notice.
+
+### Review and branch protection
+
+`main` requires the checks in step 6, a branch that is up to date with `main`,
+and an approval from a code owner, given after the last push. The maintainer
+opens the release PR, so they can't approve it themselves.
+
+- **CodeRabbit's approval is the review.** OpenSSF Scorecard's Code-Review
+  check counts a commit as reviewed when its PR has an approving review. For a
+  release PR that is CodeRabbit's `APPROVED` review, which is why the script
+  waits for it.
+- **The `--admin` merge covers the code-owner rule.** CodeRabbit isn't a code
+  owner. The maintainer's `--admin` merge is the only thing that satisfies the
+  code-owner approval, and it works because admins aren't held to the branch
+  protection (`enforce_admins` is off for `main`).
+- **The script checks what `--admin` skips.** `--admin` also skips the
+  required checks and the up-to-date rule, so the script waits for the checks
+  itself (step 6) and stops if `main` moved after the release branch was cut
+  (step 8).
+
+The merge subject starts with `chore(release):`, so `npm-publish.yml` skips the
+`@next` build for the push that merges the release PR, as it did for the old
+direct release commit. GitHub's default merge subject
+(`Merge pull request #N ...`) would start one.
+
+### Options
+
+| Variable                   | Default         | Effect                                                                                                                                |
+| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `RELEASE_DRY_RUN`          | `0`             | `1` runs the local steps and prints the GitHub writes instead of running them. See [Dry run](#dry-run).                               |
+| `RELEASE_CHECKS_TIMEOUT`   | `2700` (45 min) | Seconds to wait for the required checks.                                                                                              |
+| `RELEASE_REVIEW_TIMEOUT`   | `1800` (30 min) | Seconds to wait for an approving review.                                                                                              |
+| `RELEASE_POLL_INTERVAL`    | `30`            | Seconds between polls of the checks and the reviews.                                                                                  |
+| `RELEASE_ALLOW_UNREVIEWED` | `0`             | `1` merges without an approval once the review wait runs out, with a warning. Scorecard then counts the release commit as unreviewed. |
+| `RELEASE_ADMIN_MERGE`      | `1`             | `0` merges without `--admin`. The merge then needs a code-owner approval and an up-to-date branch.                                    |
+
+For example: `RELEASE_REVIEW_TIMEOUT=3600 scripts/release.sh minor`.
+
+### Dry run
+
+`RELEASE_DRY_RUN=1 scripts/release.sh [patch|minor|major]` runs every step that
+stays on your machine: the checks, the bump, the syncs, `make docs`, the
+changelog merge, the release commit on `release/vX.Y.Z`, and the notes. It
+reads from GitHub but writes nothing there. Each push, the PR, the merge, the
+tag, and the GitHub release are printed as `🔎 Dry run, would run: ...`, along
+with the PR body. The PR number and the merge commit show as placeholders. At
+the end it switches back to a clean `main` and deletes the local release
+branch.
+
+When a release stopped part way, a dry run shows what a rerun would do next.
+
+### Resuming a release
+
+A run stops when a check fails or is still pending at the timeout, when no
+approval arrives, when a merge or push fails, or when `main` moved. The message
+says what to do. To resume, update `main` (`git pull origin main`) and rerun
+`scripts/release.sh`. It works out where the release stopped and ignores the
+release type:
+
+- **The release PR is open:** it waits for the checks and the review again,
+  then merges. It doesn't bump again.
+- **The release PR merged but `vX.Y.Z` isn't tagged:** it tags the PR's merge
+  commit, pushes the tag, and creates the GitHub release.
+- **The tag is on GitHub but has no GitHub release:** it creates the release.
+- **The tag exists only locally:** it checks that the tagged commit is on
+  `origin/main` with that version in `package.json`, pushes the tag, and
+  creates the release.
+- **The tag is on GitHub but the release lookup fails:** it stops and asks you
+  to rerun. A failed lookup is not treated as a finished release, so a missing
+  GitHub release is not skipped and the next bump does not start early.
+- **Everything is released and `main` has no new commits:** it exits without a
+  release.
+
+To start over instead (a check failed for a real reason, `main` moved, or the
+release branch changed), close the release PR (`gh pr close <N>`) and rerun
+with the same release type. The new run replaces the old `release/vX.Y.Z`
+branch on GitHub. Only one release PR may be open at a time.
 
 ## Release notes in `changelog.d/`
 
@@ -206,7 +311,8 @@ so a reporter can try a merged fix before the next stable release with
 - A push to `main` that changes the package (TypeScript sources outside
   `test/`, `scripts/`, and `mcp-server/`, `package.json`, `package-lock.json`,
   or the TypeScript config) publishes `<next patch>-next.<run number>`, for
-  example `2.3.5-next.123`. `chore(release):` commits and pushes by
+  example `2.3.5-next.123`. Pushes whose head commit starts with
+  `chore(release):`, including the merge of a release PR, and pushes by
   `github-actions[bot]` are skipped.
 - A GitHub pre-release publishes its tag version, which must look like
   `vX.Y.Z-rc.1`.
