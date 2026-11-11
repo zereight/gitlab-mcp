@@ -40,6 +40,10 @@ jobs:
             build-mode: none
           - language: actions
             build-mode: none
+          # scripts/generate-star-history.py. The only .rb file is the Homebrew
+          # formula under Formula/, so ruby is omitted.
+          - language: python
+            build-mode: none
 
     steps:
       - name: Checkout repository
