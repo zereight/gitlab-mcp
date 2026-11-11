@@ -3096,7 +3096,9 @@ async function resolveNamesToIds(
       throw new ToolInputError(
         withRecoveryHint(
           `Label '${name}' not found in namespace`,
-          "use an existing label title (list_labels shows them), or create it first with create_label."
+          namespaceKind === "group"
+            ? "use an existing group label title, or create a group label in GitLab first."
+            : "use an existing label title (list_labels shows them), or create it first with create_label."
         )
       );
     }
