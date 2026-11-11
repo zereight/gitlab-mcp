@@ -8,6 +8,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-conflicts";
 const TEST_PROJECT_ID = "456";
@@ -188,13 +189,16 @@ describe("get_merge_request_conflicts", () => {
   });
 
   test("errors clearly when the merge request does not exist", async () => {
-    await assert.rejects(
+    // A tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+    const text = await expectToolError(
       callTool(
         "get_merge_request_conflicts",
         { project_id: TEST_PROJECT_ID, merge_request_iid: TEST_MR_IID_MISSING },
         baseEnv()
       ),
-      /not found/i
+      new RegExp(`^Merge request !${TEST_MR_IID_MISSING} not found in project \\S+\\nNext: `)
     );
+    assert.match(text, /check merge_request_iid/);
+    assert.strictEqual(text.split("\nNext: ").length, 2);
   });
 });
