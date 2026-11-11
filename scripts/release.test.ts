@@ -543,9 +543,13 @@ if (cmd === "pr" && sub === "list") {
   let m;
   if ((m = /\/pulls\/(\d+)\/reviews/.exec(endpoint))) {
     const pr = state.prs[m[1]];
-    out(state.approve
-      ? [{ user: { login: "coderabbitai[bot]" }, state: "APPROVED", commit_id: headOf(pr.headRefName) }]
-      : []);
+    if (state.approve === "changes") {
+      out([{ user: { login: "alice" }, state: "CHANGES_REQUESTED", commit_id: headOf(pr.headRefName) }]);
+    } else {
+      out(state.approve
+        ? [{ user: { login: "coderabbitai[bot]" }, state: "APPROVED", commit_id: headOf(pr.headRefName) }]
+        : []);
+    }
   } else if ((m = /\/pulls\/(\d+)$/.exec(endpoint))) {
     const pr = state.prs[m[1]];
     if (state.pulls[m[1]]) out(state.pulls[m[1]]);
@@ -609,7 +613,7 @@ exec "$REAL_GIT" "$@"
 interface GhState {
   origin: string;
   nextPr: number;
-  approve: boolean;
+  approve: boolean | "changes";
   checks: string[];
   prs: Record<string, Record<string, unknown>>;
   pulls: Record<string, Record<string, unknown>>;
@@ -1036,6 +1040,27 @@ describe("release.sh end to end", () => {
       assert.ok(releases[0].notes.includes("[#5]"), releases[0].notes);
       assert.ok(!releases[0].notes.includes("#42"), releases[0].notes);
       sandbox.assertCleanOnMain();
+    } finally {
+      sandbox.cleanup();
+    }
+  });
+
+  test("RELEASE_ALLOW_UNREVIEWED=1 still stops when a review requests changes", () => {
+    const sandbox = new ReleaseSandbox();
+    try {
+      sandbox.updateState(state => {
+        state.approve = "changes";
+      });
+      const result = sandbox.release(["patch"], {
+        RELEASE_REVIEW_TIMEOUT: "0",
+        RELEASE_ALLOW_UNREVIEWED: "1",
+      });
+      assert.strictEqual(result.status, 1, output(result));
+      const stdout = String(result.stdout);
+      assert.ok(stdout.includes("Changes requested on #42 by alice"), stdout);
+      assert.ok(stdout.includes("does not override a review that requests changes"), stdout);
+      assert.deepStrictEqual(sandbox.ghCalls("pr", "merge"), []);
+      assert.strictEqual(sandbox.originVersionAt("refs/heads/main"), "1.0.0");
     } finally {
       sandbox.cleanup();
     }

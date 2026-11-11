@@ -972,7 +972,12 @@ wait_for_approval() {
   done
 
   case "$state" in
-    changes_requested\ *) echo "⚠️  Changes requested on #$pr by ${state#changes_requested }." ;;
+    changes_requested\ *)
+      echo "❌ Changes requested on #$pr by ${state#changes_requested }."
+      echo "   Resolve or dismiss the review, then rerun scripts/release.sh."
+      echo "   RELEASE_ALLOW_UNREVIEWED=1 does not override a review that requests changes."
+      exit 1
+      ;;
   esac
   if [ "$RELEASE_ALLOW_UNREVIEWED" = "1" ]; then
     echo "⚠️  No approving review of $head_sha on #$pr. RELEASE_ALLOW_UNREVIEWED=1, so merging anyway."

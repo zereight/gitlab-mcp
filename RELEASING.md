@@ -196,14 +196,14 @@ direct release commit. GitHub's default merge subject
 
 ### Options
 
-| Variable                   | Default         | Effect                                                                                                                                |
-| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `RELEASE_DRY_RUN`          | `0`             | `1` runs the local steps and prints the GitHub writes instead of running them. See [Dry run](#dry-run).                               |
-| `RELEASE_CHECKS_TIMEOUT`   | `2700` (45 min) | Seconds to wait for the required checks.                                                                                              |
-| `RELEASE_REVIEW_TIMEOUT`   | `1800` (30 min) | Seconds to wait for an approving review.                                                                                              |
-| `RELEASE_POLL_INTERVAL`    | `30`            | Seconds between polls of the checks and the reviews.                                                                                  |
-| `RELEASE_ALLOW_UNREVIEWED` | `0`             | `1` merges without an approval once the review wait runs out, with a warning. Scorecard then counts the release commit as unreviewed. |
-| `RELEASE_ADMIN_MERGE`      | `1`             | `0` merges without `--admin`. The merge then needs a code-owner approval and an up-to-date branch.                                    |
+| Variable                   | Default         | Effect                                                                                                                                                                                       |
+| -------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RELEASE_DRY_RUN`          | `0`             | `1` runs the local steps and prints the GitHub writes instead of running them. See [Dry run](#dry-run).                                                                                      |
+| `RELEASE_CHECKS_TIMEOUT`   | `2700` (45 min) | Seconds to wait for the required checks.                                                                                                                                                     |
+| `RELEASE_REVIEW_TIMEOUT`   | `1800` (30 min) | Seconds to wait for an approving review.                                                                                                                                                     |
+| `RELEASE_POLL_INTERVAL`    | `30`            | Seconds between polls of the checks and the reviews.                                                                                                                                         |
+| `RELEASE_ALLOW_UNREVIEWED` | `0`             | `1` merges without an approval once the review wait runs out, with a warning. A review that requests changes still blocks the merge. Scorecard then counts the release commit as unreviewed. |
+| `RELEASE_ADMIN_MERGE`      | `1`             | `0` merges without `--admin`. The merge then needs a code-owner approval and an up-to-date branch.                                                                                           |
 
 For example: `RELEASE_REVIEW_TIMEOUT=3600 scripts/release.sh minor`.
 
@@ -223,7 +223,8 @@ When a release stopped part way, a dry run shows what a rerun would do next.
 ### Resuming a release
 
 A run stops when a check fails or is still pending at the timeout, when no
-approval arrives, when a merge or push fails, or when `main` moved. The message
+approval arrives, when a review requests changes, when a merge or push fails,
+or when `main` moved. The message
 says what to do. To resume, update `main` (`git pull origin main`) and rerun
 `scripts/release.sh`. It works out where the release stopped and ignores the
 release type:
