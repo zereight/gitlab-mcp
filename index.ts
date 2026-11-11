@@ -377,6 +377,7 @@ import {
 import { configureWikiTools, handleWikiToolCall } from "./tools/wiki.js";
 import { configureMilestoneTools, handleMilestoneToolCall } from "./tools/milestones.js";
 import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
+import { configureTagTools, handleTagToolCall } from "./tools/tags.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -515,7 +516,6 @@ import {
   GitLabForkSchema,
   GitLabBranchSchema,
   GitLabProtectedBranchSchema,
-  GitLabProtectedTagSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -727,19 +727,6 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
-  ListTagsSchema,
-  GetTagSchema,
-  CreateTagSchema,
-  DeleteTagSchema,
-  GetTagSignatureSchema,
-  ListProtectedTagsSchema,
-  GetProtectedTagSchema,
-  ProtectTagSchema,
-  UnprotectTagSchema,
-  GitLabTagSchema,
-  GitLabTagSignatureSchema,
-  type GitLabTag,
-  type GitLabTagSignature,
   ListSnippetsSchema,
   GetSnippetSchema,
   CreateSnippetSchema,
@@ -1832,8 +1819,8 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, and label handlers call back into the fetch, error handling, and project
-// scope helpers below; fetch is read at call time because the cookie reload replaces it.
+// The wiki, milestone, label, and tag handlers call back into the fetch, error handling, and
+// project scope helpers below; fetch is read at call time because the cookie reload replaces it.
 configureWikiTools({
   getFetch: () => fetch,
   handleGitLabError,
@@ -1847,6 +1834,11 @@ configureMilestoneTools({
   rejectIfStrictProjectScope,
 });
 configureLabelTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+});
+configureTagTools({
   getFetch: () => fetch,
   handleGitLabError,
   getEffectiveProjectId,
@@ -11068,128 +11060,6 @@ async function downloadReleaseAsset(
   return await response.text();
 }
 
-/**
- * List repository tags
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Optional parameters for filtering and pagination
- * @returns Array of GitLab tags
- */
-async function listTags(
-  projectId: string,
-  options: Omit<z.infer<typeof ListTagsSchema>, "project_id"> = {}
-): Promise<GitLabTag[]> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`
-  );
-
-  appendFilterParams(url.searchParams, options);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.array().parse(data);
-}
-
-/**
- * Get a repository tag by name
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- * @returns GitLab tag
- */
-async function getTag(projectId: string, tagName: string): Promise<GitLabTag> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
-    {
-      ...getFetchConfig(),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.parse(data);
-}
-
-/**
- * Create a new repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Options for creating the tag
- * @returns Created GitLab tag
- */
-async function createTag(
-  projectId: string,
-  options: Omit<z.infer<typeof CreateTagSchema>, "project_id">
-): Promise<GitLabTag> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`,
-    {
-      ...getFetchConfig(),
-      method: "POST",
-      body: JSON.stringify(options),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.parse(data);
-}
-
-/**
- * Delete a repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- */
-async function deleteTag(projectId: string, tagName: string): Promise<void> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
-    {
-      ...getFetchConfig(),
-      method: "DELETE",
-    }
-  );
-
-  await handleGitLabError(response);
-}
-
-/**
- * Get the signature of a repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- * @returns Tag signature
- */
-async function getTagSignature(projectId: string, tagName: string): Promise<GitLabTagSignature> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}/signature`,
-    {
-      ...getFetchConfig(),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSignatureSchema.parse(data);
-}
-
 async function executeGitLabGraphQL(query: string, variables: Record<string, unknown> = {}) {
   const apiUrl = new URL(getEffectiveApiUrl());
   const restPath = apiUrl.pathname || "";
@@ -14716,145 +14586,16 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_tags": {
-        const args = ListTagsSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const tags = await listTags(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tags) }],
-        };
-      }
-
-      case "get_tag": {
-        const args = GetTagSchema.parse(params.arguments);
-        const tag = await getTag(args.project_id, args.tag_name);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tag) }],
-        };
-      }
-
-      case "create_tag": {
-        const args = CreateTagSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const tag = await createTag(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tag) }],
-        };
-      }
-
-      case "delete_tag": {
-        const args = DeleteTagSchema.parse(params.arguments);
-        await deleteTag(args.project_id, args.tag_name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Tag '${args.tag_name}' deleted successfully`,
-              }),
-            },
-          ],
-        };
-      }
-
-      case "get_tag_signature": {
-        const args = GetTagSignatureSchema.parse(params.arguments);
-        const signature = await getTagSignature(args.project_id, args.tag_name);
-        return {
-          content: [{ type: "text", text: JSON.stringify(signature) }],
-        };
-      }
-
-      case "list_protected_tags": {
-        const args = ListProtectedTagsSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
-        );
-        if (args.page) url.searchParams.append("page", String(args.page));
-        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-        });
-
-        await handleGitLabError(response);
-        const data = z.array(GitLabProtectedTagSchema).parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "get_protected_tag": {
-        const args = GetProtectedTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
-        );
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-        });
-
-        await handleGitLabError(response);
-        const data = GitLabProtectedTagSchema.parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "protect_tag": {
-        const args = ProtectTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
-        );
-
-        const body: Record<string, unknown> = { name: args.tag_name };
-        if (args.create_access_level !== undefined) {
-          body.create_access_level = args.create_access_level;
-        }
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-
-        await handleGitLabError(response);
-        const data = GitLabProtectedTagSchema.parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "unprotect_tag": {
-        const args = UnprotectTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
-        );
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-          method: "DELETE",
-        });
-
-        await handleGitLabError(response);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "unprotected", tag: args.tag_name }),
-            },
-          ],
-        };
-      }
+      case "list_tags":
+      case "get_tag":
+      case "create_tag":
+      case "delete_tag":
+      case "get_tag_signature":
+      case "list_protected_tags":
+      case "get_protected_tag":
+      case "protect_tag":
+      case "unprotect_tag":
+        return await handleTagToolCall(params);
 
       case "list_snippets": {
         const args = ListSnippetsSchema.parse(params.arguments);
