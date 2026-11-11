@@ -66,10 +66,13 @@ describe("When PaginationOptionsSchema parses generated input", () => {
   test("should accept omitted or undefined pagination fields and keep their values", () => {
     fc.assert(
       fc.property(
-        fc.record({
-          page: fc.option(fc.integer(), { nil: undefined }),
-          per_page: fc.option(fc.integer(), { nil: undefined }),
-        }),
+        fc.record(
+          {
+            page: fc.option(fc.integer(), { nil: undefined }),
+            per_page: fc.option(fc.integer(), { nil: undefined }),
+          },
+          { requiredKeys: [] }
+        ),
         input => {
           const parsed = PaginationOptionsSchema.parse(input);
           assert.equal(parsed.page, input.page);
