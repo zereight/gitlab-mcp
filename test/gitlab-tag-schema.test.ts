@@ -100,8 +100,8 @@ describe("When parsing a GitLab tag response", () => {
     });
   });
 
-  describe("with a lightweight tag from an older GitLab (no created_at key, null commit.created_at)", () => {
-    it("should parse the reported shape", () => {
+  describe("with a defensive older/lightweight shape (no created_at key, null commit.created_at)", () => {
+    it("should parse that shape", () => {
       const legacy = withoutKey(
         validTag({
           message: null,

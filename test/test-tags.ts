@@ -36,8 +36,8 @@ function buildTag(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// Shape reported in #1015: GitLab 16.0.x omits top-level created_at, a lightweight tag has
-// null message and null commit.created_at, and no release object is attached.
+// Legacy-tolerant fixture: GitLab 16.0.x omits top-level created_at. Also covers a
+// lightweight tag with null message, no release, and a defensive null commit.created_at.
 function buildLegacyTag(name: string) {
   const tag = buildTag({
     name,

@@ -4911,6 +4911,8 @@ export const GitLabProtectedTagSchema = z.object({
 //   created_at); newer versions return it, and lightweight tags return null.
 // - message is null for lightweight tags.
 // - release is omitted or null when no release exists; release.description may be null.
+// - commit.created_at is accepted as null or omitted as a defensive loosening; GitLab usually
+//   emits committed_date there, and #1015's error listed only the top-level created_at.
 // name, target, commit.id and protected stay required (always emitted by GitLab).
 export const GitLabTagSchema = z.object({
   name: z.string(),
