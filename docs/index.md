@@ -14,6 +14,9 @@ Do not set `GITLAB_TOOLSETS=all`
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 ---
 

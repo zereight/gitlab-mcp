@@ -1,6 +1,10 @@
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
