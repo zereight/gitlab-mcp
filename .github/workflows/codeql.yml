@@ -1,0 +1,59 @@
+# CodeQL advanced setup. Replaces GitHub default setup so pull requests,
+# including those from forks, are scanned. Default setup skips fork PRs, which
+# is why Scorecard SAST stayed below 10.
+#
+# After this workflow is on main, default setup must be disabled
+# (code-scanning default-setup state=not-configured). Both setups cannot
+# upload results at the same time.
+#
+# Actions are pinned by commit SHA. Do not switch this workflow to
+# pull_request_target or check out an untrusted ref.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Monday 04:17 UTC, offset from the Saturday Scorecard schedule.
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    # Job-level permissions replace the top-level set, so contents: read is
+    # repeated here. security-events: write is required to upload SARIF.
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:${{ matrix.language }}"
