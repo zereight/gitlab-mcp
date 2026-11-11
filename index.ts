@@ -11561,6 +11561,11 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
+          // Argument errors (e.g. an empty project_id) belong to the central handler, which
+          // returns them as isError results with a Next: hint.
+          if (forkError instanceof ToolInputError) {
+            throw forkError;
+          }
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {

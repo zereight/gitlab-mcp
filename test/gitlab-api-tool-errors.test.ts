@@ -304,4 +304,29 @@ describe("GitLab API tool errors", () => {
       assert.doesNotMatch(text, /127\.0\.0\.1/);
     }
   });
+
+  test("fork_repository returns an isError result with a Next: hint for an empty project_id", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "fork_repository",
+      arguments: { project_id: "" },
+    });
+    const text = resultText(result);
+    assert.equal(result.isError, true, text);
+    assert.match(text, /^No project ID provided and GITLAB_PROJECT_ID is not set\nNext: /);
+    assert.match(text, /pass project_id \(numeric ID or group%2Fproject\)/);
+    assert.equal(text.split("\nNext: ").length, 2);
+    assert.doesNotMatch(text, /Failed to fork repository/);
+  });
+
+  test("fork_repository keeps returning GitLab failures as data", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "fork_repository",
+      arguments: { project_id: "123" },
+    });
+    const text = resultText(result);
+    assert.notEqual(result.isError, true, text);
+    assert.match(text, /^\{"error":"Failed to fork repository: /);
+  });
 });
