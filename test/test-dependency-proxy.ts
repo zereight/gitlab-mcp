@@ -2,9 +2,11 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { expectToolError } from "./utils/tool-error.js";
 
 const MOCK_TOKEN = "glpat-mock-token-dependency-proxy";
 const TEST_GROUP_PATH = "my-group";
+const MISSING_GROUP_PATH = "no-such-group";
 
 async function callTool(
   toolName: string,
@@ -32,6 +34,8 @@ async function callTool(
         const response = JSON.parse(line);
         if (response.error) {
           reject(new Error(response.error?.message ?? String(response.error)));
+        } else if (response.result?.isError === true) {
+          resolve(response.result);
         } else {
           const content = response.result?.content?.[0]?.text;
           resolve(content ? JSON.parse(content) : response.result);
@@ -68,9 +72,14 @@ describe("dependency proxy tools", () => {
 
     // Mock GraphQL endpoint for get/list operations
     mockServer.addRootHandler("post", "/api/graphql", (req, res) => {
-      const { query } = req.body as { query: string; variables: Record<string, unknown> };
+      const { query, variables } = req.body as {
+        query: string;
+        variables: Record<string, unknown>;
+      };
 
-      if (query.includes("updateDependencyProxySettings")) {
+      if (variables?.fullPath === MISSING_GROUP_PATH) {
+        res.json({ data: { group: null } });
+      } else if (query.includes("updateDependencyProxySettings")) {
         res.json({ data: { updateDependencyProxySettings: { errors: [] } } });
       } else if (query.includes("dependencyProxySetting")) {
         res.json({
@@ -156,10 +165,21 @@ describe("dependency proxy tools", () => {
   });
 
   test("update_dependency_proxy_settings rejects empty options", async () => {
-    await assert.rejects(
-      () => callTool("update_dependency_proxy_settings", { group_id: TEST_GROUP_PATH }, baseEnv),
-      /At least one of enabled, identity, or secret must be provided/
+    // A tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+    const text = await expectToolError(
+      callTool("update_dependency_proxy_settings", { group_id: TEST_GROUP_PATH }, baseEnv),
+      /^At least one of enabled, identity, or secret must be provided\nNext: /
     );
+    assert.match(text, /get_dependency_proxy_settings shows the current settings/);
+    assert.strictEqual(text.split("\nNext: ").length, 2);
+  });
+
+  test("get_dependency_proxy_settings reports an unknown group with a hint", async () => {
+    const text = await expectToolError(
+      callTool("get_dependency_proxy_settings", { group_id: MISSING_GROUP_PATH }, baseEnv),
+      /^Group not found: no-such-group\nNext: check group_id /
+    );
+    assert.strictEqual(text.split("\nNext: ").length, 2);
   });
 
   test("dependency_proxy tools are absent when toolset is not activated", async () => {
