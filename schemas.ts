@@ -4906,15 +4906,21 @@ export const GitLabProtectedTagSchema = z.object({
   create_access_levels: z.array(GitLabProtectedTagAccessLevelSchema).optional(),
 });
 
+// Tag response shape varies by GitLab version and tag type:
+// - top-level created_at is not exposed by GitLab 16.0.x (Entities::Tag in v16.0.8-ee has no
+//   created_at); newer versions return it, and lightweight tags return null.
+// - message is null for lightweight tags.
+// - release is omitted or null when no release exists; release.description may be null.
+// name, target, commit.id and protected stay required (always emitted by GitLab).
 export const GitLabTagSchema = z.object({
   name: z.string(),
-  message: z.string().nullable(),
+  message: z.string().nullish(),
   target: z.string(),
   commit: z.object({
     id: z.string(),
     short_id: z.string(),
     title: z.string(),
-    created_at: z.string(),
+    created_at: z.string().nullish(),
     parent_ids: z.array(z.string()),
     message: z.string(),
     author_name: z.string(),
@@ -4927,11 +4933,11 @@ export const GitLabTagSchema = z.object({
   release: z
     .object({
       tag_name: z.string(),
-      description: z.string(),
+      description: z.string().nullish(),
     })
     .nullish(),
   protected: z.boolean(),
-  created_at: z.string().nullable(),
+  created_at: z.string().nullish(),
 });
 
 // --- Snippet schemas ---

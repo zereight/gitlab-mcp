@@ -36,6 +36,22 @@ function buildTag(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Shape reported in #1015: GitLab 16.0.x omits top-level created_at, a lightweight tag has
+// null message and null commit.created_at, and no release object is attached.
+function buildLegacyTag(name: string) {
+  const tag = buildTag({
+    name,
+    message: null,
+    commit: { ...buildTag().commit, created_at: null },
+  });
+  return Object.fromEntries(
+    Object.entries(tag).filter(([key]) => key !== "created_at" && key !== "release")
+  );
+}
+
+const LEGACY_TAG_NAME = "v-legacy-16";
+const LEGACY_SEARCH = "^legacy";
+
 async function callTool(
   toolName: string,
   args: Record<string, unknown>,
@@ -111,6 +127,10 @@ describe("tag tools", () => {
     });
 
     mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/repository/tags`, (req, res) => {
+      if (req.query.search === LEGACY_SEARCH) {
+        res.json([buildLegacyTag(LEGACY_TAG_NAME)]);
+        return;
+      }
       assert.strictEqual(req.query.search, "^v");
       assert.strictEqual(req.query.order_by, "version");
       assert.strictEqual(req.query.sort, "desc");
@@ -128,9 +148,21 @@ describe("tag tools", () => {
     );
 
     mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/tags/${LEGACY_TAG_NAME}`,
+      (_req, res) => {
+        res.json(buildLegacyTag(LEGACY_TAG_NAME));
+      }
+    );
+
+    mockGitLab.addMockHandler(
       "post",
       `/projects/${TEST_PROJECT_ID}/repository/tags`,
       (req, res) => {
+        if (req.body.tag_name === LEGACY_TAG_NAME) {
+          res.json(buildLegacyTag(LEGACY_TAG_NAME));
+          return;
+        }
         if (req.body.tag_name === "v-no-release") {
           const tag = buildTag({ name: "v-no-release", message: null });
           res.json(
@@ -255,6 +287,47 @@ describe("tag tools", () => {
 
     assert.strictEqual(result.name, "v-no-release");
     assert.strictEqual(result.release, undefined);
+  });
+
+  test("list_tags parses a tag without top-level created_at and with null commit.created_at", async () => {
+    const result = await callTool(
+      "list_tags",
+      { project_id: TEST_PROJECT_ID, search: LEGACY_SEARCH },
+      env()
+    );
+
+    assert.ok(Array.isArray(result), `expected parsed tag list, got: ${JSON.stringify(result)}`);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].name, LEGACY_TAG_NAME);
+    assert.strictEqual(result[0].created_at, undefined);
+    assert.strictEqual(result[0].commit.created_at, null);
+    assert.strictEqual(result[0].message, null);
+  });
+
+  test("get_tag parses a tag without top-level created_at and with null commit.created_at", async () => {
+    const result = await callTool(
+      "get_tag",
+      { project_id: TEST_PROJECT_ID, tag_name: LEGACY_TAG_NAME },
+      env()
+    );
+
+    assert.ok(result && typeof result === "object", `expected parsed tag, got: ${result}`);
+    assert.strictEqual(result.name, LEGACY_TAG_NAME);
+    assert.strictEqual(result.created_at, undefined);
+    assert.strictEqual(result.commit.created_at, null);
+  });
+
+  test("create_tag parses a tag without top-level created_at and with null commit.created_at", async () => {
+    const result = await callTool(
+      "create_tag",
+      { project_id: TEST_PROJECT_ID, tag_name: LEGACY_TAG_NAME, ref: "main" },
+      env()
+    );
+
+    assert.ok(result && typeof result === "object", `expected parsed tag, got: ${result}`);
+    assert.strictEqual(result.name, LEGACY_TAG_NAME);
+    assert.strictEqual(result.created_at, undefined);
+    assert.strictEqual(result.commit.created_at, null);
   });
 
   test("delete_tag returns a success payload", async () => {
