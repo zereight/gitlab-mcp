@@ -336,7 +336,7 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
-import { appendRecoveryHint } from "./utils/error-hints.js";
+import { appendRecoveryHint, withRecoveryHint } from "./utils/error-hints.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -2283,6 +2283,18 @@ class ProjectAccessDeniedError extends Error {
 const MERGE_REQUEST_IDENTIFIER_REQUIRED =
   "Either merge_request_iid or source_branch must be provided";
 
+// Next-step hints for lookups that found nothing (see withRecoveryHint).
+const PROJECT_NOT_FOUND_HINT =
+  "check project_id (numeric ID or group%2Fproject) and that the token can read the project.";
+const GROUP_NOT_FOUND_HINT =
+  "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
+const WORK_ITEM_NOT_FOUND_HINT =
+  "check project_id and the work item iid (the #number shown in GitLab, not the global ID).";
+const WORK_ITEM_TYPE_NOT_FOUND_HINT =
+  "this project does not offer that work item type (some types need a higher GitLab tier or are turned off); use another type, such as issue or task.";
+const VULNERABILITY_NOT_FOUND_HINT =
+  "check vulnerability_id; list_project_vulnerabilities lists the vulnerabilities the token can read.";
+
 /**
  * Utility function for handling GitLab API errors
  * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
@@ -2389,8 +2401,11 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && allowedProjectIds.length > 1) {
-      throw new Error(
-        `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`
+      throw new ToolInputError(
+        withRecoveryHint(
+          `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`,
+          "pass project_id set to one of the allowed projects listed above."
+        )
       );
     }
 
@@ -2403,7 +2418,12 @@ function getEffectiveProjectId(projectId: string): string {
   if (GITLAB_PROJECT_ID) {
     return GITLAB_PROJECT_ID;
   }
-  throw new Error("No project ID provided and GITLAB_PROJECT_ID is not set");
+  throw new ToolInputError(
+    withRecoveryHint(
+      "No project ID provided and GITLAB_PROJECT_ID is not set",
+      "pass project_id (numeric ID or group%2Fproject), or set GITLAB_PROJECT_ID to give the server a default project."
+    )
+  );
 }
 
 function rejectIfProjectScopedDeployment(toolName: string): void {
@@ -3009,7 +3029,12 @@ async function resolveWorkItemGID(
   );
 
   if (!data.namespace?.workItem?.id) {
-    throw new Error(`Work item #${issueIid} not found in namespace ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${issueIid} not found in namespace ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   return { workItemGID: data.namespace.workItem.id, projectPath, namespaceKind };
@@ -3057,17 +3082,36 @@ async function resolveNamesToIds(
   const labelNamespace = namespaceKind === "group" ? data.group : data.project;
 
   if (!labelNamespace) {
-    throw new Error(`Namespace '${projectPath}' not found or inaccessible`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Namespace '${projectPath}' not found or inaccessible`,
+        "check project_id (numeric ID, group%2Fproject, or group:<path> for a group) and that the token can read it."
+      )
+    );
   }
 
   const labelIds = labelNames.map((name, i) => {
     const nodes = labelNamespace[`l${i}`]?.nodes;
-    if (!nodes?.length) throw new Error(`Label '${name}' not found in namespace`);
+    if (!nodes?.length) {
+      throw new ToolInputError(
+        withRecoveryHint(
+          `Label '${name}' not found in namespace`,
+          "use an existing label title (list_labels shows them), or create it first with create_label."
+        )
+      );
+    }
     return nodes[0].id;
   });
   const userIds = usernames.map(name => {
     const user = data.users.nodes.find(u => u.username === name);
-    if (!user) throw new Error(`User '${name}' not found`);
+    if (!user) {
+      throw new ToolInputError(
+        withRecoveryHint(
+          `User '${name}' not found`,
+          "pass the GitLab username without a leading @; get_users looks usernames up."
+        )
+      );
+    }
     return user.id;
   });
   return { labelIds, userIds };
@@ -3096,7 +3140,12 @@ const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
 async function resolveWorkItemTypeGID(projectPath: string, typeName: string): Promise<string> {
   const targetName = WORK_ITEM_TYPE_NAMES[typeName];
   if (!targetName) {
-    throw new Error(`Unknown work item type: ${typeName}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Unknown work item type: ${typeName}`,
+        `use one of: ${Object.keys(WORK_ITEM_TYPE_NAMES).join(", ")}.`
+      )
+    );
   }
 
   const data = await executeGraphQL<{
@@ -3117,7 +3166,12 @@ async function resolveWorkItemTypeGID(projectPath: string, typeName: string): Pr
 
   const typeNode = data.namespace?.workItemTypes?.nodes?.find(n => n.name === targetName);
   if (!typeNode) {
-    throw new Error(`Work item type '${targetName}' not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${targetName}' not found in project ${projectPath}`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
   return typeNode.id;
 }
@@ -3243,7 +3297,12 @@ async function listIssueStatuses(projectId: string, workItemType: string = "issu
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
   if (!typeNodes || typeNodes.length === 0) {
-    throw new Error(`Work item type '${typeName}' not found in project`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${typeName}' not found in project`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
 
   const typeNode = typeNodes[0];
@@ -3334,7 +3393,12 @@ async function listCustomFieldDefinitions(
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
   if (!typeNodes || typeNodes.length === 0) {
-    throw new Error(`Work item type '${typeName}' not found in project`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${typeName}' not found in project`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
 
   const typeNode = typeNodes[0];
@@ -3444,7 +3508,12 @@ async function listWorkItemNotes(
 
   const workItem = data.namespace?.workItem;
   if (!workItem) {
-    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${iid} not found in project ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   const notesWidget = workItem.widgets?.find((w: any) => w.discussions);
@@ -3996,7 +4065,12 @@ async function getWorkItem(projectId: string, iid: number): Promise<any> {
   );
 
   if (!data.namespace?.workItem) {
-    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${iid} not found in project ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   const wi = data.namespace.workItem;
@@ -6682,10 +6756,17 @@ async function getMergeRequestConflicts(
   }
 
   if (!data.project) {
-    throw new Error(`Project not found or not accessible: ${fullPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Project not found or not accessible: ${fullPath}`, PROJECT_NOT_FOUND_HINT)
+    );
   }
   if (!data.project.mergeRequest) {
-    throw new Error(`Merge request !${mergeRequestIid} not found in project ${fullPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Merge request !${mergeRequestIid} not found in project ${fullPath}`,
+        "check merge_request_iid (the !number shown in GitLab, not the global ID)."
+      )
+    );
   }
 
   const { conflicts, conflictStatus, conflictFiles } = data.project.mergeRequest;
@@ -9329,7 +9410,12 @@ async function createCommitStatus(
   options: Omit<CreateCommitStatusOptions, "project_id" | "sha">
 ): Promise<GitLabCommitStatus> {
   if (options.name && options.context) {
-    throw new Error("Use either name or context when creating a commit status, not both.");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Use either name or context when creating a commit status, not both.",
+        "pass only name or only context; both set the same status label."
+      )
+    );
   }
 
   projectId = decodeURIComponent(projectId);
@@ -9832,7 +9918,9 @@ async function listGroupIterationCadences(
     });
 
     if (!data.group) {
-      throw new Error(`Group ${groupPath} was not found`);
+      throw new ToolInputError(
+        withRecoveryHint(`Group ${groupPath} was not found`, GROUP_NOT_FOUND_HINT)
+      );
     }
 
     const { nodes, pageInfo } = data.group.iterationCadences;
@@ -10173,7 +10261,11 @@ async function getDependencyProxySettings(groupPath: string): Promise<GitLabDepe
     { fullPath }
   );
   const g = data.group;
-  if (!g) throw new Error(`Group not found: ${fullPath}`);
+  if (!g) {
+    throw new ToolInputError(
+      withRecoveryHint(`Group not found: ${fullPath}`, GROUP_NOT_FOUND_HINT)
+    );
+  }
   return GitLabDependencyProxySchema.parse({
     enabled: g.dependencyProxySetting?.enabled ?? false,
     blob_count: g.dependencyProxyBlobCount,
@@ -10192,7 +10284,12 @@ async function updateDependencyProxySettings(
     options.identity === undefined &&
     options.secret === undefined
   ) {
-    throw new Error("At least one of enabled, identity, or secret must be provided");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "At least one of enabled, identity, or secret must be provided",
+        "pass enabled (true or false), identity, or secret; get_dependency_proxy_settings shows the current settings."
+      )
+    );
   }
   const fullPath = await resolveGroupFullPath(groupPath);
   const input: Record<string, unknown> = { groupPath: fullPath };
@@ -10241,7 +10338,14 @@ async function listDependencyProxyBlobs(
     { fullPath, first: options.first ?? 20, after: options.after }
   );
   const conn = data.group?.dependencyProxyBlobs;
-  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${fullPath}`);
+  if (!conn) {
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Group not found or dependency proxy not enabled: ${fullPath}`,
+        "check group_id, then run get_dependency_proxy_settings to see whether the dependency proxy is enabled."
+      )
+    );
+  }
   return {
     blobs: conn.nodes.map(n =>
       GitLabDependencyProxyBlobSchema.parse({
@@ -10275,8 +10379,11 @@ function toVulnerabilityGid(vulnerabilityId: string): string {
   if (/^gid:\/\/gitlab\/Vulnerability\/\d+$/.test(vulnerabilityId)) {
     return vulnerabilityId;
   }
-  throw new Error(
-    `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`
+  throw new ToolInputError(
+    withRecoveryHint(
+      `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`,
+      "copy the id from list_project_vulnerabilities, for example 123 or gid://gitlab/Vulnerability/123."
+    )
   );
 }
 
@@ -10353,7 +10460,9 @@ async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promi
     { id: toVulnerabilityGid(vulnerabilityId) }
   );
   if (!data.vulnerability) {
-    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Vulnerability not found: ${vulnerabilityId}`, VULNERABILITY_NOT_FOUND_HINT)
+    );
   }
   assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
 }
@@ -10476,7 +10585,9 @@ async function listProjectVulnerabilities(
   );
 
   if (!data.project) {
-    throw new Error(`Project not found or not accessible: ${fullPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Project not found or not accessible: ${fullPath}`, PROJECT_NOT_FOUND_HINT)
+    );
   }
   return {
     vulnerabilities: data.project.vulnerabilities.nodes,
@@ -10555,7 +10666,9 @@ async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
     { id: toVulnerabilityGid(vulnerabilityId) }
   );
   if (!data.vulnerability) {
-    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Vulnerability not found: ${vulnerabilityId}`, VULNERABILITY_NOT_FOUND_HINT)
+    );
   }
   assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
   return data.vulnerability;
@@ -10680,7 +10793,12 @@ async function markdownUpload(
     fileBuffer = buffer;
     fileName = safeBasename;
   } else {
-    throw new Error("Either file_path or content must be provided");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Either file_path or content must be provided",
+        "pass a non-empty file_path, or base64 content with filename."
+      )
+    );
   }
 
   // Create form data
@@ -10732,7 +10850,12 @@ function getSafeAttachmentFilename(filename: string): string {
     filename.includes("/") ||
     filename.includes("\\")
   ) {
-    throw new Error("Invalid filename: directory separators are not allowed.");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Invalid filename: directory separators are not allowed.",
+        "pass only the last segment of the upload URL (/uploads/<secret>/<filename>), without / or \\."
+      )
+    );
   }
 
   return filename;
@@ -11345,8 +11468,11 @@ function snippetCreateFilesPayload(
   if (options.file_name !== undefined && options.content !== undefined) {
     return [{ file_path: options.file_name, content: options.content }];
   }
-  throw new Error(
-    "Provide either files[] (multi-file) or both file_name and content (single-file)"
+  throw new ToolInputError(
+    withRecoveryHint(
+      "Provide either files[] (multi-file) or both file_name and content (single-file)",
+      "for one file pass file_name and content; for several pass files: [{ file_path, content }]."
+    )
   );
 }
 
@@ -12727,8 +12853,11 @@ async function handleToolCall(params: any) {
         if (patch_type === "search_replace") {
           const blocks = parseSearchReplaceBlocks(patch);
           if (blocks.length === 0) {
-            throw new Error(
-              "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE"
+            throw new ToolInputError(
+              withRecoveryHint(
+                "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE",
+                'put each <<<<<<< SEARCH, =======, and >>>>>>> REPLACE marker on its own line, or set patch_type to "unified_diff".'
+              )
             );
           }
           result = applySearchReplace(currentDescription, blocks, allow_multiple);

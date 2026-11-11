@@ -1195,15 +1195,15 @@ describe("snippet tools", () => {
   });
 
   test("list_snippets without project_id rejects when GITLAB_ALLOWED_PROJECT_IDS has multiple entries", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "list_snippets",
-          {},
-          { ...env(), GITLAB_ALLOWED_PROJECT_IDS: `${TEST_PROJECT_ID},789` }
-        ),
-      (err: any) => /Multiple projects allowed/.test(JSON.stringify(err))
+    // A tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+    const text = await expectToolError(
+      callTool("list_snippets", {}, { ...env(), GITLAB_ALLOWED_PROJECT_IDS: `${TEST_PROJECT_ID},789` }),
+      new RegExp(
+        `^Multiple projects allowed \\(${TEST_PROJECT_ID}, 789\\)\\. Please specify a project ID\\.\\nNext: `
+      )
     );
+    assert.match(text, /pass project_id set to one of the allowed projects/);
+    assert.strictEqual(text.split("\nNext: ").length, 2);
   });
 
   test("get_snippet without project_id hits personal endpoint", async () => {
