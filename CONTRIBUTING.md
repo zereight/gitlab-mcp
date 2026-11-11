@@ -120,6 +120,27 @@ CI ([`.github/workflows/pr-test.yml`](.github/workflows/pr-test.yml))
 runs `test:mock`, `test:consumer-smoke`, and `npx tsc --noEmit` on every PR.
 Make sure those pass locally before pushing.
 
+### Code coverage
+
+```bash
+npm run test:coverage    # test:mock under c8; prints a summary table
+npm run coverage:summary # re-print the Markdown table from the last run
+```
+
+`test:coverage` rebuilds `build/` with source maps so coverage from the spawned
+MCP server processes maps back to the `.ts` sources, runs the mock suite under
+[c8](https://github.com/bcoe/c8) (config: [`.c8rc.json`](.c8rc.json)), then
+restores the regular build. If you interrupt it, run `npm run build` before
+`npm pack` so no `.map` files end up in the package. The full report is in
+`coverage/` (`lcov-report/index.html`, `lcov.info`, `coverage-summary.json`).
+Child processes started with a hand-built `env` that omits `NODE_V8_COVERAGE`,
+or killed with `SIGKILL`, are not counted.
+
+The [Coverage workflow](.github/workflows/coverage.yml) runs the same command on
+PRs and `main`, writes the table to the job summary and uploads `coverage/` as
+the `coverage-report` artifact. It is informational: there is no threshold and
+it is not a required check, but a failing test still fails it.
+
 ### Live integration tests
 
 ```bash
