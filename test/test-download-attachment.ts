@@ -12,6 +12,11 @@ const TEST_SECRET = 'testsecret123';
 const SERVER_ENTRY = path.resolve('build/index.js');
 const DOWNLOAD_ROOT = '.gitlab-mcp-downloads';
 
+// The screenshot name macOS gives in French, with decomposed accents, and a
+// different file whose name has composed ones.
+const MACOS_NAME = 'Capture_d_écran_2026-11-05_à_15.12.14.png'.normalize('NFD');
+const COMPOSED_NAME = 'Résumé.png'.normalize('NFC');
+
 // Minimum valid 1x1 transparent PNG
 const MINIMAL_PNG_BUF = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -139,6 +144,20 @@ describe('download_attachment', () => {
       (_req, res) => { res.set('Content-Type', 'image/png').send(MINIMAL_PNG_BUF); }
     );
 
+    // Upload named by macOS: its accents are decomposed (e + U+0301), as GitLab stores them
+    mockGitLab.addMockHandler(
+      'get',
+      `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/${encodeURIComponent(MACOS_NAME)}`,
+      (_req, res) => { res.set('Content-Type', 'image/png').send(MINIMAL_PNG_BUF); }
+    );
+
+    // Upload named on Linux or Windows: its accents are composed
+    mockGitLab.addMockHandler(
+      'get',
+      `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/${encodeURIComponent(COMPOSED_NAME)}`,
+      (_req, res) => { res.set('Content-Type', 'image/png').send(MINIMAL_PNG_BUF); }
+    );
+
     // Plain-text upload endpoint
     mockGitLab.addMockHandler(
       'get',
@@ -195,6 +214,65 @@ describe('download_attachment', () => {
       'Image block should have non-empty base64 data'
     );
     assert.deepStrictEqual(fs.readdirSync(workspace), [], 'inline images must not touch the disk');
+  });
+
+  for (const [form, stored] of [
+    ['decomposed', MACOS_NAME],
+    ['composed', COMPOSED_NAME],
+  ]) {
+    test(`a ${form} upload name asked in the other Unicode form is found`, async () => {
+      freshWorkspace();
+      const asked = stored.normalize(form === 'decomposed' ? 'NFC' : 'NFD');
+      const raw = await callDownloadAttachment(
+        { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, filename: asked },
+        env,
+        workspace
+      );
+
+      const imageBlock = raw.result?.content?.find(c => c.type === 'image');
+      assert.ok(imageBlock, `Should return the image, got ${JSON.stringify(raw)}`);
+      const textBlock = raw.result?.content?.find(c => c.type === 'text');
+      assert.strictEqual(JSON.parse(textBlock?.text ?? '{}').filename, stored, 'should name the file as stored');
+    });
+  }
+
+  for (const form of ['NFD', 'NFC'] as const) {
+    test(`a macOS upload name asked percent-encoded in ${form} is found and named decoded`, async () => {
+      freshWorkspace();
+      const raw = await callDownloadAttachment(
+        { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, filename: encodeURIComponent(MACOS_NAME.normalize(form)) },
+        env,
+        workspace
+      );
+
+      assert.ok(raw.result?.content?.find(c => c.type === 'image'), `Should return the image, got ${JSON.stringify(raw)}`);
+      const textBlock = raw.result?.content?.find(c => c.type === 'text');
+      assert.strictEqual(JSON.parse(textBlock?.text ?? '{}').filename, MACOS_NAME, 'should name the file as stored');
+    });
+  }
+
+  test('a name unknown in every Unicode form still reports not found', async () => {
+    freshWorkspace();
+    const absent = 'Écran_absent.png'.normalize('NFC');
+    const requested: string[] = [];
+    for (const name of [absent, absent.normalize('NFD')]) {
+      mockGitLab.addMockHandler(
+        'get',
+        `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/${encodeURIComponent(name)}`,
+        (_req, res) => {
+          requested.push(name);
+          res.status(404).json({ message: '404 Not found' });
+        }
+      );
+    }
+    const raw = await callDownloadAttachment(
+      { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, filename: absent },
+      env,
+      workspace
+    );
+
+    assert.match(responseText(raw), /404|not found/i, `expected a not-found error, got ${JSON.stringify(raw)}`);
+    assert.deepStrictEqual(requested, [absent, absent.normalize('NFD')], 'should try the decomposed form too');
   });
 
   test('non-image file without local_path is saved under the download directory', async () => {

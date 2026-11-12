@@ -5,13 +5,15 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write # gh pr merge --auto
+      pull-requests: write # gh pr merge --auto
     
     steps:
     - name: Checkout code

@@ -37,13 +37,13 @@ If they are missing, maintainers should create these labels: `approved`,
 
 ### Prerequisites
 
-| Tool           | Version              | Notes                                                 |
-| -------------- | -------------------- | ----------------------------------------------------- |
-| Node.js        | **22.23.4**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match. |
-| npm            | bundled with Node 22 |                                                       |
-| Git            | any recent version   |                                                       |
-| Python 3.10+   | (only for docs)      | Required if you want to preview the docs site.        |
-| GitLab account | optional             | Needed only for live integration tests.               |
+| Tool           | Version              | Notes                                                                                                     |
+| -------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Node.js        | **22.23.4**          | Pinned in [`.nvmrc`](.nvmrc). Use `nvm use` to match.                                                     |
+| npm            | bundled with Node 22 |                                                                                                           |
+| Git            | any recent version   |                                                                                                           |
+| Python 3.12+   | (only for docs)      | Required to preview the docs site. If `.venv-docs` was made with an older Python, run `make clean` first. |
+| GitLab account | optional             | Needed only for live integration tests.                                                                   |
 
 The intended local and CI pin is [`.nvmrc`](.nvmrc) (22.23.4); `package.json` `engines` only requires `node >= 20`, and some workflows may still lag that pin.
 
@@ -119,6 +119,27 @@ npm run test:stateless   # Multi-pod / stateless OAuth helpers.
 CI ([`.github/workflows/pr-test.yml`](.github/workflows/pr-test.yml))
 runs `test:mock`, `test:consumer-smoke`, and `npx tsc --noEmit` on every PR.
 Make sure those pass locally before pushing.
+
+### Code coverage
+
+```bash
+npm run test:coverage    # test:mock under c8; prints a summary table
+npm run coverage:summary # re-print the Markdown table from the last run
+```
+
+`test:coverage` rebuilds `build/` with source maps so coverage from the spawned
+MCP server processes maps back to the `.ts` sources, runs the mock suite under
+[c8](https://github.com/bcoe/c8) (config: [`.c8rc.json`](.c8rc.json)), then
+restores the regular build. If you interrupt it, run `npm run build` before
+`npm pack` so no `.map` files end up in the package. The full report is in
+`coverage/` (`lcov-report/index.html`, `lcov.info`, `coverage-summary.json`).
+Child processes started with a hand-built `env` that omits `NODE_V8_COVERAGE`,
+or killed with `SIGKILL`, are not counted.
+
+The [Coverage workflow](.github/workflows/coverage.yml) runs the same command on
+PRs and `main`, writes the table to the job summary and uploads `coverage/` as
+the `coverage-report` artifact. It is informational: there is no threshold and
+it is not a required check, but a failing test still fails it.
 
 ### Live integration tests
 
@@ -243,12 +264,15 @@ outages or severe regressions ship as out-of-band hotfixes. A PR merged to
 [stable-release conditions](RELEASING.md#what-goes-into-a-stable-release)
 (reviewed PR, green CI, maintainer approval where required).
 
-Releases are cut by maintainers via `scripts/release.sh` and published to
-npm via [`npm-publish.yml`](.github/workflows/npm-publish.yml), plus Docker
-Hub, the MCP Registry, and the MCP Bundle. External contributors don't need to
-do anything for release — the maintainer will handle versioning and the
-changelog. See [`RELEASING.md`](RELEASING.md) for the full process, approval
-rules, and supported versions.
+Releases are cut by maintainers via `scripts/release.sh` and published to npm
+via [`npm-publish.yml`](.github/workflows/npm-publish.yml), plus Docker Hub,
+the MCP Registry, and the MCP Bundle. The script opens a
+`chore(release): vX.Y.Z` release PR, merges it once CI passes and CodeRabbit
+approves, and then tags the merge commit. Leave `release/v*` branches and
+release PRs alone. External contributors don't need to do anything for release —
+the maintainer
+will handle versioning and the changelog. See [`RELEASING.md`](RELEASING.md)
+for the full process, approval rules, and supported versions.
 
 ## Getting help
 

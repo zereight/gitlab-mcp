@@ -2856,7 +2856,12 @@ export const ListIssuesSchema = z
     created_before: z.string().optional().describe("Created before"),
     due_date: z.string().optional().describe("Due date"),
     labels: coerceStringArray.optional().describe("Label names"),
-    milestone: z.string().optional().describe("Milestone title"),
+    milestone: z
+      .string()
+      .optional()
+      .describe(
+        "Exact milestone title, not an ID; None for no milestone, Any for any milestone. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset); the group tool omits subgroup issues."
+      ),
 
     issue_type: z
       .enum(["issue", "incident", "test_case", "task"])
@@ -3672,7 +3677,11 @@ export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
 
 // Schema for getting a single milestone
 export const GetProjectMilestoneSchema = ProjectParamsSchema.extend({
-  milestone_id: z.coerce.string().describe("The ID of a project milestone"),
+  milestone_id: z.coerce
+    .string()
+    .describe(
+      "Project milestone id (not iid, the number in its web URL). list_milestones returns both."
+    ),
 });
 
 // Schema for creating a new milestone
@@ -3750,7 +3759,11 @@ export const ListGroupMilestonesSchema = z
 
 export const GetGroupMilestoneSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  milestone_id: z.coerce.string().describe("The ID of a group milestone"),
+  milestone_id: z.coerce
+    .string()
+    .describe(
+      "Group milestone id (not iid, the number in its web URL). list_group_milestones returns both."
+    ),
 });
 
 export const CreateGroupMilestoneSchema = z.object({
@@ -4009,7 +4022,11 @@ export const MarkdownUploadRemoteSchema = z.object({
 export const DownloadAttachmentSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
-  filename: z.string().describe("The filename of the upload"),
+  filename: z
+    .string()
+    .describe(
+      "The filename of the upload, copied from its URL as is, percent-encoding included (e.g. `Capture_d_e%CC%81cran.png` from `/uploads/<secret>/Capture_d_e%CC%81cran.png`): retyping accented characters can change their bytes"
+    ),
   local_path: z
     .string()
     .optional()
@@ -4027,7 +4044,11 @@ export const DownloadAttachmentSchema = z.object({
 export const DownloadAttachmentRemoteSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
-  filename: z.string().describe("The filename of the upload"),
+  filename: z
+    .string()
+    .describe(
+      "The filename of the upload, copied from its URL as is, percent-encoding included (e.g. `Capture_d_e%CC%81cran.png` from `/uploads/<secret>/Capture_d_e%CC%81cran.png`): retyping accented characters can change their bytes"
+    ),
 });
 
 export const GroupIteration = z.object({
@@ -4885,15 +4906,23 @@ export const GitLabProtectedTagSchema = z.object({
   create_access_levels: z.array(GitLabProtectedTagAccessLevelSchema).optional(),
 });
 
+// Tag response shape varies by GitLab version and tag type:
+// - top-level created_at is not exposed by GitLab 16.0.x (Entities::Tag in v16.0.8-ee has no
+//   created_at); newer versions return it, and lightweight tags return null.
+// - message is null for lightweight tags.
+// - release is omitted or null when no release exists; release.description may be null.
+// - commit.created_at is accepted as null or omitted as a defensive loosening; GitLab usually
+//   emits committed_date there, and #1015's error listed only the top-level created_at.
+// name, target, commit.id and protected stay required (always emitted by GitLab).
 export const GitLabTagSchema = z.object({
   name: z.string(),
-  message: z.string().nullable(),
+  message: z.string().nullish(),
   target: z.string(),
   commit: z.object({
     id: z.string(),
     short_id: z.string(),
     title: z.string(),
-    created_at: z.string(),
+    created_at: z.string().nullish(),
     parent_ids: z.array(z.string()),
     message: z.string(),
     author_name: z.string(),
@@ -4906,11 +4935,11 @@ export const GitLabTagSchema = z.object({
   release: z
     .object({
       tag_name: z.string(),
-      description: z.string(),
+      description: z.string().nullish(),
     })
     .nullish(),
   protected: z.boolean(),
-  created_at: z.string().nullable(),
+  created_at: z.string().nullish(),
 });
 
 // --- Snippet schemas ---

@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "2.3.22",
+  "version": "2.3.25",
   "mcpName": "io.github.zereight/gitlab-mcp",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
   "keywords": [
@@ -53,6 +53,8 @@
     "test": "npm run test:all",
     "test:all": "npm run build && npm run test:mock && npm run test:live",
     "test:mock": "bash scripts/run-mock-tests.sh",
+    "test:coverage": "bash scripts/run-coverage.sh",
+    "coverage:summary": "tsx scripts/code-coverage-summary.ts",
     "test:stateless": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/stateless/codec.test.ts test/stateless/client-id.test.ts test/stateless/callback-proxy.test.ts test/stateless/session-id.test.ts test/stateless/session-id-integration.test.ts test/stateless/config-ttl.test.ts test/stateless/consumed-proxy-code-cache.test.ts",
     "test:mcp-oauth": "npm run build && node --import tsx/esm --test test/mcp-oauth-tests.ts",
     "test:live": "node test/validate-api.js",
@@ -100,11 +102,22 @@
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "auto-changelog": "^2.4.0",
+    "c8": "^12.0.0",
     "dotenv": "^17.2.2",
     "eslint": "^9.18.0",
+    "fast-check": "^4.10.2",
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.5",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    },
+    "test-exclude": {
+      "glob": "^14.0.4",
+      "minimatch": "^11.0.5"
+    }
   }
 }
