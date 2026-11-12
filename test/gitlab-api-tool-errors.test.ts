@@ -313,10 +313,31 @@ describe("GitLab API tool errors", () => {
     });
     const text = resultText(result);
     assert.equal(result.isError, true, text);
-    assert.match(text, /^No project ID provided and GITLAB_PROJECT_ID is not set\nNext: /);
+    assert.match(text, /^No project ID provided\nNext: /);
     assert.match(text, /pass project_id \(numeric ID or group%2Fproject\)/);
     assert.equal(text.split("\nNext: ").length, 2);
     assert.doesNotMatch(text, /Failed to fork repository/);
+    // Setting GITLAB_PROJECT_ID makes fork_repository reject every call, so the hint must not
+    // suggest it.
+    assert.doesNotMatch(text, /GITLAB_PROJECT_ID/);
+  });
+
+  test("other tools keep the generic GITLAB_PROJECT_ID hint for an empty project_id", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "create_merge_request",
+      arguments: {
+        project_id: "",
+        title: "Test MR",
+        source_branch: "feature",
+        target_branch: "main",
+      },
+    });
+    const text = resultText(result);
+    assert.equal(result.isError, true, text);
+    assert.match(text, /^No project ID provided and GITLAB_PROJECT_ID is not set\nNext: /);
+    assert.match(text, /or set GITLAB_PROJECT_ID to give the server a default project/);
+    assert.equal(text.split("\nNext: ").length, 2);
   });
 
   test("fork_repository keeps returning GitLab failures as data", async t => {
