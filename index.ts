@@ -2286,6 +2286,9 @@ const WORK_ITEM_TYPE_NOT_FOUND_HINT =
   "this project does not offer that work item type (some types need a higher GitLab tier or are turned off); use another type, such as issue or task.";
 const VULNERABILITY_NOT_FOUND_HINT =
   "check vulnerability_id; list_project_vulnerabilities lists the vulnerabilities the token can read.";
+// Unlike the generic getEffectiveProjectId hint, this one does not suggest setting
+// GITLAB_PROJECT_ID: fork_repository is rejected whenever GITLAB_PROJECT_ID is set.
+const FORK_PROJECT_ID_REQUIRED_HINT = "pass project_id (numeric ID or group%2Fproject).";
 
 /**
  * Utility function for handling GitLab API errors
@@ -2441,6 +2444,14 @@ function rejectIfProjectScopedDeployment(toolName: string): void {
  */
 async function forkProject(projectId: string, namespace?: string): Promise<GitLabFork> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  // fork_repository has already rejected GITLAB_PROJECT_ID and allowlist setups, so there is
+  // no default project to fall back to. Fail here with a fork-specific hint instead of the
+  // generic getEffectiveProjectId one.
+  if (!projectId) {
+    throw new ToolInputError(
+      withRecoveryHint("No project ID provided", FORK_PROJECT_ID_REQUIRED_HINT)
+    );
+  }
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/fork`
@@ -11561,6 +11572,11 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
+          // Argument errors (e.g. an empty project_id) belong to the central handler, which
+          // returns them as isError results with a Next: hint.
+          if (forkError instanceof ToolInputError) {
+            throw forkError;
+          }
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
