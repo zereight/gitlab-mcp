@@ -1094,6 +1094,56 @@ Example:
 LOG_FORMAT=json LOG_LEVEL=warn npm start
 ```
 
+## Audit log
+
+Opt-in NDJSON of MCP tool calls for SIEM ingestion. This is a logging building
+block: retention, access control, and any compliance mapping are the operator's
+responsibility. Disabled by default. When disabled, tool-call behavior and
+output are unchanged.
+
+Each enabled tool call writes one JSON object with an allowlist of fields:
+timestamp (ISO UTC), event type (`tool_call`), transport
+(`stdio` / `streamable-http` / `sse`), session id when present (sealed
+stateless sids are redacted), auth method of the accepted request
+(`pat`, `job-token`, `oauth`, `remote-header`, or `cookie` — never the
+credential; a JOB-TOKEN or Private-Token request is not recorded as `oauth`
+just because MCP OAuth is enabled), GitLab user id/username
+only when already known without an extra API call, tool name, `project_id` /
+`group_id` when those scalars are present in the arguments, outcome
+(`success` / `error`), error class and HTTP status on failure, and duration in
+milliseconds. Argument bodies, response bodies, tokens, headers, and free-text
+messages are never written.
+
+A failure writing the audit log is reported once as a warning and does not fail
+the tool call.
+
+### `GITLAB_AUDIT_LOG`
+
+Optional. Set to `true` to emit one NDJSON audit line per MCP tool call.
+Any other value, including unset, leaves auditing off.
+
+CLI: `--audit-log=true`
+
+Default:
+
+- `false`
+
+### `GITLAB_AUDIT_LOG_FILE`
+
+Optional path. When `GITLAB_AUDIT_LOG=true` and this is unset, lines are
+appended to **stderr** as NDJSON. They are never written to stdout: the stdio
+MCP transport uses stdout for protocol messages. Prefer a file for stdio
+deployments so human logs and MCP traffic stay separate.
+
+CLI: `--audit-log-file`
+
+Example:
+
+```bash
+GITLAB_AUDIT_LOG=true
+GITLAB_AUDIT_LOG_FILE=/var/log/gitlab-mcp/audit.ndjson
+```
+
 ## Transport and Server Runtime
 
 ### `GITLAB_MCP_REQUEST_BODY_LIMIT`

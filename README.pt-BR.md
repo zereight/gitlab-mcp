@@ -307,6 +307,8 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
 - `--list-summary-default=true` - ferramentas `list_*` tratam o argumento `summary` omitido como `true`; `summary: false` ainda retorna o JSON completo (substitui `GITLAB_MCP_LIST_SUMMARY_DEFAULT`; desativado por padrão)
+- `--audit-log=true` - log de auditoria NDJSON opcional das chamadas de ferramentas MCP para ingestão SIEM (substitui `GITLAB_AUDIT_LOG`; desativado por padrão)
+- `--audit-log-file` - anexa as linhas de auditoria a este arquivo; se omitido, escreve NDJSON em stderr, nunca em stdout (substitui `GITLAB_AUDIT_LOG_FILE`)
 - `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
 
 Se você já definiu `GITLAB_TOOLSETS` ou `--toolsets`, acrescente `wiki`, `milestones` ou `pipelines` a essa lista em vez de substituí-la. Se você já definiu `GITLAB_TOOLS` ou `--tools`, acrescente `validate_ci_lint` e `validate_project_ci_lint` a essa lista em vez de substituí-la. Uma lista explícita substitui o toolset padrão `core`; ela não é mesclada.
