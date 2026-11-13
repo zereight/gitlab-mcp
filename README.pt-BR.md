@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![GitHub stars](https://badgen.net/github/stars/zereight/gitlab-mcp?icon=github&label=Star)](https://github.com/zereight/gitlab-mcp)
