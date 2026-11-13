@@ -309,9 +309,11 @@ export function isCliOutputMode(value: string): value is OutputMode {
 
 function userArgv(argv: readonly string[]): readonly string[] {
   const args = argv.slice(2);
-  const start = args.findIndex(arg => !arg.startsWith("-") && SCRIPT_PATH_PATTERN.test(arg));
-  if (start >= 0) {
-    return args.slice(start + 1);
+  // Only the first positional can be the script a runner passes in. A later
+  // value such as `src/app.ts` is a tool argument, not a script path.
+  const first = args.findIndex(arg => !arg.startsWith("-"));
+  if (first >= 0 && SCRIPT_PATH_PATTERN.test(args[first])) {
+    return args.slice(first + 1);
   }
   return args;
 }

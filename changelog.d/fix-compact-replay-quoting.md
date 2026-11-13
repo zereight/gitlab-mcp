@@ -6,3 +6,4 @@
 
 - A replay command that carries a newline in an argument passes the newline through instead of a literal backslash and `n`.
 - A value that starts with `-` in a replay command is passed in `--flag=value` form, so the CLI no longer rejects it as a missing value.
+- `zereight-mcp-gitlab tool` no longer drops the subcommand when a later flag value ends in `.ts` or `.js`, such as `--file-path src/app.ts`.
