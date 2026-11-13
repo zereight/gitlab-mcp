@@ -64,6 +64,7 @@ export type AuditTransport = "stdio" | "sse" | "streamable-http";
 const SAFE_ERROR_CLASS = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const DEFAULT_ERROR_CLASS = "Error";
 const TOOL_ERROR_CLASS = "ToolError";
+export const GRAPHQL_AUDIT_ERROR_CLASS = "GraphQLError";
 const STDOUT_PATHS = new Set(["/dev/stdout", "stdout", "1"]);
 
 export interface AuditResourceIds {
@@ -132,6 +133,7 @@ const markedAuditFailures = new WeakSet<object>();
 const markedAuditFailureErrors = new WeakMap<object, unknown>();
 
 let writeFailureWarned = false;
+let stderrErrorListenerAttached = false;
 let warningLogger: ReturnType<typeof createLogger> | undefined;
 
 export function resetAuditLogWriteWarningForTests(): void {
@@ -218,6 +220,20 @@ export function markToolResultAsAuditFailure(result: object, error?: unknown): v
   if (error !== undefined) {
     markedAuditFailureErrors.set(result, error);
   }
+}
+
+export function graphqlPayloadHasErrors(payload: unknown): boolean {
+  if (!isPlainRecord(payload)) {
+    return false;
+  }
+  const errors = ownProperty(payload, "errors");
+  return Array.isArray(errors) && errors.length > 0;
+}
+
+export function createGraphQLAuditFailure(): Error {
+  const error = new Error();
+  error.name = GRAPHQL_AUDIT_ERROR_CLASS;
+  return error;
 }
 
 function takeMarkedAuditFailure(result: unknown): { marked: boolean; error?: unknown } {
@@ -446,12 +462,12 @@ function defaultWriteLine(filePath: string | undefined): (line: string) => void 
   return function writeAuditLine(line: string): void {
     const payload = `${line}\n`;
     if (!filePath) {
-      process.stderr.write(payload);
+      writeAuditStderr(payload);
       return;
     }
     const trimmed = filePath.trim();
     if (trimmed.length === 0) {
-      process.stderr.write(payload);
+      writeAuditStderr(payload);
       return;
     }
     if (isStdoutPath(trimmed)) {
@@ -459,6 +475,16 @@ function defaultWriteLine(filePath: string | undefined): (line: string) => void 
     }
     fs.appendFileSync(trimmed, payload);
   };
+}
+
+function writeAuditStderr(payload: string): void {
+  if (!stderrErrorListenerAttached) {
+    stderrErrorListenerAttached = true;
+    process.stderr.on("error", error => {
+      warnAuditWriteFailure(error);
+    });
+  }
+  process.stderr.write(payload);
 }
 
 function warnAuditWriteFailure(error: unknown, warn?: (error: unknown) => void): void {

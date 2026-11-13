@@ -768,7 +768,9 @@ import {
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import {
+  createGraphQLAuditFailure,
   createToolCallAuditor,
+  graphqlPayloadHasErrors,
   markToolResultAsAuditFailure,
   readKnownGitLabUserId,
   readKnownGitLabUsername,
@@ -990,7 +992,7 @@ function createServer(): McpServer {
             allowedProjectIds: authData.allowedProjectIds,
           }
         : undefined;
-      auditor.setSessionHeader(sessionContext?.header);
+      auditor.setSessionHeader(sessionContext?.header ?? sessionAuthStore.getStore()?.header);
       const selectMaskingPolicy = () => {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
@@ -11537,9 +11539,13 @@ async function handleToolCall(params: any) {
             await handleGitLabError(response);
           }
           const json = await response.json();
-          return {
+          const graphqlResult = {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
+          if (graphqlPayloadHasErrors(json)) {
+            markToolResultAsAuditFailure(graphqlResult, createGraphQLAuditFailure());
+          }
+          return graphqlResult;
         } catch (err) {
           // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);

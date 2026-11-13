@@ -3,10 +3,13 @@ import { describe, it } from "node:test";
 import {
   AUDIT_EVENT_TYPE,
   AUDIT_FIELD_ALLOWLIST,
+  GRAPHQL_AUDIT_ERROR_CLASS,
   buildAuditRecord,
   classifyAuditFailure,
+  createGraphQLAuditFailure,
   createToolCallAuditor,
   extractAuditResourceIds,
+  graphqlPayloadHasErrors,
   markToolResultAsAuditFailure,
   readKnownGitLabUserId,
   readKnownGitLabUsername,
@@ -522,6 +525,51 @@ describe("When creating a tool-call auditor", () => {
       const parsed: unknown = JSON.parse(lines[0]);
       assert.ok(parsed !== null && typeof parsed === "object");
       assert.equal(Reflect.get(parsed, "outcome"), "success");
+      assert.equal(lines[0].includes(SECRET_TOKEN), false);
+      assert.equal(lines[0].includes(SECRET_BODY), false);
+    });
+  });
+
+  describe("with a GraphQL HTTP 200 payload that contains errors", () => {
+    it("should record outcome error without copying GraphQL messages", () => {
+      const lines: string[] = [];
+      const payload = {
+        data: null,
+        errors: [{ message: SECRET_BODY }],
+      };
+      assert.equal(graphqlPayloadHasErrors(payload), true);
+      assert.equal(graphqlPayloadHasErrors({ data: { currentUser: { id: "1" } } }), false);
+      assert.equal(graphqlPayloadHasErrors({ errors: [] }), false);
+
+      const result = {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+      };
+      markToolResultAsAuditFailure(result, createGraphQLAuditFailure());
+
+      const auditor = createToolCallAuditor(
+        {
+          toolName: "execute_graphql",
+          args: { query: SECRET_BODY, token: SECRET_TOKEN },
+          startedAtMs: FIXED_NOW.getTime(),
+        },
+        {
+          enabled: true,
+          now: () => FIXED_NOW,
+          writeLine: line => {
+            lines.push(line);
+          },
+        }
+      );
+
+      auditor.recordResult(result);
+
+      assert.equal("isError" in result, false);
+      assert.equal(lines.length, 1);
+      const parsed: unknown = JSON.parse(lines[0]);
+      assert.ok(parsed !== null && typeof parsed === "object");
+      assert.equal(Reflect.get(parsed, "outcome"), "error");
+      assert.equal(Reflect.get(parsed, "errorClass"), GRAPHQL_AUDIT_ERROR_CLASS);
+      assert.equal("httpStatus" in parsed, false);
       assert.equal(lines[0].includes(SECRET_TOKEN), false);
       assert.equal(lines[0].includes(SECRET_BODY), false);
     });

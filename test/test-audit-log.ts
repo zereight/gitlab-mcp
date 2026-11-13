@@ -15,6 +15,8 @@ const MOCK_TOKEN = "glpat-mock-token-12345";
 const SECRET_TOKEN = "glpat-argument-token-must-not-be-logged";
 const SECRET_BODY = "confidential-issue-body-must-not-be-logged";
 const MISSING_PROJECT_ID = "404-missing";
+const GRAPHQL_TRANSPORT_QUERY = "query { currentUser { id } }";
+const GRAPHQL_ERROR_QUERY = "query { auditErrorField }";
 const ALLOWLISTED_FIELDS = new Set<string>(AUDIT_FIELD_ALLOWLIST);
 
 function isAllowlistedField(key: string): boolean {
@@ -65,6 +67,24 @@ async function startMockGitLab(): Promise<MockGitLabServer> {
   });
   mockGitLab.addMockHandler("get", `/projects/${MISSING_PROJECT_ID}`, (_req, res) => {
     res.status(404).json({ message: "404 Project Not Found" });
+  });
+  mockGitLab.addRootHandler("post", "/api/graphql", (req, res) => {
+    const body = req.body;
+    const query =
+      typeof body === "object" && body !== null && !Array.isArray(body) && "query" in body
+        ? Reflect.get(body, "query")
+        : undefined;
+    if (query === GRAPHQL_ERROR_QUERY) {
+      res.status(200).json({
+        data: null,
+        errors: [{ message: SECRET_BODY }],
+      });
+      return;
+    }
+    res.status(404).json({
+      message: "404 Not Found",
+      error: "Endpoint not implemented in mock server",
+    });
   });
   await mockGitLab.start();
   return mockGitLab;
@@ -151,20 +171,30 @@ describe("When the MCP server runs against mock GitLab", () => {
         });
         assert.equal(failure.isError, true);
 
-        const graphqlFailure = await client.callTool({
+        const graphqlTransportFailure = await client.callTool({
           name: "execute_graphql",
           arguments: {
-            query: "query { currentUser { id } }",
+            query: GRAPHQL_TRANSPORT_QUERY,
             token: SECRET_TOKEN,
             body: SECRET_BODY,
           },
         });
-        assert.notEqual(graphqlFailure.isError, true);
+        assert.notEqual(graphqlTransportFailure.isError, true);
+
+        const graphqlDataFailure = await client.callTool({
+          name: "execute_graphql",
+          arguments: {
+            query: GRAPHQL_ERROR_QUERY,
+            token: SECRET_TOKEN,
+            body: SECRET_BODY,
+          },
+        });
+        assert.notEqual(graphqlDataFailure.isError, true);
       });
 
       const raw = readFileSync(auditFile, "utf8");
       const records = readNdjson(auditFile);
-      assert.equal(records.length, 3, raw);
+      assert.equal(records.length, 4, raw);
 
       const successRecord = records.find(
         record => record.outcome === "success" && record.tool === "get_project"
@@ -172,15 +202,25 @@ describe("When the MCP server runs against mock GitLab", () => {
       const errorRecord = records.find(
         record => record.outcome === "error" && record.tool === "get_project"
       );
-      const graphqlRecord = records.find(record => record.tool === "execute_graphql");
+      const graphqlTransportRecord = records.find(
+        record => record.tool === "execute_graphql" && record.errorClass === "GitLabApiError"
+      );
+      const graphqlDataRecord = records.find(
+        record => record.tool === "execute_graphql" && record.errorClass === "GraphQLError"
+      );
       assert.ok(successRecord, "missing success audit line");
       assert.ok(errorRecord, "missing error audit line");
-      assert.ok(graphqlRecord, "missing graphql audit line");
+      assert.ok(graphqlTransportRecord, "missing graphql transport audit line");
+      assert.ok(graphqlDataRecord, "missing graphql data-error audit line");
 
       const lines = raw.trim().split("\n");
       assertSafeAuditRecord(successRecord, lines[records.indexOf(successRecord)] ?? raw);
       assertSafeAuditRecord(errorRecord, lines[records.indexOf(errorRecord)] ?? raw);
-      assertSafeAuditRecord(graphqlRecord, lines[records.indexOf(graphqlRecord)] ?? raw);
+      assertSafeAuditRecord(
+        graphqlTransportRecord,
+        lines[records.indexOf(graphqlTransportRecord)] ?? raw
+      );
+      assertSafeAuditRecord(graphqlDataRecord, lines[records.indexOf(graphqlDataRecord)] ?? raw);
 
       assert.equal(successRecord.tool, "get_project");
       assert.equal(successRecord.projectId, "123");
@@ -194,9 +234,12 @@ describe("When the MCP server runs against mock GitLab", () => {
       assert.equal(errorRecord.errorClass, "GitLabApiError");
       assert.equal(errorRecord.httpStatus, 404);
 
-      assert.equal(graphqlRecord.outcome, "error");
-      assert.equal(graphqlRecord.errorClass, "GitLabApiError");
+      assert.equal(graphqlTransportRecord.outcome, "error");
+      assert.equal(graphqlTransportRecord.httpStatus, 404);
+      assert.equal(graphqlDataRecord.outcome, "error");
+      assert.equal("httpStatus" in graphqlDataRecord, false);
       assert.equal(raw.includes("GraphQL request failed"), false);
+      assert.equal(raw.includes("auditErrorField"), false);
     });
   });
 
