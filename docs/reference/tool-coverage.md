@@ -127,7 +127,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`get_merge_request_version`](../tools/merge-requests.md#get_merge_request_version)
 - [ ] [`update_merge_request`](../tools/merge-requests.md#update_merge_request)
 - [x] [`create_merge_request`](../tools/merge-requests.md#create_merge_request) — `test/allowed-project-target-scope.test.ts`, `test/gitlab-api-tool-errors.test.ts`, `test/response-masking.test.ts`
-- [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
+- [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/compact-replay-quoting.test.ts`, `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
 - [x] [`list_group_merge_requests`](../tools/merge-requests.md#list_group_merge_requests) — `test/response-masking.test.ts`, `test/test-list-group-merge-requests.ts`
 - [ ] [`get_branch_diffs`](../tools/merge-requests.md#get_branch_diffs)
 - [x] [`mr_discussions`](../tools/merge-requests.md#mr_discussions) — `test/test-mr-discussions-summary.ts`
