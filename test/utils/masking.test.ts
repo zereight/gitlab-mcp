@@ -738,6 +738,18 @@ describe("When builtin AWS key masking runs", () => {
     });
   });
 
+  describe("with a custom keyword that matches an AWS secret prefix", () => {
+    test("should still mask the complete field value", () => {
+      const engine = createEnabledEngine({
+        rules: [{ id: "prefix", type: "keyword", match: "AAAA", replacement: "[prefix]" }],
+      });
+      const secret = `AAAA${"B".repeat(36)}`;
+      assert.deepEqual(engine.maskValue({ AWS_SECRET_ACCESS_KEY: secret }), {
+        AWS_SECRET_ACCESS_KEY: "[AWS key masked]",
+      });
+    });
+  });
+
   describe("with the aws-access-key builtin disabled", () => {
     test("should leave structured AWS secret fields visible", () => {
       const engine = createEnabledEngine({ builtins: { "aws-access-key": { enabled: false } } });

@@ -315,16 +315,15 @@ function applyAwsSecretFieldMask(
   masked: string,
   replacement: string | undefined
 ): string {
-  if (masked !== value) return masked;
   if (
-    replacement === undefined ||
-    parentKey === undefined ||
-    !AWS_SECRET_FIELD_NAMES.has(parentKey) ||
-    !AWS_SECRET_VALUE_PATTERN.test(value)
+    replacement !== undefined &&
+    parentKey !== undefined &&
+    AWS_SECRET_FIELD_NAMES.has(parentKey) &&
+    AWS_SECRET_VALUE_PATTERN.test(value)
   ) {
-    return masked;
+    return replacement;
   }
-  return replacement;
+  return masked;
 }
 
 function maskStrings(
