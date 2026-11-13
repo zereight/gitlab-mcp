@@ -1,11 +1,16 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'child_process';
-import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
+import { MockGitLabServer, findMockServerPort, LONG_PATH, LONG_PATH_MR_IID } from './utils/mock-gitlab-server.js';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_MR_IID = '1';
+// A backtracking engine never returns on this pattern against LONG_PATH.
+const BACKTRACKING_PATTERN = '^(.+)+Q$';
+// Kills the server process if a call never returns, so a regression fails the
+// test instead of stalling the suite.
+const CALL_TIMEOUT_MS = 15_000;
 
 // Helper to call get_merge_request_diffs
 async function callGetMergeRequestDiffs(args: Record<string, any> = {}, env: NodeJS.ProcessEnv) {
@@ -24,7 +29,13 @@ async function callGetMergeRequestDiffs(args: Record<string, any> = {}, env: Nod
     proc.stdout?.on('data', d => output += d);
     proc.stderr?.on('data', d => errorOutput += d);
 
+    const timer = setTimeout(() => {
+      proc.kill('SIGKILL');
+      reject(new Error(`get_merge_request_diffs did not finish within ${CALL_TIMEOUT_MS} ms`));
+    }, CALL_TIMEOUT_MS);
+
     proc.on('close', (code) => {
+      clearTimeout(timer);
       if (code !== 0) return reject(new Error(`Process exited with code ${code}: ${errorOutput}`));
 
       // Find the JSON line in stdout
@@ -152,5 +163,90 @@ describe('get_merge_request_diffs with excluded_file_patterns', () => {
     assert.strictEqual(diffs.length, 2, 'Should return 2 diffs (vendor and package-lock filtered out)');
     assert.strictEqual(diffs[0].new_path, 'src/index.ts');
     assert.strictEqual(diffs[1].new_path, 'README.md');
+  });
+
+  test('a backtracking-prone pattern returns quickly and keeps a non-matching long path', async () => {
+    const diffs = await callGetMergeRequestDiffs(
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: String(LONG_PATH_MR_IID),
+        excluded_file_patterns: [BACKTRACKING_PATTERN]
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+      }
+    );
+
+    assert.deepStrictEqual(diffs.map(diff => diff.new_path), [LONG_PATH]);
+  });
+
+  test('50 patterns with a backtracking-prone pattern still apply a matching pattern', async () => {
+    const diffs = await callGetMergeRequestDiffs(
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: String(LONG_PATH_MR_IID),
+        excluded_file_patterns: [...Array(49).fill(BACKTRACKING_PATTERN), '\\.ts$']
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+      }
+    );
+
+    assert.deepStrictEqual(diffs, []);
+  });
+
+  test('rejects more than 50 excluded_file_patterns with a clear error', async () => {
+    await assert.rejects(
+      callGetMergeRequestDiffs(
+        {
+          project_id: TEST_PROJECT_ID,
+          merge_request_iid: TEST_MR_IID,
+          excluded_file_patterns: Array(51).fill('^vendor/')
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+        }
+      ),
+      /Invalid arguments for get_merge_request_diffs: excluded_file_patterns: .*50/
+    );
+  });
+
+  test('rejects an excluded_file_patterns entry longer than 200 characters', async () => {
+    await assert.rejects(
+      callGetMergeRequestDiffs(
+        {
+          project_id: TEST_PROJECT_ID,
+          merge_request_iid: TEST_MR_IID,
+          excluded_file_patterns: [`^${'a'.repeat(200)}$`]
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+        }
+      ),
+      /Invalid arguments for get_merge_request_diffs: excluded_file_patterns\.0: .*200/
+    );
+  });
+
+  test('ignores a pattern RE2 cannot compile and applies the rest', async () => {
+    const diffs = await callGetMergeRequestDiffs(
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: TEST_MR_IID,
+        excluded_file_patterns: ['^vendor/(?=.)', '^README']
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+      }
+    );
+
+    assert.deepStrictEqual(
+      diffs.map(diff => diff.new_path),
+      ['src/index.ts', 'vendor/package/file.js', 'package-lock.json']
+    );
   });
 });
