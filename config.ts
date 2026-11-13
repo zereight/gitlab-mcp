@@ -68,6 +68,18 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
 /** Directory that download_attachment saves files under (default .gitlab-mcp-downloads). */
 export const GITLAB_DOWNLOAD_DIR = getConfig("download-dir", "GITLAB_DOWNLOAD_DIR");
 
+/**
+ * Opt-in NDJSON audit log of MCP tool calls for SIEM ingestion.
+ * Off by default: unset or any value other than `true` leaves tool-call
+ * behavior and output unchanged.
+ */
+export const GITLAB_AUDIT_LOG = getConfig("audit-log", "GITLAB_AUDIT_LOG") === "true";
+/**
+ * Optional destination file for the audit log. When unset, NDJSON lines go to
+ * stderr. Never stdout: stdio transport uses stdout for MCP messages.
+ */
+export const GITLAB_AUDIT_LOG_FILE = getConfig("audit-log-file", "GITLAB_AUDIT_LOG_FILE");
+
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
 export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");

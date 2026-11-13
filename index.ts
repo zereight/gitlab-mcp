@@ -767,6 +767,11 @@ import {
 } from "./schemas.js";
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createToolCallAuditor,
+  readKnownGitLabUserId,
+  readKnownGitLabUsername,
+} from "./utils/audit-log.js";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -881,7 +886,7 @@ function createServer(): McpServer {
     };
   });
 
-  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any, extra) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
@@ -889,6 +894,14 @@ function createServer(): McpServer {
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
     const requestArguments = readOwnRecord(request.params.arguments);
+    const auditor = createToolCallAuditor({
+      toolName,
+      sessionId: extra.sessionId ?? sessionId,
+      args: requestArguments,
+      startedAtMs: start,
+      gitlabUserId: readKnownGitLabUserId(extra.authInfo?.extra),
+      gitlabUsername: readKnownGitLabUsername(extra.authInfo?.extra),
+    });
     const jmespathExpression = readJmespathExpression(
       requestArguments === undefined ? undefined : { ...requestArguments }
     );
@@ -924,7 +937,7 @@ function createServer(): McpServer {
           })
         : filtered;
       // Last exit for successful results: structuredContent is object-or-absent (#675).
-      return finalizeToolCallResult({
+      const finalized = finalizeToolCallResult({
         result: masked,
         enabled: shouldCompactToolResult(
           toolName,
@@ -935,6 +948,8 @@ function createServer(): McpServer {
         toolName,
         args: readOwnRecord(request.params.arguments),
       });
+      auditor.recordResult(finalized);
+      return finalized;
     };
 
     const logError = (error: unknown): unknown => {
@@ -953,6 +968,7 @@ function createServer(): McpServer {
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
       flushBufferedLogs(logger);
+      auditor.recordError(safeError);
       return safeError;
     };
 

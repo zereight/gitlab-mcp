@@ -312,6 +312,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--compact-result-chars` - Character threshold for compacting (replaces `GITLAB_MCP_COMPACT_RESULT_CHARS`; default `4000`)
 - `--compact-tools` - Comma-separated tool names to compact when oversized, without turning global compact on (replaces `GITLAB_MCP_COMPACT_TOOLS`)
 - `--list-summary-default=true` - `list_*` tools and `mr_discussions` treat an omitted `summary` argument as `true`; `summary: false` still returns the full JSON (replaces `GITLAB_MCP_LIST_SUMMARY_DEFAULT`; default off)
+- `--audit-log=true` - Opt-in NDJSON audit log of MCP tool calls for SIEM ingestion (replaces `GITLAB_AUDIT_LOG`; default off)
+- `--audit-log-file` - Append audit lines to this file; unset writes NDJSON to stderr, never stdout (replaces `GITLAB_AUDIT_LOG_FILE`)
 - `--tool-profile` - `full` (default) or `slim`. `slim` drops draft notes, emoji reactions, labels, CI catalog tools, and `create_group` from the initial list. Ignored when `GITLAB_TOOLSETS` is set (replaces `GITLAB_TOOL_PROFILE`)
 
 If you already set `GITLAB_TOOLSETS` or `--toolsets`, append `wiki`, `milestones`, or `pipelines` to that list instead of replacing it. If you already set `GITLAB_TOOLS` or `--tools`, append `validate_ci_lint` and `validate_project_ci_lint` to that list instead of replacing it. An explicit list replaces the default `core` toolset; it does not merge.
@@ -590,6 +592,7 @@ The reference document also covers:
 - dynamic tool discovery via `discover_tools` (on-demand toolset activation)
 - transport and session variables
 - proxy and TLS variables
+- opt-in SIEM audit log (`GITLAB_AUDIT_LOG`)
 
 For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
 
