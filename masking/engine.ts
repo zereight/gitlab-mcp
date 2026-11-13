@@ -106,10 +106,11 @@ const BUILTIN_RULES: MaskRule[] = [
   {
     id: "pem-private-key",
     type: "regex",
-    // BEGIN/END labels must match. Body is a single bounded class (PEM base64
-    // plus Proc-Type / DEK-Info headers), not a nested quantifier.
+    // BEGIN/END labels must match. Body is a single bounded lazy class (PEM
+    // base64 plus Proc-Type / DEK-Info headers) so each match stops at its
+    // first END marker. No nested quantifiers.
     pattern:
-      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----\\r?\\n[A-Za-z0-9+/=\\s,.:-]{1,32768}-----END \\1-----",
+      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----\\r?\\n[A-Za-z0-9+/=\\s,.:-]{1,32768}?-----END \\1-----",
     flags: "g",
     replacement: "[Private key masked]",
   },
@@ -117,9 +118,10 @@ const BUILTIN_RULES: MaskRule[] = [
     id: "aws-access-key",
     type: "regex",
     // AKIA/ASIA IDs are a fixed 20-char shape. Secret values are only matched
-    // on aws_secret_access_key assignments to keep false positives low.
+    // on aws_secret_access_key assignments (quoted or unquoted names) to keep
+    // false positives low. JSON object fields are handled separately.
     pattern:
-      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)\\s*[=:]\\s*[\"']?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
+      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[\"']?\\s*[=:]\\s*[\"']?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
     flags: "g",
     replacement: "[AWS key masked]",
   },
@@ -304,9 +306,34 @@ function validateMaskingFile(value: unknown, description: string): asserts value
   }
 }
 
-function maskStrings(value: unknown, mask: (text: string) => string, parentKey?: string): unknown {
+const AWS_SECRET_FIELD_NAMES = new Set(["aws_secret_access_key", "AWS_SECRET_ACCESS_KEY"]);
+const AWS_SECRET_VALUE_PATTERN = /^[A-Za-z0-9/+=]{40}$/;
+
+function applyAwsSecretFieldMask(
+  parentKey: string | undefined,
+  value: string,
+  masked: string,
+  replacement: string | undefined
+): string {
+  if (masked !== value) return masked;
+  if (
+    replacement === undefined ||
+    parentKey === undefined ||
+    !AWS_SECRET_FIELD_NAMES.has(parentKey) ||
+    !AWS_SECRET_VALUE_PATTERN.test(value)
+  ) {
+    return masked;
+  }
+  return replacement;
+}
+
+function maskStrings(
+  value: unknown,
+  mask: (text: string, parentKey?: string) => string,
+  parentKey?: string
+): unknown {
   if (typeof value === "string") {
-    const masked = mask(value);
+    const masked = mask(value, parentKey);
     return masked !== value && parentKey === "download_url" ? "[Download URL masked]" : masked;
   }
   if (Array.isArray(value)) return value.map(item => maskStrings(item, mask, parentKey));
@@ -318,7 +345,7 @@ function maskStrings(value: unknown, mask: (text: string) => string, parentKey?:
   return value;
 }
 
-function maskJsonText(text: string, mask: (text: string) => string): string {
+function maskJsonText(text: string, mask: (text: string, parentKey?: string) => string): string {
   try {
     const parsed = JSON.parse(text) as unknown;
     if (!parsed || typeof parsed !== "object") return mask(text);
@@ -334,7 +361,7 @@ function maskJsonText(text: string, mask: (text: string) => string): string {
       propertyKey = value;
       return literal;
     }
-    const masked = mask(value);
+    const masked = mask(value, propertyKey);
     if (masked === value) return literal;
     const isDownloadUrl = propertyKey === "download_url" && /:\s*$/.test(text.slice(0, offset));
     return JSON.stringify(isDownloadUrl ? "[Download URL masked]" : masked);
@@ -380,10 +407,13 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
     }
     return output + text.slice(cursor);
   };
+  const awsSecretFieldReplacement = rules.find(rule => rule.id === "aws-access-key")?.replacement;
+  const maskString = (text: string, parentKey?: string): string =>
+    applyAwsSecretFieldMask(parentKey, text, maskText(text), awsSecretFieldReplacement);
   return {
     configPath,
     maskText,
-    maskValue: <T>(value: T): T => maskStrings(value, maskText) as T,
+    maskValue: <T>(value: T): T => maskStrings(value, maskString) as T,
     maskToolResult: <T extends Record<string, unknown>>(
       result: T,
       options?: { textFormat?: "plain" | "json" }
@@ -396,13 +426,13 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
           if (typeof block.text === "string") {
             block.text =
               options?.textFormat === "plain"
-                ? maskText(block.text)
-                : maskJsonText(block.text, maskText);
+                ? maskString(block.text)
+                : maskJsonText(block.text, maskString);
           }
           return block;
         });
       if (output.structuredContent !== undefined)
-        output.structuredContent = maskStrings(output.structuredContent, maskText);
+        output.structuredContent = maskStrings(output.structuredContent, maskString);
       return output as T;
     },
     maskError: (error: unknown): unknown => {

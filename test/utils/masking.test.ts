@@ -644,6 +644,16 @@ describe("When builtin PEM private key masking runs", () => {
     });
   });
 
+  describe("with two private key blocks and text between them", () => {
+    test("should keep the intervening text", () => {
+      const engine = createEnabledEngine();
+      assert.equal(
+        engine.maskText(`${PKCS8_PRIVATE_KEY}\nBuild failed.\n${PKCS8_PRIVATE_KEY}`),
+        "[Private key masked]\nBuild failed.\n[Private key masked]"
+      );
+    });
+  });
+
   describe("with a public key or an unterminated BEGIN block", () => {
     test("should leave the text unchanged", () => {
       const engine = createEnabledEngine();
@@ -689,6 +699,51 @@ describe("When builtin AWS key masking runs", () => {
         engine.maskText(`aws_secret_access_key: ${EXAMPLE_AWS_SECRET}`),
         "[AWS key masked]"
       );
+    });
+  });
+
+  describe("with a JSON-formatted AWS secret assignment", () => {
+    test("should mask the secret in the serialized object", () => {
+      const engine = createEnabledEngine();
+      const masked = engine.maskText(JSON.stringify({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }));
+      assert.equal(masked.includes(EXAMPLE_AWS_SECRET), false);
+      assert.match(masked, /\[AWS key masked\]/);
+    });
+  });
+
+  describe("with a structured AWS secret field", () => {
+    test("should mask the field value", () => {
+      const engine = createEnabledEngine();
+      assert.deepEqual(engine.maskValue({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }), {
+        AWS_SECRET_ACCESS_KEY: "[AWS key masked]",
+      });
+    });
+  });
+
+  describe("with JSON tool text containing an AWS secret field", () => {
+    test("should mask the field value", () => {
+      const engine = createEnabledEngine();
+      const result = engine.maskToolResult({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }),
+          },
+        ],
+      });
+      assert.equal(
+        result.content[0].text,
+        JSON.stringify({ AWS_SECRET_ACCESS_KEY: "[AWS key masked]" })
+      );
+    });
+  });
+
+  describe("with the aws-access-key builtin disabled", () => {
+    test("should leave structured AWS secret fields visible", () => {
+      const engine = createEnabledEngine({ builtins: { "aws-access-key": { enabled: false } } });
+      assert.deepEqual(engine.maskValue({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }), {
+        AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET,
+      });
     });
   });
 

@@ -167,8 +167,8 @@ repository. When masking is enabled, built-in rules cover:
 - PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
   variants (`pem-private-key`)
 - AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
-  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments
-  (`aws-access-key`)
+  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments or JSON
+  object fields (`aws-access-key`)
 
 Each builtin can be disabled or given a custom replacement under `builtins`.
 Rules are loaded at startup; invalid configured files fail startup.
