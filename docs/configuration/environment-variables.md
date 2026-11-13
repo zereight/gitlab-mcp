@@ -158,10 +158,20 @@ workspace directory when the MCP client does not set the server process cwd.
 
 The config file supports `keyword` rules for literal replacements and `regex`
 rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
-repository. When masking is enabled, built-in rules cover GitLab token prefixes
-`glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`, `glsoat-`, `gloas-`,
-`glagent-`, `glft-`, and `glimt-`, plus IPv4 and IPv6; each can be disabled or given a custom replacement under
-`builtins`. Rules are loaded at startup; invalid configured files fail startup.
+repository. When masking is enabled, built-in rules cover:
+
+- GitLab token prefixes `glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`,
+  `glsoat-`, `gloas-`, `glagent-`, `glft-`, and `glimt-` (`gitlab-token`)
+- IPv4 (`ipv4`) and IPv6 (`ipv6`) addresses
+- JWTs with three base64url segments starting with `eyJ` (`jwt`)
+- PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
+  variants (`pem-private-key`)
+- AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
+  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments
+  (`aws-access-key`)
+
+Each builtin can be disabled or given a custom replacement under `builtins`.
+Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement
 of the earliest match (the longest match wins when start positions are equal).

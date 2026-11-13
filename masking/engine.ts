@@ -93,6 +93,36 @@ const BUILTIN_RULES: MaskRule[] = [
     flags: "g",
     replacement: "[IP address]",
   },
+  {
+    id: "jwt",
+    type: "regex",
+    // Three base64url segments starting with eyJ ({"). Lengths are bounded so
+    // matching stays linear; no nested quantifiers.
+    pattern:
+      "\\beyJ[A-Za-z0-9_-]{0,8192}\\.[A-Za-z0-9_-]{1,8192}\\.[A-Za-z0-9_-]{1,8192}(?![A-Za-z0-9_-])",
+    flags: "g",
+    replacement: "[JWT masked]",
+  },
+  {
+    id: "pem-private-key",
+    type: "regex",
+    // BEGIN/END labels must match. Body is a single bounded class (PEM base64
+    // plus Proc-Type / DEK-Info headers), not a nested quantifier.
+    pattern:
+      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----\\r?\\n[A-Za-z0-9+/=\\s,.:-]{1,32768}-----END \\1-----",
+    flags: "g",
+    replacement: "[Private key masked]",
+  },
+  {
+    id: "aws-access-key",
+    type: "regex",
+    // AKIA/ASIA IDs are a fixed 20-char shape. Secret values are only matched
+    // on aws_secret_access_key assignments to keep false positives low.
+    pattern:
+      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)\\s*[=:]\\s*[\"']?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
+    flags: "g",
+    replacement: "[AWS key masked]",
+  },
 ];
 
 const ALLOWED_REGEX_FLAGS = new Set(["g", "i", "m", "s", "u"]);

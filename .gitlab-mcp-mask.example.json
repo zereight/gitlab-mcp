@@ -3,7 +3,10 @@
   "builtins": {
     "gitlab-token": { "enabled": true, "replacement": "[Token masked]" },
     "ipv4": { "enabled": true, "replacement": "[IP address]" },
-    "ipv6": { "enabled": true, "replacement": "[IP address]" }
+    "ipv6": { "enabled": true, "replacement": "[IP address]" },
+    "jwt": { "enabled": true, "replacement": "[JWT masked]" },
+    "pem-private-key": { "enabled": true, "replacement": "[Private key masked]" },
+    "aws-access-key": { "enabled": true, "replacement": "[AWS key masked]" }
   },
   "rules": [
     {

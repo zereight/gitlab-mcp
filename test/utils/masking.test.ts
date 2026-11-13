@@ -7,6 +7,53 @@ import { createMaskingEngine, createMaskingPolicyResolver } from "../../masking/
 import { getManagedMaskingProjectIds } from "../../masking/project-scope.js";
 import { allTools } from "../../tools/registry.js";
 
+const EXAMPLE_JWT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+const EXAMPLE_AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";
+const EXAMPLE_AWS_TEMP_KEY = "ASIAIOSFODNN7EXAMPLE";
+const EXAMPLE_AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+const EXAMPLE_COMMIT_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+const EXAMPLE_PNG_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhAGhqV3r3wAAAABJRU5ErkJggg==";
+const RSA_PRIVATE_KEY = [
+  "-----BEGIN RSA PRIVATE KEY-----",
+  "Proc-Type: 4,ENCRYPTED",
+  "DEK-Info: AES-128-CBC,00112233445566778899aabbccddeeff",
+  "",
+  "MIIBOgIBAAJBAKfakePrivateKeyMaterialForMaskingTestsOnlyNotRealKey=",
+  "-----END RSA PRIVATE KEY-----",
+].join("\n");
+const EC_PRIVATE_KEY = [
+  "-----BEGIN EC PRIVATE KEY-----",
+  "MHcCAQEEIFakeEcPrivateKeyMaterialForMaskingTestsOnlyNotRealKey=",
+  "-----END EC PRIVATE KEY-----",
+].join("\n");
+const OPENSSH_PRIVATE_KEY = [
+  "-----BEGIN OPENSSH PRIVATE KEY-----",
+  "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW",
+  "-----END OPENSSH PRIVATE KEY-----",
+].join("\n");
+const ENCRYPTED_PRIVATE_KEY = [
+  "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+  "MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQIfakeEncryptedKey=",
+  "-----END ENCRYPTED PRIVATE KEY-----",
+].join("\n");
+const PKCS8_PRIVATE_KEY = [
+  "-----BEGIN PRIVATE KEY-----",
+  "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQFakePkcs8Key==",
+  "-----END PRIVATE KEY-----",
+].join("\n");
+
+function createEnabledEngine(config?: Record<string, unknown>) {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-"));
+  if (config !== undefined) {
+    fs.writeFileSync(path.join(workspace, ".gitlab-mcp-mask.json"), JSON.stringify(config));
+  }
+  const engine = createMaskingEngine({ enabled: true, workspaceDir: workspace });
+  assert.ok(engine);
+  return engine;
+}
+
 describe("response masking", () => {
   test("is a no-op and does not read a config when disabled", () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-"));
@@ -554,5 +601,107 @@ describe("response masking", () => {
         resolver.select({ gitlabInstance: "https://gitlab.example.test", hasProjectScope: false }),
       /project-less tool/
     );
+  });
+});
+
+describe("When builtin JWT masking runs", () => {
+  describe("with a three-segment token starting eyJ", () => {
+    test("should replace the JWT", () => {
+      const engine = createEnabledEngine();
+      assert.equal(engine.maskText(`Bearer ${EXAMPLE_JWT}`), "Bearer [JWT masked]");
+    });
+  });
+
+  describe("with two segments or ordinary issue text", () => {
+    test("should leave the text unchanged", () => {
+      const engine = createEnabledEngine();
+      const issueText = `Please review this MR. Commit ${EXAMPLE_COMMIT_SHA}.`;
+      const twoSegments = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0";
+      assert.equal(engine.maskText(issueText), issueText);
+      assert.equal(engine.maskText(twoSegments), twoSegments);
+      assert.equal(engine.maskText(EXAMPLE_PNG_DATA_URL), EXAMPLE_PNG_DATA_URL);
+    });
+  });
+
+  describe("with the jwt builtin disabled", () => {
+    test("should leave JWTs visible while still masking IPv4", () => {
+      const engine = createEnabledEngine({ builtins: { jwt: { enabled: false } } });
+      assert.equal(engine.maskText(EXAMPLE_JWT), EXAMPLE_JWT);
+      assert.equal(engine.maskText("10.20.30.40"), "[IP address]");
+    });
+  });
+});
+
+describe("When builtin PEM private key masking runs", () => {
+  describe("with RSA, EC, OPENSSH, encrypted, and PKCS#8 blocks", () => {
+    test("should replace each private key block", () => {
+      const engine = createEnabledEngine();
+      assert.equal(engine.maskText(RSA_PRIVATE_KEY), "[Private key masked]");
+      assert.equal(engine.maskText(EC_PRIVATE_KEY), "[Private key masked]");
+      assert.equal(engine.maskText(OPENSSH_PRIVATE_KEY), "[Private key masked]");
+      assert.equal(engine.maskText(ENCRYPTED_PRIVATE_KEY), "[Private key masked]");
+      assert.equal(engine.maskText(PKCS8_PRIVATE_KEY), "[Private key masked]");
+    });
+  });
+
+  describe("with a public key or an unterminated BEGIN block", () => {
+    test("should leave the text unchanged", () => {
+      const engine = createEnabledEngine();
+      const publicKey = [
+        "-----BEGIN PUBLIC KEY-----",
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+        "-----END PUBLIC KEY-----",
+      ].join("\n");
+      const unterminated = "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAKfakeKey";
+      assert.equal(engine.maskText(publicKey), publicKey);
+      assert.equal(engine.maskText(unterminated), unterminated);
+    });
+  });
+
+  describe("with a long BEGIN block that has no END marker", () => {
+    test("should finish without hanging", () => {
+      const engine = createEnabledEngine();
+      const text = `-----BEGIN RSA PRIVATE KEY-----\n${"A".repeat(40_000)}`;
+      const startedAt = Date.now();
+      assert.equal(engine.maskText(text), text);
+      assert.ok(Date.now() - startedAt < 1000);
+    });
+  });
+});
+
+describe("When builtin AWS key masking runs", () => {
+  describe("with AKIA and ASIA access key IDs", () => {
+    test("should replace the access key IDs", () => {
+      const engine = createEnabledEngine();
+      assert.equal(engine.maskText(`id=${EXAMPLE_AWS_ACCESS_KEY}`), "id=[AWS key masked]");
+      assert.equal(engine.maskText(EXAMPLE_AWS_TEMP_KEY), "[AWS key masked]");
+    });
+  });
+
+  describe("with an aws_secret_access_key assignment", () => {
+    test("should replace the assignment including the secret", () => {
+      const engine = createEnabledEngine();
+      assert.equal(
+        engine.maskText(`AWS_SECRET_ACCESS_KEY=${EXAMPLE_AWS_SECRET}`),
+        "[AWS key masked]"
+      );
+      assert.equal(
+        engine.maskText(`aws_secret_access_key: ${EXAMPLE_AWS_SECRET}`),
+        "[AWS key masked]"
+      );
+    });
+  });
+
+  describe("with commit SHAs and short or lowercase lookalikes", () => {
+    test("should leave the text unchanged", () => {
+      const engine = createEnabledEngine();
+      assert.equal(engine.maskText(EXAMPLE_COMMIT_SHA), EXAMPLE_COMMIT_SHA);
+      assert.equal(engine.maskText("AKIA123"), "AKIA123");
+      assert.equal(engine.maskText("akiaIOSFODNN7EXAMPLE"), "akiaIOSFODNN7EXAMPLE");
+      assert.equal(
+        engine.maskText(`password=${EXAMPLE_AWS_SECRET}`),
+        `password=${EXAMPLE_AWS_SECRET}`
+      );
+    });
   });
 });
