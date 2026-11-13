@@ -1,6 +1,6 @@
 ### Security
 
-- Compact-result replay commands (`GITLAB_MCP_COMPACT_RESULTS`) now quote every argument value with POSIX single quotes. Running the command no longer executes `$(...)`, backticks, or `$VAR` inside a value. Argument names that the tool's input schema does not declare are dropped from the command, and when a name or the tool name cannot be written safely, the reply has no command.
+- Compact-result replay commands (`GITLAB_MCP_COMPACT_RESULTS`) now wrap every argument value that is not a plain word in POSIX single quotes, so the shell reads each value as literal text. An argument name that the tool's input schema does not declare, a name or tool name that cannot be written safely, or a value that cannot be passed as a command-line argument leaves the reply with no command. Argument names that start with `_` and secret argument names are left out of the command.
 
 ### Fixed
 
