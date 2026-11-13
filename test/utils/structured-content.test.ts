@@ -65,6 +65,7 @@ describe("finalizeToolCallResult", () => {
         maxChars: 10_000,
         toolName: "get_merge_request_diffs",
         args: { project_id: "123", merge_request_iid: "1" },
+        inputSchema: undefined,
       });
       assert.equal(Object.prototype.hasOwnProperty.call(finalized, "structuredContent"), false);
       assert.deepEqual(finalized.content, content);
