@@ -6,10 +6,10 @@
   "websiteUrl": "https://zereight.github.io/gitlab-mcp/",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/zereight/gitlab-mcp/main/assets/logo.svg",
-      "mimeType": "image/svg+xml",
+      "src": "https://raw.githubusercontent.com/zereight/gitlab-mcp/main/assets/logo.png",
+      "mimeType": "image/png",
       "sizes": [
-        "any"
+        "1024x1024"
       ]
     }
   ],
