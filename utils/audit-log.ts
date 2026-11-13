@@ -58,6 +58,7 @@ export const AUDIT_FIELD_ALLOWLIST: readonly AuditField[] = [
 ];
 export type AuditOutcome = "success" | "error";
 export type AuditAuthMethod = "pat" | "job-token" | "oauth" | "remote-header" | "cookie";
+export type AuditSessionHeader = "Authorization" | "Private-Token" | "JOB-TOKEN";
 export type AuditTransport = "stdio" | "sse" | "streamable-http";
 
 const SAFE_ERROR_CLASS = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
@@ -82,6 +83,7 @@ export interface AuditAuthMethodInput {
   readonly hasPat: boolean;
   readonly hasJobToken: boolean;
   readonly hasCookie: boolean;
+  readonly sessionHeader?: AuditSessionHeader;
 }
 
 export interface ToolCallAuditFields {
@@ -104,6 +106,7 @@ export interface RecordToolCallAuditInput {
   readonly toolName: unknown;
   readonly sessionId?: unknown;
   readonly args?: unknown;
+  readonly sessionHeader?: AuditSessionHeader;
   readonly gitlabUserId?: unknown;
   readonly gitlabUsername?: unknown;
   readonly outcome: AuditOutcome;
@@ -120,9 +123,13 @@ export interface RecordToolCallAuditDeps {
 }
 
 export interface ToolCallAuditor {
+  setSessionHeader(header: AuditSessionHeader | undefined): void;
   recordResult(result: unknown): void;
   recordError(error: unknown): void;
 }
+
+const markedAuditFailures = new WeakSet<object>();
+const markedAuditFailureErrors = new WeakMap<object, unknown>();
 
 let writeFailureWarned = false;
 let warningLogger: ReturnType<typeof createLogger> | undefined;
@@ -166,6 +173,20 @@ export function classifyAuditFailure(error: unknown): AuditFailure {
 }
 
 export function resolveAuditAuthMethod(input: AuditAuthMethodInput): AuditAuthMethod | undefined {
+  if (input.sessionHeader !== undefined) {
+    switch (input.sessionHeader) {
+      case "JOB-TOKEN":
+        return "job-token";
+      case "Private-Token":
+        return "pat";
+      case "Authorization":
+        return input.mcpOAuth ? "oauth" : "remote-header";
+      default: {
+        const exhaustive: never = input.sessionHeader;
+        return exhaustive;
+      }
+    }
+  }
   if (input.mcpOAuth) {
     return "oauth";
   }
@@ -185,6 +206,28 @@ export function resolveAuditAuthMethod(input: AuditAuthMethodInput): AuditAuthMe
     return "cookie";
   }
   return undefined;
+}
+
+/**
+ * Mark a tools/call result that is returned as data (no `isError`) but is still
+ * a failure for audit purposes. The MCP payload is unchanged; only the auditor
+ * reads this mark. Do not put the error body on the mark.
+ */
+export function markToolResultAsAuditFailure(result: object, error?: unknown): void {
+  markedAuditFailures.add(result);
+  if (error !== undefined) {
+    markedAuditFailureErrors.set(result, error);
+  }
+}
+
+function takeMarkedAuditFailure(result: unknown): { marked: boolean; error?: unknown } {
+  if (typeof result !== "object" || result === null || !markedAuditFailures.has(result)) {
+    return { marked: false };
+  }
+  markedAuditFailures.delete(result);
+  const error = markedAuditFailureErrors.get(result);
+  markedAuditFailureErrors.delete(result);
+  return { marked: true, error };
 }
 
 export function sanitizeAuditSessionId(sessionId: unknown): string | undefined {
@@ -253,7 +296,7 @@ export function recordToolCallAudit(
       timestamp: now().toISOString(),
       transport: auditTransport(determineTransportMode()),
       sessionId: sanitizeAuditSessionId(input.sessionId),
-      authMethod: currentAuditAuthMethod(),
+      authMethod: currentAuditAuthMethod(input.sessionHeader),
       gitlabUserId: readPositiveInteger(input.gitlabUserId),
       gitlabUsername: readOptionalName(input.gitlabUsername),
       tool: readToolName(input.toolName),
@@ -283,7 +326,10 @@ export function createToolCallAuditor(
   },
   deps?: RecordToolCallAuditDeps
 ): ToolCallAuditor {
-  const state = { recorded: false };
+  const state: { sessionHeader: AuditSessionHeader | undefined; recorded: boolean } = {
+    sessionHeader: undefined,
+    recorded: false,
+  };
 
   function record(outcome: AuditOutcome, error?: unknown): void {
     if (state.recorded) {
@@ -295,6 +341,7 @@ export function createToolCallAuditor(
         toolName: input.toolName,
         sessionId: input.sessionId,
         args: input.args,
+        sessionHeader: state.sessionHeader,
         gitlabUserId: input.gitlabUserId,
         gitlabUsername: input.gitlabUsername,
         outcome,
@@ -306,7 +353,15 @@ export function createToolCallAuditor(
   }
 
   return {
+    setSessionHeader(header: AuditSessionHeader | undefined): void {
+      state.sessionHeader = header;
+    },
     recordResult(result: unknown): void {
+      const marked = takeMarkedAuditFailure(result);
+      if (marked.marked) {
+        record("error", marked.error);
+        return;
+      }
       if (isErrorToolResult(result)) {
         record("error");
         return;
@@ -371,7 +426,7 @@ function auditTransport(mode: TransportMode): AuditTransport {
   }
 }
 
-function currentAuditAuthMethod(): AuditAuthMethod | undefined {
+function currentAuditAuthMethod(sessionHeader?: AuditSessionHeader): AuditAuthMethod | undefined {
   return resolveAuditAuthMethod({
     remoteAuthorization: REMOTE_AUTHORIZATION,
     mcpOAuth: GITLAB_MCP_OAUTH,
@@ -379,6 +434,7 @@ function currentAuditAuthMethod(): AuditAuthMethod | undefined {
     hasPat: Boolean(GITLAB_PERSONAL_ACCESS_TOKEN),
     hasJobToken: Boolean(GITLAB_JOB_TOKEN),
     hasCookie: Boolean(GITLAB_AUTH_COOKIE_PATH),
+    sessionHeader,
   });
 }
 

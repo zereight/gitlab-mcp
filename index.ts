@@ -769,6 +769,7 @@ import {
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import {
   createToolCallAuditor,
+  markToolResultAsAuditFailure,
   readKnownGitLabUserId,
   readKnownGitLabUsername,
 } from "./utils/audit-log.js";
@@ -948,7 +949,7 @@ function createServer(): McpServer {
         toolName,
         args: readOwnRecord(request.params.arguments),
       });
-      auditor.recordResult(finalized);
+      auditor.recordResult(result);
       return finalized;
     };
 
@@ -988,6 +989,7 @@ function createServer(): McpServer {
             allowedProjectIds: authData.allowedProjectIds,
           }
         : undefined;
+      auditor.setSessionHeader(sessionContext?.header);
       const selectMaskingPolicy = () => {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
@@ -11540,7 +11542,7 @@ async function handleToolCall(params: any) {
         } catch (err) {
           // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
-          return {
+          const graphqlFailure = {
             content: [
               {
                 type: "text",
@@ -11548,6 +11550,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(graphqlFailure, err);
+          return graphqlFailure;
         } finally {
           clearTimeout(timeout);
         }
@@ -11600,7 +11604,7 @@ async function handleToolCall(params: any) {
               describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
-          return {
+          const forkFailure = {
             content: [
               {
                 type: "text",
@@ -11608,6 +11612,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(forkFailure, forkError);
+          return forkFailure;
         }
       }
 

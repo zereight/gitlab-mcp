@@ -80,6 +80,7 @@ function createAuditTransport(options: {
     GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
     GITLAB_API_URL: options.apiUrl,
     GITLAB_TOOLSETS: "projects",
+    GITLAB_TOOLS: "execute_graphql",
     GITLAB_DISABLE_VERSION_CHECK: "true",
     LOG_LEVEL: "error",
   };
@@ -149,20 +150,37 @@ describe("When the MCP server runs against mock GitLab", () => {
           },
         });
         assert.equal(failure.isError, true);
+
+        const graphqlFailure = await client.callTool({
+          name: "execute_graphql",
+          arguments: {
+            query: "query { currentUser { id } }",
+            token: SECRET_TOKEN,
+            body: SECRET_BODY,
+          },
+        });
+        assert.notEqual(graphqlFailure.isError, true);
       });
 
       const raw = readFileSync(auditFile, "utf8");
       const records = readNdjson(auditFile);
-      assert.equal(records.length, 2, raw);
+      assert.equal(records.length, 3, raw);
 
-      const successRecord = records.find(record => record.outcome === "success");
-      const errorRecord = records.find(record => record.outcome === "error");
+      const successRecord = records.find(
+        record => record.outcome === "success" && record.tool === "get_project"
+      );
+      const errorRecord = records.find(
+        record => record.outcome === "error" && record.tool === "get_project"
+      );
+      const graphqlRecord = records.find(record => record.tool === "execute_graphql");
       assert.ok(successRecord, "missing success audit line");
       assert.ok(errorRecord, "missing error audit line");
+      assert.ok(graphqlRecord, "missing graphql audit line");
 
       const lines = raw.trim().split("\n");
       assertSafeAuditRecord(successRecord, lines[records.indexOf(successRecord)] ?? raw);
       assertSafeAuditRecord(errorRecord, lines[records.indexOf(errorRecord)] ?? raw);
+      assertSafeAuditRecord(graphqlRecord, lines[records.indexOf(graphqlRecord)] ?? raw);
 
       assert.equal(successRecord.tool, "get_project");
       assert.equal(successRecord.projectId, "123");
@@ -175,6 +193,10 @@ describe("When the MCP server runs against mock GitLab", () => {
       assert.equal(errorRecord.projectId, MISSING_PROJECT_ID);
       assert.equal(errorRecord.errorClass, "GitLabApiError");
       assert.equal(errorRecord.httpStatus, 404);
+
+      assert.equal(graphqlRecord.outcome, "error");
+      assert.equal(graphqlRecord.errorClass, "GitLabApiError");
+      assert.equal(raw.includes("GraphQL request failed"), false);
     });
   });
 

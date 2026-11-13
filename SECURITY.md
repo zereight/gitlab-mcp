@@ -54,7 +54,8 @@ See [Response masking](docs/configuration/environment-variables.md#response-mask
 Set `GITLAB_AUDIT_LOG=true` to write one NDJSON line per MCP tool call for SIEM
 ingestion. The default is off; when it is off, tool-call behavior and output do
 not change. The record is an allowlist: timestamp, event type, transport,
-session id when present, auth method (not the credential), GitLab user identity
+session id when present, auth method of the accepted request (not the
+credential), GitLab user identity
 only when already known, tool name, project/group ids from arguments, outcome,
 error class/HTTP status on failure, and duration. Argument bodies, response
 bodies, tokens, headers, and free-text messages are not logged.

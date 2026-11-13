@@ -7,6 +7,7 @@ import {
   classifyAuditFailure,
   createToolCallAuditor,
   extractAuditResourceIds,
+  markToolResultAsAuditFailure,
   readKnownGitLabUserId,
   readKnownGitLabUsername,
   recordToolCallAudit,
@@ -204,6 +205,57 @@ describe("When resolving the audit auth method", () => {
           hasCookie: true,
         }),
         "oauth"
+      );
+    });
+  });
+
+  describe("with MCP OAuth enabled and a JOB-TOKEN session header", () => {
+    it("should report job-token instead of oauth", () => {
+      assert.equal(
+        resolveAuditAuthMethod({
+          remoteAuthorization: false,
+          mcpOAuth: true,
+          useOAuth: false,
+          hasPat: false,
+          hasJobToken: false,
+          hasCookie: false,
+          sessionHeader: "JOB-TOKEN",
+        }),
+        "job-token"
+      );
+    });
+  });
+
+  describe("with MCP OAuth enabled and a Private-Token session header", () => {
+    it("should report pat instead of oauth", () => {
+      assert.equal(
+        resolveAuditAuthMethod({
+          remoteAuthorization: false,
+          mcpOAuth: true,
+          useOAuth: false,
+          hasPat: false,
+          hasJobToken: false,
+          hasCookie: false,
+          sessionHeader: "Private-Token",
+        }),
+        "pat"
+      );
+    });
+  });
+
+  describe("with remote authorization and an Authorization session header", () => {
+    it("should report remote-header", () => {
+      assert.equal(
+        resolveAuditAuthMethod({
+          remoteAuthorization: true,
+          mcpOAuth: false,
+          useOAuth: false,
+          hasPat: false,
+          hasJobToken: false,
+          hasCookie: false,
+          sessionHeader: "Authorization",
+        }),
+        "remote-header"
       );
     });
   });
@@ -472,6 +524,74 @@ describe("When creating a tool-call auditor", () => {
       assert.equal(Reflect.get(parsed, "outcome"), "success");
       assert.equal(lines[0].includes(SECRET_TOKEN), false);
       assert.equal(lines[0].includes(SECRET_BODY), false);
+    });
+  });
+
+  describe("with a GraphQL-style data error that has no isError", () => {
+    it("should record outcome error without copying the body", () => {
+      const lines: string[] = [];
+      const result = {
+        content: [{ type: "text", text: JSON.stringify({ error: SECRET_BODY }) }],
+      };
+      const failure = new Error(SECRET_TOKEN);
+      failure.name = "GitLabApiError";
+      Object.assign(failure, { status: 404 });
+      markToolResultAsAuditFailure(result, failure);
+
+      const auditor = createToolCallAuditor(
+        {
+          toolName: "execute_graphql",
+          args: { query: SECRET_BODY, token: SECRET_TOKEN },
+          startedAtMs: FIXED_NOW.getTime(),
+        },
+        {
+          enabled: true,
+          now: () => FIXED_NOW,
+          writeLine: line => {
+            lines.push(line);
+          },
+        }
+      );
+
+      auditor.recordResult(result);
+
+      assert.equal("isError" in result, false);
+      assert.equal(lines.length, 1);
+      const parsed: unknown = JSON.parse(lines[0]);
+      assert.ok(parsed !== null && typeof parsed === "object");
+      assert.equal(Reflect.get(parsed, "outcome"), "error");
+      assert.equal(Reflect.get(parsed, "tool"), "execute_graphql");
+      assert.equal(Reflect.get(parsed, "errorClass"), "GitLabApiError");
+      assert.equal(Reflect.get(parsed, "httpStatus"), 404);
+      assert.equal(lines[0].includes(SECRET_TOKEN), false);
+      assert.equal(lines[0].includes(SECRET_BODY), false);
+    });
+  });
+
+  describe("with a JOB-TOKEN session header", () => {
+    it("should record authMethod job-token", () => {
+      const lines: string[] = [];
+      const auditor = createToolCallAuditor(
+        {
+          toolName: "get_project",
+          startedAtMs: FIXED_NOW.getTime(),
+        },
+        {
+          enabled: true,
+          now: () => FIXED_NOW,
+          writeLine: line => {
+            lines.push(line);
+          },
+        }
+      );
+
+      auditor.setSessionHeader("JOB-TOKEN");
+      auditor.recordResult({ content: [{ type: "text", text: "ok" }] });
+
+      assert.equal(lines.length, 1);
+      const parsed: unknown = JSON.parse(lines[0]);
+      assert.ok(parsed !== null && typeof parsed === "object");
+      assert.equal(Reflect.get(parsed, "authMethod"), "job-token");
     });
   });
 

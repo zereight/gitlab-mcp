@@ -1104,8 +1104,10 @@ output are unchanged.
 Each enabled tool call writes one JSON object with an allowlist of fields:
 timestamp (ISO UTC), event type (`tool_call`), transport
 (`stdio` / `streamable-http` / `sse`), session id when present (sealed
-stateless sids are redacted), auth method (`pat`, `job-token`, `oauth`,
-`remote-header`, or `cookie` — never the credential), GitLab user id/username
+stateless sids are redacted), auth method of the accepted request
+(`pat`, `job-token`, `oauth`, `remote-header`, or `cookie` — never the
+credential; a JOB-TOKEN or Private-Token request is not recorded as `oauth`
+just because MCP OAuth is enabled), GitLab user id/username
 only when already known without an extra API call, tool name, `project_id` /
 `group_id` when those scalars are present in the arguments, outcome
 (`success` / `error`), error class and HTTP status on failure, and duration in
