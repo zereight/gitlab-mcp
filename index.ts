@@ -948,6 +948,7 @@ function createServer(): McpServer {
         maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
         toolName,
         args: readOwnRecord(request.params.arguments),
+        inputSchema: allTools.find(tool => tool.name === toolName)?.inputSchema,
       });
       auditor.recordResult(result);
       return finalized;

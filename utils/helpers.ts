@@ -1,5 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
+import { RE2JS } from "re2js";
+
+/**
+ * Limits on excluded_file_patterns. The tool schemas reject input over these
+ * limits, and filterDiffsByPatterns ignores anything over them.
+ */
+export const EXCLUDED_FILE_PATTERN_MAX_LENGTH = 200;
+export const EXCLUDED_FILE_PATTERN_MAX_COUNT = 50;
+// Matching cost per character grows with the compiled program. A counted
+// repeat such as .{1000} repeated many times produces a large program.
+export const EXCLUDED_FILE_PATTERN_MAX_PROGRAM_SIZE = 1000;
 
 /**
  * Reject absolute paths and directory-traversal sequences for user-supplied
@@ -357,10 +368,56 @@ export function summarizeWebhookEvents(events: Record<string, unknown>[]): Recor
 }
 
 /**
+ * Compile excluded_file_patterns with RE2, which matches in time linear in the
+ * path length. A pattern RE2 cannot compile (lookaround, backreferences, or
+ * \uXXXX escapes, for example) is skipped with a warning, so it excludes no files.
+ */
+function compileExcludedFilePatterns(patterns: readonly string[]): RE2JS[] {
+  if (patterns.length > EXCLUDED_FILE_PATTERN_MAX_COUNT) {
+    console.warn(
+      `Excluded file patterns after the first ${EXCLUDED_FILE_PATTERN_MAX_COUNT} ignored (${patterns.length} given).`
+    );
+  }
+
+  const compiled: RE2JS[] = [];
+  for (const pattern of patterns.slice(0, EXCLUDED_FILE_PATTERN_MAX_COUNT)) {
+    if (pattern.length > EXCLUDED_FILE_PATTERN_MAX_LENGTH) {
+      console.warn(
+        `Excluded file pattern ignored: ${pattern.length} characters exceeds ${EXCLUDED_FILE_PATTERN_MAX_LENGTH}.`
+      );
+      continue;
+    }
+
+    let regex: RE2JS;
+    try {
+      regex = RE2JS.compile(pattern);
+    } catch {
+      console.warn(
+        `Invalid regex pattern ignored: ${pattern} (RE2 rejects lookaround, backreferences, and \\uXXXX escapes)`
+      );
+      continue;
+    }
+
+    const programSize = regex.programSize();
+    if (programSize > EXCLUDED_FILE_PATTERN_MAX_PROGRAM_SIZE) {
+      console.warn(
+        `Excluded file pattern ignored: compiled size ${programSize} exceeds ${EXCLUDED_FILE_PATTERN_MAX_PROGRAM_SIZE}: ${pattern}`
+      );
+      continue;
+    }
+    compiled.push(regex);
+  }
+  return compiled;
+}
+
+/**
  * Filter MR diffs by excluding files matching regex patterns.
  *
+ * Patterns use RE2 syntax (see compileExcludedFilePatterns), so matching cannot
+ * backtrack catastrophically on a long path.
+ *
  * @param diffs - Array of diff objects with new_path property
- * @param excludedFilePatterns - Array of regex patterns to exclude
+ * @param excludedFilePatterns - Array of RE2 regex patterns to exclude
  * @returns Filtered array of diffs
  */
 export function filterDiffsByPatterns<T extends { new_path: string }>(
@@ -369,16 +426,7 @@ export function filterDiffsByPatterns<T extends { new_path: string }>(
 ): T[] {
   if (!excludedFilePatterns?.length) return diffs;
 
-  const regexPatterns = excludedFilePatterns
-    .map(pattern => {
-      try {
-        return new RegExp(pattern);
-      } catch {
-        console.warn(`Invalid regex pattern ignored: ${pattern}`);
-        return null;
-      }
-    })
-    .filter((regex): regex is RegExp => regex !== null);
+  const regexPatterns = compileExcludedFilePatterns(excludedFilePatterns);
 
   if (regexPatterns.length === 0) return diffs;
 

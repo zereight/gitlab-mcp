@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  EXCLUDED_FILE_PATTERN_MAX_COUNT,
+  EXCLUDED_FILE_PATTERN_MAX_LENGTH,
+} from "./utils/helpers.js";
 import { omitIncompleteMergeRequestPosition } from "./utils/merge-request-position.js";
 
 // Helper: coerce a JSON-stringified array to an actual array.
@@ -2545,18 +2549,22 @@ export const GitLabBranchSchema = z.object({
   web_url: z.string().optional(),
 });
 
+const excludedFilePatternsSchema = z
+  .array(z.string().max(EXCLUDED_FILE_PATTERN_MAX_LENGTH))
+  .max(EXCLUDED_FILE_PATTERN_MAX_COUNT);
+
+const EXCLUDED_DIFF_PATTERNS_DESCRIPTION =
+  'Array of regex patterns to exclude files from the diff results. Each pattern is an RE2 regular expression that matches file paths to ignore. RE2 runs in linear time but does not support lookahead, lookbehind, or backreferences. At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]';
+
 export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),
   straight: coerceBooleanString
     .optional()
     .describe("Comparison method: false for '...' (default), true for '--'"),
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
-    ),
+    .describe(EXCLUDED_DIFF_PATTERNS_DESCRIPTION),
 });
 
 const flexibleBooleanOptional = z.preprocess(val => {
@@ -2765,12 +2773,9 @@ export const ListMergeRequestPipelinesSchema = ProjectParamsSchema.extend({
 
 export const GetMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
-    ),
+    .describe(EXCLUDED_DIFF_PATTERNS_DESCRIPTION),
 });
 
 export const ListMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
@@ -2787,10 +2792,11 @@ export const ListMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
 });
 
 export const ListMergeRequestChangedFilesSchema = MergeRequestParamsSchema.extend({
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe('Array of regex patterns to exclude files. Examples: ["^vendor/", "\\.pb\\.go$"]'),
+    .describe(
+      'Array of regex patterns to exclude files. Each pattern is an RE2 regular expression (linear time; no lookahead, lookbehind, or backreferences). At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "\\.pb\\.go$"]'
+    ),
 });
 
 export const GetMergeRequestFileDiffSchema = MergeRequestParamsSchema.extend({
