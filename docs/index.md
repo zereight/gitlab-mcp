@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="img/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 A comprehensive **Model Context Protocol** server for GitLab. Manage projects,
