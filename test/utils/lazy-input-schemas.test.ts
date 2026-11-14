@@ -64,6 +64,14 @@ describe("When tool input schemas are built lazily", () => {
       assert.equal(descriptor?.enumerable, true);
     });
 
+    it("should keep inputSchema in a spread or JSON copy of an unread tool", () => {
+      const [tool] = withLazyInputSchemas([{ name: "t", inputSchema: lazyJSONSchema(schema) }]);
+      const expected = toJSONSchema(schema);
+
+      assert.deepEqual({ ...tool }.inputSchema, expected);
+      assert.deepEqual(JSON.parse(JSON.stringify(tool)), { name: "t", inputSchema: expected });
+    });
+
     it("should stay enumerable before the first read", () => {
       const [tool] = withLazyInputSchemas([{ name: "t", inputSchema: lazyJSONSchema(schema) }]);
 
