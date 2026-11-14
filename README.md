@@ -295,7 +295,6 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead (replaces `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--toolsets` - Named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default). Do not pass `all` unless you accept ~73k schema tokens. `gitlab_api_request` needs `--toolsets=api`
 - `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
@@ -1125,3 +1124,11 @@ All remote authorization tests use a mock GitLab server and do not require actua
 ## Sponsor 💖
 
 Sponsorships through [GitHub Sponsors](https://github.com/sponsors/zereight) help cover GitLab E2E testing costs: a paid GitLab tier to test Premium/Ultimate features (such as milestone burndown charts and iterations) that the free test instance cannot reach, and the infrastructure for live API tests.
+
+## Removed in v3.0.0
+
+Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false `GITLAB_READ_ONLY_MODE` / `--read-only` settings.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |

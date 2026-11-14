@@ -45,7 +45,6 @@ const GLOBAL_FLAG_NAMES = new Set([
   "cookie-path",
   "use-oauth",
   "is-old",
-  "read-only",
   "masking-enabled",
   "masking-config",
   "masking-policy-file",

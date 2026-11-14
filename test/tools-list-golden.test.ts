@@ -47,7 +47,6 @@ function serverEnv(overrides: Record<string, string>): Record<string, string> {
     GITLAB_TOOLS: "",
     GITLAB_TOOL_PROFILE: "full",
     GITLAB_PERMISSION_MODE: "full",
-    GITLAB_READ_ONLY_MODE: "false",
     GITLAB_DENIED_TOOLS_REGEX: "",
     GITLAB_TOOL_POLICY_HIDDEN: "",
     GITLAB_TOOL_POLICY_APPROVE: "",

@@ -3,7 +3,7 @@
  *
  * Tests GITLAB_TOOLSETS, GITLAB_TOOLS, and their interaction with
  * legacy flags (USE_GITLAB_WIKI, USE_PIPELINE, USE_MILESTONE),
- * GITLAB_READ_ONLY_MODE, and GITLAB_DENIED_TOOLS_REGEX.
+ * GITLAB_PERMISSION_MODE, and GITLAB_DENIED_TOOLS_REGEX.
  */
 
 import { describe, test, after, before } from "node:test";
@@ -427,7 +427,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
 
   // ---- 8. Read-only mode applied after toolset filter ----
 
-  describe("GITLAB_TOOLSETS=issues + GITLAB_READ_ONLY_MODE=true", () => {
+  describe("GITLAB_TOOLSETS=issues + GITLAB_PERMISSION_MODE=readonly", () => {
     let server: ServerInstance;
     let tools: string[];
 
@@ -467,7 +467,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       const port = await nextMcpPort();
       server = await launchMcpServer(mockGitLabUrl, port, {
         GITLAB_TOOLSETS: "issues",
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
       });
       tools = await getToolNames(`http://${HOST}:${port}/mcp`);
     });
@@ -487,7 +487,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
   });
 
-  describe("GITLAB_TOOLSETS=projects + GITLAB_READ_ONLY_MODE=true", () => {
+  describe("GITLAB_TOOLSETS=projects + GITLAB_PERMISSION_MODE=readonly", () => {
     let server: ServerInstance;
     let tools: string[];
 
@@ -495,7 +495,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       const port = await nextMcpPort();
       server = await launchMcpServer(mockGitLabUrl, port, {
         GITLAB_TOOLSETS: "projects",
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
       });
       tools = await getToolNames(`http://${HOST}:${port}/mcp`);
     });
@@ -561,7 +561,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
 
   // ---- 10. Full combination: toolset + individual + legacy + read-only ----
 
-  describe("GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines + USE_GITLAB_WIKI=true + GITLAB_READ_ONLY_MODE=true", () => {
+  describe("GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines + USE_GITLAB_WIKI=true + GITLAB_PERMISSION_MODE=readonly", () => {
     let server: ServerInstance;
     let tools: string[];
 
@@ -571,7 +571,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
         GITLAB_TOOLSETS: "issues",
         GITLAB_TOOLS: "list_pipelines",
         USE_GITLAB_WIKI: "true",
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
       });
       tools = await getToolNames(`http://${HOST}:${port}/mcp`);
     });
