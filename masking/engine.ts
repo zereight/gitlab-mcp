@@ -475,7 +475,8 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
 }
 
 function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): MaskingEngine {
-  const rules = [...(file.rules ?? []), ...mergeBuiltinRules(file)].map(compileRule);
+  const builtinRules = mergeBuiltinRules(file);
+  const rules = [...(file.rules ?? []), ...builtinRules].map(compileRule);
   const maskedErrors = new WeakSet<object>();
   const maskText = (text: string): string => {
     const matches: MaskMatch[] = [];
@@ -513,7 +514,9 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
     }
     return output + text.slice(cursor);
   };
-  const awsSecretFieldReplacement = rules.find(rule => rule.id === "aws-access-key")?.replacement;
+  const awsSecretFieldReplacement = builtinRules.find(
+    rule => rule.id === "aws-access-key"
+  )?.replacement;
   const maskString = (text: string, parentKey?: string): string =>
     applyAwsSecretFieldMask(parentKey, text, maskText(text), awsSecretFieldReplacement);
   return {

@@ -759,6 +759,43 @@ describe("When builtin AWS key masking runs", () => {
     });
   });
 
+  describe("with a user rule whose id collides with aws-access-key", () => {
+    test("should still use the builtin field replacement", () => {
+      const engine = createEnabledEngine({
+        rules: [
+          {
+            id: "aws-access-key",
+            type: "keyword",
+            match: "not-the-secret",
+            replacement: "[user]",
+          },
+        ],
+      });
+      assert.deepEqual(engine.maskValue({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }), {
+        AWS_SECRET_ACCESS_KEY: "[AWS key masked]",
+      });
+    });
+  });
+
+  describe("with a colliding user rule while the aws-access-key builtin is disabled", () => {
+    test("should leave structured AWS secret fields visible", () => {
+      const engine = createEnabledEngine({
+        builtins: { "aws-access-key": { enabled: false } },
+        rules: [
+          {
+            id: "aws-access-key",
+            type: "keyword",
+            match: "not-the-secret",
+            replacement: "[user]",
+          },
+        ],
+      });
+      assert.deepEqual(engine.maskValue({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }), {
+        AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET,
+      });
+    });
+  });
+
   describe("with a GitLab CI variable record", () => {
     test("should mask the value when key names an AWS secret", () => {
       const engine = createEnabledEngine();
