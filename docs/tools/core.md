@@ -478,7 +478,7 @@ Patch an issue description (search/replace or unified diff) without resending th
 
 *📖 Read-only*
 
-Get the contents of one file from a GitLab project. `ref` defaults to the default branch. Text is UTF-8; binary stays base64. Directories are not supported: use `get_repository_tree`.
+Get the contents of one file from a GitLab project. `ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`.
 
 **Parameters**
 

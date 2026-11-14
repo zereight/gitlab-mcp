@@ -14,7 +14,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   list_merge_request_pipelines:
     "List pipelines for one merge request. Use `list_pipelines` for project-wide filtering.",
   get_file_contents:
-    "`ref` defaults to the default branch. Text is UTF-8; binary stays base64. Directories are not supported: use `get_repository_tree`.",
+    "`ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`.",
   get_repository_tree:
     "One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file.",
   create_or_update_file:

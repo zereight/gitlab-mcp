@@ -65,6 +65,18 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
         });
       }
     );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/files/nul.bin`,
+      (_req, res) => {
+        res.json({
+          file_name: "nul.bin",
+          file_path: "nul.bin",
+          encoding: "base64",
+          content: Buffer.from([0x00, 0x01, 0x02]).toString("base64"),
+        });
+      }
+    );
     await mockGitLab.start();
 
     const port = await findAvailablePort(3480);
@@ -149,6 +161,26 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
       const file = JSON.parse(responseText) as { content: string; encoding: string };
 
       assert.strictEqual(file.content, "");
+      assert.strictEqual(file.encoding, "utf8");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("returns a binary whose bytes are valid UTF-8 as utf8, so clients must read encoding", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "nul.bin",
+        ref: "main",
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as { content: string; encoding: string };
+
+      assert.strictEqual(file.content, "\u0000\u0001\u0002");
       assert.strictEqual(file.encoding, "utf8");
     } finally {
       await client.disconnect();
