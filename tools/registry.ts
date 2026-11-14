@@ -2758,6 +2758,18 @@ for (const tool of allTools) {
   tool.description = getToolDescription(tool.name, tool.description, allToolNames);
 }
 
+// The server and CLI command resolution both parse the same settings at startup;
+// print each configuration warning once per process.
+const emittedConfigWarnings = new Set<string>();
+
+function warnOnce(message: string): void {
+  if (emittedConfigWarnings.has(message)) {
+    return;
+  }
+  emittedConfigWarnings.add(message);
+  console.warn(message);
+}
+
 export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
   if (!raw || raw.trim() === "") {
     return DEFAULT_TOOLSET_IDS;
@@ -2766,19 +2778,36 @@ export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<Tools
   if (trimmed === "all") {
     return DISCOVERABLE_TOOLSET_IDS;
   }
-  const selected = new Set(
-    trimmed
-      .split(",")
-      .map(s => s.trim())
-      .filter((s): s is ToolsetId => ALL_TOOLSET_IDS.has(s as ToolsetId))
-  );
+  const names = trimmed
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+  const selected = new Set(names.filter(isToolsetId));
+  const unknown = [...new Set(names.filter(name => !isToolsetId(name)))];
+  const allHint = unknown.includes("all")
+    ? ' "all" only works on its own; to add an explicit-only toolset such as api, list every toolset by name.'
+    : "";
   if (selected.size === 0) {
-    console.warn(
-      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.`
+    warnOnce(
+      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.${allHint} ${knownToolsetsHint()}`
     );
     return DEFAULT_TOOLSET_IDS;
   }
+  if (unknown.length > 0) {
+    warnOnce(
+      `Unknown toolset names in GITLAB_TOOLSETS (will be ignored): ${unknown.join(", ")}.${allHint} ${knownToolsetsHint()}`
+    );
+  }
   return selected;
+}
+
+function isToolsetId(name: string): name is ToolsetId {
+  const knownIds: ReadonlySet<string> = ALL_TOOLSET_IDS;
+  return knownIds.has(name);
+}
+
+function knownToolsetsHint(): string {
+  return `Known toolsets: ${[...ALL_TOOLSET_IDS].join(", ")}.`;
 }
 
 export function parseIndividualTools(raw: string | undefined): ReadonlySet<string> {
@@ -2793,7 +2822,7 @@ export function parseIndividualTools(raw: string | undefined): ReadonlySet<strin
     .filter(Boolean);
   const unknown = parsed.filter(name => !allToolNames.has(name));
   if (unknown.length > 0) {
-    console.warn(`Unknown tool names in GITLAB_TOOLS (will be ignored): ${unknown.join(", ")}`);
+    warnOnce(`Unknown tool names in GITLAB_TOOLS (will be ignored): ${unknown.join(", ")}`);
   }
   return new Set(parsed);
 }
