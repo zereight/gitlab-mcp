@@ -326,6 +326,21 @@ function applyAwsSecretFieldMask(
   return masked;
 }
 
+function readJsonStringToken(token: string): string {
+  const parsed: unknown = JSON.parse(token);
+  if (typeof parsed !== "string") {
+    throw new Error("JSON string token did not decode to a string");
+  }
+  return parsed;
+}
+
+function readGitlabCiAwsSecretKey(value: object): string | undefined {
+  if (!("key" in value)) return undefined;
+  const key = value.key;
+  if (typeof key !== "string" || !AWS_SECRET_FIELD_NAMES.has(key)) return undefined;
+  return key;
+}
+
 /**
  * Masks one string value under its field name. maskStrings and the JSON-text
  * path both call this so structured and text output agree for every field.
@@ -347,8 +362,12 @@ function maskStrings(
   if (typeof value === "string") return maskFieldValue(value, parentKey, mask);
   if (Array.isArray(value)) return value.map(item => maskStrings(item, mask, parentKey));
   if (value && typeof value === "object") {
+    const ciKey = readGitlabCiAwsSecretKey(value);
     const output: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) output[key] = maskStrings(item, mask, key);
+    for (const [key, item] of Object.entries(value)) {
+      const fieldKey = key === "value" && ciKey !== undefined ? ciKey : key;
+      output[key] = maskStrings(item, mask, fieldKey);
+    }
     return output;
   }
   return value;
@@ -364,11 +383,21 @@ interface JsonScope {
   /** Objects only: true while the next string token is a property name. */
   expectingKey: boolean;
   isObject: boolean;
+  /** Identity of the nearest object, used to join GitLab CI `key`/`value` siblings. */
+  objectId: number;
+}
+
+interface JsonStringValue {
+  index: number;
+  token: string;
+  decoded: string;
+  fieldName: string | undefined;
+  objectId: number;
 }
 
 function maskJsonText(text: string, mask: (text: string, parentKey?: string) => string): string {
   try {
-    const parsed = JSON.parse(text) as unknown;
+    const parsed: unknown = JSON.parse(text);
     if (!parsed || typeof parsed !== "object") return mask(text);
   } catch {
     return mask(text);
@@ -377,35 +406,72 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
   // change whitespace and lose precision in numeric values from GitLab. The
   // scope stack follows the same rules as maskStrings: an object value takes
   // the property name, an array element inherits the enclosing field name, and
-  // leaving a nested container restores the enclosing scope.
+  // leaving a nested container restores the enclosing scope. Collect values
+  // first so a GitLab CI `value` is masked even when it appears before `key`.
   const scopes: JsonScope[] = [];
-  return text.replace(JSON_STRING_OR_STRUCTURE_PATTERN, (token: string) => {
+  const stringValues: JsonStringValue[] = [];
+  const objectCiKeys = new Map<number, string>();
+  let nextObjectId = 0;
+  for (const match of text.matchAll(JSON_STRING_OR_STRUCTURE_PATTERN)) {
+    const token = match[0];
+    const index = match.index;
+    if (index === undefined) continue;
     const scope: JsonScope | undefined = scopes[scopes.length - 1];
     if (token === "{") {
-      scopes.push({ isObject: true, expectingKey: true, fieldName: undefined });
-      return token;
+      scopes.push({
+        isObject: true,
+        expectingKey: true,
+        fieldName: undefined,
+        objectId: nextObjectId,
+      });
+      nextObjectId += 1;
+      continue;
     }
     if (token === "[") {
-      scopes.push({ isObject: false, expectingKey: false, fieldName: scope?.fieldName });
-      return token;
+      scopes.push({
+        isObject: false,
+        expectingKey: false,
+        fieldName: scope?.fieldName,
+        objectId: scope?.objectId ?? -1,
+      });
+      continue;
     }
     if (token === "}" || token === "]") {
       scopes.pop();
-      return token;
+      continue;
     }
     if (token === ",") {
       if (scope?.isObject) scope.expectingKey = true;
-      return token;
+      continue;
     }
-    const value = JSON.parse(token) as string;
+    const decoded = readJsonStringToken(token);
     if (scope?.isObject && scope.expectingKey) {
-      scope.fieldName = value;
+      scope.fieldName = decoded;
       scope.expectingKey = false;
-      return token;
+      continue;
     }
-    const masked = maskFieldValue(value, scope?.fieldName, mask);
-    return masked === value ? token : JSON.stringify(masked);
-  });
+    if (scope?.isObject && scope.fieldName === "key" && AWS_SECRET_FIELD_NAMES.has(decoded)) {
+      objectCiKeys.set(scope.objectId, decoded);
+    }
+    stringValues.push({
+      index,
+      token,
+      decoded,
+      fieldName: scope?.fieldName,
+      objectId: scope?.objectId ?? -1,
+    });
+  }
+  let output = "";
+  let cursor = 0;
+  for (const item of stringValues) {
+    output += text.slice(cursor, item.index);
+    const ciKey = objectCiKeys.get(item.objectId);
+    const parentKey = item.fieldName === "value" && ciKey !== undefined ? ciKey : item.fieldName;
+    const masked = maskFieldValue(item.decoded, parentKey, mask);
+    output += masked === item.decoded ? item.token : JSON.stringify(masked);
+    cursor = item.index + item.token.length;
+  }
+  return output + text.slice(cursor);
 }
 
 function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): MaskingEngine {

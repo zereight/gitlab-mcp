@@ -759,6 +759,47 @@ describe("When builtin AWS key masking runs", () => {
     });
   });
 
+  describe("with a GitLab CI variable record", () => {
+    test("should mask the value when key names an AWS secret", () => {
+      const engine = createEnabledEngine();
+      assert.deepEqual(
+        engine.maskValue({
+          key: "AWS_SECRET_ACCESS_KEY",
+          value: EXAMPLE_AWS_SECRET,
+          protected: false,
+        }),
+        { key: "AWS_SECRET_ACCESS_KEY", value: "[AWS key masked]", protected: false }
+      );
+    });
+  });
+
+  describe("with JSON tool text for a GitLab CI variable record", () => {
+    test("should mask the value for either property order", () => {
+      const engine = createEnabledEngine();
+      const keyFirst = JSON.stringify({
+        key: "AWS_SECRET_ACCESS_KEY",
+        value: EXAMPLE_AWS_SECRET,
+      });
+      const valueFirst = `{"value":"${EXAMPLE_AWS_SECRET}","key":"AWS_SECRET_ACCESS_KEY"}`;
+      assert.equal(
+        engine.maskToolResult({ content: [{ type: "text", text: keyFirst }] }).content[0].text,
+        JSON.stringify({ key: "AWS_SECRET_ACCESS_KEY", value: "[AWS key masked]" })
+      );
+      assert.equal(
+        engine.maskToolResult({ content: [{ type: "text", text: valueFirst }] }).content[0].text,
+        `{"value":"[AWS key masked]","key":"AWS_SECRET_ACCESS_KEY"}`
+      );
+    });
+  });
+
+  describe("with a GitLab CI variable that is not an AWS secret", () => {
+    test("should leave a 40-character value unchanged", () => {
+      const engine = createEnabledEngine();
+      const record = { key: "EXAMPLE_TOKEN", value: EXAMPLE_AWS_SECRET };
+      assert.deepEqual(engine.maskValue(record), record);
+    });
+  });
+
   describe("with commit SHAs and short or lowercase lookalikes", () => {
     test("should leave the text unchanged", () => {
       const engine = createEnabledEngine();
@@ -881,6 +922,8 @@ describe("When JSON tool text nests containers under an AWS secret field", () =>
       nested: [{ download_url: "http://10.20.30.40/x" }],
     },
     { id: 1234567890123, AWS_SECRET_ACCESS_KEY: [{ n: 1 }, SECRET] },
+    { key: "AWS_SECRET_ACCESS_KEY", value: SECRET, protected: false },
+    { value: SECRET, key: "AWS_SECRET_ACCESS_KEY" },
   ];
   for (const fixture of parityFixtures) {
     test(`matches maskValue for ${JSON.stringify(fixture)}`, () => {

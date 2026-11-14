@@ -163,12 +163,15 @@ repository. When masking is enabled, built-in rules cover:
 - GitLab token prefixes `glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`,
   `glsoat-`, `gloas-`, `glagent-`, `glft-`, and `glimt-` (`gitlab-token`)
 - IPv4 (`ipv4`) and IPv6 (`ipv6`) addresses
-- JWTs with three base64url segments starting with `eyJ` (`jwt`)
+- JWTs with three base64url segments starting with `eyJ` (`jwt`). Segments
+  longer than 8,192 characters are not matched; use a custom rule for those.
 - PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
-  variants (`pem-private-key`)
+  variants (`pem-private-key`). Bodies longer than 32,768 characters are not
+  matched; use a custom rule for those.
 - AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
-  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments or JSON
-  object fields (`aws-access-key`)
+  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments, JSON object
+  fields, and GitLab CI variable records that store the name in `key` and the
+  secret in `value` (`aws-access-key`)
 
 Each builtin can be disabled or given a custom replacement under `builtins`.
 Rules are loaded at startup; invalid configured files fail startup.
