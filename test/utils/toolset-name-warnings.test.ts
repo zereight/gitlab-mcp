@@ -63,6 +63,17 @@ describe("When GITLAB_TOOLSETS names a toolset that does not exist", () => {
         /^No valid toolsets found in configuration \(pipelnes\)\. Falling back to default toolsets\. Known toolsets: core, /
       );
     });
+
+    it("should explain that all only works on its own in the fallback warning", () => {
+      const { result, warnings } = captureWarnings(() => parseEnabledToolsets("all,pipelnes"));
+
+      assert.equal(result, DEFAULT_TOOLSET_IDS);
+      assert.equal(warnings.length, 1);
+      assert.match(
+        warnings[0],
+        /^No valid toolsets found in configuration \(all,pipelnes\)\. Falling back to default toolsets\. "all" only works on its own; /
+      );
+    });
   });
 });
 

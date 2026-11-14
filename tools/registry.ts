@@ -2783,17 +2783,17 @@ export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<Tools
     .map(s => s.trim())
     .filter(Boolean);
   const selected = new Set(names.filter(isToolsetId));
+  const unknown = [...new Set(names.filter(name => !isToolsetId(name)))];
+  const allHint = unknown.includes("all")
+    ? ' "all" only works on its own; to add an explicit-only toolset such as api, list every toolset by name.'
+    : "";
   if (selected.size === 0) {
     warnOnce(
-      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets. ${knownToolsetsHint()}`
+      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.${allHint} ${knownToolsetsHint()}`
     );
     return DEFAULT_TOOLSET_IDS;
   }
-  const unknown = [...new Set(names.filter(name => !isToolsetId(name)))];
   if (unknown.length > 0) {
-    const allHint = unknown.includes("all")
-      ? ' "all" only works on its own; to add an explicit-only toolset such as api, list every toolset by name.'
-      : "";
     warnOnce(
       `Unknown toolset names in GITLAB_TOOLSETS (will be ignored): ${unknown.join(", ")}.${allHint} ${knownToolsetsHint()}`
     );
