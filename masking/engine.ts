@@ -326,15 +326,25 @@ function applyAwsSecretFieldMask(
   return masked;
 }
 
+/**
+ * Masks one string value under its field name. maskStrings and the JSON-text
+ * path both call this so structured and text output agree for every field.
+ */
+function maskFieldValue(
+  value: string,
+  parentKey: string | undefined,
+  mask: (text: string, parentKey?: string) => string
+): string {
+  const masked = mask(value, parentKey);
+  return masked !== value && parentKey === "download_url" ? "[Download URL masked]" : masked;
+}
+
 function maskStrings(
   value: unknown,
   mask: (text: string, parentKey?: string) => string,
   parentKey?: string
 ): unknown {
-  if (typeof value === "string") {
-    const masked = mask(value, parentKey);
-    return masked !== value && parentKey === "download_url" ? "[Download URL masked]" : masked;
-  }
+  if (typeof value === "string") return maskFieldValue(value, parentKey, mask);
   if (Array.isArray(value)) return value.map(item => maskStrings(item, mask, parentKey));
   if (value && typeof value === "object") {
     const output: Record<string, unknown> = {};
@@ -342,6 +352,18 @@ function maskStrings(
     return output;
   }
   return value;
+}
+
+// Complete JSON string literals and structural punctuation. Text between these
+// matches (numbers, literals, whitespace) is copied through untouched.
+const JSON_STRING_OR_STRUCTURE_PATTERN = /"(?:\\.|[^"\\])*"|[{}[\],]/g;
+
+interface JsonScope {
+  /** Field name for values directly inside this container. Arrays inherit it. */
+  fieldName: string | undefined;
+  /** Objects only: true while the next string token is a property name. */
+  expectingKey: boolean;
+  isObject: boolean;
 }
 
 function maskJsonText(text: string, mask: (text: string, parentKey?: string) => string): string {
@@ -352,18 +374,37 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
     return mask(text);
   }
   // Rewrite only JSON string values. Re-serializing the parsed object would
-  // change whitespace and lose precision in numeric values from GitLab.
-  let propertyKey: string | undefined;
-  return text.replace(/"(?:\\.|[^"\\])*"/g, (literal: string, offset: number) => {
-    const value = JSON.parse(literal) as string;
-    if (/^\s*:/.test(text.slice(offset + literal.length))) {
-      propertyKey = value;
-      return literal;
+  // change whitespace and lose precision in numeric values from GitLab. The
+  // scope stack follows the same rules as maskStrings: an object value takes
+  // the property name, an array element inherits the enclosing field name, and
+  // leaving a nested container restores the enclosing scope.
+  const scopes: JsonScope[] = [];
+  return text.replace(JSON_STRING_OR_STRUCTURE_PATTERN, (token: string) => {
+    const scope: JsonScope | undefined = scopes[scopes.length - 1];
+    if (token === "{") {
+      scopes.push({ isObject: true, expectingKey: true, fieldName: undefined });
+      return token;
     }
-    const masked = mask(value, propertyKey);
-    if (masked === value) return literal;
-    const isDownloadUrl = propertyKey === "download_url" && /:\s*$/.test(text.slice(0, offset));
-    return JSON.stringify(isDownloadUrl ? "[Download URL masked]" : masked);
+    if (token === "[") {
+      scopes.push({ isObject: false, expectingKey: false, fieldName: scope?.fieldName });
+      return token;
+    }
+    if (token === "}" || token === "]") {
+      scopes.pop();
+      return token;
+    }
+    if (token === ",") {
+      if (scope?.isObject) scope.expectingKey = true;
+      return token;
+    }
+    const value = JSON.parse(token) as string;
+    if (scope?.isObject && scope.expectingKey) {
+      scope.fieldName = value;
+      scope.expectingKey = false;
+      return token;
+    }
+    const masked = maskFieldValue(value, scope?.fieldName, mask);
+    return masked === value ? token : JSON.stringify(masked);
   });
 }
 

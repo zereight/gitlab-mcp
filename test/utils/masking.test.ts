@@ -772,3 +772,123 @@ describe("When builtin AWS key masking runs", () => {
     });
   });
 });
+
+describe("When JSON tool text nests containers under an AWS secret field", () => {
+  const SECRET = "A".repeat(40);
+  const MASKED = "[AWS key masked]";
+  const maskJsonText = (engine: ReturnType<typeof createEnabledEngine>, text: string): string =>
+    engine.maskToolResult({ content: [{ type: "text", text }] }).content[0].text;
+
+  test("masks a secret array element that follows a nested object", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({ AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, SECRET] });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({ AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, MASKED] })
+    );
+  });
+
+  test("masks every secret array element around a nested object", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({ AWS_SECRET_ACCESS_KEY: [SECRET, { note: "m" }, SECRET] });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({ AWS_SECRET_ACCESS_KEY: [MASKED, { note: "m" }, MASKED] })
+    );
+  });
+
+  test("keeps the field name through objects and arrays nested inside an array", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({
+      items: [{ AWS_SECRET_ACCESS_KEY: [[{ a: { b: "c" } }], SECRET] }],
+    });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({ items: [{ AWS_SECRET_ACCESS_KEY: [[{ a: { b: "c" } }], MASKED] }] })
+    );
+  });
+
+  test("restores the enclosing field name and reads the next sibling key after nested containers", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({
+      AWS_SECRET_ACCESS_KEY: [[{ n: "m" }], SECRET],
+      plain: SECRET,
+    });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({ AWS_SECRET_ACCESS_KEY: [[{ n: "m" }], MASKED], plain: SECRET })
+    );
+  });
+
+  test("applies only the nearest property name to values of a nested object", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({ AWS_SECRET_ACCESS_KEY: { note: SECRET } });
+    assert.equal(maskJsonText(engine, text), text);
+  });
+
+  test("leaves strings in non-secret fields untouched", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify({
+      note: "metadata",
+      items: [{ name: "ci" }, "plain"],
+      AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, SECRET],
+    });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({
+        note: "metadata",
+        items: [{ name: "ci" }, "plain"],
+        AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, MASKED],
+      })
+    );
+  });
+
+  test("preserves numbers and whitespace byte-for-byte around a masked value", () => {
+    const engine = createEnabledEngine();
+    const text = [
+      "{\n",
+      '\t"id": 12345678901234567890.123456789,\n',
+      '  "AWS_SECRET_ACCESS_KEY" :  [ {"note": "metadata" } ,\t',
+      JSON.stringify(SECRET),
+      " ],\n",
+      '  "ratio":  -0.0e+00\n}\n',
+    ].join("");
+    assert.equal(
+      maskJsonText(engine, text),
+      text.replace(JSON.stringify(SECRET), JSON.stringify(MASKED))
+    );
+  });
+
+  test("keeps the whole secret masked when a keyword rule matches only its prefix inside an array", () => {
+    const engine = createEnabledEngine({
+      rules: [{ id: "prefix", type: "keyword", match: "AAAA", replacement: "[prefix]" }],
+    });
+    const secret = `AAAA${"B".repeat(36)}`;
+    const text = JSON.stringify({ AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, secret] });
+    assert.equal(
+      maskJsonText(engine, text),
+      JSON.stringify({ AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, MASKED] })
+    );
+  });
+
+  const parityFixtures: Array<Record<string, unknown>> = [
+    { AWS_SECRET_ACCESS_KEY: [{ note: "metadata" }, SECRET] },
+    { AWS_SECRET_ACCESS_KEY: [SECRET, { note: "m" }, SECRET] },
+    { items: [{ AWS_SECRET_ACCESS_KEY: [[{ a: { b: "c" } }], SECRET] }] },
+    { AWS_SECRET_ACCESS_KEY: { note: SECRET } },
+    {
+      download_url: ["http://10.20.30.40/file"],
+      nested: [{ download_url: "http://10.20.30.40/x" }],
+    },
+    { id: 1234567890123, AWS_SECRET_ACCESS_KEY: [{ n: 1 }, SECRET] },
+  ];
+  for (const fixture of parityFixtures) {
+    test(`matches maskValue for ${JSON.stringify(fixture)}`, () => {
+      const engine = createEnabledEngine();
+      assert.deepEqual(
+        JSON.parse(maskJsonText(engine, JSON.stringify(fixture))),
+        engine.maskValue(fixture)
+      );
+    });
+  }
+});
