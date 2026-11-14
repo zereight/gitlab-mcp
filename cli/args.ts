@@ -50,6 +50,8 @@ const GLOBAL_FLAG_NAMES = new Set([
   "masking-config",
   "masking-policy-file",
   "masking-workspace-dir",
+  "audit-log",
+  "audit-log-file",
   "download-dir",
   "permission-mode",
   "use-wiki",

@@ -45,7 +45,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="projects"></a>
 
-- [x] [`get_project`](../tools/projects.md#get_project) — `test/allowed-project-access-denied.test.ts`, `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-session-binding.test.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
+- [x] [`get_project`](../tools/projects.md#get_project) — `test/allowed-project-access-denied.test.ts`, `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-session-binding.test.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
 - [x] [`list_projects`](../tools/projects.md#list_projects) — `test/client-pool-test.ts`, `test/no-proxy-integration-test.ts`, `test/test-dynamic-project-scope.ts`
 - [x] [`update_project`](../tools/projects.md#update_project) — `test/test-update-project.ts`
 - [x] [`list_project_members`](../tools/projects.md#list_project_members) — `test/test-list-project-members.ts`
@@ -447,6 +447,6 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="meta"></a>
 
-- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
+- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
 - [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
 - [ ] [`help`](../tools/meta.md#help)

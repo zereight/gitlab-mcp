@@ -262,7 +262,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.25`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.26`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Instalação com um clique no Claude Desktop (MCP Bundle)
 
@@ -307,6 +307,8 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
 - `--list-summary-default=true` - ferramentas `list_*` tratam o argumento `summary` omitido como `true`; `summary: false` ainda retorna o JSON completo (substitui `GITLAB_MCP_LIST_SUMMARY_DEFAULT`; desativado por padrão)
+- `--audit-log=true` - log de auditoria NDJSON opcional das chamadas de ferramentas MCP para ingestão SIEM (substitui `GITLAB_AUDIT_LOG`; desativado por padrão)
+- `--audit-log-file` - anexa as linhas de auditoria a este arquivo; se omitido, escreve NDJSON em stderr, nunca em stdout (substitui `GITLAB_AUDIT_LOG_FILE`)
 - `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
 
 Se você já definiu `GITLAB_TOOLSETS` ou `--toolsets`, acrescente `wiki`, `milestones` ou `pipelines` a essa lista em vez de substituí-la. Se você já definiu `GITLAB_TOOLS` ou `--tools`, acrescente `validate_ci_lint` e `validate_project_ci_lint` a essa lista em vez de substituí-la. Uma lista explícita substitui o toolset padrão `core`; ela não é mesclada.

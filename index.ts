@@ -767,6 +767,14 @@ import {
 } from "./schemas.js";
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createGraphQLAuditFailure,
+  createToolCallAuditor,
+  graphqlPayloadHasErrors,
+  markToolResultAsAuditFailure,
+  readKnownGitLabUserId,
+  readKnownGitLabUsername,
+} from "./utils/audit-log.js";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -881,7 +889,7 @@ function createServer(): McpServer {
     };
   });
 
-  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any, extra) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
@@ -889,6 +897,14 @@ function createServer(): McpServer {
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
     const requestArguments = readOwnRecord(request.params.arguments);
+    const auditor = createToolCallAuditor({
+      toolName,
+      sessionId: extra.sessionId ?? sessionId,
+      args: requestArguments,
+      startedAtMs: start,
+      gitlabUserId: readKnownGitLabUserId(extra.authInfo?.extra),
+      gitlabUsername: readKnownGitLabUsername(extra.authInfo?.extra),
+    });
     const jmespathExpression = readJmespathExpression(
       requestArguments === undefined ? undefined : { ...requestArguments }
     );
@@ -924,7 +940,7 @@ function createServer(): McpServer {
           })
         : filtered;
       // Last exit for successful results: structuredContent is object-or-absent (#675).
-      return finalizeToolCallResult({
+      const finalized = finalizeToolCallResult({
         result: masked,
         enabled: shouldCompactToolResult(
           toolName,
@@ -936,6 +952,8 @@ function createServer(): McpServer {
         args: readOwnRecord(request.params.arguments),
         inputSchema: allTools.find(tool => tool.name === toolName)?.inputSchema,
       });
+      auditor.recordResult(result);
+      return finalized;
     };
 
     const logError = (error: unknown): unknown => {
@@ -954,6 +972,7 @@ function createServer(): McpServer {
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
       flushBufferedLogs(logger);
+      auditor.recordError(safeError);
       return safeError;
     };
 
@@ -973,6 +992,7 @@ function createServer(): McpServer {
             allowedProjectIds: authData.allowedProjectIds,
           }
         : undefined;
+      auditor.setSessionHeader(sessionContext?.header ?? sessionAuthStore.getStore()?.header);
       const selectMaskingPolicy = () => {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
@@ -11519,13 +11539,17 @@ async function handleToolCall(params: any) {
             await handleGitLabError(response);
           }
           const json = await response.json();
-          return {
+          const graphqlResult = {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
+          if (graphqlPayloadHasErrors(json)) {
+            markToolResultAsAuditFailure(graphqlResult, createGraphQLAuditFailure());
+          }
+          return graphqlResult;
         } catch (err) {
           // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
-          return {
+          const graphqlFailure = {
             content: [
               {
                 type: "text",
@@ -11533,6 +11557,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(graphqlFailure, err);
+          return graphqlFailure;
         } finally {
           clearTimeout(timeout);
         }
@@ -11585,7 +11611,7 @@ async function handleToolCall(params: any) {
               describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
-          return {
+          const forkFailure = {
             content: [
               {
                 type: "text",
@@ -11593,6 +11619,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(forkFailure, forkError);
+          return forkFailure;
         }
       }
 
