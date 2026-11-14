@@ -13,26 +13,35 @@ const SECRET_QUERY = "fakesecret123";
 const SLASHLESS_PASSWORD = "slashless-pass";
 const DEFAULT_STARTUP_API_URL = `https://${SECRET_USER}:${SECRET_PASSWORD}@gitlab.example.com/api/v4?private_token=${SECRET_QUERY}`;
 const SLASHLESS_LIST_API_URL = `https://gitlab.example/api/v4,https:slashless-user:${SLASHLESS_PASSWORD}@other.example`;
+// A literal comma in the password: refused at startup since v3 (#876).
 const COMMA_PASSWORD = "pass,word";
 const COMMA_API_URL = `https://comma-user:${COMMA_PASSWORD}@gitlab.example.com/api/v4`;
 const ENCODED_COMMA_PASSWORD = "pass%2Cword";
 const ENCODED_COMMA_API_URL = `https://comma-user:${ENCODED_COMMA_PASSWORD}@gitlab.example.com/api/v4`;
 const HTTP_TAIL_PASSWORD_HEAD = "supersecret";
 const HTTP_TAIL_API_URL = `https://alice:${HTTP_TAIL_PASSWORD_HEAD},https:word@gitlab.example.com/api/v4`;
+// The example from #876: one URL whose password is "123,https:<secret>", or
+// "https://alice:123" (host alice, port 123) and "https:<secret>@host".
+const ISSUE_876_SECRET = "pw-secret-876";
+const ISSUE_876_API_URL = `https://alice:123,https:${ISSUE_876_SECRET}@host`;
+const ISSUE_876_CREDENTIAL_PART = /alice|123|pw-secret-876/;
+const AMBIGUOUS_COMMA_ERROR =
+  /GITLAB_API_URL comma 1 of 1 may be inside a username or password, so the value cannot be split into URLs safely \(value not shown: it may contain a password\)\. Write a comma inside a username or password as %2C/;
+// Accepted: the "/" after "https:" comes before the "@", and no ":" precedes the comma.
+const LATER_USERINFO_API_URL = "http://first.example,https://bob:Qz9w@b.example";
+const LATER_USERINFO_CREDENTIAL_PART = /bob|Qz9w/;
 const DIGIT_PASSWORD_TAIL = "digit-pass-9f2a";
 // WHATWG reads "alice:12" as a host and port, so the URL is not stripped.
 const DIGIT_PASSWORD_API_URL = `https://alice:12/${DIGIT_PASSWORD_TAIL}@gitlab.example.com/api/v4`;
-// The text after the comma reaches "/" before "@", so the list is split inside
-// the password and the first entry, "http://alice:Pw7x", does not parse.
+// The comma may be inside the password "Pw7x,http://w", so the value is refused.
 const SPLIT_PASSWORD_API_URL = "http://alice:Pw7x,http://w@host/api/v4";
 // Parses as a URL whose scheme is "alice:".
-const SCHEMELESS_CREDENTIAL_API_URL = "alice:Pw7x,w@host";
+const SCHEMELESS_CREDENTIAL_API_URL = "alice:Pw7x@host";
 const CREDENTIAL_PART = /alice|Pw7x/;
-// Both pieces of "alice:12,http://w" parse, so the list splits and "12" reads as a port.
+// v2 split this value and read "12" as a port; since v3 it is refused.
 const SPLIT_PORT_API_URL = "http://alice:12,http://w@host";
-const SPLIT_PORT_HEAD = "12";
 const SPLIT_PORT_HOST_AND_PORT = "alice:12";
-// Here the second URL is "http://sec/ret@host", whose host "sec" is part of the password.
+// v2 split this into "http://alice:12" and "http://sec/ret@host", whose host "sec" is part of the password.
 const SPLIT_PORT_SLASH_API_URL = "http://alice:12,http://sec/ret@host";
 const SPLIT_PORT_CREDENTIAL_PART = /alice|12/;
 // Two commas in the password "7351,http://pw8y:9573,http://tl3x" give three URLs
@@ -162,6 +171,7 @@ async function captureStartupLogsAsync(
 
 interface FailedStartup {
   readonly code: number | null;
+  readonly stdout: string;
   readonly stderr: string;
 }
 
@@ -180,7 +190,11 @@ async function captureFailedStartupAsync(
       stdio: ["pipe", "pipe", "pipe"],
     }
   );
+  const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
+  child.stdout?.on("data", chunk => {
+    stdoutChunks.push(Buffer.from(chunk));
+  });
   child.stderr?.on("data", chunk => {
     stderrChunks.push(Buffer.from(chunk));
   });
@@ -189,7 +203,11 @@ async function captureFailedStartupAsync(
   }, 20000);
   try {
     const [code] = await once(child, "close");
-    return { code: code as number | null, stderr: Buffer.concat(stderrChunks).toString("utf8") };
+    return {
+      code: code as number | null,
+      stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+      stderr: Buffer.concat(stderrChunks).toString("utf8"),
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -299,19 +317,18 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma inside the password", () => {
-    it("should log the host name of one URL", async () => {
-      const logs = await captureStartupLogsAsync(COMMA_API_URL);
+    it("should fail validation and ask for %2C", async () => {
+      const startup = await captureFailedStartupAsync(COMMA_API_URL);
 
-      assert.equal(
-        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: gitlab.example.com"
-      );
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
     });
 
-    it("should omit the password from stderr", async () => {
-      const logs = await captureStartupLogsAsync(COMMA_API_URL);
+    it("should omit the password from the output", async () => {
+      const startup = await captureFailedStartupAsync(COMMA_API_URL);
 
-      assert.equal(logs.stderr.includes(COMMA_PASSWORD), false);
+      assert.equal(startup.stdout, "");
+      assert.deepEqual(textsWithCredentialPart(startup.stderr, /comma-user|pass,|,word/), []);
     });
   });
 
@@ -333,19 +350,59 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma and an http-looking tail inside the password", () => {
-    it("should log the host name of one URL", async () => {
-      const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
+    it("should fail validation and ask for %2C", async () => {
+      const startup = await captureFailedStartupAsync(HTTP_TAIL_API_URL);
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
+    });
+
+    it("should omit the password from the output", async () => {
+      const startup = await captureFailedStartupAsync(HTTP_TAIL_API_URL);
+
+      assert.equal(`${startup.stdout}\n${startup.stderr}`.includes(HTTP_TAIL_PASSWORD_HEAD), false);
+    });
+  });
+
+  describe("with the ambiguous value from #876", () => {
+    it("should fail validation and ask for %2C", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL);
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
+    });
+
+    it("should not log the configured URLs", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL);
+
+      assert.equal(startup.stderr.includes(CONFIGURED_URLS_PREFIX), false);
+    });
+
+    it("should omit every part of the credential from the output", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL);
+
+      assert.equal(startup.stdout, "");
+      assert.equal(startup.stderr.includes(ISSUE_876_SECRET), false);
+      assert.deepEqual(textsWithCredentialPart(startup.stderr, ISSUE_876_CREDENTIAL_PART), []);
+    });
+  });
+
+  // The first host could still be a user name whose password has an unencoded
+  // "/", so it is not logged; the value is not refused.
+  describe("with userinfo in a later URL after a root URL", () => {
+    it("should log only the host name of the URL with the userinfo", async () => {
+      const logs = await captureStartupLogsAsync(LATER_USERINFO_API_URL);
 
       assert.equal(
         logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: gitlab.example.com"
+        "Configured GitLab API URLs: <invalid>, b.example"
       );
     });
 
-    it("should omit the password from stderr", async () => {
-      const logs = await captureStartupLogsAsync(HTTP_TAIL_API_URL);
+    it("should omit the userinfo from stderr", async () => {
+      const logs = await captureStartupLogsAsync(LATER_USERINFO_API_URL);
 
-      assert.equal(logs.stderr.includes(HTTP_TAIL_PASSWORD_HEAD), false);
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, LATER_USERINFO_CREDENTIAL_PART), []);
     });
   });
 
@@ -368,17 +425,17 @@ describe("When the stdio server starts", () => {
   });
 
   describe("with a comma that splits the password before an http URL", () => {
-    it("should fail validation and name the entry by its position", async () => {
+    it("should fail validation and name the comma by its position", async () => {
       const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL);
 
       assert.equal(startup.code, 1);
-      assert.match(startup.stderr, /GITLAB_API_URL entry 1 of 2 is not a valid URL/);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
     });
 
     it("should tell the user to write the comma as %2C", async () => {
       const startup = await captureFailedStartupAsync(SPLIT_PASSWORD_API_URL);
 
-      assert.match(startup.stderr, /write a comma inside a username or password as %2C/);
+      assert.match(startup.stderr, /Write a comma inside a username or password as %2C/);
     });
 
     it("should omit every part of the credential from stderr", async () => {
@@ -415,110 +472,69 @@ describe("When the stdio server starts", () => {
     });
   });
 
-  describe("with a password comma that splits the value into two URLs", () => {
-    // The second URL has an "@", so the first one, whose host is the user name, is not logged.
-    it("should log only the host name of the URL with the @", async () => {
-      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
+  // Each of these used to start, with a host or port from the password in the
+  // URL list. Since v3 the comma may be inside a password, so they are refused.
+  const splitPasswordValues: Record<string, { value: string; part: RegExp }> = {
+    "a password comma that splits the value into two URLs": {
+      value: SPLIT_PORT_API_URL,
+      part: SPLIT_PORT_CREDENTIAL_PART,
+    },
+    "a password comma and slash that split the value into two URLs": {
+      value: SPLIT_PORT_SLASH_API_URL,
+      part: /alice|12|sec|ret/,
+    },
+    "two password commas that split the value into three URLs": {
+      value: THREE_PIECE_API_URL,
+      part: THREE_PIECE_CREDENTIAL_PART,
+    },
+    "a username and a password comma but no scheme": {
+      value: "alice:Pw7x,w@host",
+      part: CREDENTIAL_PART,
+    },
+  };
 
-      assert.equal(
-        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: <invalid>, host"
-      );
-    });
+  for (const [name, { value, part }] of Object.entries(splitPasswordValues)) {
+    describe(`with ${name}`, () => {
+      it("should fail validation before it logs the URLs", async () => {
+        const startup = await captureFailedStartupAsync(value);
 
-    it("should not log the host name of the default URL", async () => {
-      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
-
-      assert.equal(
-        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
-        "Default GitLab API URL: <invalid>"
-      );
-    });
-
-    it("should omit the start of the password from the URL logs", async () => {
-      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
-      const urlLogs = [
-        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
-      ];
-
-      assert.equal(
-        urlLogs.some(message => message.includes(SPLIT_PORT_HEAD)),
-        false
-      );
-    });
-
-    it("should omit the host and port of the first URL from stderr", async () => {
-      const logs = await captureStartupLogsAsync(SPLIT_PORT_API_URL);
-
-      assert.equal(logs.stderr.includes(SPLIT_PORT_HOST_AND_PORT), false);
-    });
-  });
-
-  describe("with a password comma and slash that split the value into two URLs", () => {
-    it("should not log the host of the URL that has an @ after its host, or before it", async () => {
-      const logs = await captureStartupLogsAsync(SPLIT_PORT_SLASH_API_URL);
-
-      assert.equal(
-        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: <invalid>, <invalid>"
-      );
-    });
-  });
-
-  describe("with two password commas that split the value into three URLs", () => {
-    it("should log only the host name of the URL with the @", async () => {
-      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
-
-      assert.equal(
-        logMessage(logs.stderr, CONFIGURED_URLS_PREFIX),
-        "Configured GitLab API URLs: <invalid>, <invalid>, gitlab.example"
-      );
-    });
-
-    it("should not log the host name of the default URL", async () => {
-      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
-
-      assert.equal(
-        logMessage(logs.stderr, DEFAULT_URL_PREFIX),
-        "Default GitLab API URL: <invalid>"
-      );
-    });
-
-    it("should omit every part of the credential from the log lines", async () => {
-      const logs = await captureStartupLogsAsync(THREE_PIECE_API_URL);
-
-      assert.deepEqual(textsWithCredentialPart(logs.stderr, THREE_PIECE_CREDENTIAL_PART), []);
-    });
-  });
-
-  describe("with OAuth and a password comma that splits the value into two URLs", () => {
-    const captureOAuthLogsAsync = () =>
-      captureStartupLogsAsync(SPLIT_PORT_API_URL, {
-        extraEnv: OAUTH_ENV,
-        exitMarker: OAUTH_CLEARTEXT_ERROR,
+        assert.equal(startup.code, 1);
+        assert.match(startup.stderr, /may be inside a username or password/);
+        assert.equal(startup.stderr.includes(CONFIGURED_URLS_PREFIX), false);
       });
 
-    it("should refuse cleartext HTTP without naming the host", async () => {
-      const logs = await captureOAuthLogsAsync();
+      it("should omit every part of the credential from the log lines", async () => {
+        const startup = await captureFailedStartupAsync(value);
 
-      assert.equal(
-        logs.stderr.includes(`${OAUTH_CLEARTEXT_ERROR} to http://<invalid>. Use an https://`),
-        true
-      );
+        assert.equal(startup.stdout, "");
+        assert.deepEqual(textsWithCredentialPart(startup.stderr, part), []);
+      });
+    });
+  }
+
+  describe("with OAuth and a password comma that splits the value into two URLs", () => {
+    it("should fail validation before the cleartext check", async () => {
+      const startup = await captureFailedStartupAsync(SPLIT_PORT_API_URL, { env: OAUTH_ENV });
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
+      assert.equal(startup.stderr.includes(OAUTH_CLEARTEXT_ERROR), false);
     });
 
     it("should omit the user name and the start of the password from the output", async () => {
-      const logs = await captureOAuthLogsAsync();
+      const startup = await captureFailedStartupAsync(SPLIT_PORT_API_URL, { env: OAUTH_ENV });
 
-      assert.equal(`${logs.stdout}\n${logs.stderr}`.includes(SPLIT_PORT_HOST_AND_PORT), false);
-      assert.deepEqual(textsWithCredentialPart(logs.stderr, SPLIT_PORT_CREDENTIAL_PART), []);
+      assert.equal(
+        `${startup.stdout}\n${startup.stderr}`.includes(SPLIT_PORT_HOST_AND_PORT),
+        false
+      );
+      assert.deepEqual(textsWithCredentialPart(startup.stderr, SPLIT_PORT_CREDENTIAL_PART), []);
     });
   });
 
-  describe("with OAuth and two password commas that split the value into three URLs", () => {
+  describe("with OAuth and a cleartext URL before a URL with userinfo", () => {
     const captureOAuthLogsAsync = () =>
-      captureStartupLogsAsync(THREE_PIECE_API_URL, {
+      captureStartupLogsAsync(LATER_USERINFO_API_URL, {
         extraEnv: OAUTH_ENV,
         exitMarker: OAUTH_CLEARTEXT_ERROR,
       });
@@ -532,11 +548,11 @@ describe("When the stdio server starts", () => {
       );
     });
 
-    it("should omit every part of the credential from the log lines", async () => {
+    it("should omit the userinfo from the log lines", async () => {
       const logs = await captureOAuthLogsAsync();
 
       assert.equal(logs.stdout, "");
-      assert.deepEqual(textsWithCredentialPart(logs.stderr, THREE_PIECE_CREDENTIAL_PART), []);
+      assert.deepEqual(textsWithCredentialPart(logs.stderr, LATER_USERINFO_CREDENTIAL_PART), []);
     });
   });
 
@@ -604,8 +620,43 @@ describe("When the human CLI runs a tool", () => {
       });
 
       assert.equal(startup.code, 2);
-      assert.match(startup.stderr, /GITLAB_API_URL entry 1 of 2 is not a valid URL/);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
       assert.equal(CREDENTIAL_PART.test(startup.stderr), false);
+    });
+  });
+
+  describe("with the ambiguous value from #876", () => {
+    it("should exit before the request without printing the credential", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL, {
+        args: ["tool", "get_project", "--project-id", "1"],
+      });
+
+      assert.equal(startup.code, 2);
+      assert.match(startup.stderr, AMBIGUOUS_COMMA_ERROR);
+      assert.equal(ISSUE_876_CREDENTIAL_PART.test(`${startup.stdout}\n${startup.stderr}`), false);
+    });
+  });
+});
+
+// doctor printed the origin of the first URL: "https://alice:123/api/v4" here.
+describe("When the human CLI runs doctor", () => {
+  describe("with the ambiguous value from #876", () => {
+    it("should fail the api_url check without printing the credential", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL, { args: ["doctor"] });
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stdout, /fail {2}api_url: GITLAB_API_URL comma 1 of 1 may be inside/);
+      assert.equal(ISSUE_876_CREDENTIAL_PART.test(`${startup.stdout}\n${startup.stderr}`), false);
+    });
+
+    it("should not probe GitLab", async () => {
+      const startup = await captureFailedStartupAsync(ISSUE_876_API_URL, {
+        args: ["doctor", "--probe"],
+      });
+
+      assert.equal(startup.code, 1);
+      assert.match(startup.stdout, /fail {2}gitlab_user: not probed: fix api_url first/);
+      assert.equal(ISSUE_876_CREDENTIAL_PART.test(`${startup.stdout}\n${startup.stderr}`), false);
     });
   });
 });

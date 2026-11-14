@@ -8,6 +8,8 @@ import { packageVersion, runDoctor, runDoctorWithOptionalProbe } from "../../cli
 
 const CLI_ENTRY = resolve(dirname(fileURLToPath(import.meta.url)), "../../build/index.js");
 const CLI_TIMEOUT_MS = 30_000;
+const AMBIGUOUS_URL_ERROR =
+  "GITLAB_API_URL comma 1 of 1 may be inside a username or password, so the value cannot be split into URLs safely (value not shown: it may contain a password). Write a comma inside a username or password as %2C, or leave the username and password out: requests do not use them.";
 
 describe("When doctor inspects local configuration", () => {
   describe("with no credentials", () => {
@@ -50,6 +52,29 @@ describe("When doctor inspects local configuration", () => {
       assert.match(report.text, /ok {2}credentials/);
       assert.match(report.text, /fail {2}api_url/);
       assert.match(report.text, /\/api\/v4/);
+    });
+  });
+
+  describe("with an API URL setting that failed validation", () => {
+    it("should fail api_url with the error and not the URL", () => {
+      const report = runDoctor({
+        credentials: {
+          hasPersonalAccessToken: true,
+          hasJobToken: false,
+          hasCookie: false,
+          useOAuth: false,
+        },
+        // What the first entry of "https://alice:123,https:<secret>@host" became.
+        apiUrl: "https://alice:123/api/v4",
+        apiUrlErrors: [AMBIGUOUS_URL_ERROR],
+        permissionMode: "full",
+        toolsetsRaw: undefined,
+        version: "2.3.7",
+      });
+
+      assert.equal(report.ok, false);
+      assert.match(report.text, /fail {2}api_url: GITLAB_API_URL comma 1 of 1 may be inside/);
+      assert.equal(/alice|123/.test(report.text), false);
     });
   });
 
@@ -102,6 +127,33 @@ describe("When doctor is asked to probe GitLab", () => {
 
       assert.equal(report.ok, true);
       assert.match(report.text, /ok {2}gitlab_user: GET \/user 200/);
+    });
+  });
+
+  describe("with an API URL setting that failed validation", () => {
+    it("should not call the probe", async () => {
+      let probed = false;
+      const report = await runDoctorWithOptionalProbe({
+        credentials: {
+          hasPersonalAccessToken: true,
+          hasJobToken: false,
+          hasCookie: false,
+          useOAuth: false,
+        },
+        apiUrl: "https://alice:123/api/v4",
+        apiUrlErrors: [AMBIGUOUS_URL_ERROR],
+        permissionMode: "full",
+        toolsetsRaw: undefined,
+        version: "2.3.7",
+        probe: async () => {
+          probed = true;
+          return { ok: true, status: 200, detail: "GET /user 200" };
+        },
+      });
+
+      assert.equal(probed, false);
+      assert.equal(report.ok, false);
+      assert.match(report.text, /fail {2}gitlab_user: not probed: fix api_url first/);
     });
   });
 });

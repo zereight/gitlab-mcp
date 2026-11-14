@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { splitCommaSeparatedUrls } from "../../utils/redact-url.js";
 import {
+  ambiguousApiUrlCommaError,
+  ambiguousApiUrlCommas,
   apiUrlError,
   apiUrlHostnameForLog,
   apiUrlUserinfoWarning,
@@ -66,6 +69,8 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
     });
   });
 
+  // Startup rejects this value (#876); see "When configuredApiUrlErrors runs".
+  // The list is parsed at module load, before that check, so parsing must stay safe.
   describe("with a literal comma in the password", () => {
     test("should keep one URL and drop the userinfo", () => {
       assert.deepEqual(parseConfiguredGitLabApiUrls("https://alice:p,w@gitlab.example.com"), {
@@ -132,6 +137,7 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
   });
 
   // The password "12,http://password:34,http://tail" has two literal commas.
+  // Startup rejects this value (#876); the log masking stays as a second guard.
   describe("with a password split into three URLs", () => {
     const value = "http://alice:12,http://password:34,http://tail@gitlab.example/api/v4";
 
@@ -198,6 +204,8 @@ describe("When parseConfiguredGitLabApiUrls runs", () => {
 const CREDENTIAL_PART = /alice|Pw7x|Qz9/;
 const COMMA_HINT =
   "GITLAB_API_URL is split at commas: write a comma inside a username or password as %2C";
+const AMBIGUOUS_COMMA_ERROR =
+  "GITLAB_API_URL comma 1 of 1 may be inside a username or password, so the value cannot be split into URLs safely (value not shown: it may contain a password). Write a comma inside a username or password as %2C, or leave the username and password out: requests do not use them.";
 
 describe("When configuredApiUrlErrors runs", () => {
   // A comma in the password splits the list where the text after it reaches
@@ -227,11 +235,20 @@ describe("When configuredApiUrlErrors runs", () => {
   }
 
   describe("with a password prefix before a comma", () => {
-    test("should name the entry by its position and add the %2C hint", () => {
+    test("should name the comma by its position and ask for %2C", () => {
       assert.deepEqual(
         configuredApiUrlErrors("GITLAB_API_URL", "http://alice:Pw7x,http://w@host/api/v4"),
+        [AMBIGUOUS_COMMA_ERROR]
+      );
+    });
+  });
+
+  describe("with an entry that does not parse after a comma", () => {
+    test("should name the entry by its position and add the %2C hint", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors("GITLAB_API_URL", "https://a.example/api/v4,htp:/b.example"),
         [
-          "GITLAB_API_URL entry 1 of 2 is not a valid URL (value not shown: it may contain a password)",
+          "GITLAB_API_URL entry 2 of 2 is not an http or https URL (value not shown: it may contain a password)",
           COMMA_HINT,
         ]
       );
@@ -256,14 +273,24 @@ describe("When configuredApiUrlErrors runs", () => {
   });
 
   describe("with an empty entry and a password prefix before a comma", () => {
-    test("should add the %2C hint", () => {
+    test("should report only the ambiguous commas", () => {
       assert.deepEqual(
         configuredApiUrlErrors("GITLAB_API_URL", "http://alice:Pw7x,,http://w@host/api/v4"),
         [
-          "GITLAB_API_URL entry 1 of 3 is not a valid URL (value not shown: it may contain a password)",
-          "GITLAB_API_URL entry 2 of 3 is empty",
-          COMMA_HINT,
+          "GITLAB_API_URL commas 1 and 2 of 2 may be inside a username or password, so the value cannot be split into URLs safely (value not shown: it may contain a password). Write a comma inside a username or password as %2C, or leave the username and password out: requests do not use them.",
         ]
+      );
+    });
+  });
+
+  describe("with an empty entry and userinfo after the commas", () => {
+    test("should report the empty entry", () => {
+      assert.deepEqual(
+        configuredApiUrlErrors(
+          "GITLAB_API_URL",
+          "https://a.example/api/v4,,https://bob:pw@b.example"
+        ),
+        ["GITLAB_API_URL entry 2 of 3 is empty"]
       );
     });
   });
@@ -293,10 +320,19 @@ describe("When configuredApiUrlErrors runs", () => {
     "an IPv6 loopback URL on a port": "http://[::1]:8080/api/v4",
     "a trailing slash": "https://gitlab.example/api/v4/",
     "two URLs with trailing slashes": "https://a.example/api/v4/,https://b.example/",
-    "a comma inside the password": "https://user:pass,word@gitlab.example/api/v4",
     "an encoded comma inside the password": "https://user:pass%2Cword@gitlab.example/api/v4",
     "a later slashless URL with userinfo":
       "https://gitlab.example/api/v4,https:slashless-user:pw@other.example",
+    "two root URLs": "https://a.example,https://b.example",
+    "a port in the first of two URLs": "https://gitlab.example:443,https://other.example",
+    "an encoded comma in the password of the first URL":
+      "https://alice:p%2Cw@a.example,https://b.example",
+    "userinfo in the second URL": "https://a.example,https://bob:pw@b.example",
+    "userinfo in the second URL after a path": "https://a.example/api/v4,https://bob:pw@b.example",
+    "userinfo in both URLs": "https://alice:pw@a.example,https://bob:pw@b.example",
+    "an @ in the path of the second URL": "https://a.example:8443/api/v4,https://b.example/gl@team",
+    "ports and an IPv6 host":
+      "https://[2001:db8::1]:8443/api/v4,https://gitlab.example:8443/api/v4,https://other.example/api/v4",
   };
 
   for (const [name, value] of Object.entries(validConfigs)) {
@@ -315,6 +351,165 @@ describe("When configuredApiUrlErrors runs", () => {
 
       assert.ok(performance.now() - start < 500);
       assert.equal(errors.length, 4_548);
+    });
+  });
+
+  describe("with a long list of password fragments and an @ at the end", () => {
+    test("should finish quickly and report one error", () => {
+      const value = `${"http://a:p,".repeat(4_546)}w@host`;
+      const start = performance.now();
+      const errors = configuredApiUrlErrors("GITLAB_API_URL", value);
+
+      assert.ok(performance.now() - start < 500);
+      assert.equal(errors.length, 1);
+      assert.match(errors[0], /^GITLAB_API_URL commas 1, 2, .* and 4546 of 4546 may be inside/);
+    });
+  });
+
+  describe("with many commas inside one open authority", () => {
+    test("should finish quickly", () => {
+      const value = `https://alice:p${",".repeat(50_000)}w@host`;
+      const start = performance.now();
+      const errors = configuredApiUrlErrors("GITLAB_API_URL", value);
+
+      assert.ok(performance.now() - start < 500);
+      assert.equal(errors.length, 1);
+    });
+  });
+});
+
+// A value with a literal comma that may be inside a username or password (#876).
+// "Pw7x", "Qz9", and "alice" stand for credential text: none may be printed.
+describe("When a GITLAB_API_URL value has an ambiguous comma", () => {
+  const ambiguousValues: Record<string, { value: string; commas: number[] }> = {
+    "the example from #876": { value: "https://alice:123,https:Pw7x@host", commas: [1] },
+    "the example from #876 with a password that is not a port": {
+      value: "https://alice:Pw7x,https:Qz9@host",
+      commas: [1],
+    },
+    "a comma inside the password of one URL": {
+      value: "https://alice:Pw7x,Qz9@gitlab.example/api/v4",
+      commas: [1],
+    },
+    "a comma inside the username of one URL": {
+      value: "https://alice,Pw7x@gitlab.example/api/v4",
+      commas: [1],
+    },
+    "a password split into two URLs": { value: "http://alice:12,http://Pw7x@host", commas: [1] },
+    "a password split into three URLs": {
+      value: "http://alice:12,http://Pw7x:34,http://Qz9@gitlab.example/api/v4",
+      commas: [1, 2],
+    },
+    "a password with a slash split into two URLs": {
+      value: "http://alice:12,http://Pw7x/Qz9@host",
+      commas: [1],
+    },
+    "several commas inside the password": {
+      value: "http://alice:Pw7x,Qz9,,http://w@host/api/v4",
+      commas: [1, 2, 3],
+    },
+    "a later slashless URL with userinfo after a root URL": {
+      value: "https://a.example,https:alice:Pw7x@b.example",
+      commas: [1],
+    },
+    "a port before a later URL with userinfo": {
+      value: "https://gitlab.example:443,https://alice:Pw7x@b.example",
+      commas: [1],
+    },
+    "a username and password without a scheme": { value: "alice:Pw7x,Qz9@host", commas: [1] },
+    "an unambiguous comma before an ambiguous one": {
+      value: "https://a.example/api/v4,https://alice:Pw7x,Qz9@b.example",
+      commas: [2],
+    },
+  };
+
+  for (const [name, { value, commas }] of Object.entries(ambiguousValues)) {
+    describe(`with ${name}`, () => {
+      test("should find the ambiguous commas by position", () => {
+        assert.deepEqual(ambiguousApiUrlCommas(value), commas);
+      });
+
+      test("should report one startup error that asks for %2C", () => {
+        const errors = configuredApiUrlErrors("GITLAB_API_URL", value);
+
+        assert.equal(errors.length, 1);
+        assert.match(
+          errors[0],
+          /^GITLAB_API_URL commas? [\d, and]+ of \d+ may be inside a username or password/
+        );
+        assert.match(errors[0], /Write a comma inside a username or password as %2C/);
+      });
+
+      test("should not print any part of the value", () => {
+        const text = configuredApiUrlErrors("GITLAB_API_URL", value).join("\n");
+
+        assert.equal(/alice|Pw7x|Qz9|host|example|123/.test(text), false);
+      });
+    });
+  }
+
+  describe("with the --api-url flag", () => {
+    test("should name the flag", () => {
+      assert.match(
+        ambiguousApiUrlCommaError("--api-url", "https://alice:123,https:Pw7x@host") ?? "",
+        /^--api-url comma 1 of 1 may be inside a username or password/
+      );
+    });
+  });
+
+  describe("with no ambiguous comma", () => {
+    test("should return null", () => {
+      assert.equal(
+        ambiguousApiUrlCommaError("GITLAB_API_URL", "https://a.example,https://bob:pw@b.example"),
+        null
+      );
+    });
+  });
+
+  // For a value that passes, the list is the same as a plain split at every comma,
+  // so the heuristic in splitCommaSeparatedUrls no longer decides anything.
+  describe("with random values that have no ambiguous comma", () => {
+    test("should split them at every comma", () => {
+      const pieces = [
+        "https://",
+        "https:",
+        "https:/",
+        "a",
+        ":",
+        "1",
+        "@",
+        "@",
+        "/",
+        ",",
+        ",",
+        " ",
+        "?",
+      ];
+      let seed = 876;
+      const next = (limit: number): number => {
+        // Math.imul keeps the low 32 bits of the product exact; `seed * 1_103_515_245`
+        // exceeds 2^53 and rounds before the mask is applied.
+        seed = (Math.imul(seed, 1_103_515_245) + 12_345) & 0x7fffffff;
+        return seed % limit;
+      };
+      let checked = 0;
+      for (let round = 0; round < 20_000; round += 1) {
+        let value = "";
+        const length = 2 + next(10);
+        for (let index = 0; index < length; index += 1) {
+          value += pieces[next(pieces.length)];
+        }
+        if (ambiguousApiUrlCommas(value).length > 0 || !/,.*@/.test(value)) {
+          continue;
+        }
+        checked += 1;
+        assert.deepEqual(
+          splitCommaSeparatedUrls(value),
+          value.split(",").map(piece => piece.trim()),
+          value
+        );
+      }
+      assert.ok(checked > 1_000);
     });
   });
 });
