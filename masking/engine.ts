@@ -96,21 +96,26 @@ const BUILTIN_RULES: MaskRule[] = [
   {
     id: "jwt",
     type: "regex",
-    // Three base64url segments starting with eyJ ({"). Lengths are bounded so
-    // matching stays linear; no nested quantifiers.
+    // Three base64url segments starting with eyJ ({"). Segment lengths are bounded.
+    // The lookbehind allows a start only where the base64url run begins. Without
+    // it, every eyJ inside a run such as "-eyJ-eyJ-..." rescans up to 8192 chars.
+    // Trade-off: an eyJ directly after "-" (e.g. "sess-eyJ...") is no longer a start.
     pattern:
-      "\\beyJ[A-Za-z0-9_-]{0,8192}\\.[A-Za-z0-9_-]{1,8192}\\.[A-Za-z0-9_-]{1,8192}(?![A-Za-z0-9_-])",
+      "(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{0,8192}\\.[A-Za-z0-9_-]{1,8192}\\.[A-Za-z0-9_-]{1,8192}(?![A-Za-z0-9_-])",
     flags: "g",
     replacement: "[JWT masked]",
   },
   {
     id: "pem-private-key",
     type: "regex",
-    // BEGIN/END labels must match. Body is a single bounded lazy class (PEM
-    // base64 plus Proc-Type / DEK-Info headers) so each match stops at its
-    // first END marker. No nested quantifiers.
+    // BEGIN/END labels must match. Line breaks may be real or literal \n / \r\n
+    // escapes (a key nested in an escaped JSON string). The body is PEM base64,
+    // Proc-Type / DEK-Info lines, and single dashes. It cannot contain a run of
+    // five dashes, which valid PEM bodies never do, so each scan stops at the
+    // next header or footer. Without that bound, every BEGIN rescans up to 32768
+    // chars through the following headers.
     pattern:
-      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----\\r?\\n[A-Za-z0-9+/=\\s,.:-]{1,32768}?-----END \\1-----",
+      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----(?:\\r?\\n|\\\\r\\\\n|\\\\n)(?:[A-Za-z0-9+/=\\s,.:]|\\\\[rn]|-(?!----)){1,32768}?-----END \\1-----",
     flags: "g",
     replacement: "[Private key masked]",
   },

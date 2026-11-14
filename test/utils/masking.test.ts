@@ -630,6 +630,18 @@ describe("When builtin JWT masking runs", () => {
       assert.equal(engine.maskText("10.20.30.40"), "[IP address]");
     });
   });
+
+  describe("with a 1 MB run of -eyJ fragments", () => {
+    test("should finish well under 500 ms and leave the text unchanged", () => {
+      const engine = createEnabledEngine();
+      const text = "-eyJ".repeat(250_000);
+      const startedAt = performance.now();
+      const masked = engine.maskText(text);
+      const elapsedMs = performance.now() - startedAt;
+      assert.equal(masked, text);
+      assert.ok(elapsedMs < 500, `maskText took ${elapsedMs.toFixed(0)} ms`);
+    });
+  });
 });
 
 describe("When builtin PEM private key masking runs", () => {
@@ -675,6 +687,57 @@ describe("When builtin PEM private key masking runs", () => {
       const startedAt = Date.now();
       assert.equal(engine.maskText(text), text);
       assert.ok(Date.now() - startedAt < 1000);
+    });
+  });
+
+  describe("with a 1 MB run of BEGIN headers and no END marker", () => {
+    test("should finish well under 500 ms and leave the text unchanged", () => {
+      const engine = createEnabledEngine();
+      const inputs = [
+        "-----BEGIN PRIVATE KEY-----\n".repeat(37_000),
+        "-----BEGIN PRIVATE KEY-----\\n".repeat(37_000),
+      ];
+      for (const text of inputs) {
+        const startedAt = performance.now();
+        const masked = engine.maskText(text);
+        const elapsedMs = performance.now() - startedAt;
+        assert.equal(masked, text);
+        assert.ok(elapsedMs < 500, `maskText took ${elapsedMs.toFixed(0)} ms`);
+      }
+    });
+  });
+
+  describe("with PEM line breaks written as escape sequences inside a JSON string", () => {
+    const ESCAPED_LF = PKCS8_PRIVATE_KEY.replace(/\n/g, "\\n");
+    const ESCAPED_CRLF = PKCS8_PRIVATE_KEY.replace(/\n/g, "\\r\\n");
+    const variableValue = JSON.stringify({ private_key: PKCS8_PRIVATE_KEY });
+
+    test("should mask raw text whose line breaks are literal backslash-n or backslash-r-n", () => {
+      const engine = createEnabledEngine();
+      assert.equal(
+        engine.maskText(`{"private_key":"${ESCAPED_LF}\\n"}`),
+        `{"private_key":"[Private key masked]\\n"}`
+      );
+      assert.equal(
+        engine.maskText(`{"private_key":"${ESCAPED_CRLF}"}`),
+        `{"private_key":"[Private key masked]"}`
+      );
+    });
+
+    test("should mask the key through the JSON tool text path used by list_project_variables", () => {
+      const engine = createEnabledEngine();
+      const text = JSON.stringify([{ key: "GCP_SA", value: variableValue }]);
+      assert.equal(
+        engine.maskToolResult({ content: [{ type: "text", text }] }).content[0].text,
+        JSON.stringify([{ key: "GCP_SA", value: '{"private_key":"[Private key masked]"}' }])
+      );
+    });
+
+    test("should mask the key on the structured path", () => {
+      const engine = createEnabledEngine();
+      assert.deepEqual(engine.maskValue([{ key: "GCP_SA", value: variableValue }]), [
+        { key: "GCP_SA", value: '{"private_key":"[Private key masked]"}' },
+      ]);
     });
   });
 });
