@@ -93,6 +93,43 @@ const BUILTIN_RULES: MaskRule[] = [
     flags: "g",
     replacement: "[IP address]",
   },
+  {
+    id: "jwt",
+    type: "regex",
+    // Three base64url segments starting with eyJ ({"). Segment lengths are bounded.
+    // The lookbehind allows a start only where the base64url run begins. Without
+    // it, every eyJ inside a run such as "-eyJ-eyJ-..." rescans up to 8192 chars.
+    // Trade-off: an eyJ directly after "-" (e.g. "sess-eyJ...") is no longer a start.
+    pattern:
+      "(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{0,8192}\\.[A-Za-z0-9_-]{1,8192}\\.[A-Za-z0-9_-]{1,8192}(?![A-Za-z0-9_-])",
+    flags: "g",
+    replacement: "[JWT masked]",
+  },
+  {
+    id: "pem-private-key",
+    type: "regex",
+    // BEGIN/END labels must match. Line breaks may be real or literal \n / \r\n
+    // escapes (a key nested in an escaped JSON string). The body is PEM base64,
+    // Proc-Type / DEK-Info lines, and single dashes. It cannot contain a run of
+    // five dashes, which valid PEM bodies never do, so each scan stops at the
+    // next header or footer. Without that bound, every BEGIN rescans up to 32768
+    // chars through the following headers.
+    pattern:
+      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----(?:\\r?\\n|\\\\r\\\\n|\\\\n)(?:[A-Za-z0-9+/=\\s,.:]|\\\\[rn]|-(?!----)){1,32768}?-----END \\1-----",
+    flags: "g",
+    replacement: "[Private key masked]",
+  },
+  {
+    id: "aws-access-key",
+    type: "regex",
+    // AKIA/ASIA IDs are a fixed 20-char shape. Secret values are only matched
+    // on aws_secret_access_key assignments (quoted or unquoted names) to keep
+    // false positives low. JSON object fields are handled separately.
+    pattern:
+      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[\"']?\\s*[=:]\\s*[\"']?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
+    flags: "g",
+    replacement: "[AWS key masked]",
+  },
 ];
 
 const ALLOWED_REGEX_FLAGS = new Set(["g", "i", "m", "s", "u"]);
@@ -274,45 +311,177 @@ function validateMaskingFile(value: unknown, description: string): asserts value
   }
 }
 
-function maskStrings(value: unknown, mask: (text: string) => string, parentKey?: string): unknown {
-  if (typeof value === "string") {
-    const masked = mask(value);
-    return masked !== value && parentKey === "download_url" ? "[Download URL masked]" : masked;
+const AWS_SECRET_FIELD_NAMES = new Set(["aws_secret_access_key", "AWS_SECRET_ACCESS_KEY"]);
+const AWS_SECRET_VALUE_PATTERN = /^[A-Za-z0-9/+=]{40}$/;
+
+function applyAwsSecretFieldMask(
+  parentKey: string | undefined,
+  value: string,
+  masked: string,
+  replacement: string | undefined
+): string {
+  if (
+    replacement !== undefined &&
+    parentKey !== undefined &&
+    AWS_SECRET_FIELD_NAMES.has(parentKey) &&
+    AWS_SECRET_VALUE_PATTERN.test(value)
+  ) {
+    return replacement;
   }
+  return masked;
+}
+
+function readJsonStringToken(token: string): string {
+  const parsed: unknown = JSON.parse(token);
+  if (typeof parsed !== "string") {
+    throw new Error("JSON string token did not decode to a string");
+  }
+  return parsed;
+}
+
+function readGitlabCiAwsSecretKey(value: object): string | undefined {
+  if (!("key" in value)) return undefined;
+  const key = value.key;
+  if (typeof key !== "string" || !AWS_SECRET_FIELD_NAMES.has(key)) return undefined;
+  return key;
+}
+
+/**
+ * Masks one string value under its field name. maskStrings and the JSON-text
+ * path both call this so structured and text output agree for every field.
+ */
+function maskFieldValue(
+  value: string,
+  parentKey: string | undefined,
+  mask: (text: string, parentKey?: string) => string
+): string {
+  const masked = mask(value, parentKey);
+  return masked !== value && parentKey === "download_url" ? "[Download URL masked]" : masked;
+}
+
+function maskStrings(
+  value: unknown,
+  mask: (text: string, parentKey?: string) => string,
+  parentKey?: string
+): unknown {
+  if (typeof value === "string") return maskFieldValue(value, parentKey, mask);
   if (Array.isArray(value)) return value.map(item => maskStrings(item, mask, parentKey));
   if (value && typeof value === "object") {
+    const ciKey = readGitlabCiAwsSecretKey(value);
     const output: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) output[key] = maskStrings(item, mask, key);
+    for (const [key, item] of Object.entries(value)) {
+      const fieldKey = key === "value" && ciKey !== undefined ? ciKey : key;
+      output[key] = maskStrings(item, mask, fieldKey);
+    }
     return output;
   }
   return value;
 }
 
-function maskJsonText(text: string, mask: (text: string) => string): string {
+// Complete JSON string literals and structural punctuation. Text between these
+// matches (numbers, literals, whitespace) is copied through untouched.
+const JSON_STRING_OR_STRUCTURE_PATTERN = /"(?:\\.|[^"\\])*"|[{}[\],]/g;
+
+interface JsonScope {
+  /** Field name for values directly inside this container. Arrays inherit it. */
+  fieldName: string | undefined;
+  /** Objects only: true while the next string token is a property name. */
+  expectingKey: boolean;
+  isObject: boolean;
+  /** Identity of the nearest object, used to join GitLab CI `key`/`value` siblings. */
+  objectId: number;
+}
+
+interface JsonStringValue {
+  index: number;
+  token: string;
+  decoded: string;
+  fieldName: string | undefined;
+  objectId: number;
+}
+
+function maskJsonText(text: string, mask: (text: string, parentKey?: string) => string): string {
   try {
-    const parsed = JSON.parse(text) as unknown;
+    const parsed: unknown = JSON.parse(text);
     if (!parsed || typeof parsed !== "object") return mask(text);
   } catch {
     return mask(text);
   }
   // Rewrite only JSON string values. Re-serializing the parsed object would
-  // change whitespace and lose precision in numeric values from GitLab.
-  let propertyKey: string | undefined;
-  return text.replace(/"(?:\\.|[^"\\])*"/g, (literal: string, offset: number) => {
-    const value = JSON.parse(literal) as string;
-    if (/^\s*:/.test(text.slice(offset + literal.length))) {
-      propertyKey = value;
-      return literal;
+  // change whitespace and lose precision in numeric values from GitLab. The
+  // scope stack follows the same rules as maskStrings: an object value takes
+  // the property name, an array element inherits the enclosing field name, and
+  // leaving a nested container restores the enclosing scope. Collect values
+  // first so a GitLab CI `value` is masked even when it appears before `key`.
+  const scopes: JsonScope[] = [];
+  const stringValues: JsonStringValue[] = [];
+  const objectCiKeys = new Map<number, string>();
+  let nextObjectId = 0;
+  for (const match of text.matchAll(JSON_STRING_OR_STRUCTURE_PATTERN)) {
+    const token = match[0];
+    const index = match.index;
+    if (index === undefined) continue;
+    const scope: JsonScope | undefined = scopes[scopes.length - 1];
+    if (token === "{") {
+      scopes.push({
+        isObject: true,
+        expectingKey: true,
+        fieldName: undefined,
+        objectId: nextObjectId,
+      });
+      nextObjectId += 1;
+      continue;
     }
-    const masked = mask(value);
-    if (masked === value) return literal;
-    const isDownloadUrl = propertyKey === "download_url" && /:\s*$/.test(text.slice(0, offset));
-    return JSON.stringify(isDownloadUrl ? "[Download URL masked]" : masked);
-  });
+    if (token === "[") {
+      scopes.push({
+        isObject: false,
+        expectingKey: false,
+        fieldName: scope?.fieldName,
+        objectId: scope?.objectId ?? -1,
+      });
+      continue;
+    }
+    if (token === "}" || token === "]") {
+      scopes.pop();
+      continue;
+    }
+    if (token === ",") {
+      if (scope?.isObject) scope.expectingKey = true;
+      continue;
+    }
+    const decoded = readJsonStringToken(token);
+    if (scope?.isObject && scope.expectingKey) {
+      scope.fieldName = decoded;
+      scope.expectingKey = false;
+      continue;
+    }
+    if (scope?.isObject && scope.fieldName === "key" && AWS_SECRET_FIELD_NAMES.has(decoded)) {
+      objectCiKeys.set(scope.objectId, decoded);
+    }
+    stringValues.push({
+      index,
+      token,
+      decoded,
+      fieldName: scope?.fieldName,
+      objectId: scope?.objectId ?? -1,
+    });
+  }
+  let output = "";
+  let cursor = 0;
+  for (const item of stringValues) {
+    output += text.slice(cursor, item.index);
+    const ciKey = objectCiKeys.get(item.objectId);
+    const parentKey = item.fieldName === "value" && ciKey !== undefined ? ciKey : item.fieldName;
+    const masked = maskFieldValue(item.decoded, parentKey, mask);
+    output += masked === item.decoded ? item.token : JSON.stringify(masked);
+    cursor = item.index + item.token.length;
+  }
+  return output + text.slice(cursor);
 }
 
 function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): MaskingEngine {
-  const rules = [...(file.rules ?? []), ...mergeBuiltinRules(file)].map(compileRule);
+  const builtinRules = mergeBuiltinRules(file);
+  const rules = [...(file.rules ?? []), ...builtinRules].map(compileRule);
   const maskedErrors = new WeakSet<object>();
   const maskText = (text: string): string => {
     const matches: MaskMatch[] = [];
@@ -350,10 +519,15 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
     }
     return output + text.slice(cursor);
   };
+  const awsSecretFieldReplacement = builtinRules.find(
+    rule => rule.id === "aws-access-key"
+  )?.replacement;
+  const maskString = (text: string, parentKey?: string): string =>
+    applyAwsSecretFieldMask(parentKey, text, maskText(text), awsSecretFieldReplacement);
   return {
     configPath,
     maskText,
-    maskValue: <T>(value: T): T => maskStrings(value, maskText) as T,
+    maskValue: <T>(value: T): T => maskStrings(value, maskString) as T,
     maskToolResult: <T extends Record<string, unknown>>(
       result: T,
       options?: { textFormat?: "plain" | "json" }
@@ -366,13 +540,13 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
           if (typeof block.text === "string") {
             block.text =
               options?.textFormat === "plain"
-                ? maskText(block.text)
-                : maskJsonText(block.text, maskText);
+                ? maskString(block.text)
+                : maskJsonText(block.text, maskString);
           }
           return block;
         });
       if (output.structuredContent !== undefined)
-        output.structuredContent = maskStrings(output.structuredContent, maskText);
+        output.structuredContent = maskStrings(output.structuredContent, maskString);
       return output as T;
     },
     maskError: (error: unknown): unknown => {

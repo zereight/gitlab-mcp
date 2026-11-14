@@ -45,7 +45,7 @@ See [`GITLAB_ALLOWED_PROJECT_IDS`](docs/configuration/environment-variables.md#g
 
 ### Response masking
 
-Set `GITLAB_MASKING_ENABLED` to `true` to mask sensitive text in GitLab tool results and returned error messages. The default is `false`. When masking is off, the server does not read a masking configuration file.
+Set `GITLAB_MASKING_ENABLED` to `true` to mask sensitive text in GitLab tool results and returned error messages. The default is `false`. When masking is off, the server does not read a masking configuration file. Built-in rules cover GitLab tokens, IPv4/IPv6, JWTs, PEM private keys, and AWS access keys; each can be disabled in the masking config.
 
 See [Response masking](docs/configuration/environment-variables.md#response-masking).
 

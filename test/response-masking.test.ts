@@ -20,7 +20,13 @@ import {
 
 async function startMaskingServer(
   t: TestContext,
-  options: { env?: Record<string, string>; builtinFallback?: boolean; managed?: boolean } = {}
+  options: {
+    env?: Record<string, string>;
+    builtinFallback?: boolean;
+    managed?: boolean;
+    localConfig?: Record<string, unknown>;
+    jobTrace?: string;
+  } = {}
 ) {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-integration-"));
   const policyPath = path.join(workspace, "policies.json");
@@ -32,6 +38,10 @@ async function startMaskingServer(
     requests.push(requestUrl);
     if (req.url?.includes("/trace")) {
       res.setHeader("Content-Type", "text/plain");
+      if (options.jobTrace !== undefined) {
+        res.end(options.jobTrace);
+        return;
+      }
       res.end(
         req.url.includes("/jobs/2/")
           ? '{"ProjectOneSecret":9007199254740993}\n'
@@ -125,12 +135,14 @@ async function startMaskingServer(
   } else {
     fs.writeFileSync(
       localConfigPath,
-      JSON.stringify({
-        version: 1,
-        rules: [
-          { id: "local", type: "keyword", match: "ProjectOneSecret", replacement: "[local]" },
-        ],
-      })
+      JSON.stringify(
+        options.localConfig ?? {
+          version: 1,
+          rules: [
+            { id: "local", type: "keyword", match: "ProjectOneSecret", replacement: "[local]" },
+          ],
+        }
+      )
     );
   }
   const transport = new StdioClientTransport({
@@ -502,5 +514,48 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
       params: { name: "get_pipeline_job_output", arguments: { project_id: "12", job_id: "1" } },
     });
     assert.match(JSON.stringify(response?.result), /\[stateless\]/);
+  });
+});
+
+const BUILTIN_SECRET_JOB_TRACE = [
+  "Please review this issue.",
+  "commit a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "AKIAIOSFODNN7EXAMPLE",
+  "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+  '{"AWS_SECRET_ACCESS_KEY":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}',
+  "-----BEGIN RSA PRIVATE KEY-----",
+  "MIIBOgIBAAJBAKfakePrivateKeyMaterialForMaskingTestsOnlyNotRealKey=",
+  "-----END RSA PRIVATE KEY-----",
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhAGhqV3r3wAAAABJRU5ErkJggg==",
+].join("\n");
+
+describe("When builtin secret masking runs at the MCP boundary", { timeout: 30_000 }, () => {
+  describe("with JWT, PEM, and AWS secrets in a mock GitLab job trace", () => {
+    test("should mask all three secret types in the tool response", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: { version: 1 },
+        jobTrace: BUILTIN_SECRET_JOB_TRACE,
+      });
+      const result = await client.callTool({
+        name: "get_pipeline_job_output",
+        arguments: { project_id: "12", job_id: "1" },
+      });
+      const text = JSON.stringify(result);
+      assert.match(text, /\[JWT masked\]/);
+      assert.match(text, /\[Private key masked\]/);
+      assert.match(text, /\[AWS key masked\]/);
+      assert.doesNotMatch(
+        text,
+        /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ/
+      );
+      assert.doesNotMatch(text, /BEGIN RSA PRIVATE KEY/);
+      assert.doesNotMatch(text, /AKIAIOSFODNN7EXAMPLE/);
+      assert.doesNotMatch(text, /wJalrXUtnFEMI\/K7MDENG\/bPxRfiCYEXAMPLEKEY/);
+      assert.match(text, /Please review this issue/);
+      assert.match(text, /a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/);
+      assert.match(text, /iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ/);
+    });
   });
 });
