@@ -21,7 +21,7 @@
 
 **Default: 40 tools** (38 `core` + `discover_tools` + `help`). 288 tools exist in total (285 in toolsets + `execute_graphql` + `discover_tools` + `help`). Start lean; call `discover_tools` to activate more for this session.
 
-> **Token budget:** MCP clients send the whole `tools/list` to the model at session start. Keep the default (~40 tools, ~12k schema tokens). Call `discover_tools` to activate a category for this session (session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list), or use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) and skip MCP schemas. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all tools and costs ~73k schema tokens. See [tools/list size](#toolslist-size-measured-2026-11-05) and [comparison](./docs/comparison/index.md).
+> **Token budget:** MCP clients send the whole `tools/list` to the model at session start. Keep the default (~40 tools, ~12k schema tokens). Call `discover_tools` to activate a category for this session (session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list), or use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) and skip MCP schemas. **Do not set `GITLAB_TOOLSETS=all`** — it loads ~all tools and costs ~73k schema tokens. See [tools/list size](#toolslist-size-measured-2026-11-14) and [comparison](./docs/comparison/index.md).
 
 Install the `zereight-mcp-gitlab` binary first with `npm install -g @zereight/mcp-gitlab`, or Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` and `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). One-liner: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -172,15 +172,15 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | **Node.js**    | >=20.0.0                                                          | Often >=24                                   | Node.js 20+ for stdio via `mcp-remote`                                                                                                           |
 | **License**    | MIT                                                               | Varies                                       | Part of GitLab                                                                                                                                   |
 
-### tools/list size (measured 2026-11-05)
+### tools/list size (measured 2026-11-14)
 
 A client sends the whole `tools/list` result to the model at session start. Token estimate is UTF-8 bytes / 4.
 
 | Profile | Tools | JSON bytes | Est. tokens |
 | ------- | ----: | ---------: | ----------: |
-| Default (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
+| Default (`core` + `discover_tools` + `help`) | 40 | 47,822 | 11,956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46,814 | 11,704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295,933 | 73,984 |
 
 Re-measure with `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`) after description or schema changes.
 
@@ -804,7 +804,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 9. `search_repositories` - Search for GitLab projects
 10. `create_repository` - Create a new GitLab project
 11. `create_group` - Create new group or subgroup
-12. `get_file_contents` - Get contents of a file or directory from a GitLab project
+12. `get_file_contents` - Get the contents of one file from a GitLab project
 13. `push_files` - Push multiple files in a single commit
 14. `create_issue` - Create a new issue
 15. `create_merge_request` - Create a new merge request

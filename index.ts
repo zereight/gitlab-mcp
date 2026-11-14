@@ -2584,9 +2584,15 @@ async function getFileContents(
     ...getFetchConfig(),
   });
 
-  // Handle file not found
+  // Handle file not found (the Files API also answers 404 for a directory or an unknown ref)
   if (response.status === 404) {
-    throw new GitLabApiError(`File not found: ${filePath}`, response);
+    throw new GitLabApiError(
+      withRecoveryHint(
+        `File not found: ${filePath}`,
+        "check file_path and ref; to list a directory, use get_repository_tree."
+      ),
+      response
+    );
   }
 
   await handleGitLabError(response);
