@@ -632,6 +632,21 @@ describe("When builtin JWT masking runs", () => {
       const prefixed = `sess-${EXAMPLE_JWT}`;
       assert.equal(engine.maskText(prefixed), prefixed);
     });
+
+    test("should be masked by a custom rule for that form", () => {
+      const prefixed = `sess-${EXAMPLE_JWT}`;
+      const engine = createEnabledEngine({
+        rules: [
+          {
+            id: "prefixed-jwt",
+            type: "regex",
+            pattern: "sess-eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+",
+            replacement: "[Session JWT masked]",
+          },
+        ],
+      });
+      assert.equal(engine.maskText(prefixed), "[Session JWT masked]");
+    });
   });
 
   describe("with the jwt builtin disabled", () => {

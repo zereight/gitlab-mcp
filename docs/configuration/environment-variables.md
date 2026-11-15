@@ -168,8 +168,10 @@ repository. When masking is enabled, built-in rules cover:
   custom rule for that form. Segments longer than 8,192 characters are not
   matched; use a custom rule for those.
 - PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
-  variants (`pem-private-key`). Bodies longer than 32,768 characters are not
-  matched; use a custom rule for those.
+  variants (`pem-private-key`). A block is matched only up to its own `END`
+  line. A block with no `END` line is not masked, even when another key block
+  follows it. Bodies longer than 32,768 characters are not matched; use a custom
+  rule for those.
 - AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
   and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments, JSON object
   fields, and GitLab CI variable records that store the name in `key` and the
