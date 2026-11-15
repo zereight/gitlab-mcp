@@ -2138,7 +2138,7 @@ export const GetFileContentsSchema = z
       .string()
       .optional()
       .describe(
-        "Path to the file or directory. Takes precedence over 'path' when both are provided"
+        "Path to the file (not a directory). Takes precedence over 'path' when both are provided"
       ),
     path: z.string().optional().describe("Alias of file_path"),
     ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
