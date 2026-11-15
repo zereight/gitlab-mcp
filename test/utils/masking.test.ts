@@ -12,6 +12,9 @@ const EXAMPLE_JWT =
 const EXAMPLE_AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";
 const EXAMPLE_AWS_TEMP_KEY = "ASIAIOSFODNN7EXAMPLE";
 const EXAMPLE_AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+// Writes "/" as the JSON escape \/, as some JSON encoders do. Fixtures here
+// contain no backslashes, so no other escaping is needed.
+const escapeJsonSlashes = (text: string) => text.split("/").join("\\/");
 const EXAMPLE_COMMIT_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
 const EXAMPLE_PNG_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhAGhqV3r3wAAAABJRU5ErkJggg==";
@@ -747,7 +750,7 @@ describe("When builtin PEM private key masking runs", () => {
       "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC/KcwggSjAgEAAoIBAQ+slash/Key==",
       "-----END PRIVATE KEY-----",
     ].join("\n");
-    const ESCAPED = SLASHED_KEY.replace(/\n/g, "\\n").replace(/\//g, "\\/");
+    const ESCAPED = escapeJsonSlashes(SLASHED_KEY.replace(/\n/g, "\\n"));
 
     test("should mask plain job output that prints the key as JSON", () => {
       const engine = createEnabledEngine();
@@ -762,7 +765,7 @@ describe("When builtin PEM private key masking runs", () => {
 
     test("should mask the key inside a nested JSON string value", () => {
       const engine = createEnabledEngine();
-      const value = JSON.stringify({ private_key: SLASHED_KEY }).replace(/\//g, "\\/");
+      const value = escapeJsonSlashes(JSON.stringify({ private_key: SLASHED_KEY }));
       const text = JSON.stringify([{ key: "GCP_SA", value }]);
       const masked = engine.maskToolResult({ content: [{ type: "text", text }] }).content[0].text;
       assert.equal(masked.includes("slash"), false);
@@ -808,7 +811,7 @@ describe("When builtin AWS key masking runs", () => {
   describe("with a JSON-formatted AWS secret whose slashes are escaped as \\/", () => {
     test("should mask the secret in plain job output", () => {
       const engine = createEnabledEngine();
-      const escaped = EXAMPLE_AWS_SECRET.replace(/\//g, "\\/");
+      const escaped = escapeJsonSlashes(EXAMPLE_AWS_SECRET);
       assert.equal(
         engine.maskText(`{"AWS_SECRET_ACCESS_KEY":"${escaped}"}`),
         '{"[AWS key masked]"}'

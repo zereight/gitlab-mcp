@@ -580,6 +580,9 @@ const RESPONSE_JWT =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXNwb25zZSJ9.c2lnbmF0dXJlLWZvci1tYXNraW5nLXRlc3Q";
 const RESPONSE_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAresponseFixtureKey";
 const ESCAPED_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAescapedFixtureKey";
+// Writes "/" as the JSON escape \/, as some JSON encoders do. Fixtures here
+// contain no backslashes, so no other escaping is needed.
+const escapeJsonSlashes = (text: string) => text.split("/").join("\\/");
 const SLASHED_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASC/T8wggE7AgEAAkEA+slashed/FixtureKey";
 const SLASHED_AWS_SECRET = "SlashedJobTrace/Secret/".padEnd(40, "G");
 
@@ -702,8 +705,8 @@ describe(
           localConfig: { version: 1 },
           jobTrace: [
             `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${ESCAPED_PEM_BODY}\\n-----END PRIVATE KEY-----\\n"}`,
-            `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${SLASHED_PEM_BODY.replace(/\//g, "\\/")}\\n-----END PRIVATE KEY-----\\n"}`,
-            `{"AWS_SECRET_ACCESS_KEY":"${SLASHED_AWS_SECRET.replace(/\//g, "\\/")}"}`,
+            `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${escapeJsonSlashes(SLASHED_PEM_BODY)}\\n-----END PRIVATE KEY-----\\n"}`,
+            `{"AWS_SECRET_ACCESS_KEY":"${escapeJsonSlashes(SLASHED_AWS_SECRET)}"}`,
             "",
           ].join("\n"),
         });
