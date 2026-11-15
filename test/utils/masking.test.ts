@@ -626,6 +626,14 @@ describe("When builtin JWT masking runs", () => {
     });
   });
 
+  describe("with a three-segment token immediately after a hyphen", () => {
+    test("should leave the hyphen-prefixed token unchanged", () => {
+      const engine = createEnabledEngine();
+      const prefixed = `sess-${EXAMPLE_JWT}`;
+      assert.equal(engine.maskText(prefixed), prefixed);
+    });
+  });
+
   describe("with the jwt builtin disabled", () => {
     test("should leave JWTs visible while still masking IPv4", () => {
       const engine = createEnabledEngine({ builtins: { jwt: { enabled: false } } });

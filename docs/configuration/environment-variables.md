@@ -163,8 +163,10 @@ repository. When masking is enabled, built-in rules cover:
 - GitLab token prefixes `glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`,
   `glsoat-`, `gloas-`, `glagent-`, `glft-`, and `glimt-` (`gitlab-token`)
 - IPv4 (`ipv4`) and IPv6 (`ipv6`) addresses
-- JWTs with three base64url segments starting with `eyJ` (`jwt`). Segments
-  longer than 8,192 characters are not matched; use a custom rule for those.
+- JWTs with three base64url segments starting with `eyJ` (`jwt`). A token
+  that directly follows `-` (for example `sess-eyJ...`) is not matched; use a
+  custom rule for that form. Segments longer than 8,192 characters are not
+  matched; use a custom rule for those.
 - PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
   variants (`pem-private-key`). Bodies longer than 32,768 characters are not
   matched; use a custom rule for those.
