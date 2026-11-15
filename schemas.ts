@@ -2886,6 +2886,22 @@ export const ListIssuesSchema = z
     updated_after: z.string().optional().describe("Updated after"),
     updated_before: z.string().optional().describe("Updated before"),
     with_labels_details: coerceBooleanString.optional().describe("Include label details"),
+    order_by: z
+      .enum([
+        "created_at",
+        "updated_at",
+        "priority",
+        "due_date",
+        "relative_position",
+        "label_priority",
+        "milestone_due",
+        "popularity",
+        "title",
+        "weight",
+      ])
+      .optional()
+      .describe("Order field (default created_at); relative_position = manual board order"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction (default desc)"),
   })
   .merge(PaginationOptionsSchema);
 

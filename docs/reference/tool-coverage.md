@@ -370,7 +370,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="variables"></a>
 
-- [x] [`list_project_variables`](../tools/variables.md#list_project_variables) — `test/test-blank-filters.ts`, `test/test-ci-variables.ts`
+- [x] [`list_project_variables`](../tools/variables.md#list_project_variables) — `test/response-masking.test.ts`, `test/test-blank-filters.ts`, `test/test-ci-variables.ts`
 - [x] [`get_project_variable`](../tools/variables.md#get_project_variable) — `test/test-ci-variables.ts`
 - [x] [`create_project_variable`](../tools/variables.md#create_project_variable) — `test/test-ci-variables.ts`
 - [x] [`update_project_variable`](../tools/variables.md#update_project_variable) — `test/test-ci-variables.ts`
@@ -441,7 +441,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="api"></a>
 
-- [x] [`gitlab_api_request`](../tools/api.md#gitlab_api_request) — `test/test-gitlab-api-request.ts`
+- [x] [`gitlab_api_request`](../tools/api.md#gitlab_api_request) — `test/response-masking.test.ts`, `test/test-gitlab-api-request.ts`
 
 ## Meta & GraphQL
 
