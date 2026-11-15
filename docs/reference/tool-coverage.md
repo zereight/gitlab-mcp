@@ -52,7 +52,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_group_members`](../tools/projects.md#list_group_members) — `test/gitlab-api-tool-errors.test.ts`, `test/test-list-group-members.ts`
 - [x] [`list_namespaces`](../tools/projects.md#list_namespaces) — `test/dynamic-api-url-allowlist.test.ts`
 - [x] [`get_namespace`](../tools/projects.md#get_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`
-- [x] [`verify_namespace`](../tools/projects.md#verify_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`
+- [x] [`verify_namespace`](../tools/projects.md#verify_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`, `test/lazy-tool-schemas-stdio.test.ts`
 - [ ] [`list_group_projects`](../tools/projects.md#list_group_projects)
 - [ ] [`list_group_iterations`](../tools/projects.md#list_group_iterations)
 - [x] [`get_group_iteration`](../tools/projects.md#get_group_iteration) — `test/test-group-iterations.ts`
@@ -232,7 +232,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="pipelines"></a>
 
-- [x] [`list_pipelines`](../tools/pipelines.md#list_pipelines) — `test/test-blank-filters.ts`, `test/test-permission-mode.ts`
+- [x] [`list_pipelines`](../tools/pipelines.md#list_pipelines) — `test/lazy-tool-schemas-stdio.test.ts`, `test/test-blank-filters.ts`, `test/test-permission-mode.ts`
 - [ ] [`get_pipeline`](../tools/pipelines.md#get_pipeline)
 - [ ] [`get_pipeline_variables`](../tools/pipelines.md#get_pipeline_variables)
 - [ ] [`get_pipeline_test_report`](../tools/pipelines.md#get_pipeline_test_report)
@@ -448,5 +448,5 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="meta"></a>
 
 - [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
-- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
+- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/lazy-tool-schemas-stdio.test.ts`, `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
 - [ ] [`help`](../tools/meta.md#help)
