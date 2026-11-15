@@ -76,7 +76,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`push_files`](../tools/repositories.md#push_files) — `test/test-permission-mode.ts`
 - [ ] [`create_or_update_file`](../tools/repositories.md#create_or_update_file)
 - [x] [`fork_repository`](../tools/repositories.md#fork_repository) — `test/gitlab-api-tool-errors.test.ts`, `test/test-geteffectiveprojectid.ts`
-- [x] [`get_repository_tree`](../tools/repositories.md#get_repository_tree) — `test/dynamic-routing-tests.ts`
+- [x] [`get_repository_tree`](../tools/repositories.md#get_repository_tree) — `test/dynamic-routing-tests.ts`, `test/test-get-file-contents.ts`
 
 ## Branches & Commits
 
