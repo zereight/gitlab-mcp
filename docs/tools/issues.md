@@ -83,6 +83,8 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 | `updated_after` | string |  | Updated after |
 | `updated_before` | string |  | Updated before |
 | `with_labels_details` | boolean |  | Include label details |
+| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `due_date` \| `relative_position` \| `label_priority` \| `milestone_due` \| `popularity` \| `title` \| `weight`) |  | Order field (default created_at); relative_position = manual board order |
+| `sort` | enum (`asc` \| `desc`) |  | Sort direction (default desc) |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
