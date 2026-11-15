@@ -11,6 +11,7 @@ const pathBuildingSources = [
   indexSource,
   readSource("../tools/milestones.ts"),
   readSource("../tools/tags.ts"),
+  readSource("../tools/variables.ts"),
 ];
 
 const rawPathSegmentPatterns = [
@@ -57,6 +58,7 @@ const serverSources = [
   ["index.ts", "../index.ts"],
   ["tools/milestones.ts", "../tools/milestones.ts"],
   ["tools/tags.ts", "../tools/tags.ts"],
+  ["tools/variables.ts", "../tools/variables.ts"],
   ["downloads/proxy.ts", "../downloads/proxy.ts"],
   ["oauth-proxy.ts", "../oauth-proxy.ts"],
 ] as const;
