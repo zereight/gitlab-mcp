@@ -26,6 +26,7 @@ async function startMaskingServer(
     managed?: boolean;
     localConfig?: Record<string, unknown>;
     jobTrace?: string;
+    jsonResponses?: Record<string, unknown>;
   } = {}
 ) {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-integration-"));
@@ -50,6 +51,11 @@ async function startMaskingServer(
       return;
     }
     res.setHeader("Content-Type", "application/json");
+    const fixture = options.jsonResponses?.[requestUrl.split("?")[0]];
+    if (fixture !== undefined) {
+      res.end(JSON.stringify(fixture));
+      return;
+    }
     if (req.url?.includes("/repository/files/")) {
       res.end(
         JSON.stringify({
@@ -559,3 +565,150 @@ describe("When builtin secret masking runs at the MCP boundary", { timeout: 30_0
     });
   });
 });
+
+// 40-character values shaped like AWS secret access keys. The builtin AWS rule
+// only masks them by field name, so they prove which field scope the engine used.
+const awsShaped = (label: string, fill: string) => label.padEnd(40, fill);
+const ARRAY_SCOPE_SECRET = awsShaped("ArrayScopeSecret", "A");
+const RESTORED_SCOPE_SECRET = awsShaped("RestoredScopeSecret", "B");
+const CI_KEY_FIRST_SECRET = awsShaped("CiKeyFirstSecret", "C");
+const CI_VALUE_FIRST_SECRET = awsShaped("CiValueFirstSecret", "D");
+const PROJECT_VARIABLE_SECRET = awsShaped("ProjectVariableSecret", "E");
+const NESTED_VISIBLE_VALUE = awsShaped("NestedVisibleValue", "F");
+const VISIBLE_SHA = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+const RESPONSE_JWT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXNwb25zZSJ9.c2lnbmF0dXJlLWZvci1tYXNraW5nLXRlc3Q";
+const RESPONSE_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAresponseFixtureKey";
+const ESCAPED_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAescapedFixtureKey";
+
+describe(
+  "When builtin masking handles structured JSON at the MCP boundary",
+  { timeout: 60_000 },
+  () => {
+    describe("with nested scopes and GitLab CI key/value records in a raw API response", () => {
+      test("should mask secrets by their enclosing field and keep unrelated values", async t => {
+        const { client } = await startMaskingServer(t, {
+          managed: false,
+          localConfig: { version: 1 },
+          env: { GITLAB_TOOLSETS: "api" },
+          jsonResponses: {
+            "/api/v4/projects/12/masking-fixture": {
+              aws_secret_access_key: [ARRAY_SCOPE_SECRET, { id: 1 }, RESTORED_SCOPE_SECRET],
+              AWS_SECRET_ACCESS_KEY: { description: NESTED_VISIBLE_VALUE },
+              meta: { AWS_SECRET_ACCESS_KEY: "short" },
+              sha: VISIBLE_SHA,
+              variables: [
+                { key: "AWS_SECRET_ACCESS_KEY", value: CI_KEY_FIRST_SECRET, masked: false },
+                { value: CI_VALUE_FIRST_SECRET, key: "aws_secret_access_key" },
+                { key: "VISIBLE_VARIABLE", value: VISIBLE_SHA },
+              ],
+              session: { jwt: RESPONSE_JWT },
+              deploy: {
+                private_key: `-----BEGIN PRIVATE KEY-----\n${RESPONSE_PEM_BODY}\n-----END PRIVATE KEY-----\n`,
+              },
+            },
+          },
+        });
+        const result = await client.callTool({
+          name: "gitlab_api_request",
+          arguments: { path: "projects/12/masking-fixture" },
+        });
+        assert.notEqual(result.isError, true, JSON.stringify(result));
+        const text = (result.content as { text: string }[])[0]?.text ?? "";
+        const body = JSON.parse(text) as {
+          aws_secret_access_key: unknown[];
+          AWS_SECRET_ACCESS_KEY: { description: string };
+          meta: { AWS_SECRET_ACCESS_KEY: string };
+          sha: string;
+          variables: { key: string; value: string }[];
+          session: { jwt: string };
+          deploy: { private_key: string };
+        };
+        assert.deepEqual(body.aws_secret_access_key, [
+          "[AWS key masked]",
+          { id: 1 },
+          "[AWS key masked]",
+        ]);
+        assert.equal(body.AWS_SECRET_ACCESS_KEY.description, NESTED_VISIBLE_VALUE);
+        assert.equal(body.meta.AWS_SECRET_ACCESS_KEY, "short");
+        assert.equal(body.sha, VISIBLE_SHA);
+        assert.deepEqual(
+          body.variables.map(variable => variable.value),
+          ["[AWS key masked]", "[AWS key masked]", VISIBLE_SHA]
+        );
+        assert.equal(body.session.jwt, "[JWT masked]");
+        assert.match(body.deploy.private_key, /\[Private key masked\]/);
+        for (const secret of [
+          ARRAY_SCOPE_SECRET,
+          RESTORED_SCOPE_SECRET,
+          CI_KEY_FIRST_SECRET,
+          CI_VALUE_FIRST_SECRET,
+          RESPONSE_JWT,
+          RESPONSE_PEM_BODY,
+        ]) {
+          assert.equal(text.includes(secret), false, `leaked ${secret}`);
+        }
+      });
+    });
+
+    describe("with GitLab CI variables returned by list_project_variables", () => {
+      test("should mask the AWS secret variable value and keep its key", async t => {
+        const { client } = await startMaskingServer(t, {
+          managed: false,
+          localConfig: { version: 1 },
+          env: { GITLAB_TOOLSETS: "variables" },
+          jsonResponses: {
+            "/api/v4/projects/12/variables": [
+              {
+                key: "AWS_SECRET_ACCESS_KEY",
+                value: PROJECT_VARIABLE_SECRET,
+                variable_type: "env_var",
+                protected: false,
+                masked: false,
+                raw: false,
+                environment_scope: "*",
+              },
+              {
+                key: "BUILD_SHA",
+                value: VISIBLE_SHA,
+                variable_type: "env_var",
+                protected: false,
+                masked: false,
+                raw: false,
+                environment_scope: "*",
+              },
+            ],
+          },
+        });
+        const result = await client.callTool({
+          name: "list_project_variables",
+          arguments: { project_id: "12" },
+        });
+        assert.notEqual(result.isError, true, JSON.stringify(result));
+        const text = JSON.stringify(result);
+        assert.equal(text.includes(PROJECT_VARIABLE_SECRET), false);
+        assert.match(text, /AWS_SECRET_ACCESS_KEY/);
+        assert.match(text, /\[AWS key masked\]/);
+        assert.match(text, new RegExp(VISIBLE_SHA));
+      });
+    });
+
+    describe("with an escaped PEM key printed as JSON in a job trace", () => {
+      test("should mask the key body in plain job output", async t => {
+        const { client } = await startMaskingServer(t, {
+          managed: false,
+          localConfig: { version: 1 },
+          jobTrace: `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${ESCAPED_PEM_BODY}\\n-----END PRIVATE KEY-----\\n"}\n`,
+        });
+        const result = await client.callTool({
+          name: "get_pipeline_job_output",
+          arguments: { project_id: "12", job_id: "1" },
+        });
+        const text = (result.content as { text: string }[])[0]?.text ?? "";
+        assert.match(text, /\[Private key masked\]/);
+        assert.equal(text.includes(ESCAPED_PEM_BODY), false);
+        assert.equal(text.includes("BEGIN PRIVATE KEY"), false);
+      });
+    });
+  }
+);
