@@ -6,10 +6,10 @@
   "websiteUrl": "https://zereight.github.io/gitlab-mcp/",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/zereight/gitlab-mcp/main/assets/logo.svg",
-      "mimeType": "image/svg+xml",
+      "src": "https://raw.githubusercontent.com/zereight/gitlab-mcp/main/assets/logo.png",
+      "mimeType": "image/png",
       "sizes": [
-        "any"
+        "1024x1024"
       ]
     }
   ],
@@ -17,12 +17,12 @@
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
   },
-  "version": "2.3.22",
+  "version": "2.3.27",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zereight/mcp-gitlab",
-      "version": "2.3.22",
+      "version": "2.3.27",
       "transport": {
         "type": "stdio"
       },
@@ -185,7 +185,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.22",
+      "identifier": "docker.io/zereight050/gitlab-mcp:2.3.27",
       "transport": {
         "type": "stdio"
       },

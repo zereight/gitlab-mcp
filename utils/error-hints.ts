@@ -35,6 +35,18 @@ export function recoveryHintFor(message: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Adds a site-specific hint to a message on the same "\nNext: " line that
+ * appendRecoveryHint adds at the tool-call boundary. The message stays a prefix
+ * of the result, and a message that already has a hint comes back unchanged.
+ */
+export function withRecoveryHint(message: string, hint: string): string {
+  if (hasRecoveryHint(message)) {
+    return message;
+  }
+  return `${message}${NEXT_PREFIX}${hint}`;
+}
+
 export function appendRecoveryHint(message: string): string {
   if (hasRecoveryHint(message)) {
     return message;

@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 288 |
-| Invoked | 188 |
-| Coverage | 65.3% |
+| Invoked | 189 |
+| Coverage | 65.6% |
 
 ## By toolset
 
@@ -20,7 +20,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
-| [Merge Requests](#merge_requests) | 15 | 46 | 32.6% |
+| [Merge Requests](#merge_requests) | 16 | 46 | 34.8% |
 | [Issues](#issues) | 12 | 25 | 48.0% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 5 | 18 | 27.8% |
@@ -45,7 +45,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="projects"></a>
 
-- [x] [`get_project`](../tools/projects.md#get_project) — `test/allowed-project-access-denied.test.ts`, `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-session-binding.test.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
+- [x] [`get_project`](../tools/projects.md#get_project) — `test/allowed-project-access-denied.test.ts`, `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-session-binding.test.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
 - [x] [`list_projects`](../tools/projects.md#list_projects) — `test/client-pool-test.ts`, `test/no-proxy-integration-test.ts`, `test/test-dynamic-project-scope.ts`
 - [x] [`update_project`](../tools/projects.md#update_project) — `test/test-update-project.ts`
 - [x] [`list_project_members`](../tools/projects.md#list_project_members) — `test/test-list-project-members.ts`
@@ -75,7 +75,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_file_contents`](../tools/repositories.md#get_file_contents) — `test/response-masking.test.ts`, `test/streamable-http-concurrent-session.test.ts`, `test/test-get-file-contents.ts`
 - [x] [`push_files`](../tools/repositories.md#push_files) — `test/test-permission-mode.ts`
 - [ ] [`create_or_update_file`](../tools/repositories.md#create_or_update_file)
-- [x] [`fork_repository`](../tools/repositories.md#fork_repository) — `test/test-geteffectiveprojectid.ts`
+- [x] [`fork_repository`](../tools/repositories.md#fork_repository) — `test/gitlab-api-tool-errors.test.ts`, `test/test-geteffectiveprojectid.ts`
 - [x] [`get_repository_tree`](../tools/repositories.md#get_repository_tree) — `test/dynamic-routing-tests.ts`
 
 ## Branches & Commits
@@ -116,7 +116,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_merge_request_approval_state`](../tools/merge-requests.md#get_merge_request_approval_state) — `test/test-merge-request-approval-state-tools.ts`, `test/test-merge-request-approvals.ts`
 - [ ] [`get_branch`](../tools/merge-requests.md#get_branch)
 - [ ] [`list_branches`](../tools/merge-requests.md#list_branches)
-- [ ] [`get_merge_request_conflicts`](../tools/merge-requests.md#get_merge_request_conflicts)
+- [x] [`get_merge_request_conflicts`](../tools/merge-requests.md#get_merge_request_conflicts) — `test/test-merge-request-conflicts.ts`
 - [x] [`list_merge_request_pipelines`](../tools/merge-requests.md#list_merge_request_pipelines) — `test/test-merge-request-pipelines.ts`
 - [x] [`get_merge_request`](../tools/merge-requests.md#get_merge_request) — `test/gitlab-api-tool-errors.test.ts`, `test/test-deployment-tools.ts`
 - [x] [`get_merge_request_diffs`](../tools/merge-requests.md#get_merge_request_diffs) — `test/test-mr-diffs-filter.ts`, `test/test-structured-content-675.ts`
@@ -127,7 +127,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`get_merge_request_version`](../tools/merge-requests.md#get_merge_request_version)
 - [ ] [`update_merge_request`](../tools/merge-requests.md#update_merge_request)
 - [x] [`create_merge_request`](../tools/merge-requests.md#create_merge_request) — `test/allowed-project-target-scope.test.ts`, `test/gitlab-api-tool-errors.test.ts`, `test/response-masking.test.ts`
-- [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
+- [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/compact-replay-quoting.test.ts`, `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
 - [x] [`list_group_merge_requests`](../tools/merge-requests.md#list_group_merge_requests) — `test/response-masking.test.ts`, `test/test-list-group-merge-requests.ts`
 - [ ] [`get_branch_diffs`](../tools/merge-requests.md#get_branch_diffs)
 - [x] [`mr_discussions`](../tools/merge-requests.md#mr_discussions) — `test/test-mr-discussions-summary.ts`
@@ -447,6 +447,6 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="meta"></a>
 
-- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
+- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
 - [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
 - [ ] [`help`](../tools/meta.md#help)

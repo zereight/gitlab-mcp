@@ -119,6 +119,25 @@ describe("When the built doctor CLI runs", () => {
       assert.equal(result.stdout.includes("glpat-"), false);
     });
   });
+
+  describe("with an unknown toolset and an unknown tool name", () => {
+    it("should print each configuration warning once on stderr", async () => {
+      const result = await runBuiltDoctor({
+        GITLAB_TOOLSETS: "core,pipelnes",
+        GITLAB_TOOLS: "get_projekt",
+      });
+      const count = (pattern: RegExp) => result.stderr.match(pattern)?.length ?? 0;
+
+      assert.equal(
+        count(/Unknown toolset names in GITLAB_TOOLSETS \(will be ignored\): pipelnes\./g),
+        1
+      );
+      assert.equal(
+        count(/Unknown tool names in GITLAB_TOOLS \(will be ignored\): get_projekt/g),
+        1
+      );
+    });
+  });
 });
 
 function buildCleanEnv(): Record<string, string> {
@@ -131,10 +150,12 @@ function buildCleanEnv(): Record<string, string> {
   return env;
 }
 
-function runBuiltDoctor(): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+function runBuiltDoctor(
+  extraEnv: Record<string, string> = {}
+): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [CLI_ENTRY, "doctor"], {
-      env: buildCleanEnv(),
+      env: { ...buildCleanEnv(), ...extraEnv },
       stdio: ["ignore", "pipe", "pipe"],
       timeout: CLI_TIMEOUT_MS,
       killSignal: "SIGKILL",

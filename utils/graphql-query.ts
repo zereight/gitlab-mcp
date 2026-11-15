@@ -1,107 +1,295 @@
-function stripGraphQLCommentsAndStrings(source: string): string {
-  let result = "";
+// The guards below need the structure of a GraphQL document, not text patterns. A regex
+// over the raw query can take a field alias or argument named `mutation` for an operation
+// keyword, and it misses operation headers that the spec allows to contain commas,
+// directives or comments. The document is therefore tokenized the way the GraphQL spec
+// defines it, and the definitions are walked by a small parser. Anything the parser does
+// not recognize throws, and the public checks treat that as a match (fail closed).
+
+type GraphQLToken =
+  | { kind: "name"; value: string }
+  | { kind: "punct"; value: string }
+  // A string or number. Its contents never change what a guard decides.
+  | { kind: "literal" };
+
+const PUNCTUATORS = new Set(["!", "$", "&", "(", ")", ":", "=", "@", "[", "]", "{", "|", "}"]);
+const NAME_PATTERN = /[_A-Za-z][_0-9A-Za-z]*/y;
+const NUMBER_PATTERN = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
+
+// Index just past the regular string literal that starts at `start`.
+function skipString(source: string, start: number): number {
+  let i = start + 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === '"') {
+      return i + 1;
+    }
+    if (ch === "\n" || ch === "\r") {
+      break;
+    }
+    i += ch === "\\" ? 2 : 1;
+  }
+  throw new Error("Unterminated GraphQL string");
+}
+
+// Index just past the block string that starts at `start`. Only `\"""` is an escape.
+function skipBlockString(source: string, start: number): number {
+  let i = start + 3;
+  while (i < source.length) {
+    if (source.startsWith('\\"""', i)) {
+      i += 4;
+    } else if (source.startsWith('"""', i)) {
+      return i + 3;
+    } else {
+      i++;
+    }
+  }
+  throw new Error("Unterminated GraphQL block string");
+}
+
+function tokenizeGraphQL(source: string): GraphQLToken[] {
+  const tokens: GraphQLToken[] = [];
   let i = 0;
 
   while (i < source.length) {
     const ch = source[i];
 
-    if (ch === "#") {
+    // Ignored tokens: whitespace, line terminators, commas, the BOM, and comments.
+    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "," || ch === "﻿") {
+      i++;
+    } else if (ch === "#") {
       while (i < source.length && source[i] !== "\n" && source[i] !== "\r") {
         i++;
       }
-      result += " ";
-      continue;
-    }
-
-    if (source.slice(i, i + 3) === '"""') {
+    } else if (source.startsWith('"""', i)) {
+      i = skipBlockString(source, i);
+      tokens.push({ kind: "literal" });
+    } else if (ch === '"') {
+      i = skipString(source, i);
+      tokens.push({ kind: "literal" });
+    } else if (source.startsWith("...", i)) {
+      tokens.push({ kind: "punct", value: "..." });
       i += 3;
-      while (i < source.length && source.slice(i, i + 3) !== '"""') {
-        if (source[i] === "\\" && source.slice(i, i + 4) === '\\"""') {
-          i += 4;
-          continue;
-        }
-        i++;
-      }
-      if (i < source.length) {
-        i += 3;
-      }
-      result += " ";
-      continue;
-    }
-
-    if (ch === '"' || ch === "'") {
-      const quote = ch;
+    } else if (PUNCTUATORS.has(ch)) {
+      tokens.push({ kind: "punct", value: ch });
       i++;
-      while (i < source.length) {
-        if (source[i] === "\\") {
-          i = Math.min(i + 2, source.length);
-          continue;
-        }
-        if (source[i] === quote) {
-          i++;
-          break;
-        }
-        i++;
+    } else if (ch === "-" || /[0-9]/.test(ch)) {
+      NUMBER_PATTERN.lastIndex = i;
+      const match = NUMBER_PATTERN.exec(source);
+      if (!match) {
+        throw new Error(`Invalid GraphQL number at ${i}`);
       }
-      result += " ";
-      continue;
+      i += match[0].length;
+      // A number cannot run into a name or a dot.
+      if (i < source.length && /[_.A-Za-z0-9]/.test(source[i])) {
+        throw new Error(`Invalid GraphQL number at ${i}`);
+      }
+      tokens.push({ kind: "literal" });
+    } else {
+      NAME_PATTERN.lastIndex = i;
+      const match = NAME_PATTERN.exec(source);
+      if (!match) {
+        throw new Error(`Unexpected character in GraphQL document at ${i}`);
+      }
+      tokens.push({ kind: "name", value: match[0] });
+      i += match[0].length;
     }
-
-    result += ch;
-    i++;
   }
 
-  return result;
+  return tokens;
 }
 
-export function graphqlQueryContainsWriteOperation(query: string): boolean {
-  const normalized = stripGraphQLCommentsAndStrings(query).trim();
-  if (!normalized) {
-    return false;
+type OperationType = "query" | "mutation" | "subscription";
+
+interface GraphQLOperation {
+  type: OperationType;
+  // Field names selected at the root of the operation, or null when the root selection
+  // contains a fragment spread or inline fragment, whose fields cannot be listed here.
+  rootFields: string[] | null;
+}
+
+const OPERATION_TYPES = new Set<string>(["query", "mutation", "subscription"]);
+const CLOSING_BRACKET = new Map([
+  ["(", ")"],
+  ["[", "]"],
+  ["{", "}"],
+]);
+
+// Parses the executable definitions of a document. Throws on anything else: type-system
+// definitions, stray punctuation, unbalanced brackets, or an empty selection set.
+function parseGraphQLOperations(source: string): GraphQLOperation[] {
+  const tokens = tokenizeGraphQL(source);
+  const operations: GraphQLOperation[] = [];
+  let pos = 0;
+
+  function isPunct(value: string): boolean {
+    const token: GraphQLToken | undefined = tokens[pos];
+    return token !== undefined && token.kind === "punct" && token.value === value;
   }
 
-  const operationTypePattern = /\s*(?:,\s*)?(query|mutation|subscription)\b/y;
+  function isName(value?: string): boolean {
+    const token: GraphQLToken | undefined = tokens[pos];
+    return (
+      token !== undefined && token.kind === "name" && (value === undefined || token.value === value)
+    );
+  }
 
-  let depth = 0;
-  let expectingOperationType = true;
-
-  for (let i = 0; i < normalized.length; i++) {
-    const ch = normalized[i];
-
-    if (ch === "{") {
-      depth++;
-      expectingOperationType = false;
-      continue;
+  function expectPunct(value: string): void {
+    if (!isPunct(value)) {
+      throw new Error(`Expected "${value}" at token ${pos}`);
     }
+    pos++;
+  }
 
-    if (ch === "}") {
-      depth = Math.max(0, depth - 1);
-      if (depth === 0) {
-        expectingOperationType = true;
+  function expectName(): string {
+    const token: GraphQLToken | undefined = tokens[pos];
+    if (token === undefined || token.kind !== "name") {
+      throw new Error(`Expected a name at token ${pos}`);
+    }
+    pos++;
+    return token.value;
+  }
+
+  // Skips a balanced "(...)", "[...]" or "{...}" that starts at the current token.
+  function skipBalanced(): void {
+    if (!isPunct("(") && !isPunct("[") && !isPunct("{")) {
+      throw new Error(`Expected a bracket at token ${pos}`);
+    }
+    const closers: string[] = [];
+    do {
+      const token: GraphQLToken | undefined = tokens[pos];
+      if (token === undefined) {
+        throw new Error("Unclosed bracket in GraphQL document");
       }
-      continue;
-    }
-
-    if (depth === 0 && (ch === ";" || ch === ",")) {
-      expectingOperationType = true;
-      continue;
-    }
-
-    if (depth === 0 && expectingOperationType) {
-      operationTypePattern.lastIndex = i;
-      const operationMatch = operationTypePattern.exec(normalized);
-      if (operationMatch) {
-        const operationType = operationMatch[1];
-        expectingOperationType = false;
-        if (operationType === "mutation" || operationType === "subscription") {
-          return true;
+      if (token.kind === "punct") {
+        const closer = CLOSING_BRACKET.get(token.value);
+        if (closer !== undefined) {
+          closers.push(closer);
+        } else if (token.value === ")" || token.value === "]" || token.value === "}") {
+          if (closers.pop() !== token.value) {
+            throw new Error("Mismatched bracket in GraphQL document");
+          }
         }
-        i = operationTypePattern.lastIndex - 1;
+      }
+      pos++;
+    } while (closers.length > 0);
+  }
+
+  function skipDirectives(): void {
+    while (isPunct("@")) {
+      pos++;
+      expectName();
+      if (isPunct("(")) {
+        skipBalanced();
       }
     }
   }
 
-  return false;
+  // Parses a selection set and returns its root field names. Nested selection sets are
+  // parsed too, so a malformed body is rejected rather than skipped.
+  function parseSelectionSet(): { fields: string[]; hasSpread: boolean } {
+    expectPunct("{");
+    const fields: string[] = [];
+    let hasSpread = false;
+    let selections = 0;
+
+    while (!isPunct("}")) {
+      selections++;
+      if (isPunct("...")) {
+        hasSpread = true;
+        pos++;
+        if (isName("on")) {
+          pos++;
+          expectName();
+        } else if (isName()) {
+          // Named fragment spread.
+          pos++;
+        }
+        skipDirectives();
+        if (isPunct("{")) {
+          parseSelectionSet();
+        }
+      } else {
+        let field = expectName();
+        if (isPunct(":")) {
+          // An alias: the field name after the colon is what GitLab executes.
+          pos++;
+          field = expectName();
+        }
+        if (isPunct("(")) {
+          skipBalanced();
+        }
+        skipDirectives();
+        if (isPunct("{")) {
+          parseSelectionSet();
+        }
+        fields.push(field);
+      }
+    }
+
+    if (selections === 0) {
+      throw new Error("Empty selection set in GraphQL document");
+    }
+    pos++;
+    return { fields, hasSpread };
+  }
+
+  function parseDefinition(): void {
+    if (isName("fragment")) {
+      pos++;
+      if (isName("on")) {
+        throw new Error("A fragment cannot be named on");
+      }
+      expectName();
+      if (!isName("on")) {
+        throw new Error("Expected a type condition on the fragment");
+      }
+      pos++;
+      expectName();
+      skipDirectives();
+      parseSelectionSet();
+      return;
+    }
+
+    let type: OperationType = "query";
+    if (!isPunct("{")) {
+      const keyword = expectName();
+      if (!OPERATION_TYPES.has(keyword)) {
+        throw new Error(`Unsupported GraphQL definition "${keyword}"`);
+      }
+      type = keyword as OperationType;
+      if (isName()) {
+        // Operation name.
+        pos++;
+      }
+      if (isPunct("(")) {
+        skipBalanced();
+      }
+      skipDirectives();
+    }
+
+    const selection = parseSelectionSet();
+    operations.push({
+      type,
+      rootFields: selection.hasSpread ? null : selection.fields,
+    });
+  }
+
+  while (pos < tokens.length) {
+    parseDefinition();
+  }
+  return operations;
+}
+
+// Returns true when the document contains a mutation or subscription. A document that
+// cannot be parsed is treated as a write.
+export function graphqlQueryContainsWriteOperation(query: string): boolean {
+  let operations: GraphQLOperation[];
+  try {
+    operations = parseGraphQLOperations(query);
+  } catch {
+    return true;
+  }
+  return operations.some(operation => operation.type !== "query");
 }
 
 // Verbs that mark a mutation as destructive for GITLAB_PERMISSION_MODE=modify.
@@ -111,81 +299,25 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
 const DESTRUCTIVE_FIELD_PATTERN =
   /delete|destroy|remove|prune|purge|erase|revoke|cancel|stop|terminate|unprotect|disable|deactivate|drop|unschedule/i;
 
-// GraphQL treats whitespace and commas as insignificant, including between an
-// alias and its colon (`stop : field` and `stop,: field` are both aliases).
-function skipInsignificantGraphQL(source: string, index: number): number {
-  while (index < source.length && /[\s,]/.test(source[index])) {
-    index++;
-  }
-  return index;
-}
-
-// Collects top-level selection field names of every mutation operation. Aliases are
-// skipped: `stop: environmentStop(...)` must be judged by the field name, so a
-// harmless label on a harmless field (`stop : issueSetSeverity(...)`) is not mistaken
-// for a destructive mutation. Content inside parentheses (arguments) is skipped so
-// argument names like removeSourceBranch do not count as delete fields. Returns null
-// when a top-level fragment spread is present, since the spread could hide a delete
-// field. Commas between operations are insignificant in GraphQL, so they are accepted
-// as operation separators alongside `;` and `}`.
-function extractTopLevelMutationFields(normalized: string): string[] | null {
-  const fields: string[] = [];
-  const mutationRegex = /(?:^|[;},]\s*)mutation\b[^({]*(?:\([^)]*\))?\s*\{/g;
-
-  while (mutationRegex.exec(normalized) !== null) {
-    let i = mutationRegex.lastIndex;
-    let braceDepth = 1;
-    let parenDepth = 0;
-    let current = "";
-
-    while (i < normalized.length && braceDepth > 0) {
-      const ch = normalized[i];
-      if (ch === "(") parenDepth++;
-      else if (ch === ")") parenDepth = Math.max(0, parenDepth - 1);
-      else if (ch === "{") braceDepth++;
-      else if (ch === "}") braceDepth--;
-
-      if (braceDepth === 1 && parenDepth === 0) {
-        if (normalized.startsWith("...", i)) {
-          return null;
-        }
-        if (/[A-Za-z0-9_]/.test(ch)) {
-          current += ch;
-          i++;
-          continue;
-        }
-      }
-      if (current) {
-        // Only the actual field name is tested. Skip insignificant tokens so a
-        // teardown-verb alias does not look like a destructive mutation.
-        if (normalized[skipInsignificantGraphQL(normalized, i)] !== ":") {
-          fields.push(current);
-        }
-        current = "";
-      }
-      i++;
-    }
-    if (current) {
-      fields.push(current);
-    }
-  }
-
-  return fields;
-}
-
 // Kept as `...DeleteOperation` for callers, but the guard now covers every
-// destructive mutation verb, not only delete-named ones.
+// destructive mutation verb, not only delete-named ones. Only the field name is tested,
+// so an alias such as `stop: issueSetSeverity(...)` does not count as a destructive field.
 export function graphqlQueryContainsDeleteOperation(query: string): boolean {
-  const normalized = stripGraphQLCommentsAndStrings(query).trim();
-  if (!normalized || !/(?:^|[;},]\s*)mutation\b/.test(normalized)) {
-    return false;
-  }
-
-  const fields = extractTopLevelMutationFields(normalized);
-  if (fields === null || fields.length === 0) {
-    // Fragment spread at mutation top level, or a mutation whose selection set
-    // could not be located (exotic syntax): be conservative and treat as delete
+  let operations: GraphQLOperation[];
+  try {
+    operations = parseGraphQLOperations(query);
+  } catch {
+    // The document could hide a mutation, so it is blocked.
     return true;
   }
-  return fields.some(field => DESTRUCTIVE_FIELD_PATTERN.test(field));
+  return operations.some(operation => {
+    if (operation.type !== "mutation") {
+      return false;
+    }
+    // A root fragment spread could hide any field, so it is blocked too.
+    return (
+      operation.rootFields === null ||
+      operation.rootFields.some(field => DESTRUCTIVE_FIELD_PATTERN.test(field))
+    );
+  });
 }
