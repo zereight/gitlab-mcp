@@ -109,13 +109,14 @@ const BUILTIN_RULES: MaskRule[] = [
     id: "pem-private-key",
     type: "regex",
     // BEGIN/END labels must match. Line breaks may be real or literal \n / \r\n
-    // escapes (a key nested in an escaped JSON string). The body is PEM base64,
+    // escapes (a key nested in an escaped JSON string), and "/" may be written
+    // as the JSON escape \/. The body is PEM base64,
     // Proc-Type / DEK-Info lines, and single dashes. It cannot contain a run of
     // five dashes, which valid PEM bodies never do, so each scan stops at the
     // next header or footer. Without that bound, every BEGIN rescans up to 32768
     // chars through the following headers.
     pattern:
-      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----(?:\\r?\\n|\\\\r\\\\n|\\\\n)(?:[A-Za-z0-9+/=\\s,.:]|\\\\[rn]|-(?!----)){1,32768}?-----END \\1-----",
+      "-----BEGIN ([A-Z0-9 ]{0,40}PRIVATE KEY)-----(?:\\r?\\n|\\\\r\\\\n|\\\\n)(?:[A-Za-z0-9+/=\\s,.:]|\\\\[rn/]|-(?!----)){1,32768}?-----END \\1-----",
     flags: "g",
     replacement: "[Private key masked]",
   },
@@ -124,9 +125,10 @@ const BUILTIN_RULES: MaskRule[] = [
     type: "regex",
     // AKIA/ASIA IDs are a fixed 20-char shape. Secret values are only matched
     // on aws_secret_access_key assignments (quoted or unquoted names) to keep
-    // false positives low. JSON object fields are handled separately.
+    // false positives low. A JSON-escaped "\/" counts as one secret character.
+    // JSON object fields are handled separately.
     pattern:
-      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[\"']?\\s*[=:]\\s*[\"']?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
+      "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b|\\b(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[\"']?\\s*[=:]\\s*[\"']?(?:[A-Za-z0-9/+=]|\\\\/){40}(?![A-Za-z0-9/+=]|\\\\/)",
     flags: "g",
     replacement: "[AWS key masked]",
   },

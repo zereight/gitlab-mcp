@@ -740,6 +740,37 @@ describe("When builtin PEM private key masking runs", () => {
       ]);
     });
   });
+
+  describe("with a PEM body whose slashes are written as the JSON escape \\/", () => {
+    const SLASHED_KEY = [
+      "-----BEGIN PRIVATE KEY-----",
+      "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC/KcwggSjAgEAAoIBAQ+slash/Key==",
+      "-----END PRIVATE KEY-----",
+    ].join("\n");
+    const ESCAPED = SLASHED_KEY.replace(/\n/g, "\\n").replace(/\//g, "\\/");
+
+    test("should mask plain job output that prints the key as JSON", () => {
+      const engine = createEnabledEngine();
+      assert.equal(
+        engine.maskToolResult(
+          { content: [{ type: "text", text: `{"private_key":"${ESCAPED}"}\n` }] },
+          { textFormat: "plain" }
+        ).content[0].text,
+        `{"private_key":"[Private key masked]"}\n`
+      );
+    });
+
+    test("should mask the key inside a nested JSON string value", () => {
+      const engine = createEnabledEngine();
+      const value = JSON.stringify({ private_key: SLASHED_KEY }).replace(/\//g, "\\/");
+      const text = JSON.stringify([{ key: "GCP_SA", value }]);
+      const masked = engine.maskToolResult({ content: [{ type: "text", text }] }).content[0].text;
+      assert.equal(masked.includes("slash"), false);
+      assert.deepEqual(JSON.parse(masked), [
+        { key: "GCP_SA", value: '{"private_key":"[Private key masked]"}' },
+      ]);
+    });
+  });
 });
 
 describe("When builtin AWS key masking runs", () => {
@@ -771,6 +802,21 @@ describe("When builtin AWS key masking runs", () => {
       const masked = engine.maskText(JSON.stringify({ AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET }));
       assert.equal(masked.includes(EXAMPLE_AWS_SECRET), false);
       assert.match(masked, /\[AWS key masked\]/);
+    });
+  });
+
+  describe("with a JSON-formatted AWS secret whose slashes are escaped as \\/", () => {
+    test("should mask the secret in plain job output", () => {
+      const engine = createEnabledEngine();
+      const escaped = EXAMPLE_AWS_SECRET.replace(/\//g, "\\/");
+      assert.equal(
+        engine.maskText(`{"AWS_SECRET_ACCESS_KEY":"${escaped}"}`),
+        '{"[AWS key masked]"}'
+      );
+      assert.equal(
+        engine.maskText(`{"AWS_SECRET_ACCESS_KEY":"${escaped}X"}`),
+        `{"AWS_SECRET_ACCESS_KEY":"${escaped}X"}`
+      );
     });
   });
 

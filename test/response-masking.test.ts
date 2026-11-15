@@ -580,6 +580,8 @@ const RESPONSE_JWT =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXNwb25zZSJ9.c2lnbmF0dXJlLWZvci1tYXNraW5nLXRlc3Q";
 const RESPONSE_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAresponseFixtureKey";
 const ESCAPED_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAescapedFixtureKey";
+const SLASHED_PEM_BODY = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASC/T8wggE7AgEAAkEA+slashed/FixtureKey";
+const SLASHED_AWS_SECRET = "SlashedJobTrace/Secret/".padEnd(40, "G");
 
 describe(
   "When builtin masking handles structured JSON at the MCP boundary",
@@ -693,12 +695,17 @@ describe(
       });
     });
 
-    describe("with an escaped PEM key printed as JSON in a job trace", () => {
-      test("should mask the key body in plain job output", async t => {
+    describe("with escaped PEM keys and an AWS secret printed as JSON in a job trace", () => {
+      test("should mask the secrets in plain job output", async t => {
         const { client } = await startMaskingServer(t, {
           managed: false,
           localConfig: { version: 1 },
-          jobTrace: `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${ESCAPED_PEM_BODY}\\n-----END PRIVATE KEY-----\\n"}\n`,
+          jobTrace: [
+            `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${ESCAPED_PEM_BODY}\\n-----END PRIVATE KEY-----\\n"}`,
+            `{"private_key":"-----BEGIN PRIVATE KEY-----\\n${SLASHED_PEM_BODY.replace(/\//g, "\\/")}\\n-----END PRIVATE KEY-----\\n"}`,
+            `{"AWS_SECRET_ACCESS_KEY":"${SLASHED_AWS_SECRET.replace(/\//g, "\\/")}"}`,
+            "",
+          ].join("\n"),
         });
         const result = await client.callTool({
           name: "get_pipeline_job_output",
@@ -706,8 +713,11 @@ describe(
         });
         const text = (result.content as { text: string }[])[0]?.text ?? "";
         assert.match(text, /\[Private key masked\]/);
+        assert.match(text, /\[AWS key masked\]/);
         assert.equal(text.includes(ESCAPED_PEM_BODY), false);
         assert.equal(text.includes("BEGIN PRIVATE KEY"), false);
+        assert.equal(text.includes("slashed"), false);
+        assert.equal(text.includes("SlashedJobTrace"), false);
       });
     });
   }
