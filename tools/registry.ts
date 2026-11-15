@@ -1,4 +1,4 @@
-import { toJSONSchema } from "../utils/schema.js";
+import { lazyJSONSchema, withLazyInputSchemas } from "../utils/schema.js";
 import { USE_GITLAB_WIKI, USE_MILESTONE, USE_PIPELINE, SSE, STREAMABLE_HTTP } from "../config.js";
 import { getToolDescription } from "./tool-descriptions.js";
 import {
@@ -292,872 +292,872 @@ import { HelpInputSchema } from "../server/mcp-help.js";
 
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
-// Define all available tools
-export const allTools = [
+// Define all available tools. Input schemas are built on first read (see withLazyInputSchemas).
+export const allTools = withLazyInputSchemas([
   {
     name: "merge_merge_request",
     description: "Merge a merge request",
-    inputSchema: toJSONSchema(MergeMergeRequestSchema),
+    inputSchema: lazyJSONSchema(MergeMergeRequestSchema),
   },
   {
     name: "approve_merge_request",
     description: "Approve a merge request",
-    inputSchema: toJSONSchema(ApproveMergeRequestSchema),
+    inputSchema: lazyJSONSchema(ApproveMergeRequestSchema),
   },
   {
     name: "unapprove_merge_request",
     description: "Unapprove a merge request",
-    inputSchema: toJSONSchema(UnapproveMergeRequestSchema),
+    inputSchema: lazyJSONSchema(UnapproveMergeRequestSchema),
   },
   {
     name: "get_merge_request_approval_state",
     description: "Get merge request approval details including approvers",
-    inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
     name: "get_merge_request_conflicts",
     description: "Get the conflicts of a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestConflictsSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestConflictsSchema),
   },
   {
     name: "list_merge_request_pipelines",
     description: "List pipelines for a merge request with pagination",
-    inputSchema: toJSONSchema(ListMergeRequestPipelinesSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestPipelinesSchema),
   },
   {
     name: "execute_graphql",
     description: "Execute a GitLab GraphQL query",
-    inputSchema: toJSONSchema(ExecuteGraphQLSchema),
+    inputSchema: lazyJSONSchema(ExecuteGraphQLSchema),
   },
   {
     name: "create_or_update_file",
     description: "Create or update a file in a GitLab project",
-    inputSchema: toJSONSchema(CreateOrUpdateFileSchema),
+    inputSchema: lazyJSONSchema(CreateOrUpdateFileSchema),
   },
   {
     name: "search_repositories",
     description: "Search for GitLab projects",
-    inputSchema: toJSONSchema(SearchRepositoriesSchema),
+    inputSchema: lazyJSONSchema(SearchRepositoriesSchema),
   },
   {
     name: "create_repository",
     description: "Create a new GitLab project",
-    inputSchema: toJSONSchema(CreateRepositorySchema),
+    inputSchema: lazyJSONSchema(CreateRepositorySchema),
   },
   {
     name: "create_group",
     description: "Create new group or subgroup",
-    inputSchema: toJSONSchema(CreateGroupSchema),
+    inputSchema: lazyJSONSchema(CreateGroupSchema),
   },
   {
     name: "get_file_contents",
     description: "Get contents of a file or directory from a GitLab project",
-    inputSchema: toJSONSchema(GetFileContentsSchema),
+    inputSchema: lazyJSONSchema(GetFileContentsSchema),
   },
   {
     name: "push_files",
     description: "Push multiple files in a single commit",
-    inputSchema: toJSONSchema(PushFilesSchema),
+    inputSchema: lazyJSONSchema(PushFilesSchema),
   },
   {
     name: "create_issue",
     description: "Create a new issue",
-    inputSchema: toJSONSchema(CreateIssueSchema),
+    inputSchema: lazyJSONSchema(CreateIssueSchema),
   },
   {
     name: "create_merge_request",
     description: "Create a new merge request",
-    inputSchema: toJSONSchema(CreateMergeRequestSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestSchema),
   },
   {
     name: "fork_repository",
     description: "Fork a project to your account or specified namespace",
-    inputSchema: toJSONSchema(ForkRepositorySchema),
+    inputSchema: lazyJSONSchema(ForkRepositorySchema),
   },
   {
     name: "create_branch",
     description: "Create a new branch",
-    inputSchema: toJSONSchema(CreateBranchSchema),
+    inputSchema: lazyJSONSchema(CreateBranchSchema),
   },
   {
     name: "get_branch",
     description: "Get branch details (commit, protection status)",
-    inputSchema: toJSONSchema(GetBranchSchema),
+    inputSchema: lazyJSONSchema(GetBranchSchema),
   },
   {
     name: "list_branches",
     description: "List branches in project with search filter",
-    inputSchema: toJSONSchema(ListBranchesSchema),
+    inputSchema: lazyJSONSchema(ListBranchesSchema),
   },
   {
     name: "delete_branch",
     description: "Delete branch from project",
-    inputSchema: toJSONSchema(DeleteBranchSchema),
+    inputSchema: lazyJSONSchema(DeleteBranchSchema),
   },
   {
     name: "list_protected_branches",
     description: "List protected branches in a project, supports search filter",
-    inputSchema: toJSONSchema(ListProtectedBranchesSchema),
+    inputSchema: lazyJSONSchema(ListProtectedBranchesSchema),
   },
   {
     name: "get_protected_branch",
     description: "Get details of a single protected branch (access levels, force push settings)",
-    inputSchema: toJSONSchema(GetProtectedBranchSchema),
+    inputSchema: lazyJSONSchema(GetProtectedBranchSchema),
   },
   {
     name: "protect_branch",
     description: "Protect a repository branch (set push/merge/unprotect access levels)",
-    inputSchema: toJSONSchema(ProtectBranchSchema),
+    inputSchema: lazyJSONSchema(ProtectBranchSchema),
   },
   {
     name: "update_protected_branch",
     description:
       "Update an existing protected branch rule in place (access levels, force push, code owner approval)",
-    inputSchema: toJSONSchema(UpdateProtectedBranchSchema),
+    inputSchema: lazyJSONSchema(UpdateProtectedBranchSchema),
   },
   {
     name: "unprotect_branch",
     description: "Remove protection from a previously protected branch",
-    inputSchema: toJSONSchema(UnprotectBranchSchema),
+    inputSchema: lazyJSONSchema(UnprotectBranchSchema),
   },
   {
     name: "update_default_branch",
     description: "Change the default branch of a project",
-    inputSchema: toJSONSchema(UpdateDefaultBranchSchema),
+    inputSchema: lazyJSONSchema(UpdateDefaultBranchSchema),
   },
   {
     name: "get_merge_request",
     description:
       "Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries",
-    inputSchema: toJSONSchema(GetMergeRequestSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestSchema),
   },
   {
     name: "get_merge_request_diffs",
     description:
       "Get the changes/diffs of a merge request (merge_request_iid or source_branch required)",
-    inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "list_merge_request_changed_files",
     description:
       "List changed file paths in a merge request without diff content (merge_request_iid or source_branch required)",
-    inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestChangedFilesSchema),
   },
   {
     name: "list_merge_request_diffs",
     description:
       "List merge request diffs with pagination (merge_request_iid or source_branch required)",
-    inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_merge_request_file_diff",
     description:
       "Get diffs for specific files from a merge request (merge_request_iid or source_branch required)",
-    inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
     name: "list_merge_request_versions",
     description: "List all versions of a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestVersionsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestVersionsSchema),
   },
   {
     name: "get_merge_request_version",
     description: "Get a specific version of a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestVersionSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestVersionSchema),
   },
   {
     name: "get_branch_diffs",
     description: "Get diffs between two branches or commits",
-    inputSchema: toJSONSchema(GetBranchDiffsSchema),
+    inputSchema: lazyJSONSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
     description: "Update a merge request (merge_request_iid or source_branch required)",
-    inputSchema: toJSONSchema(UpdateMergeRequestSchema),
+    inputSchema: lazyJSONSchema(UpdateMergeRequestSchema),
   },
   {
     name: "create_note",
     description: "Create a new note (comment) to an issue or merge request",
-    inputSchema: toJSONSchema(CreateNoteSchema),
+    inputSchema: lazyJSONSchema(CreateNoteSchema),
   },
   {
     name: "create_merge_request_thread",
     description: "Create a new thread on a merge request",
-    inputSchema: toJSONSchema(CreateMergeRequestThreadSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestThreadSchema),
   },
   {
     name: "resolve_merge_request_thread",
     description: "Resolve a thread on a merge request",
-    inputSchema: toJSONSchema(ResolveMergeRequestThreadSchema),
+    inputSchema: lazyJSONSchema(ResolveMergeRequestThreadSchema),
   },
   {
     name: "mr_discussions",
     description: "List discussion items for a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestDiscussionsSchema),
   },
   {
     name: "get_merge_request_discussion",
     description: "Get a single discussion item for a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestDiscussionSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestDiscussionSchema),
   },
   {
     name: "delete_merge_request_discussion_note",
     description: "Delete a discussion note on a merge request",
-    inputSchema: toJSONSchema(DeleteMergeRequestDiscussionNoteSchema),
+    inputSchema: lazyJSONSchema(DeleteMergeRequestDiscussionNoteSchema),
   },
   {
     name: "update_merge_request_discussion_note",
     description: "Update a discussion note on a merge request",
-    inputSchema: toJSONSchema(UpdateMergeRequestDiscussionNoteSchema),
+    inputSchema: lazyJSONSchema(UpdateMergeRequestDiscussionNoteSchema),
   },
   {
     name: "create_merge_request_discussion_note",
     description: "Add a new discussion note to an existing merge request thread",
-    inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestDiscussionNoteSchema),
   },
   {
     name: "create_merge_request_note",
     description: "Add a new note to a merge request",
-    inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestNoteSchema),
   },
   {
     name: "delete_merge_request_note",
     description: "Delete an existing merge request note",
-    inputSchema: toJSONSchema(DeleteMergeRequestNoteSchema),
+    inputSchema: lazyJSONSchema(DeleteMergeRequestNoteSchema),
   },
   {
     name: "get_merge_request_note",
     description: "Get a specific note for a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestNoteSchema),
   },
   {
     name: "get_merge_request_notes",
     description: "List notes for a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestNotesSchema),
+    inputSchema: lazyJSONSchema(GetMergeRequestNotesSchema),
   },
   {
     name: "update_merge_request_note",
     description: "Modify an existing merge request note",
-    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
+    inputSchema: lazyJSONSchema(UpdateMergeRequestNoteSchema),
   },
   {
     name: "get_draft_note",
     description: "Get a single draft note from a merge request",
-    inputSchema: toJSONSchema(GetDraftNoteSchema),
+    inputSchema: lazyJSONSchema(GetDraftNoteSchema),
   },
   {
     name: "list_draft_notes",
     description: "List draft notes for a merge request",
-    inputSchema: toJSONSchema(ListDraftNotesSchema),
+    inputSchema: lazyJSONSchema(ListDraftNotesSchema),
   },
   {
     name: "create_draft_note",
     description: "Create a draft note for a merge request",
-    inputSchema: toJSONSchema(CreateDraftNoteSchema),
+    inputSchema: lazyJSONSchema(CreateDraftNoteSchema),
   },
   {
     name: "update_draft_note",
     description: "Update an existing draft note",
-    inputSchema: toJSONSchema(UpdateDraftNoteSchema),
+    inputSchema: lazyJSONSchema(UpdateDraftNoteSchema),
   },
   {
     name: "delete_draft_note",
     description: "Delete a draft note",
-    inputSchema: toJSONSchema(DeleteDraftNoteSchema),
+    inputSchema: lazyJSONSchema(DeleteDraftNoteSchema),
   },
   {
     name: "publish_draft_note",
     description: "Publish a single draft note",
-    inputSchema: toJSONSchema(PublishDraftNoteSchema),
+    inputSchema: lazyJSONSchema(PublishDraftNoteSchema),
   },
   {
     name: "bulk_publish_draft_notes",
     description:
       "Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts.",
-    inputSchema: toJSONSchema(BulkPublishDraftNotesSchema),
+    inputSchema: lazyJSONSchema(BulkPublishDraftNotesSchema),
   },
   // --- Merge request emoji reaction tools ---
   {
     name: "list_merge_request_emoji_reactions",
     description: "List all emoji reactions on a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestEmojiReactionsSchema),
   },
   {
     name: "list_merge_request_note_emoji_reactions",
     description:
       "List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(ListMergeRequestNoteEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestNoteEmojiReactionsSchema),
   },
   {
     name: "create_merge_request_emoji_reaction",
     description: "Add an emoji reaction to a merge request (e.g. thumbsup, rocket, eyes)",
-    inputSchema: toJSONSchema(CreateMergeRequestEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestEmojiReactionSchema),
   },
   {
     name: "delete_merge_request_emoji_reaction",
     description: "Remove an emoji reaction from a merge request",
-    inputSchema: toJSONSchema(DeleteMergeRequestEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteMergeRequestEmojiReactionSchema),
   },
   {
     name: "create_merge_request_note_emoji_reaction",
     description:
       "Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(CreateMergeRequestNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateMergeRequestNoteEmojiReactionSchema),
   },
   {
     name: "delete_merge_request_note_emoji_reaction",
     description:
       "Remove an emoji reaction from a merge request note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(DeleteMergeRequestNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteMergeRequestNoteEmojiReactionSchema),
   },
   {
     name: "update_issue_note",
     description: "Modify an existing issue thread note",
-    inputSchema: toJSONSchema(UpdateIssueNoteSchema),
+    inputSchema: lazyJSONSchema(UpdateIssueNoteSchema),
   },
   {
     name: "create_issue_note",
     description: "Add a note to an issue, optionally replying to a discussion thread",
-    inputSchema: toJSONSchema(CreateIssueNoteSchema),
+    inputSchema: lazyJSONSchema(CreateIssueNoteSchema),
   },
   // --- Issue emoji reaction tools ---
   {
     name: "list_issue_emoji_reactions",
     description: "List all emoji reactions on an issue",
-    inputSchema: toJSONSchema(ListIssueEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListIssueEmojiReactionsSchema),
   },
   {
     name: "list_issue_note_emoji_reactions",
     description:
       "List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(ListIssueNoteEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListIssueNoteEmojiReactionsSchema),
   },
   {
     name: "create_issue_emoji_reaction",
     description: "Add an emoji reaction to an issue (e.g. thumbsup, rocket, eyes)",
-    inputSchema: toJSONSchema(CreateIssueEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateIssueEmojiReactionSchema),
   },
   {
     name: "delete_issue_emoji_reaction",
     description: "Remove an emoji reaction from an issue",
-    inputSchema: toJSONSchema(DeleteIssueEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteIssueEmojiReactionSchema),
   },
   {
     name: "create_issue_note_emoji_reaction",
     description:
       "Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(CreateIssueNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateIssueNoteEmojiReactionSchema),
   },
   {
     name: "delete_issue_note_emoji_reaction",
     description:
       "Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.",
-    inputSchema: toJSONSchema(DeleteIssueNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteIssueNoteEmojiReactionSchema),
   },
   {
     name: "list_issues",
     description: "List issues (default: created by current user; use scope='all' for all)",
-    inputSchema: toJSONSchema(ListIssuesSchema),
+    inputSchema: lazyJSONSchema(ListIssuesSchema),
   },
   {
     name: "my_issues",
     description: "List issues assigned to the authenticated user",
-    inputSchema: toJSONSchema(MyIssuesSchema),
+    inputSchema: lazyJSONSchema(MyIssuesSchema),
   },
   {
     name: "get_issue",
     description:
       "Get one issue. Slim nested milestone by default; full_response=true for the complete milestone",
-    inputSchema: toJSONSchema(GetIssueSchema),
+    inputSchema: lazyJSONSchema(GetIssueSchema),
   },
   {
     name: "update_issue",
     description:
       "Update an issue. Slim confirmation by default; full_response=true for the complete object",
-    inputSchema: toJSONSchema(UpdateIssueSchema),
+    inputSchema: lazyJSONSchema(UpdateIssueSchema),
   },
   {
     name: "update_issue_description_patch",
     description:
       "Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes",
-    inputSchema: toJSONSchema(UpdateIssueDescriptionPatchSchema),
+    inputSchema: lazyJSONSchema(UpdateIssueDescriptionPatchSchema),
   },
   {
     name: "reorder_issue",
     description:
       "Move an issue within the manual sort order shown on issue boards. move_after_id and move_before_id take the neighbor issue's global id (the `id` field), not its iid; pass at least one. Returns the reordered issue.",
-    inputSchema: toJSONSchema(ReorderIssueSchema),
+    inputSchema: lazyJSONSchema(ReorderIssueSchema),
   },
   {
     name: "delete_issue",
     description: "Delete an issue",
-    inputSchema: toJSONSchema(DeleteIssueSchema),
+    inputSchema: lazyJSONSchema(DeleteIssueSchema),
   },
   {
     name: "list_todos",
     description: "List GitLab to-do items for the current user",
-    inputSchema: toJSONSchema(ListTodosSchema),
+    inputSchema: lazyJSONSchema(ListTodosSchema),
   },
   {
     name: "mark_todo_done",
     description: "Mark a GitLab to-do item as done",
-    inputSchema: toJSONSchema(MarkTodoDoneSchema),
+    inputSchema: lazyJSONSchema(MarkTodoDoneSchema),
   },
   {
     name: "mark_all_todos_done",
     description: "Mark all pending GitLab to-do items as done for the current user",
-    inputSchema: toJSONSchema(MarkAllTodosDoneSchema),
+    inputSchema: lazyJSONSchema(MarkAllTodosDoneSchema),
   },
   {
     name: "list_issue_links",
     description: "List all issue links for a specific issue",
-    inputSchema: toJSONSchema(ListIssueLinksSchema),
+    inputSchema: lazyJSONSchema(ListIssueLinksSchema),
   },
   {
     name: "list_issue_discussions",
     description: "List discussions for an issue",
-    inputSchema: toJSONSchema(ListIssueDiscussionsSchema),
+    inputSchema: lazyJSONSchema(ListIssueDiscussionsSchema),
   },
   {
     name: "get_issue_link",
     description: "Get a specific issue link",
-    inputSchema: toJSONSchema(GetIssueLinkSchema),
+    inputSchema: lazyJSONSchema(GetIssueLinkSchema),
   },
   {
     name: "create_issue_link",
     description: "Create an issue link between two issues",
-    inputSchema: toJSONSchema(CreateIssueLinkSchema),
+    inputSchema: lazyJSONSchema(CreateIssueLinkSchema),
   },
   {
     name: "delete_issue_link",
     description: "Delete an issue link",
-    inputSchema: toJSONSchema(DeleteIssueLinkSchema),
+    inputSchema: lazyJSONSchema(DeleteIssueLinkSchema),
   },
   {
     name: "list_namespaces",
     description:
       "List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only.",
-    inputSchema: toJSONSchema(ListNamespacesSchema),
+    inputSchema: lazyJSONSchema(ListNamespacesSchema),
   },
   {
     name: "get_namespace",
     description:
       "Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'.",
-    inputSchema: toJSONSchema(GetNamespaceSchema),
+    inputSchema: lazyJSONSchema(GetNamespaceSchema),
   },
   {
     name: "verify_namespace",
     description:
       "Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.",
-    inputSchema: toJSONSchema(VerifyNamespaceSchema),
+    inputSchema: lazyJSONSchema(VerifyNamespaceSchema),
   },
   {
     name: "get_project",
     description: "Get details of a specific project",
-    inputSchema: toJSONSchema(GetProjectSchema),
+    inputSchema: lazyJSONSchema(GetProjectSchema),
   },
   {
     name: "list_projects",
     description: "List projects accessible by the current user",
-    inputSchema: toJSONSchema(ListProjectsSchema),
+    inputSchema: lazyJSONSchema(ListProjectsSchema),
   },
   {
     name: "update_project",
     description:
       "Update project settings such as description, visibility, default branch, and feature access levels",
-    inputSchema: toJSONSchema(UpdateProjectSchema),
+    inputSchema: lazyJSONSchema(UpdateProjectSchema),
   },
   {
     name: "list_project_members",
     description: "List members of a GitLab project",
-    inputSchema: toJSONSchema(ListProjectMembersSchema),
+    inputSchema: lazyJSONSchema(ListProjectMembersSchema),
   },
   {
     name: "list_group_members",
     description: "List members of a GitLab group with optional name or username search",
-    inputSchema: toJSONSchema(ListGroupMembersSchema),
+    inputSchema: lazyJSONSchema(ListGroupMembersSchema),
   },
   {
     name: "list_labels",
     description: "List labels for a project",
-    inputSchema: toJSONSchema(ListLabelsSchema),
+    inputSchema: lazyJSONSchema(ListLabelsSchema),
   },
   {
     name: "get_label",
     description: "Get a single label from a project",
-    inputSchema: toJSONSchema(GetLabelSchema),
+    inputSchema: lazyJSONSchema(GetLabelSchema),
   },
   {
     name: "create_label",
     description: "Create a new label in a project",
-    inputSchema: toJSONSchema(CreateLabelSchema),
+    inputSchema: lazyJSONSchema(CreateLabelSchema),
   },
   {
     name: "update_label",
     description: "Update an existing label in a project",
-    inputSchema: toJSONSchema(UpdateLabelSchema),
+    inputSchema: lazyJSONSchema(UpdateLabelSchema),
   },
   {
     name: "delete_label",
     description: "Delete a label from a project",
-    inputSchema: toJSONSchema(DeleteLabelSchema),
+    inputSchema: lazyJSONSchema(DeleteLabelSchema),
   },
   {
     name: "list_group_projects",
     description: "List projects in a group",
-    inputSchema: toJSONSchema(ListGroupProjectsSchema),
+    inputSchema: lazyJSONSchema(ListGroupProjectsSchema),
   },
   {
     name: "list_wiki_pages",
     description: "List wiki pages in a project",
-    inputSchema: toJSONSchema(ListWikiPagesSchema),
+    inputSchema: lazyJSONSchema(ListWikiPagesSchema),
   },
   {
     name: "get_wiki_page",
     description: "Get details of a specific wiki page",
-    inputSchema: toJSONSchema(GetWikiPageSchema),
+    inputSchema: lazyJSONSchema(GetWikiPageSchema),
   },
   {
     name: "create_wiki_page",
     description: "Create a wiki page in a project",
-    inputSchema: toJSONSchema(CreateWikiPageSchema),
+    inputSchema: lazyJSONSchema(CreateWikiPageSchema),
   },
   {
     name: "update_wiki_page",
     description: "Update a wiki page in a project",
-    inputSchema: toJSONSchema(UpdateWikiPageSchema),
+    inputSchema: lazyJSONSchema(UpdateWikiPageSchema),
   },
   {
     name: "delete_wiki_page",
     description: "Delete a wiki page from a project",
-    inputSchema: toJSONSchema(DeleteWikiPageSchema),
+    inputSchema: lazyJSONSchema(DeleteWikiPageSchema),
   },
   {
     name: "list_group_wiki_pages",
     description: "List wiki pages in a group",
-    inputSchema: toJSONSchema(ListGroupWikiPagesSchema),
+    inputSchema: lazyJSONSchema(ListGroupWikiPagesSchema),
   },
   {
     name: "get_group_wiki_page",
     description: "Get details of a specific group wiki page",
-    inputSchema: toJSONSchema(GetGroupWikiPageSchema),
+    inputSchema: lazyJSONSchema(GetGroupWikiPageSchema),
   },
   {
     name: "create_group_wiki_page",
     description: "Create a wiki page in a group",
-    inputSchema: toJSONSchema(CreateGroupWikiPageSchema),
+    inputSchema: lazyJSONSchema(CreateGroupWikiPageSchema),
   },
   {
     name: "update_group_wiki_page",
     description: "Update a wiki page in a group",
-    inputSchema: toJSONSchema(UpdateGroupWikiPageSchema),
+    inputSchema: lazyJSONSchema(UpdateGroupWikiPageSchema),
   },
   {
     name: "delete_group_wiki_page",
     description: "Delete a wiki page from a group",
-    inputSchema: toJSONSchema(DeleteGroupWikiPageSchema),
+    inputSchema: lazyJSONSchema(DeleteGroupWikiPageSchema),
   },
   {
     name: "get_repository_tree",
     description: "List files and directories in a repository",
-    inputSchema: toJSONSchema(GetRepositoryTreeSchema),
+    inputSchema: lazyJSONSchema(GetRepositoryTreeSchema),
   },
   {
     name: "list_pipelines",
     description: "List pipelines with filtering options",
-    inputSchema: toJSONSchema(ListPipelinesSchema),
+    inputSchema: lazyJSONSchema(ListPipelinesSchema),
   },
   {
     name: "get_pipeline",
     description: "Get details of a specific pipeline",
-    inputSchema: toJSONSchema(GetPipelineSchema),
+    inputSchema: lazyJSONSchema(GetPipelineSchema),
   },
   {
     name: "get_pipeline_variables",
     description: "Get variables configured for a pipeline",
-    inputSchema: toJSONSchema(GetPipelineVariablesSchema),
+    inputSchema: lazyJSONSchema(GetPipelineVariablesSchema),
   },
   {
     name: "get_pipeline_test_report",
     description: "Get pipeline test report",
-    inputSchema: toJSONSchema(PipelineReportSchema),
+    inputSchema: lazyJSONSchema(PipelineReportSchema),
   },
   {
     name: "get_pipeline_test_report_summary",
     description: "Get pipeline test report summary",
-    inputSchema: toJSONSchema(PipelineReportSchema),
+    inputSchema: lazyJSONSchema(PipelineReportSchema),
   },
   {
     name: "delete_pipeline",
     description:
       "Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines.",
-    inputSchema: toJSONSchema(DeletePipelineSchema),
+    inputSchema: lazyJSONSchema(DeletePipelineSchema),
   },
   {
     name: "update_pipeline_metadata",
     description: "Update pipeline metadata",
-    inputSchema: toJSONSchema(UpdatePipelineMetadataSchema),
+    inputSchema: lazyJSONSchema(UpdatePipelineMetadataSchema),
   },
   {
     name: "list_deployments",
     description: "List deployments with filtering options",
-    inputSchema: toJSONSchema(ListDeploymentsSchema),
+    inputSchema: lazyJSONSchema(ListDeploymentsSchema),
   },
   {
     name: "get_deployment",
     description:
       "Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them",
-    inputSchema: toJSONSchema(GetDeploymentSchema),
+    inputSchema: lazyJSONSchema(GetDeploymentSchema),
   },
   {
     name: "create_deployment",
     description: "Create a deployment",
-    inputSchema: toJSONSchema(CreateDeploymentSchema),
+    inputSchema: lazyJSONSchema(CreateDeploymentSchema),
   },
   {
     name: "update_deployment",
     description: "Update a deployment status",
-    inputSchema: toJSONSchema(UpdateDeploymentSchema),
+    inputSchema: lazyJSONSchema(UpdateDeploymentSchema),
   },
   {
     name: "delete_deployment",
     description: "Delete a deployment",
-    inputSchema: toJSONSchema(GetDeploymentSchema),
+    inputSchema: lazyJSONSchema(GetDeploymentSchema),
   },
   {
     name: "list_deployment_merge_requests",
     description: "List merge requests shipped with a deployment",
-    inputSchema: toJSONSchema(ListDeploymentMergeRequestsSchema),
+    inputSchema: lazyJSONSchema(ListDeploymentMergeRequestsSchema),
   },
   {
     name: "approve_deployment",
     description: "Approve or reject a protected-environment deployment",
-    inputSchema: toJSONSchema(DeploymentApprovalSchema),
+    inputSchema: lazyJSONSchema(DeploymentApprovalSchema),
   },
   {
     name: "list_environments",
     description: "List environments in a project",
-    inputSchema: toJSONSchema(ListEnvironmentsSchema),
+    inputSchema: lazyJSONSchema(ListEnvironmentsSchema),
   },
   {
     name: "get_environment",
     description: "Get details of a specific environment",
-    inputSchema: toJSONSchema(GetEnvironmentSchema),
+    inputSchema: lazyJSONSchema(GetEnvironmentSchema),
   },
   {
     name: "update_environment",
     description: "Update an environment",
-    inputSchema: toJSONSchema(UpdateEnvironmentSchema),
+    inputSchema: lazyJSONSchema(UpdateEnvironmentSchema),
   },
   {
     name: "delete_environment",
     description: "Delete a stopped environment",
-    inputSchema: toJSONSchema(GetEnvironmentSchema),
+    inputSchema: lazyJSONSchema(GetEnvironmentSchema),
   },
   {
     name: "stop_environment",
     description: "Stop an environment",
-    inputSchema: toJSONSchema(StopEnvironmentSchema),
+    inputSchema: lazyJSONSchema(StopEnvironmentSchema),
   },
   {
     name: "stop_stale_environments",
     description:
       "Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted",
-    inputSchema: toJSONSchema(StopStaleEnvironmentsSchema),
+    inputSchema: lazyJSONSchema(StopStaleEnvironmentsSchema),
   },
   {
     name: "delete_review_app_environments",
     description:
       "Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false",
-    inputSchema: toJSONSchema(DeleteReviewAppEnvironmentsSchema),
+    inputSchema: lazyJSONSchema(DeleteReviewAppEnvironmentsSchema),
   },
   {
     name: "list_pipeline_triggers",
     description: "List project pipeline trigger tokens",
-    inputSchema: toJSONSchema(ListPipelineTriggersSchema),
+    inputSchema: lazyJSONSchema(ListPipelineTriggersSchema),
   },
   {
     name: "get_pipeline_trigger",
     description: "Get a project pipeline trigger",
-    inputSchema: toJSONSchema(PipelineTriggerIdSchema),
+    inputSchema: lazyJSONSchema(PipelineTriggerIdSchema),
   },
   {
     name: "create_pipeline_trigger",
     description: "Create a project pipeline trigger",
-    inputSchema: toJSONSchema(CreatePipelineTriggerSchema),
+    inputSchema: lazyJSONSchema(CreatePipelineTriggerSchema),
   },
   {
     name: "update_pipeline_trigger",
     description: "Update a project pipeline trigger",
-    inputSchema: toJSONSchema(UpdatePipelineTriggerSchema),
+    inputSchema: lazyJSONSchema(UpdatePipelineTriggerSchema),
   },
   {
     name: "delete_pipeline_trigger",
     description: "Delete a project pipeline trigger",
-    inputSchema: toJSONSchema(PipelineTriggerIdSchema),
+    inputSchema: lazyJSONSchema(PipelineTriggerIdSchema),
   },
   {
     name: "trigger_pipeline",
     description: "Trigger a pipeline with a pipeline trigger token",
-    inputSchema: toJSONSchema(TriggerPipelineSchema),
+    inputSchema: lazyJSONSchema(TriggerPipelineSchema),
   },
   {
     name: "list_pipeline_jobs",
     description: "List all jobs in a specific pipeline",
-    inputSchema: toJSONSchema(ListPipelineJobsSchema),
+    inputSchema: lazyJSONSchema(ListPipelineJobsSchema),
   },
   {
     name: "list_pipeline_trigger_jobs",
     description: "List trigger jobs (bridges) in a pipeline",
-    inputSchema: toJSONSchema(ListPipelineTriggerJobsSchema),
+    inputSchema: lazyJSONSchema(ListPipelineTriggerJobsSchema),
   },
   {
     name: "get_pipeline_job",
     description: "Get details of a GitLab pipeline job number",
-    inputSchema: toJSONSchema(PipelineJobControlSchema),
+    inputSchema: lazyJSONSchema(PipelineJobControlSchema),
   },
   {
     name: "get_pipeline_job_output",
     description:
       "Get a pipeline job trace. It is read-only. Without pattern, lines come from the end of the log: limit is the maximum lines (default and max 1000) and offset is how many lines to skip from the end (default 0). With pattern, the full log is searched and limit and offset are ignored; a log over 10,000,000 characters is searched only in its last 10,000,000 characters, which can start partway through a line, and the result says which line that is. pattern is a substring unless regex is true, which treats it as an RE2 regular expression matched in linear time (no backreferences or lookaround); invalid or unsupported expressions, expressions over 1,000 compiled instructions (large {n} repetitions), and patterns longer than 500 characters return an error. case_sensitive defaults to false. context_lines (default 5, maximum 50) includes lines before and after each match, and overlapping windows are merged. max_matches (default 20, maximum 100) caps returned matches, and returned lines stop at 100,000 characters of text in total. Results are plain text with 1-based line numbers from the start of the log plus total_lines, total_matches, shown_matches, truncated, and output_truncated (true when the character limit cut the output). ANSI escape codes and GitLab section_start/section_end markers are removed before matching and in returned fragments. Provide project_id as a numeric ID or URL-encoded path and job_id as the job ID.",
-    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
+    inputSchema: lazyJSONSchema(GetPipelineJobOutputSchema),
   },
   {
     name: "validate_ci_lint",
     description: "Validate provided GitLab CI/CD YAML content for a project",
-    inputSchema: toJSONSchema(ValidateCiLintSchema),
+    inputSchema: lazyJSONSchema(ValidateCiLintSchema),
   },
   {
     name: "validate_project_ci_lint",
     description: "Validate an existing .gitlab-ci.yml configuration for a project",
-    inputSchema: toJSONSchema(ValidateProjectCiLintSchema),
+    inputSchema: lazyJSONSchema(ValidateProjectCiLintSchema),
   },
   {
     name: "list_ci_catalog_resources",
     description: "List GitLab CI/CD Catalog resources/components visible to the user",
-    inputSchema: toJSONSchema(ListCiCatalogResourcesSchema),
+    inputSchema: lazyJSONSchema(ListCiCatalogResourcesSchema),
   },
   {
     name: "get_ci_catalog_resource",
     description:
       "Get details for a GitLab CI/CD Catalog resource, including versions and components",
-    inputSchema: toJSONSchema(GetCiCatalogResourceSchema),
+    inputSchema: lazyJSONSchema(GetCiCatalogResourceSchema),
   },
   {
     name: "create_pipeline",
     description: "Create a new pipeline for a branch or tag",
-    inputSchema: toJSONSchema(CreatePipelineSchema),
+    inputSchema: lazyJSONSchema(CreatePipelineSchema),
   },
   {
     name: "retry_pipeline",
     description: "Retry a failed or canceled pipeline",
-    inputSchema: toJSONSchema(RetryPipelineSchema),
+    inputSchema: lazyJSONSchema(RetryPipelineSchema),
   },
   {
     name: "cancel_pipeline",
     description: "Cancel a running pipeline",
-    inputSchema: toJSONSchema(CancelPipelineSchema),
+    inputSchema: lazyJSONSchema(CancelPipelineSchema),
   },
   {
     name: "list_pipeline_schedules",
     description: "List pipeline schedules in a project, optionally filtered to active or inactive",
-    inputSchema: toJSONSchema(ListPipelineSchedulesSchema),
+    inputSchema: lazyJSONSchema(ListPipelineSchedulesSchema),
   },
   {
     name: "get_pipeline_schedule",
     description:
       "Get details of a specific pipeline schedule, including its variables and last pipeline",
-    inputSchema: toJSONSchema(GetPipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(GetPipelineScheduleSchema),
   },
   {
     name: "list_pipeline_schedule_pipelines",
     description: "List the pipelines that a pipeline schedule has triggered",
-    inputSchema: toJSONSchema(ListPipelineSchedulePipelinesSchema),
+    inputSchema: lazyJSONSchema(ListPipelineSchedulePipelinesSchema),
   },
   {
     name: "create_pipeline_schedule",
     description: "Create a new pipeline schedule for a branch or tag",
-    inputSchema: toJSONSchema(CreatePipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(CreatePipelineScheduleSchema),
   },
   {
     name: "update_pipeline_schedule",
     description: "Update an existing pipeline schedule",
-    inputSchema: toJSONSchema(UpdatePipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(UpdatePipelineScheduleSchema),
   },
   {
     name: "delete_pipeline_schedule",
     description: "Delete a pipeline schedule",
-    inputSchema: toJSONSchema(DeletePipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(DeletePipelineScheduleSchema),
   },
   {
     name: "play_pipeline_schedule",
     description: "Run a pipeline schedule immediately",
-    inputSchema: toJSONSchema(PlayPipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(PlayPipelineScheduleSchema),
   },
   {
     name: "take_ownership_pipeline_schedule",
     description: "Take ownership of a pipeline schedule",
-    inputSchema: toJSONSchema(TakeOwnershipPipelineScheduleSchema),
+    inputSchema: lazyJSONSchema(TakeOwnershipPipelineScheduleSchema),
   },
   {
     name: "get_pipeline_schedule_variable",
     description: "Get a single variable of a pipeline schedule",
-    inputSchema: toJSONSchema(GetPipelineScheduleVariableSchema),
+    inputSchema: lazyJSONSchema(GetPipelineScheduleVariableSchema),
   },
   {
     name: "create_pipeline_schedule_variable",
     description: "Create a variable for a pipeline schedule",
-    inputSchema: toJSONSchema(CreatePipelineScheduleVariableSchema),
+    inputSchema: lazyJSONSchema(CreatePipelineScheduleVariableSchema),
   },
   {
     name: "update_pipeline_schedule_variable",
     description: "Update a variable of a pipeline schedule",
-    inputSchema: toJSONSchema(UpdatePipelineScheduleVariableSchema),
+    inputSchema: lazyJSONSchema(UpdatePipelineScheduleVariableSchema),
   },
   {
     name: "delete_pipeline_schedule_variable",
     description: "Delete a variable from a pipeline schedule",
-    inputSchema: toJSONSchema(DeletePipelineScheduleVariableSchema),
+    inputSchema: lazyJSONSchema(DeletePipelineScheduleVariableSchema),
   },
   {
     name: "play_pipeline_job",
     description: "Run a manual pipeline job",
-    inputSchema: toJSONSchema(PlayPipelineJobSchema),
+    inputSchema: lazyJSONSchema(PlayPipelineJobSchema),
   },
   {
     name: "play_pipeline_jobs",
     description: "Play multiple manual pipeline jobs sequentially",
-    inputSchema: toJSONSchema(PlayPipelineJobsSchema),
+    inputSchema: lazyJSONSchema(PlayPipelineJobsSchema),
   },
   {
     name: "retry_pipeline_job",
     description: "Retry a failed or canceled pipeline job",
-    inputSchema: toJSONSchema(RetryPipelineJobSchema),
+    inputSchema: lazyJSONSchema(RetryPipelineJobSchema),
   },
   {
     name: "cancel_pipeline_job",
     description: "Cancel a running pipeline job",
-    inputSchema: toJSONSchema(CancelPipelineJobSchema),
+    inputSchema: lazyJSONSchema(CancelPipelineJobSchema),
   },
   {
     name: "erase_pipeline_job",
     description: "Erase a pipeline job log and artifacts",
-    inputSchema: toJSONSchema(ErasePipelineJobSchema),
+    inputSchema: lazyJSONSchema(ErasePipelineJobSchema),
   },
   {
     name: "wait_for_pipeline",
     description: "Wait for a pipeline to reach a terminal status",
-    inputSchema: toJSONSchema(WaitForPipelineSchema),
+    inputSchema: lazyJSONSchema(WaitForPipelineSchema),
   },
   {
     name: "wait_for_job",
     description: "Wait for a job to reach a terminal status",
-    inputSchema: toJSONSchema(WaitForPipelineJobSchema),
+    inputSchema: lazyJSONSchema(WaitForPipelineJobSchema),
   },
   {
     name: "list_job_artifacts",
     description: "List artifact files in a job's archive",
-    inputSchema: toJSONSchema(ListJobArtifactsSchema),
+    inputSchema: lazyJSONSchema(ListJobArtifactsSchema),
   },
   {
     name: "download_job_artifacts",
@@ -1165,206 +1165,206 @@ export const allTools = [
       ? "Get a download URL for a job's artifact archive (zip)"
       : "Download job artifact archive (zip) and save it under the download directory",
     inputSchema: IS_REMOTE
-      ? toJSONSchema(DownloadJobArtifactsRemoteSchema)
-      : toJSONSchema(DownloadJobArtifactsSchema),
+      ? lazyJSONSchema(DownloadJobArtifactsRemoteSchema)
+      : lazyJSONSchema(DownloadJobArtifactsSchema),
   },
   {
     name: "get_job_artifact_file",
     description: "Get content of a single file from a job's artifacts",
-    inputSchema: toJSONSchema(GetJobArtifactFileSchema),
+    inputSchema: lazyJSONSchema(GetJobArtifactFileSchema),
   },
   {
     name: "list_merge_requests",
     description:
       "List merge requests (without project_id: user's MRs; with project_id: project MRs)",
-    inputSchema: toJSONSchema(ListMergeRequestsSchema),
+    inputSchema: lazyJSONSchema(ListMergeRequestsSchema),
   },
   {
     name: "list_group_merge_requests",
     description: "List merge requests across all projects of a group and its subgroups",
-    inputSchema: toJSONSchema(ListGroupMergeRequestsSchema),
+    inputSchema: lazyJSONSchema(ListGroupMergeRequestsSchema),
   },
   {
     name: "list_milestones",
     description: "List milestones with filtering options",
-    inputSchema: toJSONSchema(ListProjectMilestonesSchema),
+    inputSchema: lazyJSONSchema(ListProjectMilestonesSchema),
   },
   {
     name: "get_milestone",
     description: "Get details of a specific milestone",
-    inputSchema: toJSONSchema(GetProjectMilestoneSchema),
+    inputSchema: lazyJSONSchema(GetProjectMilestoneSchema),
   },
   {
     name: "create_milestone",
     description: "Create a new milestone",
-    inputSchema: toJSONSchema(CreateProjectMilestoneSchema),
+    inputSchema: lazyJSONSchema(CreateProjectMilestoneSchema),
   },
   {
     name: "edit_milestone",
     description: "Edit an existing milestone",
-    inputSchema: toJSONSchema(EditProjectMilestoneSchema),
+    inputSchema: lazyJSONSchema(EditProjectMilestoneSchema),
   },
   {
     name: "delete_milestone",
     description: "Delete a milestone",
-    inputSchema: toJSONSchema(DeleteProjectMilestoneSchema),
+    inputSchema: lazyJSONSchema(DeleteProjectMilestoneSchema),
   },
   {
     name: "get_milestone_issue",
     description: "Get issues associated with a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneIssuesSchema),
+    inputSchema: lazyJSONSchema(GetMilestoneIssuesSchema),
   },
   {
     name: "get_milestone_merge_requests",
     description: "Get merge requests associated with a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneMergeRequestsSchema),
+    inputSchema: lazyJSONSchema(GetMilestoneMergeRequestsSchema),
   },
   {
     name: "promote_milestone",
     description: "Promote a milestone to the next stage",
-    inputSchema: toJSONSchema(PromoteProjectMilestoneSchema),
+    inputSchema: lazyJSONSchema(PromoteProjectMilestoneSchema),
   },
   {
     name: "get_milestone_burndown_events",
     description: "Get burndown events for a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneBurndownEventsSchema),
+    inputSchema: lazyJSONSchema(GetMilestoneBurndownEventsSchema),
   },
   {
     name: "list_group_milestones",
     description: "List group milestones with filtering options",
-    inputSchema: toJSONSchema(ListGroupMilestonesSchema),
+    inputSchema: lazyJSONSchema(ListGroupMilestonesSchema),
   },
   {
     name: "get_group_milestone",
     description: "Get details of a specific group milestone",
-    inputSchema: toJSONSchema(GetGroupMilestoneSchema),
+    inputSchema: lazyJSONSchema(GetGroupMilestoneSchema),
   },
   {
     name: "create_group_milestone",
     description: "Create a new group milestone",
-    inputSchema: toJSONSchema(CreateGroupMilestoneSchema),
+    inputSchema: lazyJSONSchema(CreateGroupMilestoneSchema),
   },
   {
     name: "edit_group_milestone",
     description: "Edit an existing group milestone",
-    inputSchema: toJSONSchema(EditGroupMilestoneSchema),
+    inputSchema: lazyJSONSchema(EditGroupMilestoneSchema),
   },
   {
     name: "delete_group_milestone",
     description: "Delete a group milestone",
-    inputSchema: toJSONSchema(DeleteGroupMilestoneSchema),
+    inputSchema: lazyJSONSchema(DeleteGroupMilestoneSchema),
   },
   {
     name: "get_group_milestone_issue",
     description: "Get issues associated with a specific group milestone",
-    inputSchema: toJSONSchema(GetGroupMilestoneIssuesSchema),
+    inputSchema: lazyJSONSchema(GetGroupMilestoneIssuesSchema),
   },
   {
     name: "get_group_milestone_merge_requests",
     description: "Get merge requests associated with a specific group milestone",
-    inputSchema: toJSONSchema(GetGroupMilestoneMergeRequestsSchema),
+    inputSchema: lazyJSONSchema(GetGroupMilestoneMergeRequestsSchema),
   },
   {
     name: "get_group_milestone_burndown_events",
     description: "Get burndown events for a specific group milestone",
-    inputSchema: toJSONSchema(GetGroupMilestoneBurndownEventsSchema),
+    inputSchema: lazyJSONSchema(GetGroupMilestoneBurndownEventsSchema),
   },
   {
     name: "get_users",
     description: "Get GitLab user details by usernames",
-    inputSchema: toJSONSchema(GetUsersSchema),
+    inputSchema: lazyJSONSchema(GetUsersSchema),
   },
   {
     name: "get_user",
     description: "Get user details by ID",
-    inputSchema: toJSONSchema(GetUserSchema),
+    inputSchema: lazyJSONSchema(GetUserSchema),
   },
   {
     name: "whoami",
     description: "Get current authenticated user details",
-    inputSchema: toJSONSchema(WhoAmISchema),
+    inputSchema: lazyJSONSchema(WhoAmISchema),
   },
   {
     name: "list_commits",
     description: "List repository commits with filtering options",
-    inputSchema: toJSONSchema(ListCommitsSchema),
+    inputSchema: lazyJSONSchema(ListCommitsSchema),
   },
   {
     name: "get_commit",
     description: "Get details of a specific commit",
-    inputSchema: toJSONSchema(GetCommitSchema),
+    inputSchema: lazyJSONSchema(GetCommitSchema),
   },
   {
     name: "get_commit_diff",
     description: "Get changes/diffs of a specific commit",
-    inputSchema: toJSONSchema(GetCommitDiffSchema),
+    inputSchema: lazyJSONSchema(GetCommitDiffSchema),
   },
   {
     name: "get_file_blame",
     description:
       "Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines.",
-    inputSchema: toJSONSchema(GetFileBlameSchema),
+    inputSchema: lazyJSONSchema(GetFileBlameSchema),
   },
   {
     name: "list_commit_statuses",
     description: "List statuses for a commit",
-    inputSchema: toJSONSchema(ListCommitStatusesSchema),
+    inputSchema: lazyJSONSchema(ListCommitStatusesSchema),
   },
   {
     name: "create_commit_status",
     description: "Create or update the status of a commit",
-    inputSchema: toJSONSchema(CreateCommitStatusSchema),
+    inputSchema: lazyJSONSchema(CreateCommitStatusSchema),
   },
   {
     name: "list_group_iterations",
     description: "List group iterations with filtering options",
-    inputSchema: toJSONSchema(ListGroupIterationsSchema),
+    inputSchema: lazyJSONSchema(ListGroupIterationsSchema),
   },
   {
     name: "get_group_iteration",
     description: "Get a group iteration by ID, IID, or GraphQL GID",
-    inputSchema: toJSONSchema(GetGroupIterationSchema),
+    inputSchema: lazyJSONSchema(GetGroupIterationSchema),
   },
   {
     name: "update_group_iteration",
     description:
       "Update a manual group iteration's title, description, or dates. At least one of `title`, `description`, `start_date`, or `due_date` is required.",
-    inputSchema: toJSONSchema(UpdateGroupIterationSchema),
+    inputSchema: lazyJSONSchema(UpdateGroupIterationSchema),
   },
   {
     name: "create_group_iteration",
     description: "Create a group iteration, optionally in a given iteration cadence",
-    inputSchema: toJSONSchema(CreateGroupIterationSchema),
+    inputSchema: lazyJSONSchema(CreateGroupIterationSchema),
   },
   {
     name: "delete_group_iteration",
     description: "Delete a group iteration by ID, IID, or GraphQL GID",
-    inputSchema: toJSONSchema(DeleteGroupIterationSchema),
+    inputSchema: lazyJSONSchema(DeleteGroupIterationSchema),
   },
   {
     name: "list_project_iterations",
     description: "List the iterations available to a project with filtering options",
-    inputSchema: toJSONSchema(ListProjectIterationsSchema),
+    inputSchema: lazyJSONSchema(ListProjectIterationsSchema),
   },
   {
     name: "list_group_iteration_cadences",
     description: "List a group's iteration cadences with filtering options",
-    inputSchema: toJSONSchema(ListGroupIterationCadencesSchema),
+    inputSchema: lazyJSONSchema(ListGroupIterationCadencesSchema),
   },
   {
     name: "create_group_iteration_cadence",
     description: "Create an iteration cadence in a group",
-    inputSchema: toJSONSchema(CreateGroupIterationCadenceSchema),
+    inputSchema: lazyJSONSchema(CreateGroupIterationCadenceSchema),
   },
   {
     name: "update_group_iteration_cadence",
     description: "Update an iteration cadence's title, description, schedule, or automation",
-    inputSchema: toJSONSchema(UpdateGroupIterationCadenceSchema),
+    inputSchema: lazyJSONSchema(UpdateGroupIterationCadenceSchema),
   },
   {
     name: "delete_group_iteration_cadence",
     description: "Delete an iteration cadence",
-    inputSchema: toJSONSchema(DeleteGroupIterationCadenceSchema),
+    inputSchema: lazyJSONSchema(DeleteGroupIterationCadenceSchema),
   },
   {
     name: "upload_markdown",
@@ -1372,8 +1372,8 @@ export const allTools = [
       ? "Upload base64-encoded content for use in markdown"
       : "Upload a file for use in markdown content",
     inputSchema: IS_REMOTE
-      ? toJSONSchema(MarkdownUploadRemoteSchema)
-      : toJSONSchema(MarkdownUploadSchema),
+      ? lazyJSONSchema(MarkdownUploadRemoteSchema)
+      : lazyJSONSchema(MarkdownUploadSchema),
   },
   {
     name: "download_attachment",
@@ -1381,415 +1381,415 @@ export const allTools = [
       ? "Download an uploaded file from a project (images returned inline as base64, other files returned as download URL)"
       : "Download an uploaded file from a project (images returned as base64; other files, or images with local_path, are saved as new files under the download directory)",
     inputSchema: IS_REMOTE
-      ? toJSONSchema(DownloadAttachmentRemoteSchema)
-      : toJSONSchema(DownloadAttachmentSchema),
+      ? lazyJSONSchema(DownloadAttachmentRemoteSchema)
+      : lazyJSONSchema(DownloadAttachmentSchema),
   },
   {
     name: "health_check",
     description:
       "Check auth and versions. Always includes mcp_server_version. When authenticated, also GitLab version, revision, and enterprise from GET /api/v4/version. Version lookup failures omit those fields instead of failing",
-    inputSchema: toJSONSchema(HealthCheckSchema),
+    inputSchema: lazyJSONSchema(HealthCheckSchema),
   },
   {
     name: "list_events",
     description: "List events for the authenticated user (before/after: YYYY-MM-DD)",
-    inputSchema: toJSONSchema(ListEventsSchema),
+    inputSchema: lazyJSONSchema(ListEventsSchema),
   },
   {
     name: "get_project_events",
     description: "List events for a project (before/after: YYYY-MM-DD)",
-    inputSchema: toJSONSchema(GetProjectEventsSchema),
+    inputSchema: lazyJSONSchema(GetProjectEventsSchema),
   },
   {
     name: "list_releases",
     description: "List all releases for a project",
-    inputSchema: toJSONSchema(ListReleasesSchema),
+    inputSchema: lazyJSONSchema(ListReleasesSchema),
   },
   {
     name: "get_release",
     description: "Get a release by tag name",
-    inputSchema: toJSONSchema(GetReleaseSchema),
+    inputSchema: lazyJSONSchema(GetReleaseSchema),
   },
   {
     name: "create_release",
     description: "Create a new release",
-    inputSchema: toJSONSchema(CreateReleaseSchema),
+    inputSchema: lazyJSONSchema(CreateReleaseSchema),
   },
   {
     name: "update_release",
     description: "Update an existing release",
-    inputSchema: toJSONSchema(UpdateReleaseSchema),
+    inputSchema: lazyJSONSchema(UpdateReleaseSchema),
   },
   {
     name: "delete_release",
     description: "Delete a release (does not delete the tag)",
-    inputSchema: toJSONSchema(DeleteReleaseSchema),
+    inputSchema: lazyJSONSchema(DeleteReleaseSchema),
   },
   {
     name: "create_release_evidence",
     description: "Create release evidence (Premium/Ultimate)",
-    inputSchema: toJSONSchema(CreateReleaseEvidenceSchema),
+    inputSchema: lazyJSONSchema(CreateReleaseEvidenceSchema),
   },
   {
     name: "download_release_asset",
     description: IS_REMOTE
       ? "Get a download URL for a release asset file"
       : "Download a release asset file by direct asset path",
-    inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
+    inputSchema: lazyJSONSchema(DownloadReleaseAssetSchema),
   },
   {
     name: "list_tags",
     description: "List repository tags for a project",
-    inputSchema: toJSONSchema(ListTagsSchema),
+    inputSchema: lazyJSONSchema(ListTagsSchema),
   },
   {
     name: "get_tag",
     description: "Get a repository tag by name",
-    inputSchema: toJSONSchema(GetTagSchema),
+    inputSchema: lazyJSONSchema(GetTagSchema),
   },
   {
     name: "create_tag",
     description: "Create a new repository tag",
-    inputSchema: toJSONSchema(CreateTagSchema),
+    inputSchema: lazyJSONSchema(CreateTagSchema),
   },
   {
     name: "delete_tag",
     description: "Delete a repository tag",
-    inputSchema: toJSONSchema(DeleteTagSchema),
+    inputSchema: lazyJSONSchema(DeleteTagSchema),
   },
   {
     name: "get_tag_signature",
     description: "Get the X.509 signature of a signed tag (404 if unsigned)",
-    inputSchema: toJSONSchema(GetTagSignatureSchema),
+    inputSchema: lazyJSONSchema(GetTagSignatureSchema),
   },
   {
     name: "list_protected_tags",
     description: "List protected tags in a project",
-    inputSchema: toJSONSchema(ListProtectedTagsSchema),
+    inputSchema: lazyJSONSchema(ListProtectedTagsSchema),
   },
   {
     name: "get_protected_tag",
     description: "Get details of a single protected tag or wildcard (create access levels)",
-    inputSchema: toJSONSchema(GetProtectedTagSchema),
+    inputSchema: lazyJSONSchema(GetProtectedTagSchema),
   },
   {
     name: "protect_tag",
     description: "Protect a repository tag or wildcard (set who can create it)",
-    inputSchema: toJSONSchema(ProtectTagSchema),
+    inputSchema: lazyJSONSchema(ProtectTagSchema),
   },
   {
     name: "unprotect_tag",
     description: "Remove protection from a previously protected tag or wildcard",
-    inputSchema: toJSONSchema(UnprotectTagSchema),
+    inputSchema: lazyJSONSchema(UnprotectTagSchema),
   },
   // --- Snippet tools ---
   {
     name: "list_snippets",
     description:
       "List snippets — project snippets when project_id is given, otherwise personal snippets",
-    inputSchema: toJSONSchema(ListSnippetsSchema),
+    inputSchema: lazyJSONSchema(ListSnippetsSchema),
   },
   {
     name: "get_snippet",
     description:
       "Get a snippet's metadata. Set include_content=true to also fetch the raw file content.",
-    inputSchema: toJSONSchema(GetSnippetSchema),
+    inputSchema: lazyJSONSchema(GetSnippetSchema),
   },
   {
     name: "create_snippet",
     description:
       "Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.",
-    inputSchema: toJSONSchema(CreateSnippetSchema),
+    inputSchema: lazyJSONSchema(CreateSnippetSchema),
   },
   {
     name: "update_snippet",
     description:
       "Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.",
-    inputSchema: toJSONSchema(UpdateSnippetSchema),
+    inputSchema: lazyJSONSchema(UpdateSnippetSchema),
   },
   {
     name: "delete_snippet",
     description: "Delete a snippet",
-    inputSchema: toJSONSchema(DeleteSnippetSchema),
+    inputSchema: lazyJSONSchema(DeleteSnippetSchema),
   },
   // --- Work item tools (GraphQL-based) ---
   {
     name: "get_work_item",
     description: "Get a work item with full details including status, hierarchy, type, and widgets",
-    inputSchema: toJSONSchema(GetWorkItemSchema),
+    inputSchema: lazyJSONSchema(GetWorkItemSchema),
   },
   {
     name: "list_work_items",
     description: "List work items with filters (type, state, search, assignees, labels)",
-    inputSchema: toJSONSchema(ListWorkItemsSchema),
+    inputSchema: lazyJSONSchema(ListWorkItemsSchema),
   },
   {
     name: "create_work_item",
     description: "Create a work item (issue, task, incident, epic, etc.) with full field support",
-    inputSchema: toJSONSchema(CreateWorkItemSchema),
+    inputSchema: lazyJSONSchema(CreateWorkItemSchema),
   },
   {
     name: "update_work_item",
     description:
       "Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association.",
-    inputSchema: toJSONSchema(UpdateWorkItemSchema),
+    inputSchema: lazyJSONSchema(UpdateWorkItemSchema),
   },
   {
     name: "convert_work_item_type",
     description: "Convert a work item to a different type",
-    inputSchema: toJSONSchema(ConvertWorkItemTypeSchema),
+    inputSchema: lazyJSONSchema(ConvertWorkItemTypeSchema),
   },
   {
     name: "list_work_item_statuses",
     description: "List available statuses for a work item type (Premium/Ultimate)",
-    inputSchema: toJSONSchema(ListWorkItemStatusesSchema),
+    inputSchema: lazyJSONSchema(ListWorkItemStatusesSchema),
   },
   {
     name: "list_custom_field_definitions",
     description: "List custom field definitions for a work item type",
-    inputSchema: toJSONSchema(ListCustomFieldDefinitionsSchema),
+    inputSchema: lazyJSONSchema(ListCustomFieldDefinitionsSchema),
   },
   {
     name: "move_work_item",
     description: "Move a work item to a different project",
-    inputSchema: toJSONSchema(MoveWorkItemSchema),
+    inputSchema: lazyJSONSchema(MoveWorkItemSchema),
   },
   {
     name: "list_work_item_notes",
     description: "List notes and discussions on a work item",
-    inputSchema: toJSONSchema(ListWorkItemNotesSchema),
+    inputSchema: lazyJSONSchema(ListWorkItemNotesSchema),
   },
   {
     name: "create_work_item_note",
     description: "Add a note to a work item (supports Markdown, internal notes, threads)",
-    inputSchema: toJSONSchema(CreateWorkItemNoteSchema),
+    inputSchema: lazyJSONSchema(CreateWorkItemNoteSchema),
   },
   // --- Work item emoji reaction tools (GraphQL-based) ---
   {
     name: "list_work_item_emoji_reactions",
     description: "List all emoji reactions on a work item",
-    inputSchema: toJSONSchema(ListWorkItemEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListWorkItemEmojiReactionsSchema),
   },
   {
     name: "list_work_item_note_emoji_reactions",
     description: "List all emoji reactions on a work item note (comment, thread, or thread reply)",
-    inputSchema: toJSONSchema(ListWorkItemNoteEmojiReactionsSchema),
+    inputSchema: lazyJSONSchema(ListWorkItemNoteEmojiReactionsSchema),
   },
   {
     name: "create_work_item_emoji_reaction",
     description: "Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)",
-    inputSchema: toJSONSchema(CreateWorkItemEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateWorkItemEmojiReactionSchema),
   },
   {
     name: "delete_work_item_emoji_reaction",
     description: "Remove an emoji reaction from a work item",
-    inputSchema: toJSONSchema(DeleteWorkItemEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteWorkItemEmojiReactionSchema),
   },
   {
     name: "create_work_item_note_emoji_reaction",
     description: "Add an emoji reaction to a work item note (comment, thread, or thread reply)",
-    inputSchema: toJSONSchema(CreateWorkItemNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(CreateWorkItemNoteEmojiReactionSchema),
   },
   {
     name: "delete_work_item_note_emoji_reaction",
     description:
       "Remove an emoji reaction from a work item note (comment, thread, or thread reply)",
-    inputSchema: toJSONSchema(DeleteWorkItemNoteEmojiReactionSchema),
+    inputSchema: lazyJSONSchema(DeleteWorkItemNoteEmojiReactionSchema),
   },
   // --- Incident timeline event tools ---
   {
     name: "get_timeline_events",
     description: "List timeline events for an incident",
-    inputSchema: toJSONSchema(GetTimelineEventsSchema),
+    inputSchema: lazyJSONSchema(GetTimelineEventsSchema),
   },
   {
     name: "create_timeline_event",
     description: "Create a timeline event on an incident",
-    inputSchema: toJSONSchema(CreateTimelineEventSchema),
+    inputSchema: lazyJSONSchema(CreateTimelineEventSchema),
   },
   {
     name: "list_webhooks",
     description: "List webhooks for a project or group",
-    inputSchema: toJSONSchema(ListWebhooksSchema),
+    inputSchema: lazyJSONSchema(ListWebhooksSchema),
   },
   {
     name: "create_webhook",
     description: "Create a webhook on a project or group",
-    inputSchema: toJSONSchema(CreateWebhookSchema),
+    inputSchema: lazyJSONSchema(CreateWebhookSchema),
   },
   {
     name: "update_webhook",
     description: "Update an existing project or group webhook",
-    inputSchema: toJSONSchema(UpdateWebhookSchema),
+    inputSchema: lazyJSONSchema(UpdateWebhookSchema),
   },
   {
     name: "delete_webhook",
     description: "Delete a project or group webhook",
-    inputSchema: toJSONSchema(DeleteWebhookSchema),
+    inputSchema: lazyJSONSchema(DeleteWebhookSchema),
   },
   {
     name: "list_webhook_events",
     description: "List recent webhook events (past 7 days)",
-    inputSchema: toJSONSchema(ListWebhookEventsSchema),
+    inputSchema: lazyJSONSchema(ListWebhookEventsSchema),
   },
   {
     name: "get_webhook_event",
     description: "Get full details of a specific webhook event",
-    inputSchema: toJSONSchema(GetWebhookEventSchema),
+    inputSchema: lazyJSONSchema(GetWebhookEventSchema),
   },
   {
     name: "search_code",
     description: "Search for code across all projects (requires advanced search or Zoekt)",
-    inputSchema: toJSONSchema(SearchCodeSchema),
+    inputSchema: lazyJSONSchema(SearchCodeSchema),
   },
   {
     name: "search_project_code",
     description: "Search for code within a specific project (requires advanced search or Zoekt)",
-    inputSchema: toJSONSchema(SearchProjectCodeSchema),
+    inputSchema: lazyJSONSchema(SearchProjectCodeSchema),
   },
   {
     name: "search_group_code",
     description: "Search for code within a specific group (requires advanced search or Zoekt)",
-    inputSchema: toJSONSchema(SearchGroupCodeSchema),
+    inputSchema: lazyJSONSchema(SearchGroupCodeSchema),
   },
   // --- CI/CD Variable tools ---
   {
     name: "list_project_variables",
     description: "List CI/CD variables for a project",
-    inputSchema: toJSONSchema(ListProjectVariablesSchema),
+    inputSchema: lazyJSONSchema(ListProjectVariablesSchema),
   },
   {
     name: "get_project_variable",
     description: "Get a single CI/CD variable from a project",
-    inputSchema: toJSONSchema(GetProjectVariableSchema),
+    inputSchema: lazyJSONSchema(GetProjectVariableSchema),
   },
   {
     name: "create_project_variable",
     description: "Create a CI/CD variable for a project",
-    inputSchema: toJSONSchema(CreateProjectVariableSchema),
+    inputSchema: lazyJSONSchema(CreateProjectVariableSchema),
   },
   {
     name: "update_project_variable",
     description: "Update an existing CI/CD variable in a project",
-    inputSchema: toJSONSchema(UpdateProjectVariableSchema),
+    inputSchema: lazyJSONSchema(UpdateProjectVariableSchema),
   },
   {
     name: "delete_project_variable",
     description: "Delete a CI/CD variable from a project",
-    inputSchema: toJSONSchema(DeleteProjectVariableSchema),
+    inputSchema: lazyJSONSchema(DeleteProjectVariableSchema),
   },
   {
     name: "list_group_variables",
     description: "List CI/CD variables for a group",
-    inputSchema: toJSONSchema(ListGroupVariablesSchema),
+    inputSchema: lazyJSONSchema(ListGroupVariablesSchema),
   },
   {
     name: "get_group_variable",
     description: "Get a single CI/CD variable from a group",
-    inputSchema: toJSONSchema(GetGroupVariableSchema),
+    inputSchema: lazyJSONSchema(GetGroupVariableSchema),
   },
   {
     name: "create_group_variable",
     description: "Create a CI/CD variable for a group",
-    inputSchema: toJSONSchema(CreateGroupVariableSchema),
+    inputSchema: lazyJSONSchema(CreateGroupVariableSchema),
   },
   {
     name: "update_group_variable",
     description: "Update an existing CI/CD variable in a group",
-    inputSchema: toJSONSchema(UpdateGroupVariableSchema),
+    inputSchema: lazyJSONSchema(UpdateGroupVariableSchema),
   },
   {
     name: "delete_group_variable",
     description: "Delete a CI/CD variable from a group",
-    inputSchema: toJSONSchema(DeleteGroupVariableSchema),
+    inputSchema: lazyJSONSchema(DeleteGroupVariableSchema),
   },
   // --- Dependency proxy tools ---
   {
     name: "get_dependency_proxy_settings",
     description: "Get dependency proxy settings for a group",
-    inputSchema: toJSONSchema(GetDependencyProxySettingsSchema),
+    inputSchema: lazyJSONSchema(GetDependencyProxySettingsSchema),
   },
   {
     name: "update_dependency_proxy_settings",
     description:
       "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)",
-    inputSchema: toJSONSchema(UpdateDependencyProxySettingsSchema),
+    inputSchema: lazyJSONSchema(UpdateDependencyProxySettingsSchema),
   },
   {
     name: "list_dependency_proxy_blobs",
     description: "List cached dependency proxy blobs for a group",
-    inputSchema: toJSONSchema(ListDependencyProxyBlobsSchema),
+    inputSchema: lazyJSONSchema(ListDependencyProxyBlobsSchema),
   },
   {
     name: "purge_dependency_proxy_cache",
     description: "Schedule purge of all cached dependency proxy blobs for a group",
-    inputSchema: toJSONSchema(PurgeDependencyProxyCacheSchema),
+    inputSchema: lazyJSONSchema(PurgeDependencyProxyCacheSchema),
   },
   // --- Vulnerability tools ---
   {
     name: "list_project_vulnerabilities",
     description:
       "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)",
-    inputSchema: toJSONSchema(ListProjectVulnerabilitiesSchema),
+    inputSchema: lazyJSONSchema(ListProjectVulnerabilitiesSchema),
   },
   {
     name: "get_vulnerability",
     description: "Get full details of a specific vulnerability",
-    inputSchema: toJSONSchema(GetVulnerabilitySchema),
+    inputSchema: lazyJSONSchema(GetVulnerabilitySchema),
   },
   {
     name: "dismiss_vulnerability",
     description:
       "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment",
-    inputSchema: toJSONSchema(DismissVulnerabilitySchema),
+    inputSchema: lazyJSONSchema(DismissVulnerabilitySchema),
   },
   {
     name: "confirm_vulnerability",
     description: "Confirm a vulnerability as a real finding requiring remediation",
-    inputSchema: toJSONSchema(ConfirmVulnerabilitySchema),
+    inputSchema: lazyJSONSchema(ConfirmVulnerabilitySchema),
   },
   // --- GitLab Orbit (knowledge graph) tools ---
   {
     name: "orbit_query",
     description: "Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph",
-    inputSchema: toJSONSchema(OrbitQuerySchema),
+    inputSchema: lazyJSONSchema(OrbitQuerySchema),
   },
   {
     name: "orbit_get_schema",
     description: "Fetch the current GitLab Orbit graph schema (node and edge types)",
-    inputSchema: toJSONSchema(OrbitSchemaSchema),
+    inputSchema: lazyJSONSchema(OrbitSchemaSchema),
   },
   {
     name: "orbit_get_status",
     description: "Check GitLab Orbit indexing status for the enabled scope",
-    inputSchema: toJSONSchema(OrbitStatusSchema),
+    inputSchema: lazyJSONSchema(OrbitStatusSchema),
   },
   {
     name: "orbit_list_tools",
     description: "List the MCP tool definitions exposed by GitLab Orbit",
-    inputSchema: toJSONSchema(OrbitToolsSchema),
+    inputSchema: lazyJSONSchema(OrbitToolsSchema),
   },
   {
     name: "list_project_runners",
     description: "List runners available to a project",
-    inputSchema: toJSONSchema(ListProjectRunnersSchema),
+    inputSchema: lazyJSONSchema(ListProjectRunnersSchema),
   },
   {
     name: "get_runner",
     description: "Get one runner by ID",
-    inputSchema: toJSONSchema(GetRunnerSchema),
+    inputSchema: lazyJSONSchema(GetRunnerSchema),
   },
   {
     name: "rebase_merge_request",
     description: "Rebase the source branch of a merge request onto its target branch",
-    inputSchema: toJSONSchema(RebaseMergeRequestSchema),
+    inputSchema: lazyJSONSchema(RebaseMergeRequestSchema),
   },
   // --- Explicit opt-in raw API. Not in `all` and not activatable via discover_tools. ---
   {
     name: "gitlab_api_request",
     description:
       "DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed.",
-    inputSchema: toJSONSchema(GitLabApiRequestSchema),
+    inputSchema: lazyJSONSchema(GitLabApiRequestSchema),
   },
   // --- Meta tool: Dynamic tool discovery ---
   {
@@ -1811,9 +1811,9 @@ export const allTools = [
     name: "help",
     description:
       "Return a short GitLab workflow guide. Omit topic for the overview and topic list.",
-    inputSchema: toJSONSchema(HelpInputSchema),
+    inputSchema: lazyJSONSchema(HelpInputSchema),
   },
-];
+]);
 
 // Define which tools are read-only
 export const readOnlyTools = new Set([
