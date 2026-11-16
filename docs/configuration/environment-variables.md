@@ -158,10 +158,27 @@ workspace directory when the MCP client does not set the server process cwd.
 
 The config file supports `keyword` rules for literal replacements and `regex`
 rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
-repository. When masking is enabled, built-in rules cover GitLab token prefixes
-`glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`, `glsoat-`, `gloas-`,
-`glagent-`, `glft-`, and `glimt-`, plus IPv4 and IPv6; each can be disabled or given a custom replacement under
-`builtins`. Rules are loaded at startup; invalid configured files fail startup.
+repository. When masking is enabled, built-in rules cover:
+
+- GitLab token prefixes `glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`,
+  `glsoat-`, `gloas-`, `glagent-`, `glft-`, and `glimt-` (`gitlab-token`)
+- IPv4 (`ipv4`) and IPv6 (`ipv6`) addresses
+- JWTs with three base64url segments starting with `eyJ` (`jwt`). A token
+  that directly follows `-` (for example `sess-eyJ...`) is not matched; use a
+  custom rule for that form. Segments longer than 8,192 characters are not
+  matched; use a custom rule for those.
+- PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
+  variants (`pem-private-key`). A block is matched only up to its own `END`
+  line. A block with no `END` line is not masked, even when another key block
+  follows it. Bodies longer than 32,768 characters are not matched; use a custom
+  rule for those.
+- AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
+  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments, JSON object
+  fields, and GitLab CI variable records that store the name in `key` and the
+  secret in `value` (`aws-access-key`)
+
+Each builtin can be disabled or given a custom replacement under `builtins`.
+Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement
 of the earliest match (the longest match wins when start positions are equal).
@@ -834,7 +851,13 @@ There is no CLI flag; the server reads this name from the environment directly.
 
 ### `GITLAB_PROJECT_ID`
 
-Optional default project ID.
+Optional default project ID, not a lock: an explicit project ID in a tool call
+takes precedence. To restrict which projects tools may operate on, use
+`GITLAB_ALLOWED_PROJECT_IDS`.
+
+When set, these tools are refused because they cannot be limited to one
+project: `execute_graphql`, `create_repository`, `create_group`,
+`fork_repository`, and the group variable and dependency proxy tools.
 
 ### `GITLAB_ALLOWED_PROJECT_IDS`
 
@@ -846,9 +869,15 @@ Behavior:
 - Multiple project IDs: restricts access to those projects only
 - `gitlab_api_request` (opt-in `api` toolset) accepts only `/projects/:id` and
   `/projects/:id/...` paths for an allowed project and rejects every other path
+- These tools are refused, not scoped, because they cannot be limited to those
+  projects: `execute_graphql`, `create_repository`, `create_group`,
+  `fork_repository`, and the group variable and dependency proxy tools.
+  `execute_graphql` hard-fails while this allowlist is non-empty; it does not
+  send the query against only the allowed projects.
 
 This is process-level and fixed at startup. To let a caller narrow the scope
-per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
+per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`
+refusal applies to a session project scope.
 
 ### `GITLAB_PERMISSION_MODE`
 
@@ -960,14 +989,16 @@ Comma-separated list of toolset IDs to enable. If unset, the server exposes the 
 
 !!! warning "GITLAB_TOOLSETS=all is expensive"
 
-    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`). In a stateful session, activate extra categories with `discover_tools`. With `OAUTH_STATELESS_MODE=true`, persist a named list such as `GITLAB_TOOLSETS=core,wiki` instead — session discovery does not survive the next request. Or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-05).
+    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`). In a stateful session, activate extra categories with `discover_tools`. With `OAUTH_STATELESS_MODE=true`, persist a named list such as `GITLAB_TOOLSETS=core,wiki` instead — session discovery does not survive the next request. Or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-14).
+
+Unknown IDs are ignored, and the server logs a warning to stderr that names them and lists the known IDs. When no ID is valid, the server falls back to the default `core` toolset.
 
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Special values:
 
-- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas.
+- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas. It must be the whole value: in a list such as `all,api` it is ignored like an unknown ID, so list every toolset by name to add `api`.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 
@@ -1049,6 +1080,8 @@ Active `GITLAB_READ_ONLY_MODE` / `--read-only` and `GITLAB_ALLOWED_GROUPS` / `--
 | `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                      |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth)) |
 
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).
+
 ## Logging
 
 ### `LOG_LEVEL`
@@ -1077,6 +1110,56 @@ Example:
 
 ```bash
 LOG_FORMAT=json LOG_LEVEL=warn npm start
+```
+
+## Audit log
+
+Opt-in NDJSON of MCP tool calls for SIEM ingestion. This is a logging building
+block: retention, access control, and any compliance mapping are the operator's
+responsibility. Disabled by default. When disabled, tool-call behavior and
+output are unchanged.
+
+Each enabled tool call writes one JSON object with an allowlist of fields:
+timestamp (ISO UTC), event type (`tool_call`), transport
+(`stdio` / `streamable-http` / `sse`), session id when present (sealed
+stateless sids are redacted), auth method of the accepted request
+(`pat`, `job-token`, `oauth`, `remote-header`, or `cookie` — never the
+credential; a JOB-TOKEN or Private-Token request is not recorded as `oauth`
+just because MCP OAuth is enabled), GitLab user id/username
+only when already known without an extra API call, tool name, `project_id` /
+`group_id` when those scalars are present in the arguments, outcome
+(`success` / `error`), error class and HTTP status on failure, and duration in
+milliseconds. Argument bodies, response bodies, tokens, headers, and free-text
+messages are never written.
+
+A failure writing the audit log is reported once as a warning and does not fail
+the tool call.
+
+### `GITLAB_AUDIT_LOG`
+
+Optional. Set to `true` to emit one NDJSON audit line per MCP tool call.
+Any other value, including unset, leaves auditing off.
+
+CLI: `--audit-log=true`
+
+Default:
+
+- `false`
+
+### `GITLAB_AUDIT_LOG_FILE`
+
+Optional path. When `GITLAB_AUDIT_LOG=true` and this is unset, lines are
+appended to **stderr** as NDJSON. They are never written to stdout: the stdio
+MCP transport uses stdout for protocol messages. Prefer a file for stdio
+deployments so human logs and MCP traffic stay separate.
+
+CLI: `--audit-log-file`
+
+Example:
+
+```bash
+GITLAB_AUDIT_LOG=true
+GITLAB_AUDIT_LOG_FILE=/var/log/gitlab-mcp/audit.ndjson
 ```
 
 ## Transport and Server Runtime

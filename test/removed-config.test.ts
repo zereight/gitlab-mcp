@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertNoRemovedConfig, getRemovedConfigErrors } from "../removed-config.js";
+import {
+  assertNoRemovedConfig,
+  getRemovedConfigErrors,
+  MIGRATION_GUIDE_URL,
+} from "../removed-config.js";
 
 describe("When removed configuration is detected", () => {
   describe("with no removed settings", () => {
@@ -81,6 +85,22 @@ describe("When removed configuration is detected", () => {
         () => assertNoRemovedConfig({ GITLAB_READ_ONLY_MODE: "true" }, []),
         /Removed configuration detected/
       );
+    });
+
+    it("should link the migration guide and tracking issue", () => {
+      assert.throws(
+        () => assertNoRemovedConfig({ GITLAB_READ_ONLY_MODE: "true" }, []),
+        error => {
+          assert.ok(error instanceof Error);
+          assert.ok(error.message.includes(MIGRATION_GUIDE_URL));
+          assert.ok(error.message.includes("https://github.com/zereight/gitlab-mcp/issues/815"));
+          return true;
+        }
+      );
+    });
+
+    it("should not throw when nothing removed is set", () => {
+      assert.doesNotThrow(() => assertNoRemovedConfig({ GITLAB_READ_ONLY_MODE: "false" }, []));
     });
   });
 });

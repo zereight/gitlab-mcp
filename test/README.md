@@ -115,7 +115,7 @@ It also skips these names. `oauth-tests.ts` is still step 4 of `test:mock` (`tsx
 | `TEST_PROJECT_ID`                                                             | Required. No other project-id variable is read. If unset, skip and exit 0.                                                                                                                                                                    |
 | `GITLAB_API_URL`                                                              | Optional. Default `https://gitlab.com`. Trimmed; trailing slashes removed; one trailing `/api/v4` removed; request URLs then append `/api/v4`. `https://gitlab.com` and `https://gitlab.com/api/v4` both hit `https://gitlab.com/api/v4/...`. |
 
-Checks, in order: project, issues, merge requests, branches, pipelines. If a pipeline comes back, also pipeline detail, jobs, and bridges.
+Checks, in order: project, issues, merge requests, branches, pipelines. If a pipeline comes back, also pipeline detail, jobs, and bridges. Then tags: the list (first 5) and, if the project has a tag, that tag, each parsed with `GitLabTagSchema` from `build/schemas.js`. This is read-only. It needs `npm run build` first, and reports FAILED if `build/schemas.js` cannot be loaded.
 
 ```bash
 GITLAB_PERSONAL_ACCESS_TOKEN=glpat-xxxx \

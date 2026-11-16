@@ -37,13 +37,13 @@ If they are missing, maintainers should create these labels: `approved`,
 
 ### Prerequisites
 
-| Tool           | Version              | Notes                                          |
-| -------------- | -------------------- | ---------------------------------------------- |
-| Node.js        | **22.23.4**          | Pinned in `.nvmrc`. Use `nvm use` to match.    |
-| npm            | bundled with Node 22 |                                                |
-| Git            | any recent version   |                                                |
-| Python 3.10+   | (only for docs)      | Required if you want to preview the docs site. |
-| GitLab account | optional             | Needed only for live integration tests.        |
+| Tool           | Version              | Notes                                                                                                     |
+| -------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Node.js        | **22.23.4**          | Pinned in `.nvmrc`. Use `nvm use` to match.                                                               |
+| npm            | bundled with Node 22 |                                                                                                           |
+| Git            | any recent version   |                                                                                                           |
+| Python 3.12+   | (only for docs)      | Required to preview the docs site. If `.venv-docs` was made with an older Python, run `make clean` first. |
+| GitLab account | optional             | Needed only for live integration tests.                                                                   |
 
 ### Clone, install, build
 
@@ -233,10 +233,13 @@ outages or severe regressions ship as out-of-band hotfixes. A PR merged to
 [stable-release conditions](https://github.com/zereight/gitlab-mcp/blob/main/RELEASING.md#what-goes-into-a-stable-release)
 (reviewed PR, green CI, maintainer approval where required).
 
-Releases are cut by maintainers via `scripts/release.sh` and published to
-npm via the `npm-publish.yml` workflow, plus Docker Hub, the MCP Registry, and
-the MCP Bundle. External contributors don't need to do anything for release —
-the maintainer will handle versioning and the changelog. See
+Releases are cut by maintainers via `scripts/release.sh` and published to npm
+via the `npm-publish.yml` workflow, plus Docker Hub, the MCP Registry, and the
+MCP Bundle. The script opens a `chore(release): vX.Y.Z` release PR, merges it
+once CI passes and CodeRabbit approves, and then tags the merge commit. Leave
+`release/v*` branches and release PRs alone. External contributors don't need
+to do anything for release — the maintainer will handle versioning and the
+changelog. See
 [`RELEASING.md`](https://github.com/zereight/gitlab-mcp/blob/main/RELEASING.md)
 for the full process, approval rules, and supported versions.
 

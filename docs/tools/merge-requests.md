@@ -219,7 +219,7 @@ Get the changes/diffs of a merge request (merge_request_iid or source_branch req
 | `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `view` | enum (`inline` \| `parallel`) |  | Diff view type |
-| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
+| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is an RE2 regular expression that matches file paths to ignore. RE2 runs in linear time but does not support lookahead, lookbehind, or backreferences. At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
 
 ### `list_merge_request_changed_files`
 
@@ -234,7 +234,7 @@ List changed file paths in a merge request without diff content (merge_request_i
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
-| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files. Examples: ["^vendor/", "\.pb\.go$"] |
+| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files. Each pattern is an RE2 regular expression (linear time; no lookahead, lookbehind, or backreferences). At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "\.pb\.go$"] |
 
 ### `list_merge_request_diffs`
 
@@ -434,7 +434,7 @@ Get diffs between two branches or commits.
 | `from` | string | ✓ | The base branch or commit SHA to compare from |
 | `to` | string | ✓ | The target branch or commit SHA to compare to |
 | `straight` | boolean |  | Comparison method: false for '...' (default), true for '--' |
-| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
+| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is an RE2 regular expression that matches file paths to ignore. RE2 runs in linear time but does not support lookahead, lookbehind, or backreferences. At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
 
 ### `mr_discussions`
 

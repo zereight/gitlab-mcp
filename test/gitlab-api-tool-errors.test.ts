@@ -21,7 +21,7 @@ function createTransport(apiUrl: string): StdioClientTransport {
       GITLAB_API_URL: apiUrl,
       GITLAB_PERMISSION_MODE: "modify",
       GITLAB_TOOLSETS: "projects,merge_requests,api",
-      GITLAB_TOOLS: "execute_graphql,fork_repository",
+      GITLAB_TOOLS: "execute_graphql,fork_repository,get_file_contents",
       GITLAB_MASKING_ENABLED: "true",
       GITLAB_DISABLE_VERSION_CHECK: "true",
       LOG_LEVEL: "error",
@@ -199,6 +199,23 @@ describe("GitLab API tool errors", () => {
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
   });
 
+  test("points a missing file path at get_repository_tree", async t => {
+    const client = await startServer(t);
+
+    const missing = await client.callTool({
+      name: "get_file_contents",
+      arguments: { project_id: "123", file_path: "src", ref: "main" },
+    });
+    assert.equal(missing.isError, true);
+    assert.equal(
+      resultText(missing),
+      "File not found: src\nNext: check file_path and ref; to list a directory, use get_repository_tree."
+    );
+    assert.deepEqual(missing._meta, {
+      "io.github.zereight.gitlab-mcp/http-error": { status: 404 },
+    });
+  });
+
   test("returns missing merge request identifiers as a tool error", async t => {
     const client = await startServer(t);
 
@@ -303,5 +320,51 @@ describe("GitLab API tool errors", () => {
       );
       assert.doesNotMatch(text, /127\.0\.0\.1/);
     }
+  });
+
+  test("fork_repository returns an isError result with a Next: hint for an empty project_id", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "fork_repository",
+      arguments: { project_id: "" },
+    });
+    const text = resultText(result);
+    assert.equal(result.isError, true, text);
+    assert.match(text, /^No project ID provided\nNext: /);
+    assert.match(text, /pass project_id \(numeric ID or group%2Fproject\)/);
+    assert.equal(text.split("\nNext: ").length, 2);
+    assert.doesNotMatch(text, /Failed to fork repository/);
+    // Setting GITLAB_PROJECT_ID makes fork_repository reject every call, so the hint must not
+    // suggest it.
+    assert.doesNotMatch(text, /GITLAB_PROJECT_ID/);
+  });
+
+  test("other tools keep the generic GITLAB_PROJECT_ID hint for an empty project_id", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "create_merge_request",
+      arguments: {
+        project_id: "",
+        title: "Test MR",
+        source_branch: "feature",
+        target_branch: "main",
+      },
+    });
+    const text = resultText(result);
+    assert.equal(result.isError, true, text);
+    assert.match(text, /^No project ID provided and GITLAB_PROJECT_ID is not set\nNext: /);
+    assert.match(text, /or set GITLAB_PROJECT_ID to give the server a default project/);
+    assert.equal(text.split("\nNext: ").length, 2);
+  });
+
+  test("fork_repository keeps returning GitLab failures as data", async t => {
+    const client = await startServer(t);
+    const result = await client.callTool({
+      name: "fork_repository",
+      arguments: { project_id: "123" },
+    });
+    const text = resultText(result);
+    assert.notEqual(result.isError, true, text);
+    assert.match(text, /^\{"error":"Failed to fork repository: /);
   });
 });

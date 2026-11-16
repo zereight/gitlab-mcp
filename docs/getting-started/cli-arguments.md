@@ -19,7 +19,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.21 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.27 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -57,6 +57,8 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
 | `--compact-tools` | `GITLAB_MCP_COMPACT_TOOLS` | Comma-separated tool names to compact when oversized, without enabling global compact mode. |
 | `--list-summary-default=true` | `GITLAB_MCP_LIST_SUMMARY_DEFAULT` | `list_*` tools and `mr_discussions` treat an omitted `summary` argument as `true`. `summary: false` still returns the full JSON. Off by default. |
+| `--audit-log=true` | `GITLAB_AUDIT_LOG` | Opt-in NDJSON audit log of MCP tool calls for SIEM ingestion. Off by default. |
+| `--audit-log-file` | `GITLAB_AUDIT_LOG_FILE` | Append audit lines to this file. Unset writes NDJSON to stderr, never stdout. |
 | `--tool-profile` | `GITLAB_TOOL_PROFILE` | `full` (default) or `slim`. `slim` is ignored when `--toolsets` / `GITLAB_TOOLSETS` is set. |
 
 > **Deprecation notice:** `--use-wiki=true` / `USE_GITLAB_WIKI`, `--use-milestone=true` /
@@ -84,7 +86,9 @@ Leave MCP compact **off** unless you want that split. With
 `GITLAB_MCP_COMPACT_RESULTS=true` (or `--compact-results`), an oversized MCP
 tool reply becomes a short preview plus a `zereight-mcp-gitlab tool …` command.
 Run that command in a terminal for the untruncated payload. Human CLI itself is
-never compacted.
+never compacted. If the tool's arguments cannot be written as a safe command
+(for example, an argument name the tool does not declare), the reply keeps its
+preview and has no command.
 
 Every command maps to an existing registry tool — no new GitLab API surface.
 
@@ -191,3 +195,5 @@ Active `GITLAB_READ_ONLY_MODE` / `--read-only` and `GITLAB_ALLOWED_GROUPS` / `--
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](../configuration/environment-variables.md#gitlab_mcp_oauth)) |
+
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).

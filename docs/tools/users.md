@@ -114,6 +114,6 @@ Download an uploaded file from a project (images returned as base64; other files
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path of the project |
 | `secret` | string | ✓ | The 32-character secret of the upload |
-| `filename` | string | ✓ | The filename of the upload |
+| `filename` | string | ✓ | The filename of the upload, copied from its URL as is, percent-encoding included (e.g. `Capture_d_e%CC%81cran.png` from `/uploads/<secret>/Capture_d_e%CC%81cran.png`): retyping accented characters can change their bytes |
 | `local_path` | string |  | Subdirectory of the download directory to save the file in (optional, defaults to the download directory itself). Names starting with a dot are rejected |
 | `metadata_only` | boolean |  | If true, return filename, mime type, and byte length without inline image bytes or a saved file. Default false keeps the existing download behavior. |

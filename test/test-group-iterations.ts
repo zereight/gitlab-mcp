@@ -560,10 +560,14 @@ describe("group iteration tools", () => {
   test("reports a group GraphQL cannot see when listing cadences", async () => {
     cadenceGroupFound = false;
 
-    await assert.rejects(
-      () => callTool("list_group_iteration_cadences", { group_id: GROUP_ID }, env()),
-      /Group test-group was not found/
+    // A tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+    const response = await callToolRaw(
+      "list_group_iteration_cadences",
+      { group_id: GROUP_ID },
+      env()
     );
+    assertToolError(response, /^Group test-group was not found\nNext: check group_id /);
+    assert.equal((response.result?.content?.[0]?.text ?? "").split("\nNext: ").length, 2);
   });
 
   test("creates a cadence through iterationCadenceCreate", async () => {
