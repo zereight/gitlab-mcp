@@ -9,6 +9,7 @@ EXCLUDE_OPTS=(
   ! -name 'test-merge-request-approvals.ts'
   # Need a live GitLab token (GITLAB_TOKEN_TEST / TEST_PROJECT_ID)
   ! -name 'remote-auth-tests.ts' ! -name 'test-all-transport-server.ts'
+  ! -path 'test/live/*'
 )
 
 run_mock_tests() {

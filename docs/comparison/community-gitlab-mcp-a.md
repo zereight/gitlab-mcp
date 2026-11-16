@@ -11,7 +11,7 @@ vendor or fork.
 
 | Dimension | @zereight/mcp-gitlab | GitLab MCP A (CQRS-style) |
 |-----------|----------------------|---------------------------|
-| Tool count (listed) | 288 tools: 285 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped tools |
+| Tool count (listed) | 290 tools: 287 in toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 grouped tools |
 | Operations | 1 tool ≈ 1 API call | 1 tool × many `action` values |
 | Token control | Default ~40 tools; `discover_tools` / named `GITLAB_TOOLSETS` (avoid `all`, ~73k schema tokens) | Smaller default tool list |
 | Tool discovery | Explicit names (`get_merge_request`, `list_pipelines`, …) | Category + action (`browse_merge_requests`, …) |
