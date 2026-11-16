@@ -438,6 +438,8 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "get_issue",
       "list_issue_links",
       "list_issue_discussions",
+      "list_issue_label_events",
+      "list_issue_state_events",
       "get_issue_link",
       "list_todos",
       "list_issue_emoji_reactions",
