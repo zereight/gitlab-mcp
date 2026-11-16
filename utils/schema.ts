@@ -195,3 +195,49 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
   zodSchemaByJsonSchema.set(fixedSchema, schema);
   return fixedSchema;
 };
+
+// lazyJSONSchema() placeholder -> the Zod schema to convert on first read.
+const zodSchemaByPlaceholder = new WeakMap<object, z.ZodTypeAny>();
+
+/**
+ * Placeholder for toJSONSchema(schema) in a tool list passed to withLazyInputSchemas().
+ * Only valid as a tool's inputSchema there; it has no JSON Schema keys of its own.
+ */
+export const lazyJSONSchema = (schema: z.ZodTypeAny): ReturnType<typeof toJSONSchema> => {
+  const placeholder = {};
+  zodSchemaByPlaceholder.set(placeholder, schema);
+  return placeholder;
+};
+
+/**
+ * Replaces each lazyJSONSchema() inputSchema with a getter that runs toJSONSchema()
+ * on first read and then stores the result as a plain data property. A default
+ * tools/list shows a small part of the registry, so most schemas are never built.
+ */
+export const withLazyInputSchemas = <T extends { inputSchema?: unknown }>(tools: T[]): T[] => {
+  for (const tool of tools) {
+    const placeholder = tool.inputSchema;
+    const schema =
+      typeof placeholder === "object" && placeholder !== null
+        ? zodSchemaByPlaceholder.get(placeholder)
+        : undefined;
+    if (schema === undefined) {
+      continue;
+    }
+    Object.defineProperty(tool, "inputSchema", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        const inputSchema = toJSONSchema(schema);
+        Object.defineProperty(tool, "inputSchema", {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: inputSchema,
+        });
+        return inputSchema;
+      },
+    });
+  }
+  return tools;
+};

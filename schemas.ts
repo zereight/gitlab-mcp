@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  EXCLUDED_FILE_PATTERN_MAX_COUNT,
+  EXCLUDED_FILE_PATTERN_MAX_LENGTH,
+} from "./utils/helpers.js";
 import { omitIncompleteMergeRequestPosition } from "./utils/merge-request-position.js";
 
 // Helper: coerce a JSON-stringified array to an actual array.
@@ -2134,7 +2138,7 @@ export const GetFileContentsSchema = z
       .string()
       .optional()
       .describe(
-        "Path to the file or directory. Takes precedence over 'path' when both are provided"
+        "Path to the file (not a directory). Takes precedence over 'path' when both are provided"
       ),
     path: z.string().optional().describe("Alias of file_path"),
     ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
@@ -2545,18 +2549,22 @@ export const GitLabBranchSchema = z.object({
   web_url: z.string().optional(),
 });
 
+const excludedFilePatternsSchema = z
+  .array(z.string().max(EXCLUDED_FILE_PATTERN_MAX_LENGTH))
+  .max(EXCLUDED_FILE_PATTERN_MAX_COUNT);
+
+const EXCLUDED_DIFF_PATTERNS_DESCRIPTION =
+  'Array of regex patterns to exclude files from the diff results. Each pattern is an RE2 regular expression that matches file paths to ignore. RE2 runs in linear time but does not support lookahead, lookbehind, or backreferences. At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]';
+
 export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),
   straight: coerceBooleanString
     .optional()
     .describe("Comparison method: false for '...' (default), true for '--'"),
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
-    ),
+    .describe(EXCLUDED_DIFF_PATTERNS_DESCRIPTION),
 });
 
 const flexibleBooleanOptional = z.preprocess(val => {
@@ -2765,12 +2773,9 @@ export const ListMergeRequestPipelinesSchema = ProjectParamsSchema.extend({
 
 export const GetMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
-    ),
+    .describe(EXCLUDED_DIFF_PATTERNS_DESCRIPTION),
 });
 
 export const ListMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
@@ -2787,10 +2792,11 @@ export const ListMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
 });
 
 export const ListMergeRequestChangedFilesSchema = MergeRequestParamsSchema.extend({
-  excluded_file_patterns: z
-    .array(z.string())
+  excluded_file_patterns: excludedFilePatternsSchema
     .optional()
-    .describe('Array of regex patterns to exclude files. Examples: ["^vendor/", "\\.pb\\.go$"]'),
+    .describe(
+      'Array of regex patterns to exclude files. Each pattern is an RE2 regular expression (linear time; no lookahead, lookbehind, or backreferences). At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "\\.pb\\.go$"]'
+    ),
 });
 
 export const GetMergeRequestFileDiffSchema = MergeRequestParamsSchema.extend({
@@ -2880,6 +2886,22 @@ export const ListIssuesSchema = z
     updated_after: z.string().optional().describe("Updated after"),
     updated_before: z.string().optional().describe("Updated before"),
     with_labels_details: coerceBooleanString.optional().describe("Include label details"),
+    order_by: z
+      .enum([
+        "created_at",
+        "updated_at",
+        "priority",
+        "due_date",
+        "relative_position",
+        "label_priority",
+        "milestone_due",
+        "popularity",
+        "title",
+        "weight",
+      ])
+      .optional()
+      .describe("Order field (default created_at); relative_position = manual board order"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction (default desc)"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -4906,15 +4928,23 @@ export const GitLabProtectedTagSchema = z.object({
   create_access_levels: z.array(GitLabProtectedTagAccessLevelSchema).optional(),
 });
 
+// Tag response shape varies by GitLab version and tag type:
+// - top-level created_at is not exposed by GitLab 16.0.x (Entities::Tag in v16.0.8-ee has no
+//   created_at); newer versions return it, and lightweight tags return null.
+// - message is null for lightweight tags.
+// - release is omitted or null when no release exists; release.description may be null.
+// - commit.created_at is accepted as null or omitted as a defensive loosening; GitLab usually
+//   emits committed_date there, and #1015's error listed only the top-level created_at.
+// name, target, commit.id and protected stay required (always emitted by GitLab).
 export const GitLabTagSchema = z.object({
   name: z.string(),
-  message: z.string().nullable(),
+  message: z.string().nullish(),
   target: z.string(),
   commit: z.object({
     id: z.string(),
     short_id: z.string(),
     title: z.string(),
-    created_at: z.string(),
+    created_at: z.string().nullish(),
     parent_ids: z.array(z.string()),
     message: z.string(),
     author_name: z.string(),
@@ -4927,11 +4957,11 @@ export const GitLabTagSchema = z.object({
   release: z
     .object({
       tag_name: z.string(),
-      description: z.string(),
+      description: z.string().nullish(),
     })
     .nullish(),
   protected: z.boolean(),
-  created_at: z.string().nullable(),
+  created_at: z.string().nullish(),
 });
 
 // --- Snippet schemas ---

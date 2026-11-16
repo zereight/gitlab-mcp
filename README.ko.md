@@ -1,6 +1,14 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
@@ -8,7 +16,7 @@
 
 **기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 290개(toolset 287개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
-> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-05-실측)와 [비교](./docs/comparison/index.md)를 보세요.
+> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-14-실측)와 [비교](./docs/comparison/index.md)를 보세요.
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -159,15 +167,15 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-### tools/list 크기 (2026-11-05 실측)
+### tools/list 크기 (2026-11-14 실측)
 
 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 토큰 추정은 UTF-8 바이트 / 4입니다.
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 47,822 | 11,956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46,814 | 11,704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295,933 | 73,984 |
 
 설명이나 스키마를 바꾼 뒤에는 `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
@@ -254,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.21`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.27`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -299,6 +307,8 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
 - `--list-summary-default=true` - `list_*` 도구에서 `summary` 인자를 생략하면 `true`로 처리. `summary: false`를 넘기면 전체 JSON을 반환 (`GITLAB_MCP_LIST_SUMMARY_DEFAULT` 대체, 기본 꺼짐)
+- `--audit-log=true` - MCP 도구 호출 SIEM용 NDJSON 감사 로그 (선택, `GITLAB_AUDIT_LOG` 대체, 기본 꺼짐)
+- `--audit-log-file` - 감사 로그 파일 경로. 비우면 stderr NDJSON, stdout에는 쓰지 않음 (`GITLAB_AUDIT_LOG_FILE` 대체)
 - `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
 
 이미 `GITLAB_TOOLSETS` 또는 `--toolsets`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 이미 `GITLAB_TOOLS` 또는 `--tools`를 설정했다면 `validate_ci_lint`와 `validate_project_ci_lint`를 그 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.

@@ -1,0 +1,4 @@
+# Top-level dependencies. requirements-star-history.txt pins them and every transitive
+# dependency by hash; regenerate it after editing this file:
+#   pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --strip-extras --output-file=requirements-star-history.txt requirements-star-history.in
+pillow

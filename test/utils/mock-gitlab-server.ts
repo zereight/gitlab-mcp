@@ -19,6 +19,11 @@ interface AuthenticatedRequest extends Request {
   gitlabToken?: string;
 }
 
+// MR iid whose /changes response is one long path, for tests that need a long
+// input. Every other MR returns the shared fixture below.
+export const LONG_PATH_MR_IID = 9001;
+export const LONG_PATH = `${"a".repeat(29)}.ts`;
+
 export class MockGitLabServer {
   private app: express.Application;
   private server: Server | null = null;
@@ -539,6 +544,29 @@ export class MockGitLabServer {
       "/api/v4/projects/:projectId/merge_requests/:mr_iid/changes",
       (req: AuthenticatedRequest, res: Response) => {
         const mrIid = parseInt(req.params.mr_iid);
+        if (mrIid === LONG_PATH_MR_IID) {
+          res.json({
+            id: mrIid,
+            iid: mrIid,
+            project_id: parseInt(req.params.projectId),
+            title: `Test MR ${mrIid}`,
+            state: "opened",
+            created_at: "2024-01-01T00:00:00Z",
+            changes: [
+              {
+                old_path: LONG_PATH,
+                new_path: LONG_PATH,
+                a_mode: "100644",
+                b_mode: "100644",
+                diff: "@@ -1,1 +1,1 @@\n-old\n+new\n",
+                new_file: false,
+                renamed_file: false,
+                deleted_file: false,
+              },
+            ],
+          });
+          return;
+        }
         res.json({
           id: mrIid,
           iid: mrIid,

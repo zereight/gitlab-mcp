@@ -19,6 +19,7 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
   let mockGitLab: MockGitLabServer;
   let server: ServerInstance;
   let mcpUrl: string;
+  const treeQueries: string[] = [];
 
   before(async () => {
     const binaryContent = Buffer.from([
@@ -65,6 +66,33 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
         });
       }
     );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/files/nul.bin`,
+      (_req, res) => {
+        res.json({
+          file_name: "nul.bin",
+          file_path: "nul.bin",
+          encoding: "base64",
+          content: Buffer.from([0x00, 0x01, 0x02]).toString("base64"),
+        });
+      }
+    );
+    // GitLab's Files API answers 404 for a directory; the tree API lists it.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/files/src`,
+      (_req, res) => {
+        res.status(404).json({ message: "404 File Not Found" });
+      }
+    );
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/repository/tree`, (req, res) => {
+      treeQueries.push(String(req.query.path ?? ""));
+      res.json([
+        { id: "a1", name: "index.ts", type: "blob", path: "src/index.ts", mode: "100644" },
+        { id: "b2", name: "utils", type: "tree", path: "src/utils", mode: "040000" },
+      ]);
+    });
     await mockGitLab.start();
 
     const port = await findAvailablePort(3480);
@@ -150,6 +178,79 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
 
       assert.strictEqual(file.content, "");
       assert.strictEqual(file.encoding, "utf8");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("returns a binary whose bytes are valid UTF-8 as utf8, so clients must read encoding", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "nul.bin",
+        ref: "main",
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as { content: string; encoding: string };
+
+      assert.strictEqual(file.content, "\u0000\u0001\u0002");
+      assert.strictEqual(file.encoding, "utf8");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("answers a directory path with a hint that leads to get_repository_tree", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const { tools } = await client.listTools();
+      const getFileContents = tools.find(tool => tool.name === "get_file_contents");
+      assert.ok(getFileContents, "get_file_contents should be listed");
+      assert.match(
+        getFileContents.description ?? "",
+        /Directories are not supported: use `get_repository_tree`/
+      );
+      const filePath = (getFileContents.inputSchema.properties ?? {}).file_path as
+        { description?: string } | undefined;
+      assert.match(filePath?.description ?? "", /not a directory/);
+      assert.ok(
+        tools.some(tool => tool.name === "get_repository_tree"),
+        "the tool the hint names should be listed too"
+      );
+
+      const missing = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "src",
+        ref: "main",
+      });
+      assert.strictEqual(missing.isError, true);
+      const missingText = missing.content?.[0]?.type === "text" ? missing.content[0].text : "";
+      assert.strictEqual(
+        missingText,
+        "File not found: src\nNext: check file_path and ref; to list a directory, use get_repository_tree."
+      );
+
+      const tree = await client.callTool("get_repository_tree", {
+        project_id: TEST_PROJECT_ID,
+        path: "src",
+        ref: "main",
+      });
+      assert.notStrictEqual(tree.isError, true);
+      const treeText = tree.content?.[0]?.type === "text" ? tree.content[0].text : "";
+      const entries = JSON.parse(treeText) as Array<{ path: string; type: string }>;
+      assert.deepStrictEqual(
+        entries.map(entry => [entry.path, entry.type]),
+        [
+          ["src/index.ts", "blob"],
+          ["src/utils", "tree"],
+        ]
+      );
+      assert.deepStrictEqual(treeQueries, ["src"]);
     } finally {
       await client.disconnect();
     }

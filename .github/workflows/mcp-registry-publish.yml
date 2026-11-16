@@ -3,9 +3,11 @@ run-name: MCP Registry Publish ${{ github.event.workflow_run.head_branch || inpu
 
 # Runs after Docker Publish finishes, so the image tag listed in server.json
 # already exists when the registry checks it. workflow_run matches Docker
-# Publish by its `name:` and always runs this file from the default branch;
-# the job checks out the release commit itself. Use workflow_dispatch to
-# retry by hand.
+# Publish by its `name:` and always runs this file from the default branch.
+# check-release resolves the release tag through the GitHub API and the
+# publish job checks out only that verified commit, never a ref taken
+# straight from the workflow_run payload. Use workflow_dispatch to retry by
+# hand.
 on:
   workflow_run:
     workflows: ["Docker Publish"]
@@ -35,24 +37,45 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.release.outputs.prerelease }}
+      ref: ${{ steps.release.outputs.ref }}
     steps:
       # workflow_run carries no release payload. For a release run,
       # head_branch is the release tag, so ask the API whether it is a
       # pre-release. A pre-release must not change the registry entry.
-      - name: Check for a pre-release
+      # The commit to publish is the one this repository's release tag
+      # points at, and it must match the commit Docker Publish built.
+      # A manual dispatch is trusted (it needs write access) and publishes
+      # the ref it was given, or the ref it was started from.
+      - name: Resolve release
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           TAG: ${{ github.event.workflow_run.head_branch }}
+          BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_REF: ${{ inputs.ref }}
         run: |
           if [ "$EVENT_NAME" != "workflow_run" ]; then
+            if ! [[ "${INPUT_REF:-$GITHUB_SHA}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::Invalid ref: ${INPUT_REF}"
+              exit 1
+            fi
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "ref=${INPUT_REF:-$GITHUB_SHA}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           prerelease="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
           echo "Release ${TAG}: prerelease=${prerelease}"
           echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          if [ "$prerelease" != "false" ]; then
+            exit 0
+          fi
+          tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/refs/tags/${TAG}" --jq .sha)"
+          if [ "$tag_sha" != "$BUILT_SHA" ]; then
+            echo "::error::Tag ${TAG} points at ${tag_sha}, but Docker Publish built ${BUILT_SHA}."
+            exit 1
+          fi
+          echo "ref=${tag_sha}" >> "$GITHUB_OUTPUT"
 
   publish:
     needs: check-release
@@ -63,12 +86,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # On workflow_run, github.sha is the default branch head; head_sha is the
-      # commit Docker Publish built, which is the release tag's commit.
+      # On workflow_run, github.sha is the default branch head, so check out
+      # the release commit check-release verified against the tag.
       - name: Checkout release commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || github.sha }}
+          ref: ${{ needs.check-release.outputs.ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -78,7 +101,7 @@ jobs:
           registry-url: "https://registry.npmjs.org/"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
         with:
           cosign-release: v3.0.6
 

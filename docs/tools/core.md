@@ -122,7 +122,7 @@ List changed file paths in a merge request without diff content (merge_request_i
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
-| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files. Examples: ["^vendor/", "\.pb\.go$"] |
+| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files. Each pattern is an RE2 regular expression (linear time; no lookahead, lookbehind, or backreferences). At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "\.pb\.go$"] |
 
 ### `get_merge_request_file_diff`
 
@@ -171,7 +171,7 @@ Get the changes/diffs of a merge request (merge_request_iid or source_branch req
 | `merge_request_iid` | string |  | Merge request IID |
 | `source_branch` | string |  | Source branch name |
 | `view` | enum (`inline` \| `parallel`) |  | Diff view type |
-| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
+| `excluded_file_patterns` | array<string> |  | Array of regex patterns to exclude files from the diff results. Each pattern is an RE2 regular expression that matches file paths to ignore. RE2 runs in linear time but does not support lookahead, lookbehind, or backreferences. At most 50 patterns of at most 200 characters each. Examples: ["^vendor/", "^test/mocks/", "\.spec\.ts$", "package-lock\.json"] |
 
 ### `mr_discussions`
 
@@ -342,6 +342,8 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 | `updated_after` | string |  | Updated after |
 | `updated_before` | string |  | Updated before |
 | `with_labels_details` | boolean |  | Include label details |
+| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `due_date` \| `relative_position` \| `label_priority` \| `milestone_due` \| `popularity` \| `title` \| `weight`) |  | Order field (default created_at); relative_position = manual board order |
+| `sort` | enum (`asc` \| `desc`) |  | Sort direction (default desc) |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -478,14 +480,14 @@ Patch an issue description (search/replace or unified diff) without resending th
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project.
+Get the contents of one file from a GitLab project. `ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string |  | Project ID or URL-encoded path (optional; falls back to env) |
-| `file_path` | string |  | Path to the file or directory. Takes precedence over 'path' when both are provided |
+| `file_path` | string |  | Path to the file (not a directory). Takes precedence over 'path' when both are provided |
 | `path` | string |  | Alias of file_path |
 | `ref` | string |  | Branch/tag/commit to get contents from |
 
@@ -493,7 +495,7 @@ Get contents of a file or directory from a GitLab project.
 
 *📖 Read-only*
 
-List files and directories in a repository.
+List files and directories in a repository. One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file.
 
 **Parameters**
 

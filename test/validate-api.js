@@ -28,6 +28,84 @@ const GITLAB_TOKEN =
   process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
 
+// list_tags / get_tag parse responses with GitLabTagSchema from the build output,
+// so these live checks validate the real payload against the same schema (#1015).
+// Needs `npm run build` first; CI runs it before test:live.
+async function validateTagResponses() {
+  let GitLabTagSchema;
+  try {
+    ({ GitLabTagSchema } = await import("../build/schemas.js"));
+  } catch (error) {
+    console.log("❌ Tag schema checks - FAILED");
+    console.log(`   Error: could not load build/schemas.js (${error.code ?? error.message}).`);
+    console.log("   Run npm run build first.\n");
+    return false;
+  }
+
+  const tagsUrl = `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/repository/tags`;
+  const headers = { Authorization: `Bearer ${GITLAB_TOKEN}`, Accept: "application/json" };
+  const formatIssues = error =>
+    error.issues
+      .slice(0, 3)
+      .map(issue => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+  let allPassed = true;
+  let firstTagName = null;
+
+  try {
+    console.log("Testing: List tags (GitLabTagSchema)");
+    const response = await fetch(`${tagsUrl}?per_page=5`, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    const parsed = GitLabTagSchema.array().safeParse(data);
+    if (parsed.success) {
+      console.log("✅ List tags (GitLabTagSchema) - PASSED\n");
+      firstTagName = data[0]?.name ?? null;
+    } else {
+      console.log("❌ List tags (GitLabTagSchema) - FAILED (schema mismatch)");
+      console.log(`   Error: ${formatIssues(parsed.error)}\n`);
+      allPassed = false;
+    }
+  } catch (error) {
+    console.log("❌ List tags (GitLabTagSchema) - FAILED");
+    console.log(`   Error: ${error.message}\n`);
+    allPassed = false;
+  }
+
+  if (!firstTagName) {
+    // A failed list check was already reported above; only an empty list is a skip.
+    if (allPassed) {
+      console.log("Skipping: Get tag (project has no tags)\n");
+    }
+    return allPassed;
+  }
+
+  try {
+    const name = firstTagName;
+    console.log(`Testing: Get tag ${name} (GitLabTagSchema)`);
+    const response = await fetch(`${tagsUrl}/${encodeURIComponent(name)}`, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const parsed = GitLabTagSchema.safeParse(await response.json());
+    if (parsed.success) {
+      console.log(`✅ Get tag ${name} (GitLabTagSchema) - PASSED\n`);
+    } else {
+      console.log(`❌ Get tag ${name} (GitLabTagSchema) - FAILED (schema mismatch)`);
+      console.log(`   Error: ${formatIssues(parsed.error)}\n`);
+      allPassed = false;
+    }
+  } catch (error) {
+    console.log(`❌ Get tag ${firstTagName} (GitLabTagSchema) - FAILED`);
+    console.log(`   Error: ${error.message}\n`);
+    allPassed = false;
+  }
+
+  return allPassed;
+}
+
 async function validateGitLabAPI() {
   console.log("🔍 Validating GitLab API connection...\n");
 
@@ -160,6 +238,10 @@ async function validateGitLabAPI() {
         allPassed = false;
       }
     }
+  }
+
+  if (!(await validateTagResponses())) {
+    allPassed = false;
   }
 
   if (allPassed) {

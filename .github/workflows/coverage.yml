@@ -1,0 +1,62 @@
+name: Coverage
+
+# Informational code coverage for the mock/unit suite (`npm run test:coverage`,
+# see CONTRIBUTING.md). Not a required check and no coverage threshold: it only
+# reports. Test failures still fail this job, so a red run means a test broke.
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: '22.21.1'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --ignore-scripts
+
+    # Builds build/ with source maps, runs scripts/run-mock-tests.sh under c8,
+    # then restores the regular build. Exits non-zero if any test fails.
+    - name: Run mock tests with coverage
+      run: npm run test:coverage
+
+    # c8 still writes the report when tests fail, so publish it either way.
+    - name: Write coverage summary
+      if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+      run: npx tsx scripts/code-coverage-summary.ts coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload coverage report
+      if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: coverage-report
+        path: |
+          coverage/coverage-summary.json
+          coverage/lcov.info
+          coverage/lcov-report/
+        if-no-files-found: warn
+        retention-days: 14

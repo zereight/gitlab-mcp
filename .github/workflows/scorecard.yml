@@ -45,9 +45,14 @@ jobs:
           # Scorecard badge and https://api.securityscorecards.dev work.
           # See https://github.com/ossf/scorecard-action#publishing-results
           publish_results: true
-          # Optional PAT for the Branch-Protection check on public repos
-          # (default GITHUB_TOKEN cannot read classic branch protection).
-          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
+          # Branch-Protection needs a token that can read classic branch
+          # protection, which GITHUB_TOKEN cannot. Add a read-only
+          # fine-grained PAT as the SCORECARD_TOKEN secret; until then this
+          # falls back to GITHUB_TOKEN (the action's default). An expired or
+          # revoked PAT is still a non-empty secret and does not fall back,
+          # so renew it before it expires.
+          # https://github.com/ossf/scorecard-action/blob/main/docs/authentication/fine-grained-auth-token.md
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

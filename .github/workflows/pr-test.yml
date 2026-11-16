@@ -168,7 +168,7 @@ jobs:
         cache-dependency-path: requirements-docs.txt
 
     - name: Install docs dependencies
-      run: pip install -r requirements-docs.txt
+      run: pip install --require-hashes -r requirements-docs.txt
 
     - name: Build site (strict)
       run: mkdocs build --strict
