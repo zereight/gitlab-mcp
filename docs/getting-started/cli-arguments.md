@@ -194,3 +194,5 @@ Active `GITLAB_READ_ONLY_MODE` / `--read-only` settings now stop startup with a 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).

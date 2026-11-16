@@ -785,3 +785,5 @@ Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) aju
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+
+Consulte o [guia de migração da v2 para a v3](docs/migration/v2-to-v3.md).

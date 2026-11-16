@@ -84,6 +84,8 @@ nav:
       - Dynamic API URL: configuration/dynamic-api-url.md
       - Stateless Mode: configuration/stateless-mode.md
       - Multi-Instance Design: configuration/multi-instance-design.md
+  - Migration:
+      - v2 to v3: migration/v2-to-v3.md
   - Comparisons:
       - Overview: comparison/index.md
       - GitLab MCP A: comparison/community-gitlab-mcp-a.md

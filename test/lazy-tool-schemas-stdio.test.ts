@@ -42,7 +42,6 @@ describe("When tool input schemas are built lazily (stdio E2E)", () => {
       GITLAB_TOOLSETS: "",
       GITLAB_TOOLS: "",
       GITLAB_TOOL_PROFILE: "full",
-      GITLAB_READ_ONLY_MODE: "false",
       USE_PIPELINE: "false",
       SSE: "false",
       STREAMABLE_HTTP: "false",

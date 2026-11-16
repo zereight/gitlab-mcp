@@ -1,3 +1,8 @@
+/** Single source for the v3.0 migration pointer every removed-setting refusal prints. */
+export const MIGRATION_GUIDE_URL =
+  "https://github.com/zereight/gitlab-mcp/blob/main/docs/migration/v2-to-v3.md";
+export const REMOVED_CONFIG_ISSUE_URL = "https://github.com/zereight/gitlab-mcp/issues/815";
+
 interface RemovedConfig {
   readonly env: string;
   readonly cliFlag: string;
@@ -45,6 +50,13 @@ export function getRemovedConfigErrors(env: NodeJS.ProcessEnv, argv: readonly st
 export function assertNoRemovedConfig(env: NodeJS.ProcessEnv, argv: readonly string[]): void {
   const errors = getRemovedConfigErrors(env, argv);
   if (errors.length > 0) {
-    throw new Error(`Removed configuration detected:\n- ${errors.join("\n- ")}`);
+    throw new Error(
+      [
+        `Removed configuration detected:`,
+        ...errors.map(error => `- ${error}`),
+        `Migration guide: ${MIGRATION_GUIDE_URL}`,
+        `Tracking issue: ${REMOVED_CONFIG_ISSUE_URL}`,
+      ].join("\n")
+    );
   }
 }

@@ -785,3 +785,5 @@ npm run test:integration
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+
+[v2에서 v3로의 마이그레이션 가이드](docs/migration/v2-to-v3.md)를 참고하세요.
