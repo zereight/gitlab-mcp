@@ -176,7 +176,7 @@ describe("When guarding tool input schemas against z.coerce.boolean", () => {
   test("should not use z.coerce.boolean in any registered tool input schema", () => {
     const registrySource = readFileSync(join(REPO_ROOT, "tools/registry.ts"), "utf8");
     const schemaNames = [
-      ...new Set([...registrySource.matchAll(/toJSONSchema\((\w+)\)/g)].map(m => m[1])),
+      ...new Set([...registrySource.matchAll(/(?:lazy|to)JSONSchema\((\w+)\)/g)].map(m => m[1])),
     ];
     assert.ok(
       schemaNames.length > 100,

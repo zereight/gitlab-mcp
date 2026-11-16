@@ -44,6 +44,17 @@ describe("When parseArgv reads a command line", () => {
     });
   });
 
+  describe("with a flag value that names a script file", () => {
+    it("should keep the subcommand and every flag before it", () => {
+      const parsed = parseArgv(
+        argv("tool", "get_file_contents", "--project-id", "1", "--file-path", "src/app.ts")
+      );
+
+      assert.deepEqual(parsed.positionals, ["tool", "get_file_contents"]);
+      assert.equal(parsed.toolFlags.file_path, "src/app.ts");
+    });
+  });
+
   describe("with --args-json", () => {
     it("should parse the object and ignore prototype keys", () => {
       const parsed = parseArgv(

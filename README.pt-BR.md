@@ -1,6 +1,14 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
@@ -8,7 +16,7 @@
 
 **Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
-> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-05) e [comparação](./docs/comparison/index.md).
+> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-14) e [comparação](./docs/comparison/index.md).
 
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -159,15 +167,15 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 | **Node.js**               | >=20.0.0                                                                | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-### Tamanho do tools/list (medido em 2026-11-05)
+### Tamanho do tools/list (medido em 2026-11-14)
 
 O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estimativa de tokens é bytes UTF-8 / 4.
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 46.943 | 11.736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45.935 | 11.484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293.906 | 73.477 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 47.822 | 11.956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46.814 | 11.704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295.933 | 73.984 |
 
 Após alterar descrições ou schemas, meça de novo com `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`).
 
@@ -254,7 +262,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.21`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.27`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Instalação com um clique no Claude Desktop (MCP Bundle)
 
@@ -295,6 +303,8 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
 - `--list-summary-default=true` - ferramentas `list_*` tratam o argumento `summary` omitido como `true`; `summary: false` ainda retorna o JSON completo (substitui `GITLAB_MCP_LIST_SUMMARY_DEFAULT`; desativado por padrão)
+- `--audit-log=true` - log de auditoria NDJSON opcional das chamadas de ferramentas MCP para ingestão SIEM (substitui `GITLAB_AUDIT_LOG`; desativado por padrão)
+- `--audit-log-file` - anexa as linhas de auditoria a este arquivo; se omitido, escreve NDJSON em stderr, nunca em stdout (substitui `GITLAB_AUDIT_LOG_FILE`)
 - `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
 
 Se você já definiu `GITLAB_TOOLSETS` ou `--toolsets`, acrescente `wiki`, `milestones` ou `pipelines` a essa lista em vez de substituí-la. Se você já definiu `GITLAB_TOOLS` ou `--tools`, acrescente `validate_ci_lint` e `validate_project_ci_lint` a essa lista em vez de substituí-la. Uma lista explícita substitui o toolset padrão `core`; ela não é mesclada.
@@ -778,3 +788,5 @@ Configurações legadas ativas agora interrompem a inicialização com um erro d
 | `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
 
 Uma lista explícita de toolsets substitui o padrão: mantenha `core` e acrescente às listas existentes de `GITLAB_TOOLSETS` e `GITLAB_TOOLS`, em vez de substituí-las. Deixe um `GITLAB_TOOLSETS=all` existente sem alterações.
+
+Consulte o [guia de migração da v2 para a v3](docs/migration/v2-to-v3.md).

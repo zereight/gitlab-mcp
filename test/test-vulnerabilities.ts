@@ -615,36 +615,42 @@ describe("vulnerability tools", () => {
     assert.strictEqual(result.state, "DISMISSED");
   });
 
-  // GID validation tests: only numeric IDs and Vulnerability GIDs are accepted
-  const assertInvalidVulnerabilityId = (err: any) => {
-    const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
+  // GID validation tests: only numeric IDs and Vulnerability GIDs are accepted.
+  // The rejection is a tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+  const assertInvalidVulnerabilityId = (result: unknown, vulnerabilityId: string) => {
     assert.ok(
-      msg.includes("Invalid vulnerability ID"),
-      `Expected invalid-ID rejection, got: ${msg}`
+      isAllowlistToolError(result),
+      `expected an isError tool result, got: ${JSON.stringify(result)}`
     );
-    return true;
+    const text = result.content[0].text;
+    assert.ok(
+      text.startsWith(
+        `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID\nNext: `
+      ),
+      `Expected invalid-ID rejection with a hint, got: ${text}`
+    );
+    assert.match(text, /copy the id from list_project_vulnerabilities/);
+    assert.strictEqual(text.split("\nNext: ").length, 2);
   };
 
   test("gid validation: get_vulnerability rejects non-Vulnerability GIDs", async () => {
-    await assert.rejects(
-      () =>
-        callTool("get_vulnerability", { vulnerability_id: "gid://gitlab/Project/456" }, baseEnv()),
-      assertInvalidVulnerabilityId
+    const result = await callTool(
+      "get_vulnerability",
+      { vulnerability_id: "gid://gitlab/Project/456" },
+      baseEnv()
     );
+    assertInvalidVulnerabilityId(result, "gid://gitlab/Project/456");
   });
 
   test("gid validation: dismiss_vulnerability rejects a non-numeric ID before any request", async () => {
     lastDismissInput = null;
 
-    await assert.rejects(
-      () =>
-        callTool(
-          "dismiss_vulnerability",
-          { vulnerability_id: "not-a-vuln-id", reason: "false_positive" },
-          baseEnv()
-        ),
-      assertInvalidVulnerabilityId
+    const result = await callTool(
+      "dismiss_vulnerability",
+      { vulnerability_id: "not-a-vuln-id", reason: "false_positive" },
+      baseEnv()
     );
+    assertInvalidVulnerabilityId(result, "not-a-vuln-id");
     assert.strictEqual(
       lastDismissInput,
       null,

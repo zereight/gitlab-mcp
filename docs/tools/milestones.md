@@ -59,7 +59,7 @@ Get details of a specific milestone. To find resources, use the matching list or
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 
 ### `create_milestone`
 
@@ -88,7 +88,7 @@ Edit an existing milestone. Use the create tool for new resources.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 | `title` | string |  | The title of the milestone |
 | `description` | string |  | The description of the milestone |
 | `due_date` | string |  | The due date of the milestone (YYYY-MM-DD) |
@@ -106,7 +106,7 @@ Delete a milestone. Verify the target first with a get or list tool.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 
 ### `get_milestone_issue`
 
@@ -119,7 +119,7 @@ Get issues associated with a specific milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -134,7 +134,7 @@ Get merge requests associated with a specific milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -149,7 +149,7 @@ Promote a milestone to the next stage.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 
 ### `get_milestone_burndown_events`
 
@@ -162,7 +162,7 @@ Get burndown events for a specific milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `milestone_id` | string | ✓ | The ID of a project milestone |
+| `milestone_id` | string | ✓ | Project milestone id (not iid, the number in its web URL). list_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -199,7 +199,7 @@ Get details of a specific group milestone. To find resources, use the matching l
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 
 ### `create_group_milestone`
 
@@ -228,7 +228,7 @@ Edit an existing group milestone. Use the create tool for new resources.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 | `title` | string |  | The title of the milestone |
 | `description` | string |  | The description of the milestone |
 | `due_date` | string |  | The due date of the milestone (YYYY-MM-DD) |
@@ -246,7 +246,7 @@ Delete a group milestone. Verify the target first with a get or list tool.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 
 ### `get_group_milestone_issue`
 
@@ -259,7 +259,7 @@ Get issues associated with a specific group milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -274,7 +274,7 @@ Get merge requests associated with a specific group milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -289,6 +289,6 @@ Get burndown events for a specific group milestone.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `milestone_id` | string | ✓ | The ID of a group milestone |
+| `milestone_id` | string | ✓ | Group milestone id (not iid, the number in its web URL). list_group_milestones returns both. |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |

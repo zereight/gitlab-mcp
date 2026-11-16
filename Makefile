@@ -14,7 +14,7 @@ $(VENV)/bin/activate:
 
 install: $(VENV)/bin/activate ## Create .venv-docs and install docs dependencies
 	@$(PIP) install --quiet --upgrade pip
-	@$(PIP) install --quiet -r requirements-docs.txt
+	@$(PIP) install --quiet --require-hashes -r requirements-docs.txt
 	@echo "Docs environment ready."
 
 tools-docs: ## Regenerate docs/tools/*.md and docs/reference/tool-coverage.md

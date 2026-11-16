@@ -19,6 +19,10 @@ Security fixes are provided for the latest 2.x release.
 
 The support policy, including security-only support for 2.x after v3.0 is released, is in [RELEASING.md](RELEASING.md#supported-versions).
 
+## Supply chain
+
+npm releases of `@zereight/mcp-gitlab` are published with npm provenance ([`.github/workflows/npm-publish.yml`](.github/workflows/npm-publish.yml)), and GitHub CodeQL runs on this repository.
+
 ## Security controls
 
 The controls below are implemented in this repository and described in the linked docs.
@@ -33,12 +37,31 @@ See [`GITLAB_PERMISSION_MODE`](docs/configuration/environment-variables.md#gitla
 
 `GITLAB_ALLOWED_PROJECT_IDS` is an optional comma-separated list of project ids. The list is fixed when the process starts. One id acts as a locked default project. Multiple ids restrict tool access to those projects.
 
+Some tools that cannot be limited to those projects are refused rather than scoped, even without `ENABLE_STRICT_PROJECT_SCOPE`. That includes `execute_graphql`: it is unusable while `GITLAB_ALLOWED_PROJECT_IDS` names at least one project, a session project scope is in effect, or `GITLAB_PROJECT_ID` is non-empty. It does not send the query against only the allowed projects.
+
 Without `ENABLE_STRICT_PROJECT_SCOPE=true`, that allowlist limits which projects tools may operate on. Listings and searches can still return everything the token can see. With the flag, the server filters `list_projects`, `list_group_projects`, and `search_repositories` down to the allowlist. On `search_repositories`, `count` and `total_pages` stay the unfiltered GitLab totals when GitLab sends `x-total` and `x-total-pages`. If GitLab omits `x-total`, `count` is the length of the filtered page. If GitLab omits `x-total-pages`, the response omits `total_pages`. The flag also refuses instance-wide and group-wide tools when `GITLAB_ALLOWED_PROJECT_IDS`, a session project scope, or `GITLAB_PROJECT_ID` is set. It cannot limit those tools to those projects.
 
 See [`GITLAB_ALLOWED_PROJECT_IDS`](docs/configuration/environment-variables.md#gitlab_allowed_project_ids) and [`ENABLE_STRICT_PROJECT_SCOPE`](docs/configuration/environment-variables.md#enable_strict_project_scope).
 
 ### Response masking
 
-Set `GITLAB_MASKING_ENABLED` to `true` to mask sensitive text in GitLab tool results and returned error messages. The default is `false`. When masking is off, the server does not read a masking configuration file.
+Set `GITLAB_MASKING_ENABLED` to `true` to mask sensitive text in GitLab tool results and returned error messages. The default is `false`. When masking is off, the server does not read a masking configuration file. Built-in rules cover GitLab tokens, IPv4/IPv6, JWTs, PEM private keys, and AWS access keys; each can be disabled in the masking config.
 
 See [Response masking](docs/configuration/environment-variables.md#response-masking).
+
+### Tool-call audit log
+
+Set `GITLAB_AUDIT_LOG=true` to write one NDJSON line per MCP tool call for SIEM
+ingestion. The default is off; when it is off, tool-call behavior and output do
+not change. The record is an allowlist: timestamp, event type, transport,
+session id when present, auth method of the accepted request (not the
+credential), GitLab user identity
+only when already known, tool name, project/group ids from arguments, outcome,
+error class/HTTP status on failure, and duration. Argument bodies, response
+bodies, tokens, headers, and free-text messages are not logged.
+
+This is a logging building block. How long lines are kept, who can read them,
+and whether they meet a given control framework are the operator's
+responsibility.
+
+See [Audit log](docs/configuration/environment-variables.md#audit-log).

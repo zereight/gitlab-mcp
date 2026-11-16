@@ -11,6 +11,7 @@ export interface CompactMcpToolResultInput {
   readonly maxChars: number;
   readonly toolName: string;
   readonly args: Readonly<Record<string, unknown>> | undefined;
+  readonly inputSchema: unknown;
 }
 
 export function readOwnRecord(value: unknown): Readonly<Record<string, unknown>> | undefined {
@@ -35,12 +36,14 @@ export function compactMcpToolResult(input: CompactMcpToolResultInput): Record<s
   if (text.length <= input.maxChars) {
     return toolResultRecord(input.result);
   }
+  const cli = buildToolReplayCommand(input.toolName, input.args, input.inputSchema);
   const compact = {
     compact: true,
     tool: input.toolName,
     original_chars: text.length,
     ...buildPreview(text),
-    cli: buildToolReplayCommand(input.toolName, input.args),
+    // No safe replay line exists for these arguments: the preview stays, without `cli`.
+    ...(cli === undefined ? {} : { cli }),
   };
   return {
     content: [{ type: "text", text: JSON.stringify(compact) }],

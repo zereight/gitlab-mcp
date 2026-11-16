@@ -11,9 +11,60 @@ mkdir -p "$package_dir" "$app_dir"
 tarball_name=$(npm pack --ignore-scripts --pack-destination "$package_dir" | tail -n 1)
 tarball_path="$package_dir/$tarball_name"
 
+# Scorecard treats `npm install` as unpinned. Build a consumer lockfile from
+# the committed package-lock.json plus the packed tarball's sha512, then
+# install with `npm ci` so hashes are verified.
+node --input-type=module - "$tarball_path" "$app_dir" <<'EOF'
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
+
+const [tarballPath, appDir] = process.argv.slice(2);
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const repoLock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+const resolved = `file:../package/${basename(tarballPath)}`;
+const integrity = `sha512-${createHash("sha512").update(readFileSync(tarballPath)).digest("base64")}`;
+const root = repoLock.packages[""] ?? {};
+
+const packageJson = {
+  name: "consumer-install-smoke",
+  version: "1.0.0",
+  private: true,
+  dependencies: {
+    [pkg.name]: resolved,
+  },
+};
+
+const lock = {
+  name: packageJson.name,
+  version: packageJson.version,
+  lockfileVersion: 3,
+  requires: true,
+  packages: {
+    ...repoLock.packages,
+    "": {
+      name: packageJson.name,
+      version: packageJson.version,
+      dependencies: packageJson.dependencies,
+    },
+    [`node_modules/${pkg.name}`]: {
+      version: pkg.version,
+      resolved,
+      integrity,
+      license: root.license,
+      dependencies: pkg.dependencies,
+      bin: root.bin,
+      engines: root.engines,
+    },
+  },
+};
+
+writeFileSync(`${appDir}/package.json`, `${JSON.stringify(packageJson, null, 2)}\n`);
+writeFileSync(`${appDir}/package-lock.json`, `${JSON.stringify(lock, null, 2)}\n`);
+EOF
+
 cd "$app_dir"
-npm init -y >/dev/null
-npm install "$tarball_path" --ignore-scripts --no-audit --no-fund >/dev/null
+npm ci --ignore-scripts --no-audit --no-fund >/dev/null
 
 output_file="$tmp_dir/startup.log"
 set +e

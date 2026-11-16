@@ -286,4 +286,28 @@ describe("list_issues", () => {
       mockGitLab.clearCustomHandlers();
     }
   });
+  test("passes order_by and sort through to GitLab", async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler("get", "/issues", (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      await callListIssues(
+        { scope: "assigned_to_me", order_by: "relative_position", sort: "asc" },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.ok(capturedUrl, "Mock handler should have received a request");
+      const params = new URL(capturedUrl!, "http://localhost").searchParams;
+      assert.strictEqual(params.get("order_by"), "relative_position");
+      assert.strictEqual(params.get("sort"), "asc");
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
 });

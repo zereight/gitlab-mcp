@@ -1,6 +1,14 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
@@ -8,7 +16,7 @@
 
 **默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
-> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-05-实测) 和 [对比](./docs/comparison/index.md)。
+> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-14-实测) 和 [对比](./docs/comparison/index.md)。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -159,15 +167,15 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-### tools/list 体积（2026-11-05 实测）
+### tools/list 体积（2026-11-14 实测）
 
 客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools` + `help`） | 40 | 46,943 | 11,736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 47,822 | 11,956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46,814 | 11,704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295,933 | 73,984 |
 
 更改描述或 schema 后，用 `npm run build && npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
@@ -254,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.21`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.27`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -295,6 +303,8 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
 - `--list-summary-default=true` - `list_*` 工具省略 `summary` 参数时按 `true` 处理；传 `summary: false` 仍返回完整 JSON（替代 `GITLAB_MCP_LIST_SUMMARY_DEFAULT`，默认关闭）
+- `--audit-log=true` - 可选的 MCP 工具调用 NDJSON 审计日志，供 SIEM 采集（替代 `GITLAB_AUDIT_LOG`，默认关闭）
+- `--audit-log-file` - 将审计行追加到该文件；未设置时写入 stderr 的 NDJSON，绝不写入 stdout（替代 `GITLAB_AUDIT_LOG_FILE`）
 - `--tool-profile` - `full`（默认）或 `slim`。`slim` 会从初始列表中移除 draft note、表情回应、标签、CI 目录工具以及 `create_group`。仅当 `GITLAB_TOOLSETS` 设置为非空白值时忽略（替代 `GITLAB_TOOL_PROFILE`）
 
 如果已经设置了 `GITLAB_TOOLSETS` 或 `--toolsets`，请把 `wiki`、`milestones` 或 `pipelines` 追加到该列表，不要整段替换。如果已经设置了 `GITLAB_TOOLS` 或 `--tools`，请把 `validate_ci_lint` 和 `validate_project_ci_lint` 追加到该列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。
@@ -776,3 +786,5 @@ npm run test:integration
 | `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`，另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
 
 显式的工具集列表会替换默认值：请保留 `core`，并把内容追加到现有的 `GITLAB_TOOLSETS` 和 `GITLAB_TOOLS` 列表中，而不是替换它们。现有的 `GITLAB_TOOLSETS=all` 保持不变。
+
+请参阅 [v2 到 v3 迁移指南](docs/migration/v2-to-v3.md)。
