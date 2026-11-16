@@ -93,4 +93,33 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--allowed-groups", "my-group"]);
     assertRefused(result, "GITLAB_OAUTH_ALLOWED_GROUPS");
   });
+  it("refuses USE_GITLAB_WIKI=true and names GITLAB_TOOLSETS=core,wiki", async () => {
+    const result = await startServer({ USE_GITLAB_WIKI: "true" }, []);
+    assertRefused(result, "GITLAB_TOOLSETS=core,wiki");
+  });
+
+  it("refuses the --use-wiki CLI flag and names GITLAB_TOOLSETS=core,wiki", async () => {
+    const result = await startServer({}, ["--use-wiki"]);
+    assertRefused(result, "GITLAB_TOOLSETS=core,wiki");
+  });
+
+  it("refuses USE_MILESTONE=true and names GITLAB_TOOLSETS=core,milestones", async () => {
+    const result = await startServer({ USE_MILESTONE: "true" }, []);
+    assertRefused(result, "GITLAB_TOOLSETS=core,milestones");
+  });
+
+  it("refuses the --use-milestone CLI flag and names GITLAB_TOOLSETS=core,milestones", async () => {
+    const result = await startServer({}, ["--use-milestone"]);
+    assertRefused(result, "GITLAB_TOOLSETS=core,milestones");
+  });
+
+  it("refuses USE_PIPELINE=true and names GITLAB_TOOLSETS=core,pipelines", async () => {
+    const result = await startServer({ USE_PIPELINE: "true" }, []);
+    assertRefused(result, "GITLAB_TOOLSETS=core,pipelines");
+  });
+
+  it("refuses the --use-pipeline CLI flag and names GITLAB_TOOLSETS=core,pipelines", async () => {
+    const result = await startServer({}, ["--use-pipeline"]);
+    assertRefused(result, "GITLAB_TOOLSETS=core,pipelines");
+  });
 });
