@@ -31,6 +31,13 @@ tools disappear.
   exactly as it is. `all` is only valid on its own; `all,wiki` drops `all` as an unknown
   name and leaves a list without `core`.
 
+## Group access control needs MCP OAuth
+
+`GITLAB_OAUTH_ALLOWED_GROUPS` restricts access only when `GITLAB_MCP_OAUTH=true`. With the
+variable set and OAuth off, the server logs `Group access control enabled` but does not check
+group membership. If you need group restriction, set both `GITLAB_MCP_OAUTH=true` and
+`GITLAB_OAUTH_ALLOWED_GROUPS`.
+
 ## Example
 
 ```bash
