@@ -28,7 +28,7 @@ function serverEnv(
     GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
     GITLAB_API_URL: apiUrl,
     GITLAB_DISABLE_VERSION_CHECK: "true",
-    USE_PIPELINE: "true",
+    GITLAB_TOOLSETS: "core,pipelines",
     LOG_LEVEL: "info",
     ...extraEnv,
   };

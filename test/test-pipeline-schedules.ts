@@ -593,11 +593,11 @@ describe("Pipeline schedule tools", () => {
     assert.ok(!names.includes("delete_pipeline_schedule"), "delete should be opt-in");
   });
 
-  test("USE_PIPELINE=true exposes the pipeline schedule tools", async () => {
+  test("GITLAB_TOOLSETS=pipelines exposes the pipeline schedule tools", async () => {
     const names = await listTools({
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
       GITLAB_API_URL: mockApiUrl,
-      USE_PIPELINE: "true",
+      GITLAB_TOOLSETS: "pipelines",
     });
     assert.ok(names.includes("list_pipeline_schedules"), "list should be exposed");
     assert.ok(names.includes("play_pipeline_schedule"), "play should be exposed");

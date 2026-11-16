@@ -33,7 +33,6 @@ run_mock_tests 4 \
   -o -path 'test/stateless/callback-proxy.test.ts' \
   -o -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
   -o -path 'test/oauth-startup.test.ts' \
-  -o -path 'test/deprecated-env.test.ts' \
   -o -path 'test/removed-config.test.ts' \
   -o -path 'test/oauth-scopes.test.ts' \
   -o -path 'test/oauth-device-flow-tests.ts' \
@@ -62,7 +61,6 @@ run_mock_tests 1 \
   ! -path 'test/stateless/callback-proxy.test.ts' \
   ! -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
   ! -path 'test/oauth-startup.test.ts' \
-  ! -path 'test/deprecated-env.test.ts' \
   ! -path 'test/removed-config.test.ts' \
   ! -path 'test/oauth-scopes.test.ts' \
   ! -path 'test/oauth-device-flow-tests.ts' \

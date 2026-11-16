@@ -33,7 +33,7 @@ async function callTool(
         // Saving archives is refused in readonly mode, so tests opt into it explicitly.
         GITLAB_PERMISSION_MODE: 'full',
         ...env,
-        USE_PIPELINE: 'true',
+        GITLAB_TOOLSETS: 'core,pipelines',
       },
     });
 
