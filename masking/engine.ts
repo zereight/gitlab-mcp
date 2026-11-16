@@ -341,6 +341,26 @@ function readJsonStringToken(token: string): string {
   return parsed;
 }
 
+/**
+ * GitLab marks CI/CD variables as `masked` or `hidden` (masked and hidden) so
+ * their values stay out of job logs and the UI. The variables API still returns
+ * the value, so with masking enabled the whole `value` of such a variable
+ * object is replaced, whatever it looks like.
+ */
+export const FLAGGED_CI_VARIABLE_REPLACEMENT = "[Masked CI variable value]";
+
+function isFlaggedGitlabCiVariable(value: object): boolean {
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.key === "string" &&
+    typeof record.value === "string" &&
+    (record.masked === true || record.hidden === true)
+  );
+}
+
+// The literal after a JSON property name, up to the next `,` or `}`.
+const JSON_TRUE_VALUE_GAP = /^\s*:\s*true\s*$/;
+
 function readGitlabCiAwsSecretKey(value: object): string | undefined {
   if (!("key" in value)) return undefined;
   const key = value.key;
@@ -370,8 +390,13 @@ function maskStrings(
   if (Array.isArray(value)) return value.map(item => maskStrings(item, mask, parentKey));
   if (value && typeof value === "object") {
     const ciKey = readGitlabCiAwsSecretKey(value);
+    const flaggedCiVariable = isFlaggedGitlabCiVariable(value);
     const output: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value)) {
+      if (flaggedCiVariable && key === "value") {
+        output[key] = FLAGGED_CI_VARIABLE_REPLACEMENT;
+        continue;
+      }
       const fieldKey = key === "value" && ciKey !== undefined ? ciKey : key;
       output[key] = maskStrings(item, mask, fieldKey);
     }
@@ -400,6 +425,8 @@ interface JsonStringValue {
   decoded: string;
   fieldName: string | undefined;
   objectId: number;
+  /** True when the string is a property value of an object, not an array element. */
+  isObjectProperty: boolean;
 }
 
 function maskJsonText(text: string, mask: (text: string, parentKey?: string) => string): string {
@@ -418,12 +445,28 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
   const scopes: JsonScope[] = [];
   const stringValues: JsonStringValue[] = [];
   const objectCiKeys = new Map<number, string>();
+  // Objects shaped like a GitLab CI variable: a string `key`, and `masked` or
+  // `hidden` set to the literal true. Both are collected before any rewrite.
+  const objectsWithStringKey = new Set<number>();
+  const objectsFlaggedMasked = new Set<number>();
   let nextObjectId = 0;
+  let previousTokenEnd = 0;
   for (const match of text.matchAll(JSON_STRING_OR_STRUCTURE_PATTERN)) {
     const token = match[0];
     const index = match.index;
     if (index === undefined) continue;
+    const gap = text.slice(previousTokenEnd, index);
+    previousTokenEnd = index + token.length;
     const scope: JsonScope | undefined = scopes[scopes.length - 1];
+    if (
+      (token === "," || token === "}") &&
+      scope?.isObject &&
+      !scope.expectingKey &&
+      (scope.fieldName === "masked" || scope.fieldName === "hidden") &&
+      JSON_TRUE_VALUE_GAP.test(gap)
+    ) {
+      objectsFlaggedMasked.add(scope.objectId);
+    }
     if (token === "{") {
       scopes.push({
         isObject: true,
@@ -457,8 +500,9 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
       scope.expectingKey = false;
       continue;
     }
-    if (scope?.isObject && scope.fieldName === "key" && AWS_SECRET_FIELD_NAMES.has(decoded)) {
-      objectCiKeys.set(scope.objectId, decoded);
+    if (scope?.isObject && scope.fieldName === "key") {
+      objectsWithStringKey.add(scope.objectId);
+      if (AWS_SECRET_FIELD_NAMES.has(decoded)) objectCiKeys.set(scope.objectId, decoded);
     }
     stringValues.push({
       index,
@@ -466,12 +510,23 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
       decoded,
       fieldName: scope?.fieldName,
       objectId: scope?.objectId ?? -1,
+      isObjectProperty: scope?.isObject === true,
     });
   }
   let output = "";
   let cursor = 0;
   for (const item of stringValues) {
     output += text.slice(cursor, item.index);
+    if (
+      item.isObjectProperty &&
+      item.fieldName === "value" &&
+      objectsWithStringKey.has(item.objectId) &&
+      objectsFlaggedMasked.has(item.objectId)
+    ) {
+      output += JSON.stringify(FLAGGED_CI_VARIABLE_REPLACEMENT);
+      cursor = item.index + item.token.length;
+      continue;
+    }
     const ciKey = objectCiKeys.get(item.objectId);
     const parentKey = item.fieldName === "value" && ciKey !== undefined ? ciKey : item.fieldName;
     const masked = maskFieldValue(item.decoded, parentKey, mask);

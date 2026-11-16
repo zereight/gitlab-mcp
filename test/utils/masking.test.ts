@@ -1107,3 +1107,80 @@ describe("When JSON tool text nests containers under an AWS secret field", () =>
     });
   }
 });
+
+describe("When a GitLab CI/CD variable is flagged masked or hidden", () => {
+  const REPLACEMENT = "[Masked CI variable value]";
+  const ciVariable = (value: unknown, flags: Record<string, unknown>) => ({
+    variable_type: "env_var",
+    key: "DEPLOY_PASSWORD",
+    value,
+    protected: false,
+    masked: false,
+    hidden: false,
+    raw: false,
+    environment_scope: "*",
+    ...flags,
+  });
+  const maskJsonText = (engine: ReturnType<typeof createEnabledEngine>, text: string): string =>
+    engine.maskToolResult({ content: [{ type: "text", text }] }).content[0].text;
+
+  test("masks the whole value of a masked variable on the JSON text path", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify([ciVariable("hunter2-plain-word", { masked: true })]);
+    const masked = maskJsonText(engine, text);
+    assert.ok(!masked.includes("hunter2-plain-word"), masked);
+    assert.equal(JSON.parse(masked)[0].value, REPLACEMENT);
+  });
+
+  test("masks the value of a hidden variable on the structured path", () => {
+    const engine = createEnabledEngine();
+    assert.deepEqual(engine.maskValue(ciVariable("s3cr3t", { masked: true, hidden: true })), {
+      ...ciVariable(REPLACEMENT, { masked: true, hidden: true }),
+    });
+    assert.deepEqual(engine.maskValue(ciVariable("s3cr3t", { hidden: true })), {
+      ...ciVariable(REPLACEMENT, { hidden: true }),
+    });
+  });
+
+  test("masks pretty-printed JSON and a flag that comes after the value", () => {
+    const engine = createEnabledEngine();
+    const text = JSON.stringify(
+      { key: "TOKEN", value: "after-flag-secret", masked: true },
+      null,
+      2
+    );
+    assert.equal(JSON.parse(maskJsonText(engine, text)).value, REPLACEMENT);
+  });
+
+  test("leaves unflagged variables and non-variable objects alone", () => {
+    const engine = createEnabledEngine();
+    const plain = [
+      ciVariable("visible-value", {}),
+      ciVariable("visible-value", { masked: "true" }),
+      { value: "no-key-object", masked: true },
+      { key: "K", value: "nested-flag", meta: { masked: true } },
+    ];
+    assert.deepEqual(engine.maskValue(plain), plain);
+    assert.equal(maskJsonText(engine, JSON.stringify(plain)), JSON.stringify(plain));
+  });
+
+  const flagParityFixtures: Array<Record<string, unknown>> = [
+    ciVariable("a-secret", { masked: true }),
+    ciVariable("a-secret", { hidden: true }),
+    ciVariable(null, { masked: true, hidden: true }),
+    ciVariable("visible", {}),
+    { items: [ciVariable("a-secret", { masked: true }), ciVariable("visible", {})] },
+    { key: "K", value: ["array-element"], masked: true },
+    { key: "K", value: "v", meta: { masked: true } },
+    { key: 1, value: "numeric-key", masked: true },
+  ];
+  for (const fixture of flagParityFixtures) {
+    test(`text and structured paths agree for ${JSON.stringify(fixture)}`, () => {
+      const engine = createEnabledEngine();
+      assert.deepEqual(
+        JSON.parse(maskJsonText(engine, JSON.stringify(fixture))),
+        engine.maskValue(fixture)
+      );
+    });
+  }
+});

@@ -178,6 +178,14 @@ repository. When masking is enabled, built-in rules cover:
   secret in `value` (`aws-access-key`)
 
 Each builtin can be disabled or given a custom replacement under `builtins`.
+
+GitLab CI/CD variables that GitLab flags `masked` or `hidden` are also masked:
+the whole `value` of an object with a string `key` and `masked: true` or
+`hidden: true` becomes `[Masked CI variable value]`, whatever the value looks
+like. This covers the project and group variable tools (list, get, create, and
+update) and the same records returned by other tools. It applies whenever
+masking is enabled and is not configurable under `builtins`. With masking
+disabled, variable values are returned as GitLab sends them.
 Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement
