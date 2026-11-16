@@ -248,13 +248,15 @@ describe("When deciding whether a tool follows the server summary default", () =
     });
   });
 
-  describe("with a list tool whose summary keeps access or protection fields", () => {
+  describe("with a list tool whose summary keeps access, protection or event fields", () => {
     it("should keep the full reply by default but still accept an explicit summary", () => {
       for (const toolName of [
         "list_protected_branches",
         "list_protected_tags",
         "list_project_members",
         "list_group_members",
+        "list_issue_label_events",
+        "list_issue_state_events",
       ]) {
         assert.equal(toolAcceptsDecoratedSummary(toolName), true, toolName);
         assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
@@ -353,6 +355,26 @@ describe("When deciding whether a tool follows the server summary default", () =
       for (const toolName of ["list_project_members", "list_group_members"]) {
         assert.deepEqual(summarizeListPayload([member], toolName), [expectedMember], toolName);
       }
+    });
+
+    it("should keep the event fields of issue resource events", () => {
+      // `id` is a summary field, so a missing tool entry would drop the event fields.
+      const labelEvent = {
+        id: 1,
+        created_at: "2026-11-01T10:00:00Z",
+        user: { username: "alice" },
+        action: "add",
+        label: null,
+      };
+      const stateEvent = {
+        id: 2,
+        created_at: "2026-11-02T10:00:00Z",
+        user: null,
+        state: "closed",
+      };
+
+      assert.deepEqual(summarizeListPayload([labelEvent], "list_issue_label_events"), [labelEvent]);
+      assert.deepEqual(summarizeListPayload([stateEvent], "list_issue_state_events"), [stateEvent]);
     });
 
     it("should not keep them for other tools", () => {

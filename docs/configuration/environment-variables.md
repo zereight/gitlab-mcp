@@ -70,7 +70,7 @@ replies unchanged.
 These list tools keep the full reply when `summary` is omitted, because the
 summary would drop the content they return or does not read their reply shape:
 `list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
-`list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
+`list_events`, `list_issue_label_events`, `list_issue_state_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
 `list_job_artifacts`, `list_protected_branches` (`*_access_levels`,
 `allow_force_push`), `list_protected_tags` (`create_access_levels`),
 `list_project_members` and `list_group_members` (`access_level`, `expires_at`),
