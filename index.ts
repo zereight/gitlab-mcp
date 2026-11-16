@@ -4938,10 +4938,12 @@ async function listIssueLinks(
   return z.array(GitLabIssueWithLinkDetailsSchema).parse(data);
 }
 
+/** Reduce an event's author to `{ username }`; null for ghost or system events. */
 function toLeanEventUser(user: { username: string } | null | undefined) {
   return user ? { username: user.username } : null;
 }
 
+/** Map a GitLab resource label event to the lean shape; label is null when it was deleted. */
 function toLeanLabelEvent(event: z.infer<typeof GitLabResourceLabelEventSchema>) {
   return {
     created_at: event.created_at,
@@ -4951,6 +4953,7 @@ function toLeanLabelEvent(event: z.infer<typeof GitLabResourceLabelEventSchema>)
   };
 }
 
+/** Map a GitLab resource state event to the lean shape. */
 function toLeanStateEvent(event: z.infer<typeof GitLabResourceStateEventSchema>) {
   return {
     created_at: event.created_at,
@@ -4959,6 +4962,10 @@ function toLeanStateEvent(event: z.infer<typeof GitLabResourceStateEventSchema>)
   };
 }
 
+/**
+ * Fetch one page of an issue's resource events (label or state) from GitLab.
+ * Returns the raw JSON; callers parse and map it.
+ */
 async function fetchIssueResourceEvents(
   projectId: string,
   issueIid: number | string,
