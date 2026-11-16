@@ -4,13 +4,13 @@
 
 This is **MCP `tools/call` coverage**, not GitLab REST coverage and not line coverage.
 
-A tool counts as invoked when a test sends that name through MCP (`callTool` / `callToolJson` / `callToolAsync` / `client.callTool`, or a `tools/call` payload with `name: "…"`). Listing a name in a toolset filter or description-quality test does not count. `test:live` (`test/validate-api.js`) is a REST smoke check and is not included.
+A tool counts as invoked when a test sends that name through MCP (`callTool` / `callToolJson` / `callToolAsync` / `client.callTool`, or a `tools/call` payload with `name: "…"`). Listing a name in a toolset filter or description-quality test does not count. `test/validate-api.js` (part of `test:live`) is a REST smoke check and is not included.
 
 | | |
 | --- | ---: |
-| Tools | 288 |
-| Invoked | 189 |
-| Coverage | 65.6% |
+| Tools | 290 |
+| Invoked | 191 |
+| Coverage | 65.9% |
 
 ## By toolset
 
@@ -21,7 +21,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
 | [Merge Requests](#merge_requests) | 16 | 46 | 34.8% |
-| [Issues](#issues) | 12 | 25 | 48.0% |
+| [Issues](#issues) | 14 | 27 | 51.9% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 5 | 18 | 27.8% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
@@ -175,6 +175,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`update_issue_note`](../tools/issues.md#update_issue_note)
 - [ ] [`list_issue_links`](../tools/issues.md#list_issue_links)
 - [ ] [`list_issue_discussions`](../tools/issues.md#list_issue_discussions)
+- [x] [`list_issue_label_events`](../tools/issues.md#list_issue_label_events) — `test/test-issue-resource-events.ts`
+- [x] [`list_issue_state_events`](../tools/issues.md#list_issue_state_events) — `test/test-issue-resource-events.ts`
 - [ ] [`get_issue_link`](../tools/issues.md#get_issue_link)
 - [x] [`create_issue_link`](../tools/issues.md#create_issue_link) — `test/allowed-project-target-scope.test.ts`
 - [ ] [`delete_issue_link`](../tools/issues.md#delete_issue_link)
