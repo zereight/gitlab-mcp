@@ -83,4 +83,14 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--read-only"]);
     assertRefused(result, "GITLAB_PERMISSION_MODE=readonly");
   });
+
+  it("refuses GITLAB_ALLOWED_GROUPS and names GITLAB_OAUTH_ALLOWED_GROUPS", async () => {
+    const result = await startServer({ GITLAB_ALLOWED_GROUPS: "my-group" });
+    assertRefused(result, "GITLAB_OAUTH_ALLOWED_GROUPS");
+  });
+
+  it("refuses the --allowed-groups CLI flag and names GITLAB_OAUTH_ALLOWED_GROUPS", async () => {
+    const result = await startServer({}, ["--allowed-groups", "my-group"]);
+    assertRefused(result, "GITLAB_OAUTH_ALLOWED_GROUPS");
+  });
 });
