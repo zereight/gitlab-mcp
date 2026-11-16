@@ -131,9 +131,6 @@ function legacyToolsetWarning(
 }
 
 export interface DeprecatedEnvInput {
-  allowedGroupsRaw: string | undefined;
-  allowedGroupsFromCli?: boolean;
-  oauthAllowedGroupsRaw: string | undefined;
   useWikiRaw: string | undefined;
   useWikiFromCli?: boolean;
   useMilestoneRaw: string | undefined;
@@ -156,19 +153,6 @@ export interface DeprecatedEnvInput {
  */
 export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
   const warnings: string[] = [];
-
-  if (input.allowedGroupsRaw) {
-    const name = settingName(
-      "GITLAB_ALLOWED_GROUPS",
-      "allowed-groups",
-      input.allowedGroupsFromCli === true
-    );
-    warnings.push(
-      input.oauthAllowedGroupsRaw
-        ? `${name} is deprecated and ignored because GITLAB_OAUTH_ALLOWED_GROUPS is set. Remove it. It will be removed in ${REMOVAL_VERSION}.`
-        : `${name} is deprecated and will be removed in ${REMOVAL_VERSION}. Use GITLAB_OAUTH_ALLOWED_GROUPS instead.`
-    );
-  }
 
   const legacyToolsetFlags: ReadonlyArray<{
     readonly rawValue: string | undefined;
@@ -240,19 +224,6 @@ export function deprecatedEnvInputFromSources(
   env: NodeJS.ProcessEnv
 ): DeprecatedEnvInput {
   return {
-    allowedGroupsRaw: readSuppliedSetting(
-      parsedArgs,
-      env,
-      "allowed-groups",
-      "GITLAB_ALLOWED_GROUPS"
-    ),
-    allowedGroupsFromCli: Boolean(parsedArgs["allowed-groups"]),
-    oauthAllowedGroupsRaw: readSuppliedSetting(
-      parsedArgs,
-      env,
-      "oauth-allowed-groups",
-      "GITLAB_OAUTH_ALLOWED_GROUPS"
-    ),
     useWikiRaw: readSuppliedSetting(parsedArgs, env, "use-wiki", "USE_GITLAB_WIKI"),
     useWikiFromCli: Boolean(parsedArgs["use-wiki"]),
     useMilestoneRaw: readSuppliedSetting(parsedArgs, env, "use-milestone", "USE_MILESTONE"),
