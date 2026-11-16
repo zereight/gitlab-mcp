@@ -107,7 +107,7 @@ list_issue_state_events
 
 Each returns a bare array in GitLab's order (oldest first). A label event has created_at,
 user.username, action (add or remove) and label.name; label is null when the label was
-deleted, and user can be null. A state event has created_at, user.username and state (closed,
+deleted (such an event cannot be tied to a column), and user can be null. A state event has created_at, user.username and state (closed,
 reopened, ...). Combine label add and remove events with close and reopen state events to get
 the time an issue held a column's label while open. Fetch every page of both histories first.
 The issue starts open: one that was never closed has no state events. An interval that is
