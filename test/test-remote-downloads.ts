@@ -30,6 +30,9 @@ const RFC_FORWARDED_HEADERS = {
   'X-Forwarded-Prefix': '/gitlab-mcp',
 };
 
+// A screenshot name as macOS uploads it, with decomposed accents (e + U+0301)
+const MACOS_DOCUMENT = 'Note_d_écran_2026-11-05_à_15.12.14.txt'.normalize('NFD');
+
 // Minimal 1x1 transparent PNG
 const MINIMAL_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -97,6 +100,12 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/document.txt`, (_req, res) => {
       res.set('Content-Type', 'text/plain');
       res.send('hello document content');
+    });
+
+    // Mock attachment stored under a macOS name, its accents decomposed
+    mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/${encodeURIComponent(MACOS_DOCUMENT)}`, (_req, res) => {
+      res.set('Content-Type', 'text/plain');
+      res.send('macOS document content');
     });
 
     // Mock attachment whose name contains a slash. The uploads route takes one filename
@@ -203,6 +212,16 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
 
     assert.strictEqual(res.status, 200, 'attachment proxy should route to one encoded segment');
     assert.strictEqual(await res.text(), 'nested document content');
+  });
+
+  test('finds an attachment stored with decomposed accents when asked composed', async () => {
+    const res = await fetch(
+      `http://${HOST}:${serverPort}/downloads/attachment?project_id=${TEST_PROJECT_ID}&secret=${TEST_SECRET}&filename=${encodeURIComponent(MACOS_DOCUMENT.normalize('NFC'))}`,
+      { headers: { 'Private-Token': ATTACHMENT_TOKEN } }
+    );
+
+    assert.strictEqual(res.status, 200, 'attachment proxy should retry the decomposed name after a 404');
+    assert.strictEqual(await res.text(), 'macOS document content');
   });
 
   test('returns 429 after exceeding rate limit', async () => {

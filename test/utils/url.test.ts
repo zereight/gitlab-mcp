@@ -10,6 +10,7 @@ import {
   isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
   parseConfiguredGitLabApiUrls,
+  uploadFilenameForms,
 } from "../../utils/url.js";
 
 describe("When isCleartextRemoteUrl runs", () => {
@@ -565,5 +566,18 @@ describe("When encodeGitLabPath runs", () => {
         payload
       );
     }
+  });
+});
+
+describe("When uploadFilenameForms runs", () => {
+  test("should list the decoded name, then its other Unicode form", () => {
+    assert.deepEqual(uploadFilenameForms("R%C3%A9sum%C3%A9.txt"), [
+      "R\u00e9sum\u00e9.txt",
+      "Re\u0301sume\u0301.txt",
+    ]);
+  });
+
+  test("should leave out a form that would decode further", () => {
+    assert.deepEqual(uploadFilenameForms("50%1\u00c1.txt"), ["50%1\u00c1.txt"]);
   });
 });

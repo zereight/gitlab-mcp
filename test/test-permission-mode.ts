@@ -415,6 +415,44 @@ describe("Permission Mode", { concurrency: 1 }, () => {
     });
   });
 
+  // Separate server: the modify-mode block above already uses most of the default
+  // 60 requests-per-minute budget, so these cases get their own counter.
+  describe("modify mode with comma-separated mutation headers", () => {
+    let server: ServerInstance;
+    const servers: ServerInstance[] = [];
+
+    before(async () => {
+      server = await launchMcpServer({ GITLAB_PERMISSION_MODE: "modify" });
+      servers.push(server);
+    });
+
+    after(() => cleanupServers(servers));
+
+    test("rejects a destructive field behind a comma-separated mutation header", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query:
+                'mutation ($c: Boolean = true), { a: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors }, mutation: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors } environmentStop(input: {id: "gid://gitlab/Environment/1"}) { errors } }',
+            }),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
+          "a destructive field after a comma-separated mutation header must be rejected"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("does not apply the modify-mode guard to comma-separated non-destructive mutations", async () => {
+      await assertQueryReachesGitLab(
+        server,
+        'mutation ($c: Boolean = true), { a: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors } }'
+      );
+    });
+  });
+
   describe("call-time enforcement of list filters (modify mode)", () => {
     const servers: ServerInstance[] = [];
 

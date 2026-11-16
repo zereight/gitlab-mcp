@@ -272,6 +272,25 @@ function decodeFully(value: string): string | null {
 }
 
 /**
+ * An upload's filename percent-decoded, as `encodeGitLabPathSegment` does, then its
+ * other Unicode forms, to try in turn while GitLab answers 404.
+ *
+ * GitLab matches the name byte for byte. macOS writes accents decomposed (e + U+0301)
+ * and GitLab keeps the name as uploaded, while clients usually send it composed. A form
+ * that would decode further (`50%1Á` decomposed holds the escape `%1A`) is left out: it
+ * would be sent as another name.
+ */
+export function uploadFilenameForms(filename: string): string[] {
+  const decoded = decodeFully(filename);
+  if (decoded === null) {
+    return [filename];
+  }
+  return [...new Set([decoded, decoded.normalize("NFD"), decoded.normalize("NFC")])].filter(
+    form => decodeFully(form) === form
+  );
+}
+
+/**
  * Encode a single value for use as one GitLab URL path segment.
  *
  * Rejects values that are, decode to, or start with dot segments or an absolute

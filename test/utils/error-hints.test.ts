@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { appendRecoveryHint, recoveryHintFor } from "../../utils/error-hints.js";
+import {
+  appendRecoveryHint,
+  hasRecoveryHint,
+  recoveryHintFor,
+  withRecoveryHint,
+} from "../../utils/error-hints.js";
 
 describe("When a GitLab tool error is returned", () => {
   describe("with a 401 unauthorized body", () => {
@@ -76,6 +81,40 @@ describe("When a GitLab tool error is returned", () => {
       const message = "GitLab API error: 500 Internal Server Error";
 
       assert.equal(appendRecoveryHint(message), message);
+    });
+  });
+});
+
+describe("When a tool error names its own hint", () => {
+  describe("with a message that has no Next line", () => {
+    it("should keep the message as a prefix and add the hint on a Next line", () => {
+      const message = "Group not found: my-group";
+      const hinted = withRecoveryHint(message, "check group_id.");
+
+      assert.equal(hinted, "Group not found: my-group\nNext: check group_id.");
+      assert.ok(hinted.startsWith(message));
+      assert.equal(hasRecoveryHint(hinted), true);
+    });
+  });
+
+  describe("with a message that already has a Next line", () => {
+    it("should not add a second hint", () => {
+      const first = withRecoveryHint("Vulnerability not found: 7", "check vulnerability_id.");
+      const second = withRecoveryHint(first, "another hint.");
+
+      assert.equal(second, first);
+      assert.equal(second.split("\nNext: ").length, 2);
+    });
+  });
+
+  describe("when the tool-call boundary appends its generic hint afterwards", () => {
+    it("should keep the site hint and not add the generic one", () => {
+      // "not found" with a 404-like id would otherwise pick up the generic project_id hint.
+      const hinted = withRecoveryHint("Project not found or not accessible: 404", "site hint.");
+
+      assert.equal(appendRecoveryHint(hinted), hinted);
+      assert.equal(hinted.split("\nNext: ").length, 2);
+      assert.ok(hinted.endsWith("\nNext: site hint."));
     });
   });
 });

@@ -1,0 +1,67 @@
+# OpenSSF Scorecard: publishes results for the public API/badge and uploads
+# SARIF to GitHub code scanning. Actions are pinned by commit SHA.
+#
+# The Scorecard API rejects published results unless this workflow follows
+# https://github.com/ossf/scorecard-action#workflow-restrictions (read-only
+# top-level permissions; only this job may set id-token: write; only the
+# allowlisted actions below).
+name: Scorecard supply-chain security
+
+on:
+  # For Branch-Protection check. Only the default branch is supported. See
+  # https://github.com/ossf/scorecard/blob/main/docs/checks.md#branch-protection
+  branch_protection_rule:
+  # To guarantee Maintained check is occasionally updated. See
+  # https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained
+  schedule:
+    - cron: "41 5 * * 6"
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed to upload the results to code-scanning dashboard.
+      security-events: write
+      # Needed to publish results and get a badge (see publish_results below).
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Public repositories: publish to the OpenSSF REST API so the
+          # Scorecard badge and https://api.securityscorecards.dev work.
+          # See https://github.com/ossf/scorecard-action#publishing-results
+          publish_results: true
+          # Branch-Protection needs a token that can read classic branch
+          # protection, which GITHUB_TOKEN cannot. Add a read-only
+          # fine-grained PAT as the SCORECARD_TOKEN secret; until then this
+          # falls back to GITHUB_TOKEN (the action's default). An expired or
+          # revoked PAT is still a non-empty secret and does not fall back,
+          # so renew it before it expires.
+          # https://github.com/ossf/scorecard-action/blob/main/docs/authentication/fine-grained-auth-token.md
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code-scanning
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: results.sarif
