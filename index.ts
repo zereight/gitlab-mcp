@@ -255,7 +255,6 @@ import {
   openSafeOutputWriteStream,
   resolveDownloadRoot,
   readSafeExistingFile,
-  summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
   graphqlQueryContainsWriteOperation,
@@ -378,6 +377,7 @@ import { configureMilestoneTools, handleMilestoneToolCall } from "./tools/milest
 import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
 import { configureTagTools, handleTagToolCall } from "./tools/tags.js";
 import { configureVariableTools, handleVariableToolCall } from "./tools/variables.js";
+import { configureWebhookTools, handleWebhookToolCall } from "./tools/webhooks.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -749,12 +749,6 @@ import {
   ListCustomFieldDefinitionsSchema,
   GetTimelineEventsSchema,
   CreateTimelineEventSchema,
-  ListWebhooksSchema,
-  CreateWebhookSchema,
-  UpdateWebhookSchema,
-  DeleteWebhookSchema,
-  ListWebhookEventsSchema,
-  GetWebhookEventSchema,
   HealthCheckSchema,
 } from "./schemas.js";
 
@@ -1832,7 +1826,7 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, label, tag, and variable handlers call back into the fetch, error
+// The wiki, milestone, label, tag, variable, and webhook handlers call back into the fetch, error
 // handling, and project scope helpers below; fetch is read at call time because the cookie
 // reload replaces it.
 configureWikiTools({
@@ -1862,6 +1856,12 @@ configureVariableTools({
   handleGitLabError,
   getEffectiveProjectId,
   rejectIfProjectScopedDeployment,
+});
+configureWebhookTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  rejectIfStrictProjectScope,
 });
 
 // Create cookie jar with clean Netscape file parsing
@@ -7556,153 +7556,6 @@ async function listGroupProjects(
   await handleGitLabError(response);
   const projects = await response.json();
   return filterProjectsByAllowlist(GitLabProjectSchema.array().parse(projects));
-}
-
-// Webhook API helper functions
-
-/**
- * Build the base URL for webhooks (project or group)
- */
-function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
-  if (projectId) {
-    projectId = decodeURIComponent(projectId);
-    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/hooks`;
-  }
-  rejectIfStrictProjectScope("group webhooks");
-  const decodedGroupId = decodeURIComponent(groupId!);
-  return `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(decodedGroupId)}/hooks`;
-}
-
-/**
- * List webhooks for a project or group
- */
-async function listWebhooks(options: z.infer<typeof ListWebhooksSchema>): Promise<unknown[]> {
-  const url = new URL(buildWebhookBaseUrl(options.project_id, options.group_id));
-
-  if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown[];
-}
-
-function buildWebhookMutationBody(
-  options: z.infer<typeof CreateWebhookSchema> | z.infer<typeof UpdateWebhookSchema>
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(options)) {
-    if (key === "project_id" || key === "group_id" || key === "hook_id") continue;
-    if (value !== undefined) body[key] = value;
-  }
-  return body;
-}
-
-/**
- * Create a webhook on a project or group
- */
-async function createWebhook(options: z.infer<typeof CreateWebhookSchema>): Promise<unknown> {
-  const url = buildWebhookBaseUrl(options.project_id, options.group_id);
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Update a webhook on a project or group
- */
-async function updateWebhook(options: z.infer<typeof UpdateWebhookSchema>): Promise<unknown> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Delete a webhook from a project or group
- */
-async function deleteWebhook(
-  options: z.infer<typeof DeleteWebhookSchema>
-): Promise<{ status: string; hook_id: number }> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "DELETE",
-  });
-  await handleGitLabError(response);
-  return { status: "deleted", hook_id: options.hook_id };
-}
-
-/**
- * Fetch a single page of webhook events
- */
-async function fetchWebhookEventsPage(
-  baseUrl: string,
-  page: number,
-  perPage: number,
-  status?: string | number
-): Promise<Record<string, unknown>[]> {
-  const url = new URL(baseUrl);
-  url.searchParams.set("page", page.toString());
-  url.searchParams.set("per_page", perPage.toString());
-  if (status !== undefined) url.searchParams.append("status", String(status));
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as Record<string, unknown>[];
-}
-
-/**
- * List webhook events for a project or group webhook
- */
-async function listWebhookEvents(
-  options: z.infer<typeof ListWebhookEventsSchema>
-): Promise<unknown[]> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-
-  const events = await fetchWebhookEventsPage(
-    eventsUrl,
-    options.page ?? 1,
-    options.per_page ?? 20,
-    options.status
-  );
-  return options.summary ? summarizeWebhookEvents(events) : events;
-}
-
-/**
- * Get a specific webhook event by ID (searches up to 500 recent events)
- */
-async function getWebhookEvent(
-  options: z.infer<typeof GetWebhookEventSchema>
-): Promise<Record<string, unknown> | null> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-  // GitLab enforces max per_page=20 for webhook events
-  const perPage = 20;
-
-  if (options.page) {
-    // Direct page lookup — single API call
-    const events = await fetchWebhookEventsPage(eventsUrl, options.page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    return match ?? null;
-  }
-
-  // Auto-paginate up to 500 events
-  const maxPages = 25;
-  for (let page = 1; page <= maxPages; page++) {
-    const events = await fetchWebhookEventsPage(eventsUrl, page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    if (match) return match;
-    if (events.length < perPage) break;
-  }
-  return null;
 }
 
 /**
@@ -14708,66 +14561,13 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_webhooks": {
-        const args = ListWebhooksSchema.parse(params.arguments);
-        const webhooks = await listWebhooks(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhooks) }],
-        };
-      }
-
-      case "create_webhook": {
-        const args = CreateWebhookSchema.parse(params.arguments);
-        const webhook = await createWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "update_webhook": {
-        const args = UpdateWebhookSchema.parse(params.arguments);
-        const webhook = await updateWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "delete_webhook": {
-        const args = DeleteWebhookSchema.parse(params.arguments);
-        const result = await deleteWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
-      }
-
-      case "list_webhook_events": {
-        const args = ListWebhookEventsSchema.parse(params.arguments);
-        const events = await listWebhookEvents(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(events) }],
-        };
-      }
-
-      case "get_webhook_event": {
-        const args = GetWebhookEventSchema.parse(params.arguments);
-        const event = await getWebhookEvent(args);
-        if (!event) {
-          const searchScope = args.page ? `on page ${args.page}` : "in the 500 most recent events";
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  error: `Webhook event ${args.event_id} not found ${searchScope}`,
-                }),
-              },
-            ],
-          };
-        }
-        return {
-          content: [{ type: "text", text: JSON.stringify(event) }],
-        };
-      }
+      case "list_webhooks":
+      case "create_webhook":
+      case "update_webhook":
+      case "delete_webhook":
+      case "list_webhook_events":
+      case "get_webhook_event":
+        return await handleWebhookToolCall(params);
 
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});
