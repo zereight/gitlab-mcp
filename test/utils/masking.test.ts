@@ -1373,6 +1373,39 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
     }
   });
 
+  test("masks an escaped value name in a complete object kept inside a flagged gap", () => {
+    const engine = createEnabledEngine();
+    const cases = [
+      '"masked":true message="{"key":"K","masked":true,"va\\u006cue":"quoted-secret"}"',
+      '{"key":"K","masked":true,"meta":{"key":"J","hidden":true,"va\\u006cue":"quoted-secret"}',
+      '{"key":"K","masked":true,"items":[{"key":"J","masked":true,"va\\u006cue":"quoted-secret"}',
+    ];
+    for (const text of cases) {
+      const masked = textOf(engine, text, "plain");
+      assert.ok(!masked.includes("quoted-secret"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+  });
+
+  test("masks Unicode-escaped value and flag names in a broken flagged record", () => {
+    const engine = createEnabledEngine();
+    const cases = [
+      '{"key":"K","masked":true,"va\\u006cue":"escaped-secret"',
+      '{"key":"K","masked":true,"\\u0076alue":"escaped-secret"',
+      '{"key":"K","ma\\u0073ked":true,"value":"escaped-secret"',
+      '{"key":"K","hi\\u0064den":true,"va\\u006Cue":"escaped-secret"',
+      '{"key":"K","masked":true,"meta":{"va\\u006cue":"escaped-secret"}',
+      'log: {\\"key\\":\\"K\\",\\"masked\\":true,\\"va\\\\u006cue\\":\\"escaped-secret',
+    ];
+    for (const text of cases) {
+      const masked = textOf(engine, text, "plain");
+      assert.ok(!masked.includes("escaped-secret"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+    const unflagged = '{"key":"K","masked":false,"va\\u006cue":"plain-value"';
+    assert.equal(textOf(engine, unflagged, "plain"), unflagged);
+  });
+
   test("keeps an unflagged object inside a quoted string untouched", () => {
     const engine = createEnabledEngine();
     const text = 'echo "{\\"key\\":\\"K\\",\\"value\\":\\"prefix{}plain-tail\\"}"';

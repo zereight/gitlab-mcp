@@ -536,16 +536,38 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
   return output + text.slice(cursor);
 }
 
+/**
+ * Regex source for a JSON property name in raw text. Each letter may also be
+ * written as a JSON Unicode escape (`va\u006cue`), with one backslash in plain
+ * JSON or two in JSON printed inside a string, so escaped names still match.
+ */
+function jsonNamePattern(name: string): string {
+  return Array.from(name, char => {
+    const hex = Array.from(char.charCodeAt(0).toString(16).padStart(4, "0"), digit =>
+      /[a-f]/.test(digit) ? `[${digit}${digit.toUpperCase()}]` : digit
+    ).join("");
+    return `(?:${char}|\\\\{1,2}u${hex})`;
+  }).join("");
+}
+const VALUE_NAME_PATTERN = jsonNamePattern("value");
 // A flag literal in raw text. The escaped form covers JSON that is itself a
 // string value inside prose (`\"masked\":true`).
-const FLAG_LITERAL_PATTERN = /\\?"(?:masked|hidden)\\?"\s*:\s*true(?![A-Za-z0-9_])/;
+const FLAG_LITERAL_PATTERN = new RegExp(
+  `\\\\?"(?:${jsonNamePattern("masked")}|${jsonNamePattern("hidden")})\\\\?"\\s*:\\s*true(?![A-Za-z0-9_])`
+);
 // A `"value"` property with a JSON string value, used only in uncovered text.
 // A value cut off before its closing quote runs to the end of the text.
-const UNCOVERED_VALUE_PATTERN = /("value"\s*:\s*)"(?:\\.|[^"\\])*(?:"|\\?$)/g;
+const UNCOVERED_VALUE_PATTERN = new RegExp(
+  `("${VALUE_NAME_PATTERN}"\\s*:\\s*)"(?:\\\\.|[^"\\\\])*(?:"|\\\\?$)`,
+  "g"
+);
 // The start of the same property in escaped JSON (`\"value\":\"..."`), e.g. a
 // log line that prints a JSON string. The closing quote is found by
 // findEndOfEscapedJsonString so an embedded `\\\"` cannot end the value.
-const UNCOVERED_ESCAPED_VALUE_START_PATTERN = /\\"value\\"\s*:\s*\\"/g;
+const UNCOVERED_ESCAPED_VALUE_START_PATTERN = new RegExp(
+  `\\\\"${VALUE_NAME_PATTERN}\\\\"\\s*:\\s*\\\\"`,
+  "g"
+);
 // A JSON Unicode escape such as `\u0073` in `ma\u0073ked`. Used to skip the
 // text fast path when a flag name may be escaped this way.
 const JSON_UNICODE_ESCAPE_PATTERN = /\\u[0-9a-fA-F]{4}/;
@@ -808,7 +830,8 @@ function isNestedInIncompleteFlaggedObject(
  *   flag is not in the text yet.
  * - Text after the scan budget runs out is handled as uncovered text.
  * - In a broken span that carries a flag, the fallback masks any `"value"`
- *   string, including values of complete objects nested in that span.
+ *   string, including values of complete objects nested in that span. Those
+ *   nested objects also go through maskJsonText first.
  */
 function maskFlaggedCiVariablesInText(
   text: string,
@@ -842,6 +865,24 @@ function maskFlaggedCiVariablesInText(
     }
     return cachedStringEnd;
   };
+  const maskSpan = (span: string): string =>
+    maskJsonText(span, (value: string) => maskFlaggedCiVariablesInText(value, budget));
+  // Complete objects kept inside the current gap, outermost only, in order.
+  // They still go through maskJsonText, which decodes escaped property names
+  // that the uncovered-text fallback cannot match.
+  let retained: Array<[number, number]> = [];
+  const maskGap = (end: number): string => {
+    let gap = "";
+    let cursor = gapStart;
+    for (const [spanStart, spanEnd] of retained) {
+      if (spanEnd > end) break;
+      budget.remaining -= spanEnd - spanStart;
+      gap += text.slice(cursor, spanStart) + maskSpan(text.slice(spanStart, spanEnd));
+      cursor = spanEnd;
+    }
+    retained = [];
+    return replaceUncoveredValues(gap + text.slice(cursor, end));
+  };
   let open = text.indexOf("{");
   while (open !== -1 && budget.remaining > 0) {
     const close = findClosingBrace(text, open, budget);
@@ -854,15 +895,15 @@ function maskFlaggedCiVariablesInText(
         advanceGapStructure(structure, text, open, budget);
         flagRanges ??= flagLiteralRanges(text);
         if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open, parentEnd, stringEnd)) {
+          const previous = retained[retained.length - 1];
+          if (previous === undefined || open >= previous[1]) retained.push([open, close + 1]);
           open = text.indexOf("{", open + 1);
           continue;
         }
-        pieces.push(replaceUncoveredValues(text.slice(gapStart, open)));
+        pieces.push(maskGap(open));
         // maskJsonText parses the span again.
         budget.remaining -= spanLength;
-        pieces.push(
-          maskJsonText(span, (value: string) => maskFlaggedCiVariablesInText(value, budget))
-        );
+        pieces.push(maskSpan(span));
         gapStart = close + 1;
         structure = newGapStructure(gapStart);
         open = text.indexOf("{", close + 1);
@@ -871,7 +912,7 @@ function maskFlaggedCiVariablesInText(
     }
     open = text.indexOf("{", open + 1);
   }
-  pieces.push(replaceUncoveredValues(text.slice(gapStart)));
+  pieces.push(maskGap(text.length));
   return pieces.join("");
 }
 
