@@ -45,6 +45,15 @@ const LISTED = [
   variable("VISIBLE_ONE", VISIBLE_VALUE, {}),
 ];
 
+// A job log that prints the variables listing (pretty-printed JSON) between lines of prose.
+const JOB_TRACE = [
+  "Running with gitlab-runner 17.0.0",
+  '$ curl --silent "$CI_API_V4_URL/projects/42/variables"',
+  JSON.stringify(LISTED, null, 2),
+  "Job succeeded",
+  "",
+].join("\n");
+
 async function startGitLab(t: TestContext): Promise<string> {
   const api = http.createServer((req, res) => {
     let raw = "";
@@ -52,6 +61,11 @@ async function startGitLab(t: TestContext): Promise<string> {
     req.on("end", () => {
       const url = req.url ?? "";
       res.setHeader("content-type", "application/json");
+      if (req.method === "GET" && /\/jobs\/[^/?]+\/trace(?:\?|$)/.test(url)) {
+        res.setHeader("content-type", "text/plain");
+        res.end(JOB_TRACE);
+        return;
+      }
       const key = /\/variables\/([^/?]+)/.exec(url)?.[1];
       if (req.method === "GET" && !key) {
         res.end(JSON.stringify(LISTED));
@@ -80,7 +94,12 @@ async function startGitLab(t: TestContext): Promise<string> {
   return `http://127.0.0.1:${(api.address() as AddressInfo).port}/api/v4`;
 }
 
-async function connect(t: TestContext, apiUrl: string, maskingEnabled: boolean): Promise<Client> {
+async function connect(
+  t: TestContext,
+  apiUrl: string,
+  maskingEnabled: boolean,
+  toolsets = "variables"
+): Promise<Client> {
   // An empty workspace, so no .gitlab-mcp-mask.json from the checkout is loaded.
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-variables-masking-"));
   t.after(() => fs.rmSync(workspace, { recursive: true, force: true }));
@@ -93,7 +112,7 @@ async function connect(t: TestContext, apiUrl: string, maskingEnabled: boolean):
       ...getDefaultEnvironment(),
       GITLAB_PERSONAL_ACCESS_TOKEN: TOKEN,
       GITLAB_API_URL: apiUrl,
-      GITLAB_TOOLSETS: "variables",
+      GITLAB_TOOLSETS: toolsets,
       GITLAB_PERMISSION_MODE: "full",
       GITLAB_DISABLE_VERSION_CHECK: "true",
       GITLAB_MASKING_ENABLED: maskingEnabled ? "true" : "false",
@@ -174,6 +193,30 @@ describe("CI/CD variable values flagged masked or hidden", () => {
   test("are returned unchanged when masking is disabled", async t => {
     const client = await connect(t, await startGitLab(t), false);
     const text = await callText(client, "list_project_variables", { project_id: "grp/app" });
+    for (const value of [MASKED_VALUE, HIDDEN_VALUE, VISIBLE_VALUE]) {
+      assert.ok(text.includes(value), `masking disabled should keep ${value}`);
+    }
+    assert.ok(!text.includes(REPLACEMENT));
+  });
+});
+
+describe("CI/CD variable values printed in a plain-text job log", () => {
+  const JOB_OUTPUT_ARGS = { project_id: "grp/app", job_id: "4242" };
+
+  test("are replaced in get_pipeline_job_output when masking is enabled", async t => {
+    const client = await connect(t, await startGitLab(t), true, "pipelines");
+    const text = await callText(client, "get_pipeline_job_output", JOB_OUTPUT_ARGS);
+    for (const value of [MASKED_VALUE, HIDDEN_VALUE]) {
+      assert.ok(!text.includes(value), `get_pipeline_job_output leaked ${value}`);
+    }
+    assert.ok(text.includes(REPLACEMENT), text);
+    assert.ok(text.includes(VISIBLE_VALUE), "an unflagged variable value stays visible");
+    assert.ok(text.includes("Job succeeded"), text);
+  });
+
+  test("keep the original values when masking is disabled", async t => {
+    const client = await connect(t, await startGitLab(t), false, "pipelines");
+    const text = await callText(client, "get_pipeline_job_output", JOB_OUTPUT_ARGS);
     for (const value of [MASKED_VALUE, HIDDEN_VALUE, VISIBLE_VALUE]) {
       assert.ok(text.includes(value), `masking disabled should keep ${value}`);
     }

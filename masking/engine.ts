@@ -536,11 +536,135 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
   return output + text.slice(cursor);
 }
 
+// A flag literal in raw text. The escaped form covers JSON that is itself a
+// string value inside prose (`\"masked\":true`).
+const FLAG_LITERAL_PATTERN = /\\?"(?:masked|hidden)\\?"\s*:\s*true(?![A-Za-z0-9_])/;
+// A `"value"` property with a JSON string value, used only in uncovered text.
+const UNCOVERED_VALUE_PATTERN = /("value"\s*:\s*)"(?:\\.|[^"\\])*"/g;
+// The same property in escaped JSON (`\"value\":\"...\"`), e.g. a log line that
+// prints a JSON string. The value ends at the first escaped quote.
+const UNCOVERED_ESCAPED_VALUE_PATTERN = /(\\"value\\"\s*:\s*)\\"(?:\\[^"]|[^"\\])*?\\"/g;
+const FLAGGED_TEXT_SCAN_FACTOR = 8;
+const FLAGGED_TEXT_SCAN_SLACK = 65536;
+
+interface FlaggedTextScanBudget {
+  /** Characters still allowed to be scanned or parsed. */
+  remaining: number;
+}
+
+/** Index of the `}` closing the `{` at `open`, or -1. Charges the characters it walks. */
+function findClosingBrace(text: string, open: number, budget: FlaggedTextScanBudget): number {
+  const limit = Math.min(text.length, open + budget.remaining);
+  let depth = 0;
+  let inString = false;
+  let index = open;
+  let close = -1;
+  for (; index < limit; index++) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") index++;
+      else if (char === '"') inString = false;
+    } else if (char === '"') {
+      inString = true;
+    } else if (char === "{" || char === "[") {
+      depth++;
+    } else if (char === "}" || char === "]") {
+      depth--;
+      if (depth === 0) {
+        if (char === "}") close = index;
+        break;
+      }
+    }
+  }
+  budget.remaining -= Math.min(index + 1, limit) - open;
+  return close;
+}
+
+function parsesAsJsonObject(span: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(span);
+    return typeof parsed === "object" && parsed !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fallback for text outside any valid JSON object. Only applied when that text
+ * also holds a flag literal, so `value` fields in unflagged text are untouched.
+ * Over-masks any `value` string in a broken gap that carries a flag.
+ */
+function replaceUncoveredValues(gap: string): string {
+  if (!FLAG_LITERAL_PATTERN.test(gap)) return gap;
+  return gap
+    .replace(
+      UNCOVERED_VALUE_PATTERN,
+      (_match, prefix: string) => prefix + JSON.stringify(FLAGGED_CI_VARIABLE_REPLACEMENT)
+    )
+    .replace(
+      UNCOVERED_ESCAPED_VALUE_PATTERN,
+      (_match, prefix: string) => `${prefix}\\"${FLAGGED_CI_VARIABLE_REPLACEMENT}\\"`
+    );
+}
+
+/**
+ * Replaces the value of each GitLab CI/CD variable flagged masked or hidden in
+ * text that is not pure JSON: JSON in prose, job logs, error messages, and JSON
+ * inside a JSON string. Each `{` is tried as the start of a complete object.
+ * A span that parses as an object goes through the JSON scanner in flagged-only
+ * mode, so every other byte is kept. Text outside those spans goes through
+ * replaceUncoveredValues. Limits:
+ * - A truncated object cut before its flag cannot be detected, because the
+ *   flag is not in the text yet.
+ * - Text after the scan budget runs out is handled as uncovered text.
+ * - In escaped JSON inside a broken span, the fallback masks a value only up to
+ *   its first escaped quote.
+ */
+function maskFlaggedCiVariablesInText(
+  text: string,
+  budget: FlaggedTextScanBudget = {
+    remaining: FLAGGED_TEXT_SCAN_FACTOR * text.length + FLAGGED_TEXT_SCAN_SLACK,
+  }
+): string {
+  if (!FLAG_LITERAL_PATTERN.test(text)) return text;
+  const pieces: string[] = [];
+  let gapStart = 0;
+  let open = text.indexOf("{");
+  while (open !== -1 && budget.remaining > 0) {
+    const close = findClosingBrace(text, open, budget);
+    if (close !== -1) {
+      const spanLength = close - open + 1;
+      if (budget.remaining < spanLength) break;
+      budget.remaining -= spanLength;
+      const span = text.slice(open, close + 1);
+      if (parsesAsJsonObject(span)) {
+        pieces.push(replaceUncoveredValues(text.slice(gapStart, open)));
+        // maskJsonText parses the span again.
+        budget.remaining -= spanLength;
+        pieces.push(
+          maskJsonText(span, (value: string) => maskFlaggedCiVariablesInText(value, budget))
+        );
+        gapStart = close + 1;
+        open = text.indexOf("{", close + 1);
+        continue;
+      }
+    }
+    open = text.indexOf("{", open + 1);
+  }
+  pieces.push(replaceUncoveredValues(text.slice(gapStart)));
+  return pieces.join("");
+}
+
 function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): MaskingEngine {
   const builtinRules = mergeBuiltinRules(file);
   const rules = [...(file.rules ?? []), ...builtinRules].map(compileRule);
   const maskedErrors = new WeakSet<object>();
-  const maskText = (text: string): string => {
+  const maskText = (source: string): string => {
+    // Flagged variable values are replaced first, so the regex rules below see
+    // the replacement text. On the text path that replacement is therefore
+    // subject to user keyword rules, while structured and JSON paths emit it
+    // verbatim.
+    const text = maskFlaggedCiVariablesInText(source);
     const matches: MaskMatch[] = [];
     for (const rule of rules) {
       rule.expression.lastIndex = 0;

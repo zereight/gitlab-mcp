@@ -1184,3 +1184,219 @@ describe("When a GitLab CI/CD variable is flagged masked or hidden", () => {
     });
   }
 });
+
+describe("When a GitLab CI/CD variable is flagged inside text that is not pure JSON", () => {
+  const REPLACEMENT = "[Masked CI variable value]";
+  const variable = (key: string, value: string, flags: Record<string, unknown>) => ({
+    variable_type: "env_var",
+    key,
+    value,
+    protected: false,
+    masked: false,
+    hidden: false,
+    raw: false,
+    environment_scope: "*",
+    ...flags,
+  });
+  const textOf = (
+    engine: ReturnType<typeof createEnabledEngine>,
+    text: string,
+    textFormat?: "plain" | "json"
+  ): string =>
+    engine.maskToolResult(
+      { content: [{ type: "text", text }] },
+      textFormat ? { textFormat } : undefined
+    ).content[0].text;
+
+  test("masks flagged records in a JSON array embedded in prose", () => {
+    const engine = createEnabledEngine();
+    const records = [
+      variable("PROSE_SECRET", "prose-secret-value-1", { masked: true }),
+      variable("PROSE_VISIBLE", "prose-visible-value-1", {}),
+    ];
+    const masked = textOf(engine, `Response: ${JSON.stringify(records)} (2 variables)`);
+    assert.ok(!masked.includes("prose-secret-value-1"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+    assert.ok(masked.includes("prose-visible-value-1"), masked);
+    assert.ok(masked.startsWith("Response: ") && masked.endsWith(" (2 variables)"), masked);
+  });
+
+  test("masks flagged records in pretty-printed JSON inside a plain-text job log", () => {
+    const engine = createEnabledEngine();
+    const records = [
+      variable("LOG_MASKED", "log-masked-secret-2", { masked: true }),
+      variable("LOG_HIDDEN", "log-hidden-secret-3", { masked: true, hidden: true }),
+      variable("LOG_VISIBLE", "log-visible-value-4", {}),
+    ];
+    const log = [
+      '$ curl --header "PRIVATE-TOKEN: $TOKEN" "$CI_API_V4_URL/projects/42/variables"',
+      JSON.stringify(records, null, 2),
+      "Job succeeded",
+    ].join("\n");
+    const masked = textOf(engine, log, "plain");
+    assert.ok(!masked.includes("log-masked-secret-2"), masked);
+    assert.ok(!masked.includes("log-hidden-secret-3"), masked);
+    assert.ok(masked.includes("log-visible-value-4"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+    assert.equal(masked.split("\n").length, log.split("\n").length, "line layout is kept");
+    assert.ok(masked.endsWith("Job succeeded"), masked);
+  });
+
+  test("masks the complete records of a truncated array and its flagged tail", () => {
+    const engine = createEnabledEngine();
+    const first = JSON.stringify(
+      variable("TRUNC_FIRST", "truncated-first-secret", { masked: true })
+    );
+    // The second record is cut after its flag, so its value is in an uncovered gap.
+    const text = `[${first},{"key":"TRUNC_SECOND","value":"truncated-second-secret","masked":true`;
+    const masked = textOf(engine, text);
+    assert.ok(!masked.includes("truncated-first-secret"), masked);
+    assert.ok(!masked.includes("truncated-second-secret"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+  });
+
+  test("masks a complete truncated record even when the next record is cut before its flag", () => {
+    const engine = createEnabledEngine();
+    const first = JSON.stringify(variable("CUT_FIRST", "cut-first-secret", { masked: true }));
+    // The cut-off record has no flag yet, so it is not asserted either way.
+    const masked = textOf(engine, `[${first},{"key":"CUT_SECOND","value":"cut-second-value"`);
+    assert.ok(!masked.includes("cut-first-secret"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+  });
+
+  test("masks flagged records in newline-delimited and concatenated JSON", () => {
+    const engine = createEnabledEngine();
+    const records = [
+      variable("NDJ_A", "ndjson-secret-a", { masked: true }),
+      variable("NDJ_B", "ndjson-secret-b", { hidden: true }),
+      variable("NDJ_C", "ndjson-visible-c", {}),
+    ];
+    for (const text of [
+      records.map(record => JSON.stringify(record)).join("\n"),
+      records.map(record => JSON.stringify(record)).join(""),
+    ]) {
+      const masked = textOf(engine, text);
+      assert.ok(!masked.includes("ndjson-secret-a"), masked);
+      assert.ok(!masked.includes("ndjson-secret-b"), masked);
+      assert.ok(masked.includes("ndjson-visible-c"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+  });
+
+  test("masks flagged records in JSON text held inside a JSON string on the pure-JSON path", () => {
+    const engine = createEnabledEngine();
+    const inner = JSON.stringify([
+      variable("NESTED_SECRET", "nested-json-secret-x", { masked: true }),
+    ]);
+    const masked = textOf(engine, JSON.stringify({ output: inner, count: 1 }));
+    assert.ok(!masked.includes("nested-json-secret-x"), masked);
+    const parsed = JSON.parse(masked) as { output: string; count: number };
+    assert.equal(parsed.count, 1);
+    assert.equal(JSON.parse(parsed.output)[0].value, REPLACEMENT);
+  });
+
+  test("masks flagged records in escaped JSON inside a JSON string in prose", () => {
+    const engine = createEnabledEngine();
+    const inner = JSON.stringify([
+      variable("PROSE_NESTED", "prose-nested-secret-y", { hidden: true }),
+    ]);
+    const masked = textOf(engine, `Response: ${JSON.stringify({ message: inner })}`);
+    assert.ok(!masked.includes("prose-nested-secret-y"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+    assert.ok(masked.startsWith("Response: {"), masked);
+  });
+
+  test("masks a flagged value in broken escaped JSON printed in a log line", () => {
+    const engine = createEnabledEngine();
+    // A shell command that echoes a JSON payload: escaped, and the line is cut short.
+    const line =
+      'echo "{\\"key\\":\\"ESC_SECRET\\",\\"value\\":\\"escaped-log-secret-z\\",\\"masked\\":true';
+    const masked = textOf(engine, line, "plain");
+    assert.ok(!masked.includes("escaped-log-secret-z"), masked);
+    assert.ok(masked.includes(`\\"value\\":\\"${REPLACEMENT}\\"`), masked);
+    assert.ok(masked.includes('\\"key\\":\\"ESC_SECRET\\"'), masked);
+  });
+
+  test("masks flagged records in the message of a returned error", () => {
+    const engine = createEnabledEngine();
+    const error = new Error(
+      `GitLab API error: ${JSON.stringify([variable("ERR_SECRET", "error-message-secret-q", { hidden: true })])}`
+    );
+    const masked = engine.maskError(error) as Error;
+    assert.ok(!masked.message.includes("error-message-secret-q"), masked.message);
+    assert.ok(masked.message.includes(REPLACEMENT), masked.message);
+  });
+
+  test("leaves unflagged records and texts without a flag byte-for-byte unchanged", () => {
+    const engine = createEnabledEngine();
+    const unflagged = [
+      `Listed: ${JSON.stringify([
+        variable("VIS_A", "visible-a-value", {}),
+        variable("VIS_B", "visible-b-value", { masked: "true" }),
+      ])}`,
+      '{"meta":{"masked":true}} and "value": "visible-c" in prose',
+      'Job log line with "value": "not-a-flag-secret" and masked: true in prose',
+    ];
+    for (const text of unflagged) {
+      assert.equal(textOf(engine, text, "plain"), text);
+      assert.equal(textOf(engine, text), text);
+      assert.equal(engine.maskText(text), text);
+    }
+  });
+
+  test("still applies the other regex rules to the same text", () => {
+    const engine = createEnabledEngine();
+    const token = "glpat-TextRuleToken0123456789";
+    const text = `token ${token} host 10.20.30.40 ${JSON.stringify([
+      variable("RULE_SECRET", "rule-flagged-secret-r", { masked: true }),
+    ])}`;
+    const masked = engine.maskText(text);
+    assert.ok(masked.includes("[Token masked]"), masked);
+    assert.ok(masked.includes("[IP address]"), masked);
+    assert.ok(!masked.includes(token), masked);
+    assert.ok(!masked.includes("10.20.30.40"), masked);
+    assert.ok(!masked.includes("rule-flagged-secret-r"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+  });
+
+  test("masks every record in a large log in linear time", () => {
+    const engine = createEnabledEngine();
+    const records = Array.from({ length: 4000 }, (_, index) =>
+      variable(`BULK_${index}`, `bulk-secret-${index}`, { masked: true })
+    );
+    const log = `dump\n${JSON.stringify(records, null, 2)}\ndone`;
+    const started = performance.now();
+    const masked = textOf(engine, log, "plain");
+    const elapsedMs = performance.now() - started;
+    assert.ok(elapsedMs < 2000, `large log took ${elapsedMs.toFixed(0)} ms`);
+    assert.ok(!/bulk-secret-\d/.test(masked), "a bulk secret survived");
+    assert.equal(masked.split(REPLACEMENT).length - 1, records.length);
+  });
+
+  describe("with pathological text that carries a flag literal", () => {
+    const FLAG = '"masked":true ';
+    const MEGABYTE = 1_000_000;
+    const deepBalancedInvalid = (depth: number) =>
+      `${FLAG}${'{"a":'.repeat(depth)}{"key":"DEEP_KEY","value":"deep-tail-secret","masked":true,"x":bad}${"}".repeat(depth)}`;
+    const cases: Array<[string, string]> = [
+      ["unclosed deep objects", `${FLAG}${'{"a":'.repeat(Math.floor(MEGABYTE / 5))}`],
+      ["a run of open braces", `${FLAG}${"{".repeat(MEGABYTE)}`],
+      ["balanced but invalid at the tail", deepBalancedInvalid(150_000)],
+    ];
+    for (const [name, text] of cases) {
+      test(`completes quickly for ${name} (about 1 MB)`, () => {
+        const engine = createEnabledEngine();
+        assert.ok(text.length >= 900_000, `fixture is ${text.length} characters`);
+        const started = performance.now();
+        const masked = engine.maskText(text);
+        const elapsedMs = performance.now() - started;
+        assert.ok(elapsedMs < 2000, `${name} took ${elapsedMs.toFixed(0)} ms`);
+        if (name === "balanced but invalid at the tail") {
+          assert.ok(!masked.includes("deep-tail-secret"), "uncovered flagged value survived");
+        } else {
+          assert.equal(masked, text);
+        }
+      });
+    }
+  });
+});

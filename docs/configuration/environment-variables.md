@@ -183,9 +183,16 @@ GitLab CI/CD variables that GitLab flags `masked` or `hidden` are also masked:
 the whole `value` of an object with a string `key` and `masked: true` or
 `hidden: true` becomes `[Masked CI variable value]`, whatever the value looks
 like. This covers the project and group variable tools (list, get, create, and
-update) and the same records returned by other tools. It applies whenever
-masking is enabled and is not configurable under `builtins`. With masking
-disabled, variable values are returned as GitLab sends them.
+update) and the same records returned by other tools. It also covers such
+records in plain-text output (job logs and artifact files), in error messages,
+and in JSON embedded in other text, including JSON stored inside a string. A
+truncated record that ends before its `masked` or `hidden` field is not
+detected. In a part of the text that does not parse as JSON but contains such
+a flag, every `"value": "…"` string is replaced, which can over-mask unrelated
+values. It
+applies whenever masking is enabled and is not configurable under
+`builtins`. With masking disabled, variable values are returned as GitLab sends
+them.
 Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement
