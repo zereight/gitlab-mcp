@@ -1358,6 +1358,27 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
     }
   });
 
+  test("masks an escaped flagged value with braces inside a quoted log argument", () => {
+    const engine = createEnabledEngine();
+    const cases = [
+      'echo "{\\"key\\":\\"K\\",\\"masked\\":true,\\"value\\":\\"prefix{}secret-tail\\"}"',
+      'echo "{\\"key\\":\\"K\\",\\"hidden\\":true,\\"value\\":\\"prefix{\\\\\\"a\\\\\\":1}secret-tail\\"}" done',
+      'echo "{\\"value\\":\\"prefix{}secret-tail\\",\\"key\\":\\"K\\",\\"masked\\":true}"',
+      'log: "masked":true "value":"prefix{}secret-tail"',
+    ];
+    for (const text of cases) {
+      const masked = textOf(engine, text, "plain");
+      assert.ok(!masked.includes("secret-tail"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+  });
+
+  test("keeps an unflagged object inside a quoted string untouched", () => {
+    const engine = createEnabledEngine();
+    const text = 'echo "{\\"key\\":\\"K\\",\\"value\\":\\"prefix{}plain-tail\\"}"';
+    assert.equal(textOf(engine, text, "plain"), text);
+  });
+
   test("masks a complete record whose flag name uses a JSON Unicode escape", () => {
     const engine = createEnabledEngine();
     const masked = textOf(

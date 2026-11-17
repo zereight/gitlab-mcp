@@ -585,6 +585,22 @@ function findClosingBrace(text: string, open: number, budget: FlaggedTextScanBud
   return close;
 }
 
+/**
+ * Index just past the `"` that closes a JSON string whose content starts at
+ * `from`, or the end of the text when it never closes. Charges the
+ * characters it walks.
+ */
+function findEndOfJsonString(text: string, from: number, budget: FlaggedTextScanBudget): number {
+  let index = from;
+  for (; index < text.length; index++) {
+    const char = text[index];
+    if (char === "\\") index++;
+    else if (char === '"') break;
+  }
+  budget.remaining -= Math.min(index + 1, text.length) - from;
+  return index < text.length ? index + 1 : text.length;
+}
+
 function parsesAsJsonObject(span: string): boolean {
   try {
     const parsed: unknown = JSON.parse(span);
@@ -661,9 +677,13 @@ function replaceUncoveredValues(gap: string): string {
  * does not make later checks rescan its prefix.
  */
 interface GapStructure {
+  /** First character of the gap. */
+  start: number;
   /** Next character to read. */
   scanned: number;
   inString: boolean;
+  /** Index of the `"` that opened the current string, or -1. */
+  stringStart: number;
   escaped: boolean;
   /** Unclosed `{` and `[` in the gap, outermost first. */
   open: Array<{ char: "{" | "["; index: number }>;
@@ -675,8 +695,10 @@ interface GapStructure {
 
 function newGapStructure(start: number): GapStructure {
   return {
+    start,
     scanned: start,
     inString: false,
+    stringStart: -1,
     escaped: false,
     open: [],
     firstObject: -1,
@@ -706,8 +728,10 @@ function advanceGapStructure(
     }
     if (/\s/.test(char)) continue;
     structure.last = char;
-    if (char === '"') structure.inString = true;
-    else if (char === "{" || char === "[") {
+    if (char === '"') {
+      structure.inString = true;
+      structure.stringStart = index;
+    } else if (char === "{" || char === "[") {
       if (char === "{" && structure.firstObject === -1)
         structure.firstObject = structure.open.length;
       structure.open.push({ char, index });
@@ -744,17 +768,25 @@ function hasRangeWithin(ranges: Array<[number, number]>, start: number, end: num
  * True when the object at `open` is nested inside an incomplete flagged
  * object in the current gap: it is a property value, an array element, or
  * text inside an open string there, and that parent holds a flag before or
- * after `open`. Such a span
- * must not split the gap, or the parent's value and flag could land in
- * different gaps. `parentEnd` gives the end of the parent at an index (the
- * end of the text when it never closes).
+ * after `open`. Also true when `open` is text inside a string at gap level
+ * (for example an escaped record in a quoted log argument) and the gap holds
+ * a flag before that string ends. Such a span must not split the gap, or a
+ * value and its flag could land in different gaps. `parentEnd` gives the end
+ * of the parent at an index, and `stringEnd` the end of the string opened at
+ * an index (the end of the text when either never closes).
  */
 function isNestedInIncompleteFlaggedObject(
   structure: GapStructure,
   flagRanges: Array<[number, number]>,
   open: number,
-  parentEnd: (index: number) => number
+  parentEnd: (index: number) => number,
+  stringEnd: (index: number) => number
 ): boolean {
+  if (
+    structure.inString &&
+    hasRangeWithin(flagRanges, structure.start, stringEnd(structure.stringStart))
+  )
+    return true;
   if (structure.firstObject === -1) return false;
   const parent = structure.open[structure.firstObject];
   if (!hasRangeWithin(flagRanges, parent.index, parentEnd(parent.index))) return false;
@@ -800,6 +832,16 @@ function maskFlaggedCiVariablesInText(
     }
     return cachedParentEnd;
   };
+  // Strings also start at increasing indexes within and across gaps.
+  let cachedString = -1;
+  let cachedStringEnd = text.length;
+  const stringEnd = (index: number): number => {
+    if (index !== cachedString) {
+      cachedString = index;
+      cachedStringEnd = findEndOfJsonString(text, index + 1, budget);
+    }
+    return cachedStringEnd;
+  };
   let open = text.indexOf("{");
   while (open !== -1 && budget.remaining > 0) {
     const close = findClosingBrace(text, open, budget);
@@ -811,7 +853,7 @@ function maskFlaggedCiVariablesInText(
       if (parsesAsJsonObject(span)) {
         advanceGapStructure(structure, text, open, budget);
         flagRanges ??= flagLiteralRanges(text);
-        if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open, parentEnd)) {
+        if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open, parentEnd, stringEnd)) {
           open = text.indexOf("{", open + 1);
           continue;
         }
