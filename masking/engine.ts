@@ -541,9 +541,13 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
 const FLAG_LITERAL_PATTERN = /\\?"(?:masked|hidden)\\?"\s*:\s*true(?![A-Za-z0-9_])/;
 // A `"value"` property with a JSON string value, used only in uncovered text.
 const UNCOVERED_VALUE_PATTERN = /("value"\s*:\s*)"(?:\\.|[^"\\])*"/g;
-// The same property in escaped JSON (`\"value\":\"...\"`), e.g. a log line that
-// prints a JSON string. The value ends at the first escaped quote.
-const UNCOVERED_ESCAPED_VALUE_PATTERN = /(\\"value\\"\s*:\s*)\\"(?:\\[^"]|[^"\\])*?\\"/g;
+// The start of the same property in escaped JSON (`\"value\":\"..."`), e.g. a
+// log line that prints a JSON string. The closing quote is found by
+// findEndOfEscapedJsonString so an embedded `\\\"` cannot end the value.
+const UNCOVERED_ESCAPED_VALUE_START_PATTERN = /\\"value\\"\s*:\s*\\"/g;
+// A JSON Unicode escape such as `\u0073` in `ma\u0073ked`. Used to skip the
+// text fast path when a flag name may be escaped this way.
+const JSON_UNICODE_ESCAPE_PATTERN = /\\u[0-9a-fA-F]{4}/;
 const FLAGGED_TEXT_SCAN_FACTOR = 8;
 const FLAGGED_TEXT_SCAN_SLACK = 65536;
 
@@ -590,21 +594,104 @@ function parsesAsJsonObject(span: string): boolean {
 }
 
 /**
+ * Index just past the `\"` that closes an escaped JSON string starting at
+ * `from` (the first character after the opening `\"`), or -1 if it never
+ * closes. `\\` delivers a backslash to the inner string and may start an
+ * inner escape; `\"` ends the string unless the inner string is escaping.
+ */
+function findEndOfEscapedJsonString(text: string, from: number): number {
+  let innerEscaped = false;
+  for (let index = from; index < text.length; index++) {
+    const char = text[index];
+    if (char === "\\" && index + 1 < text.length) {
+      const next = text[index + 1];
+      if (next === "\\") {
+        innerEscaped = !innerEscaped;
+        index++;
+        continue;
+      }
+      if (next === '"') {
+        if (!innerEscaped) return index + 2;
+        innerEscaped = false;
+        index++;
+        continue;
+      }
+    }
+    innerEscaped = false;
+  }
+  return -1;
+}
+
+function replaceUncoveredEscapedValues(gap: string): string {
+  let output = "";
+  let cursor = 0;
+  UNCOVERED_ESCAPED_VALUE_START_PATTERN.lastIndex = 0;
+  for (const match of gap.matchAll(UNCOVERED_ESCAPED_VALUE_START_PATTERN)) {
+    const start = match.index;
+    if (start === undefined || start < cursor) continue;
+    const close = findEndOfEscapedJsonString(gap, start + match[0].length);
+    if (close === -1) continue;
+    output +=
+      gap.slice(cursor, start) + match[0].slice(0, -2) + `\\"${FLAGGED_CI_VARIABLE_REPLACEMENT}\\"`;
+    cursor = close;
+  }
+  return output + gap.slice(cursor);
+}
+
+/**
  * Fallback for text outside any valid JSON object. Only applied when that text
  * also holds a flag literal, so `value` fields in unflagged text are untouched.
  * Over-masks any `value` string in a broken gap that carries a flag.
  */
 function replaceUncoveredValues(gap: string): string {
   if (!FLAG_LITERAL_PATTERN.test(gap)) return gap;
-  return gap
-    .replace(
+  return replaceUncoveredEscapedValues(
+    gap.replace(
       UNCOVERED_VALUE_PATTERN,
       (_match, prefix: string) => prefix + JSON.stringify(FLAGGED_CI_VARIABLE_REPLACEMENT)
     )
-    .replace(
-      UNCOVERED_ESCAPED_VALUE_PATTERN,
-      (_match, prefix: string) => `${prefix}\\"${FLAGGED_CI_VARIABLE_REPLACEMENT}\\"`
-    );
+  );
+}
+
+function lastNonWhitespaceChar(text: string, start: number, end: number): string | undefined {
+  const trimmed = text.slice(start, end).trimEnd();
+  return trimmed.length === 0 ? undefined : trimmed[trimmed.length - 1];
+}
+
+/** Index of an unclosed `{` in `[start, end)`, or -1 if braces are balanced. */
+function unclosedBraceIndex(text: string, start: number, end: number): number {
+  let depth = 0;
+  let inString = false;
+  let unclosed = -1;
+  for (let index = start; index < end; index++) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") index++;
+      else if (char === '"') inString = false;
+    } else if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      if (depth === 0) unclosed = index;
+      depth++;
+    } else if (char === "}") {
+      depth--;
+      if (depth === 0) unclosed = -1;
+    }
+  }
+  return depth > 0 ? unclosed : -1;
+}
+
+/**
+ * True when the object at `open` is nested inside an incomplete flagged
+ * object in the current gap. In that case the span must not split the gap,
+ * or a value after the span would lose the flag.
+ */
+function isNestedInIncompleteFlaggedObject(text: string, gapStart: number, open: number): boolean {
+  const unclosed = unclosedBraceIndex(text, gapStart, open);
+  if (unclosed === -1) return false;
+  if (!FLAG_LITERAL_PATTERN.test(text.slice(unclosed, open))) return false;
+  const before = lastNonWhitespaceChar(text, unclosed, open);
+  return before === ":" || before === "[";
 }
 
 /**
@@ -617,8 +704,8 @@ function replaceUncoveredValues(gap: string): string {
  * - A truncated object cut before its flag cannot be detected, because the
  *   flag is not in the text yet.
  * - Text after the scan budget runs out is handled as uncovered text.
- * - In escaped JSON inside a broken span, the fallback masks a value only up to
- *   its first escaped quote.
+ * - In a broken span that carries a flag, the fallback masks any `"value"`
+ *   string, including values of complete objects nested in that span.
  */
 function maskFlaggedCiVariablesInText(
   text: string,
@@ -626,7 +713,7 @@ function maskFlaggedCiVariablesInText(
     remaining: FLAGGED_TEXT_SCAN_FACTOR * text.length + FLAGGED_TEXT_SCAN_SLACK,
   }
 ): string {
-  if (!FLAG_LITERAL_PATTERN.test(text)) return text;
+  if (!FLAG_LITERAL_PATTERN.test(text) && !JSON_UNICODE_ESCAPE_PATTERN.test(text)) return text;
   const pieces: string[] = [];
   let gapStart = 0;
   let open = text.indexOf("{");
@@ -638,6 +725,10 @@ function maskFlaggedCiVariablesInText(
       budget.remaining -= spanLength;
       const span = text.slice(open, close + 1);
       if (parsesAsJsonObject(span)) {
+        if (isNestedInIncompleteFlaggedObject(text, gapStart, open)) {
+          open = text.indexOf("{", open + 1);
+          continue;
+        }
         pieces.push(replaceUncoveredValues(text.slice(gapStart, open)));
         // maskJsonText parses the span again.
         budget.remaining -= spanLength;

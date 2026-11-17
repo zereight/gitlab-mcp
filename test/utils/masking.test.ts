@@ -1308,13 +1308,71 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
 
   test("masks a flagged value in broken escaped JSON printed in a log line", () => {
     const engine = createEnabledEngine();
-    // A shell command that echoes a JSON payload: escaped, and the line is cut short.
-    const line =
-      'echo "{\\"key\\":\\"ESC_SECRET\\",\\"value\\":\\"escaped-log-secret-z\\",\\"masked\\":true';
-    const masked = textOf(engine, line, "plain");
-    assert.ok(!masked.includes("escaped-log-secret-z"), masked);
-    assert.ok(masked.includes(`\\"value\\":\\"${REPLACEMENT}\\"`), masked);
-    assert.ok(masked.includes('\\"key\\":\\"ESC_SECRET\\"'), masked);
+    const cases: Array<[string, string[]]> = [
+      // A shell command that echoes a JSON payload: escaped, and the line is cut short.
+      [
+        'echo "{\\"key\\":\\"ESC_SECRET\\",\\"value\\":\\"escaped-log-secret-z\\",\\"masked\\":true',
+        ["escaped-log-secret-z"],
+      ],
+      // The value itself contains an escaped quote; the tail must not remain visible.
+      [
+        'echo "{\\"key\\":\\"ESC_SECRET\\",\\"value\\":\\"prefix\\\\\\"secret-tail\\",\\"masked\\":true',
+        ["secret-tail", "prefix"],
+      ],
+    ];
+    for (const [line, secrets] of cases) {
+      const masked = textOf(engine, line, "plain");
+      for (const secret of secrets) {
+        assert.ok(!masked.includes(secret), masked);
+      }
+      assert.ok(masked.includes(`\\"value\\":\\"${REPLACEMENT}\\"`), masked);
+      assert.ok(masked.includes('\\"key\\":\\"ESC_SECRET\\"'), masked);
+    }
+  });
+
+  test("masks a complete record whose flag name uses a JSON Unicode escape", () => {
+    const engine = createEnabledEngine();
+    const masked = textOf(
+      engine,
+      'Response: {"key":"UNI_SECRET","value":"unicode-flag-secret","ma\\u0073ked":true}',
+      "plain"
+    );
+    assert.ok(!masked.includes("unicode-flag-secret"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+    assert.ok(masked.startsWith("Response: "), masked);
+    const hidden = textOf(
+      engine,
+      '{"key":"UNI_HIDDEN","value":"unicode-hidden-secret","hi\\u0064den":true}',
+      "plain"
+    );
+    assert.ok(!hidden.includes("unicode-hidden-secret"), hidden);
+    assert.ok(hidden.includes(REPLACEMENT), hidden);
+  });
+
+  test("masks a truncated record when a nested object sits between the flag and the value", () => {
+    const engine = createEnabledEngine();
+    const cases = [
+      '{"key":"K","masked":true,"meta":{},"value":"split-gap-secret"',
+      '{"key":"K","masked":true,"meta":{},"value":"invalid-close-secret",bad}',
+      '{\n  "key": "K",\n  "masked": true,\n  "meta": {\n  },\n  "value": "pretty-split-secret"',
+    ];
+    for (const text of cases) {
+      const masked = textOf(engine, text, "plain");
+      assert.ok(!masked.includes("split-gap-secret"), masked);
+      assert.ok(!masked.includes("invalid-close-secret"), masked);
+      assert.ok(!masked.includes("pretty-split-secret"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+  });
+
+  test("leaves a later unflagged record intact after a truncated flagged record with a nested object", () => {
+    const engine = createEnabledEngine();
+    const text =
+      '{"key":"K","masked":true,"meta":{},"value":"split-gap-secret"\n{"key":"V","value":"should-stay-visible"}';
+    const masked = textOf(engine, text, "plain");
+    assert.ok(!masked.includes("split-gap-secret"), masked);
+    assert.ok(masked.includes(REPLACEMENT), masked);
+    assert.ok(masked.includes("should-stay-visible"), masked);
   });
 
   test("masks flagged records in the message of a returned error", () => {
@@ -1336,6 +1394,8 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
       ])}`,
       '{"meta":{"masked":true}} and "value": "visible-c" in prose',
       'Job log line with "value": "not-a-flag-secret" and masked: true in prose',
+      'C:\\users\\builder "value": "windows-path-visible"',
+      'ma\\u0073ked in prose and "value": "unicode-prose-visible"',
     ];
     for (const text of unflagged) {
       assert.equal(textOf(engine, text, "plain"), text);
