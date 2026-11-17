@@ -1355,12 +1355,16 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
       '{"key":"K","masked":true,"meta":{},"value":"split-gap-secret"',
       '{"key":"K","masked":true,"meta":{},"value":"invalid-close-secret",bad}',
       '{\n  "key": "K",\n  "masked": true,\n  "meta": {\n  },\n  "value": "pretty-split-secret"',
+      // A complete object that is a later array element, after a comma.
+      '{"key":"K","masked":true,"tags":["a",{"b":1}],"value":"array-gap-secret"',
+      '{"key":"K","masked":true,"tags":[{"a":1}, {"b":2}],"value":"array-gap-secret"',
     ];
     for (const text of cases) {
       const masked = textOf(engine, text, "plain");
       assert.ok(!masked.includes("split-gap-secret"), masked);
       assert.ok(!masked.includes("invalid-close-secret"), masked);
       assert.ok(!masked.includes("pretty-split-secret"), masked);
+      assert.ok(!masked.includes("array-gap-secret"), masked);
       assert.ok(masked.includes(REPLACEMENT), masked);
     }
   });
@@ -1436,6 +1440,16 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
   describe("with pathological text that carries a flag literal", () => {
     const FLAG = '"masked":true ';
     const MEGABYTE = 1_000_000;
+    test("completes quickly for an incomplete flagged parent with many nested children (about 1 MB)", () => {
+      const engine = createEnabledEngine();
+      const text = `{"key":"K","masked":true,${'"m":{},'.repeat(Math.floor(MEGABYTE / 7))}"value":"many-children-secret"`;
+      const started = performance.now();
+      const masked = engine.maskText(text);
+      const elapsedMs = performance.now() - started;
+      assert.ok(elapsedMs < 2000, `many nested children took ${elapsedMs.toFixed(0)} ms`);
+      assert.ok(!masked.includes("many-children-secret"), "flagged value survived");
+    });
+
     const deepBalancedInvalid = (depth: number) =>
       `${FLAG}${'{"a":'.repeat(depth)}{"key":"DEEP_KEY","value":"deep-tail-secret","masked":true,"x":bad}${"}".repeat(depth)}`;
     const cases: Array<[string, string]> = [

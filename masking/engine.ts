@@ -653,45 +653,94 @@ function replaceUncoveredValues(gap: string): string {
   );
 }
 
-function lastNonWhitespaceChar(text: string, start: number, end: number): string | undefined {
-  const trimmed = text.slice(start, end).trimEnd();
-  return trimmed.length === 0 ? undefined : trimmed[trimmed.length - 1];
+/**
+ * Structure of the current gap, read left to right once. The scanner uses it
+ * to tell whether a complete object sits inside an incomplete flagged parent.
+ * Each character is read at most once per gap, so a long incomplete parent
+ * does not make later checks rescan its prefix.
+ */
+interface GapStructure {
+  /** Next character to read. */
+  scanned: number;
+  inString: boolean;
+  escaped: boolean;
+  /** Unclosed `{` and `[` in the gap, outermost first. */
+  open: Array<{ char: "{" | "["; index: number }>;
+  /** Last character outside whitespace; a string counts as its closing `"`. */
+  last: string | undefined;
 }
 
-/** Index of an unclosed `{` in `[start, end)`, or -1 if braces are balanced. */
-function unclosedBraceIndex(text: string, start: number, end: number): number {
-  let depth = 0;
-  let inString = false;
-  let unclosed = -1;
-  for (let index = start; index < end; index++) {
+function newGapStructure(start: number): GapStructure {
+  return { scanned: start, inString: false, escaped: false, open: [], last: undefined };
+}
+
+/** Reads `[structure.scanned, end)` into `structure`. Charges the characters it reads. */
+function advanceGapStructure(
+  structure: GapStructure,
+  text: string,
+  end: number,
+  budget: FlaggedTextScanBudget
+): void {
+  if (end <= structure.scanned) return;
+  budget.remaining -= end - structure.scanned;
+  for (let index = structure.scanned; index < end; index++) {
     const char = text[index];
-    if (inString) {
-      if (char === "\\") index++;
-      else if (char === '"') inString = false;
-    } else if (char === '"') {
-      inString = true;
-    } else if (char === "{") {
-      if (depth === 0) unclosed = index;
-      depth++;
-    } else if (char === "}") {
-      depth--;
-      if (depth === 0) unclosed = -1;
+    if (structure.inString) {
+      if (structure.escaped) structure.escaped = false;
+      else if (char === "\\") structure.escaped = true;
+      else if (char === '"') {
+        structure.inString = false;
+        structure.last = '"';
+      }
+      continue;
     }
+    if (/\s/.test(char)) continue;
+    structure.last = char;
+    if (char === '"') structure.inString = true;
+    else if (char === "{" || char === "[") structure.open.push({ char, index });
+    else if ((char === "}" || char === "]") && structure.open.length > 0) structure.open.pop();
   }
-  return depth > 0 ? unclosed : -1;
+  structure.scanned = end;
+}
+
+/** Start and end of each flag literal in `text`, in order. */
+function flagLiteralRanges(text: string): Array<[number, number]> {
+  const pattern = new RegExp(FLAG_LITERAL_PATTERN.source, "g");
+  return Array.from(text.matchAll(pattern), match => [
+    match.index ?? 0,
+    (match.index ?? 0) + match[0].length,
+  ]);
+}
+
+/** True when some range lies inside `[start, end)`. `ranges` is sorted. */
+function hasRangeWithin(ranges: Array<[number, number]>, start: number, end: number): boolean {
+  let low = 0;
+  let high = ranges.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (ranges[middle][0] < start) low = middle + 1;
+    else high = middle;
+  }
+  return low < ranges.length && ranges[low][1] <= end;
 }
 
 /**
  * True when the object at `open` is nested inside an incomplete flagged
- * object in the current gap. In that case the span must not split the gap,
- * or a value after the span would lose the flag.
+ * object in the current gap: it is a property value or an array element
+ * there, and that parent holds a flag before `open`. Such a span must not
+ * split the gap, or a value after the span would lose the flag.
  */
-function isNestedInIncompleteFlaggedObject(text: string, gapStart: number, open: number): boolean {
-  const unclosed = unclosedBraceIndex(text, gapStart, open);
-  if (unclosed === -1) return false;
-  if (!FLAG_LITERAL_PATTERN.test(text.slice(unclosed, open))) return false;
-  const before = lastNonWhitespaceChar(text, unclosed, open);
-  return before === ":" || before === "[";
+function isNestedInIncompleteFlaggedObject(
+  structure: GapStructure,
+  flagRanges: Array<[number, number]>,
+  open: number
+): boolean {
+  const parent = structure.open.find(entry => entry.char === "{");
+  if (parent === undefined) return false;
+  if (!hasRangeWithin(flagRanges, parent.index, open)) return false;
+  const innermost = structure.open[structure.open.length - 1];
+  if (innermost.char === "[") return true;
+  return structure.last === ":";
 }
 
 /**
@@ -716,6 +765,8 @@ function maskFlaggedCiVariablesInText(
   if (!FLAG_LITERAL_PATTERN.test(text) && !JSON_UNICODE_ESCAPE_PATTERN.test(text)) return text;
   const pieces: string[] = [];
   let gapStart = 0;
+  let structure = newGapStructure(0);
+  let flagRanges: Array<[number, number]> | undefined;
   let open = text.indexOf("{");
   while (open !== -1 && budget.remaining > 0) {
     const close = findClosingBrace(text, open, budget);
@@ -725,7 +776,9 @@ function maskFlaggedCiVariablesInText(
       budget.remaining -= spanLength;
       const span = text.slice(open, close + 1);
       if (parsesAsJsonObject(span)) {
-        if (isNestedInIncompleteFlaggedObject(text, gapStart, open)) {
+        advanceGapStructure(structure, text, open, budget);
+        flagRanges ??= flagLiteralRanges(text);
+        if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open)) {
           open = text.indexOf("{", open + 1);
           continue;
         }
@@ -736,6 +789,7 @@ function maskFlaggedCiVariablesInText(
           maskJsonText(span, (value: string) => maskFlaggedCiVariablesInText(value, budget))
         );
         gapStart = close + 1;
+        structure = newGapStructure(gapStart);
         open = text.indexOf("{", close + 1);
         continue;
       }
