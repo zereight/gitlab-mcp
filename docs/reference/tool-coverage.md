@@ -335,7 +335,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="releases"></a>
 
 - [x] [`list_releases`](../tools/releases.md#list_releases) — `test/test-empty-toolsets.ts`
-- [x] [`get_release`](../tools/releases.md#get_release) — `test/test-empty-toolsets.ts`
+- [x] [`get_release`](../tools/releases.md#get_release) — `test/live/release-not-found-hint.test.ts`, `test/release-tag-not-found-hint.test.ts`, `test/test-empty-toolsets.ts`
 - [x] [`create_release`](../tools/releases.md#create_release) — `test/test-empty-toolsets.ts`
 - [x] [`update_release`](../tools/releases.md#update_release) — `test/test-empty-toolsets.ts`
 - [x] [`delete_release`](../tools/releases.md#delete_release) — `test/test-empty-toolsets.ts`
