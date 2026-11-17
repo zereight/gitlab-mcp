@@ -1344,6 +1344,20 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
     }
   });
 
+  test("masks a cut-off flagged value that contains a complete object", () => {
+    const engine = createEnabledEngine();
+    const cases = [
+      '{"key":"K","masked":true,"value":"prefix{}secret-tail',
+      '{"key":"K","hidden":true,"value":"prefix{\\"a\\":1}secret-tail',
+      '{"value":"prefix{}secret-tail","key":"K","masked":true',
+    ];
+    for (const text of cases) {
+      const masked = textOf(engine, text, "plain");
+      assert.ok(!masked.includes("secret-tail"), masked);
+      assert.ok(masked.includes(REPLACEMENT), masked);
+    }
+  });
+
   test("masks a complete record whose flag name uses a JSON Unicode escape", () => {
     const engine = createEnabledEngine();
     const masked = textOf(

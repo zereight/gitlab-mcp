@@ -742,8 +742,9 @@ function hasRangeWithin(ranges: Array<[number, number]>, start: number, end: num
 
 /**
  * True when the object at `open` is nested inside an incomplete flagged
- * object in the current gap: it is a property value or an array element
- * there, and that parent holds a flag before or after `open`. Such a span
+ * object in the current gap: it is a property value, an array element, or
+ * text inside an open string there, and that parent holds a flag before or
+ * after `open`. Such a span
  * must not split the gap, or the parent's value and flag could land in
  * different gaps. `parentEnd` gives the end of the parent at an index (the
  * end of the text when it never closes).
@@ -757,6 +758,8 @@ function isNestedInIncompleteFlaggedObject(
   if (structure.firstObject === -1) return false;
   const parent = structure.open[structure.firstObject];
   if (!hasRangeWithin(flagRanges, parent.index, parentEnd(parent.index))) return false;
+  // A brace inside an open string is string content, not a nested object.
+  if (structure.inString) return true;
   const innermost = structure.open[structure.open.length - 1];
   if (innermost.char === "[") return true;
   return structure.last === ":";
