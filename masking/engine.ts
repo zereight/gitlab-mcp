@@ -540,7 +540,8 @@ function maskJsonText(text: string, mask: (text: string, parentKey?: string) => 
 // string value inside prose (`\"masked\":true`).
 const FLAG_LITERAL_PATTERN = /\\?"(?:masked|hidden)\\?"\s*:\s*true(?![A-Za-z0-9_])/;
 // A `"value"` property with a JSON string value, used only in uncovered text.
-const UNCOVERED_VALUE_PATTERN = /("value"\s*:\s*)"(?:\\.|[^"\\])*"/g;
+// A value cut off before its closing quote runs to the end of the text.
+const UNCOVERED_VALUE_PATTERN = /("value"\s*:\s*)"(?:\\.|[^"\\])*(?:"|\\?$)/g;
 // The start of the same property in escaped JSON (`\"value\":\"..."`), e.g. a
 // log line that prints a JSON string. The closing quote is found by
 // findEndOfEscapedJsonString so an embedded `\\\"` cannot end the value.
@@ -630,10 +631,10 @@ function replaceUncoveredEscapedValues(gap: string): string {
     const start = match.index;
     if (start === undefined || start < cursor) continue;
     const close = findEndOfEscapedJsonString(gap, start + match[0].length);
-    if (close === -1) continue;
     output +=
       gap.slice(cursor, start) + match[0].slice(0, -2) + `\\"${FLAGGED_CI_VARIABLE_REPLACEMENT}\\"`;
-    cursor = close;
+    // A value cut off before its closing quote runs to the end of the gap.
+    cursor = close === -1 ? gap.length : close;
   }
   return output + gap.slice(cursor);
 }
