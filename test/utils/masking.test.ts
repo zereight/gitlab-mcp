@@ -1358,6 +1358,10 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
       // A complete object that is a later array element, after a comma.
       '{"key":"K","masked":true,"tags":["a",{"b":1}],"value":"array-gap-secret"',
       '{"key":"K","masked":true,"tags":[{"a":1}, {"b":2}],"value":"array-gap-secret"',
+      // The flag comes after the nested object, so it follows the value.
+      '{"key":"K","value":"split-gap-secret","meta":{},"masked":true',
+      '{"key":"K","value":"split-gap-secret","meta":{},"masked":true,',
+      '{"key":"K","value":"split-gap-secret","tags":[{"a":1}],"hidden":true',
     ];
     for (const text of cases) {
       const masked = textOf(engine, text, "plain");
@@ -1448,6 +1452,17 @@ describe("When a GitLab CI/CD variable is flagged inside text that is not pure J
       const elapsedMs = performance.now() - started;
       assert.ok(elapsedMs < 2000, `many nested children took ${elapsedMs.toFixed(0)} ms`);
       assert.ok(!masked.includes("many-children-secret"), "flagged value survived");
+    });
+
+    test("completes quickly for many open arrays before an incomplete flagged parent with many children", () => {
+      const engine = createEnabledEngine();
+      const count = 100_000;
+      const text = `${"[".repeat(count)}{"key":"K","masked":true,${'"m":{},'.repeat(count)}"value":"deep-stack-secret"`;
+      const started = performance.now();
+      const masked = engine.maskText(text);
+      const elapsedMs = performance.now() - started;
+      assert.ok(elapsedMs < 2000, `open arrays with many children took ${elapsedMs.toFixed(0)} ms`);
+      assert.ok(!masked.includes("deep-stack-secret"), "flagged value survived");
     });
 
     const deepBalancedInvalid = (depth: number) =>

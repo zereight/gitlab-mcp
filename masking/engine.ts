@@ -666,12 +666,21 @@ interface GapStructure {
   escaped: boolean;
   /** Unclosed `{` and `[` in the gap, outermost first. */
   open: Array<{ char: "{" | "["; index: number }>;
+  /** Position in `open` of the outermost `{`, or -1. Kept with the stack so lookups are O(1). */
+  firstObject: number;
   /** Last character outside whitespace; a string counts as its closing `"`. */
   last: string | undefined;
 }
 
 function newGapStructure(start: number): GapStructure {
-  return { scanned: start, inString: false, escaped: false, open: [], last: undefined };
+  return {
+    scanned: start,
+    inString: false,
+    escaped: false,
+    open: [],
+    firstObject: -1,
+    last: undefined,
+  };
 }
 
 /** Reads `[structure.scanned, end)` into `structure`. Charges the characters it reads. */
@@ -697,8 +706,14 @@ function advanceGapStructure(
     if (/\s/.test(char)) continue;
     structure.last = char;
     if (char === '"') structure.inString = true;
-    else if (char === "{" || char === "[") structure.open.push({ char, index });
-    else if ((char === "}" || char === "]") && structure.open.length > 0) structure.open.pop();
+    else if (char === "{" || char === "[") {
+      if (char === "{" && structure.firstObject === -1)
+        structure.firstObject = structure.open.length;
+      structure.open.push({ char, index });
+    } else if ((char === "}" || char === "]") && structure.open.length > 0) {
+      structure.open.pop();
+      if (structure.open.length <= structure.firstObject) structure.firstObject = -1;
+    }
   }
   structure.scanned = end;
 }
@@ -727,17 +742,20 @@ function hasRangeWithin(ranges: Array<[number, number]>, start: number, end: num
 /**
  * True when the object at `open` is nested inside an incomplete flagged
  * object in the current gap: it is a property value or an array element
- * there, and that parent holds a flag before `open`. Such a span must not
- * split the gap, or a value after the span would lose the flag.
+ * there, and that parent holds a flag before or after `open`. Such a span
+ * must not split the gap, or the parent's value and flag could land in
+ * different gaps. `parentEnd` gives the end of the parent at an index (the
+ * end of the text when it never closes).
  */
 function isNestedInIncompleteFlaggedObject(
   structure: GapStructure,
   flagRanges: Array<[number, number]>,
-  open: number
+  open: number,
+  parentEnd: (index: number) => number
 ): boolean {
-  const parent = structure.open.find(entry => entry.char === "{");
-  if (parent === undefined) return false;
-  if (!hasRangeWithin(flagRanges, parent.index, open)) return false;
+  if (structure.firstObject === -1) return false;
+  const parent = structure.open[structure.firstObject];
+  if (!hasRangeWithin(flagRanges, parent.index, parentEnd(parent.index))) return false;
   const innermost = structure.open[structure.open.length - 1];
   if (innermost.char === "[") return true;
   return structure.last === ":";
@@ -767,6 +785,17 @@ function maskFlaggedCiVariablesInText(
   let gapStart = 0;
   let structure = newGapStructure(0);
   let flagRanges: Array<[number, number]> | undefined;
+  // Parents start at increasing indexes, so one cached entry scans each once.
+  let cachedParent = -1;
+  let cachedParentEnd = text.length;
+  const parentEnd = (index: number): number => {
+    if (index !== cachedParent) {
+      const close = findClosingBrace(text, index, budget);
+      cachedParent = index;
+      cachedParentEnd = close === -1 ? text.length : close + 1;
+    }
+    return cachedParentEnd;
+  };
   let open = text.indexOf("{");
   while (open !== -1 && budget.remaining > 0) {
     const close = findClosingBrace(text, open, budget);
@@ -778,7 +807,7 @@ function maskFlaggedCiVariablesInText(
       if (parsesAsJsonObject(span)) {
         advanceGapStructure(structure, text, open, budget);
         flagRanges ??= flagLiteralRanges(text);
-        if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open)) {
+        if (isNestedInIncompleteFlaggedObject(structure, flagRanges, open, parentEnd)) {
           open = text.indexOf("{", open + 1);
           continue;
         }
