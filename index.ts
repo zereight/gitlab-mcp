@@ -2309,6 +2309,10 @@ const VULNERABILITY_NOT_FOUND_HINT =
 // Unlike the generic getEffectiveProjectId hint, this one does not suggest setting
 // GITLAB_PROJECT_ID: fork_repository is rejected whenever GITLAB_PROJECT_ID is set.
 const FORK_PROJECT_ID_REQUIRED_HINT = "pass project_id (numeric ID or group%2Fproject).";
+// Release tools take a tag_name: a 404 means the project is missing or no release has that tag.
+// Used by handleReleaseTagError() in place of the generic iid hint.
+const RELEASE_TAG_NOT_FOUND_HINT =
+  "check project_id and that tag_name is the Git tag of an existing release; list_releases lists them.";
 
 /**
  * Utility function for handling GitLab API errors
@@ -10789,6 +10793,26 @@ async function getProjectEvents(
 }
 
 /**
+ * Like handleGitLabError, but a 404 from a tag-addressed release endpoint gets the release hint.
+ * Release tools take a tag_name, so the generic hint about the iid would name the wrong argument.
+ * Other responses go through handleGitLabError unchanged.
+ */
+async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
+  if (response.ok || response.status !== 404) {
+    await handleGitLabError(response);
+    return;
+  }
+  const errorBody = await response.text();
+  throw new GitLabApiError(
+    withRecoveryHint(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      RELEASE_TAG_NOT_FOUND_HINT
+    ),
+    response
+  );
+}
+
+/**
  * List all releases for a project
  *
  * @param projectId The ID or URL-encoded path of the project
@@ -10843,7 +10867,7 @@ async function getRelease(
     ...getFetchConfig(),
   });
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10901,7 +10925,7 @@ async function updateRelease(
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10925,7 +10949,7 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10948,7 +10972,7 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 }
 
 /**
