@@ -86,9 +86,11 @@ Leave MCP compact **off** unless you want that split. With
 `GITLAB_MCP_COMPACT_RESULTS=true` (or `--compact-results`), an oversized MCP
 tool reply becomes a short preview plus a `zereight-mcp-gitlab tool …` command.
 Run that command in a terminal for the untruncated payload. Human CLI itself is
-never compacted. If the tool's arguments cannot be written as a safe command
-(for example, an argument name the tool does not declare), the reply keeps its
-preview and has no command.
+never compacted. The reply carries a `cli` command only when every value is
+shell-safe on POSIX shells, cmd.exe, and PowerShell; otherwise it carries
+`cli_argv` (an argv array) to run without a shell. If the tool's arguments cannot
+be replayed at all (for example, an argument name the tool does not declare), the
+reply keeps its preview and has neither.
 
 Every command maps to an existing registry tool — no new GitLab API surface.
 
