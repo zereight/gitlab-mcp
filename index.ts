@@ -5831,6 +5831,46 @@ async function createOrUpdateFile(
 }
 
 /**
+ * Update an existing file with a single PUT. Unlike createOrUpdateFile it never
+ * creates the file, and it sends lastCommitId as given, so GitLab rejects the
+ * commit if the file was changed or deleted since the caller read it.
+ */
+async function updateExistingFile(
+  projectId: string,
+  filePath: string,
+  content: string,
+  commitMessage: string,
+  branch: string,
+  lastCommitId?: string
+): Promise<GitLabCreateUpdateFileResponse> {
+  projectId = decodeURIComponent(projectId);
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/files/${encodeGitLabPathSegment(filePath)}`;
+  const body: Record<string, any> = {
+    branch,
+    content: encodeRepoFilePayloadContent(content, GITLAB_REPO_FILE_ENCODING),
+    commit_message: commitMessage,
+    encoding: GITLAB_REPO_FILE_ENCODING,
+    ...(lastCommitId ? { last_commit_id: lastCommitId } : {}),
+  };
+
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
+    );
+  }
+
+  return GitLabCreateUpdateFileResponseSchema.parse(await response.json());
+}
+
+/**
  * Create a commit in a GitLab project repository
  * 저장소에 커밋 생성
  *
@@ -11640,16 +11680,14 @@ async function handleToolCall(params: any) {
         }
 
         // Commit against the version just read: GitLab rejects the update if the file
-        // changed since, instead of silently overwriting someone else's change.
-        const commit = await createOrUpdateFile(
+        // changed or was deleted since, instead of overwriting or recreating it.
+        // `||`, not `??`: an empty caller ID falls back to the one read with the file.
+        const commit = await updateExistingFile(
           project_id,
           file_path,
           result.description,
           args.commit_message,
           branch,
-          undefined,
-          // `||`, not `??`: an empty ID must not reach createOrUpdateFile, which would
-          // replace it with the ID from a second read and lose the guard.
           args.last_commit_id || file.last_commit_id
         );
 

@@ -54,6 +54,10 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
   let commitAfterFirstRead = false;
   // Bytes of the blob last returned by the Files API (a blob id never changes content)
   let servedBlob = Buffer.from(ORIGINAL, "utf8");
+  // Simulates another writer deleting the file right after the tool's first read
+  let deleteAfterFirstRead = false;
+  let fileExists = true;
+  let createCount = 0;
 
   function resetFile() {
     content = ORIGINAL;
@@ -62,6 +66,9 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     lastPut = undefined;
     readRefs.length = 0;
     commitAfterFirstRead = false;
+    deleteAfterFirstRead = false;
+    fileExists = true;
+    createCount = 0;
   }
 
   async function call(args: Record<string, unknown>) {
@@ -104,6 +111,10 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
         "get",
         `/projects/${PROJECT_ID}/repository/files/${path}`,
         (req, res) => {
+          if (!fileExists) {
+            res.status(404).json({ message: "404 File Not Found" });
+            return;
+          }
           servedBlob = Buffer.from(content, "utf8");
           readRefs.push(String(req.query.ref ?? ""));
           res.json({
@@ -121,6 +132,10 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
             content = content.replace("memory: 600Mi", "memory: 700Mi");
             lastCommitId = "commit-other-writer";
           }
+          if (deleteAfterFirstRead) {
+            deleteAfterFirstRead = false;
+            fileExists = false;
+          }
         }
       );
       mockGitLab.addMockHandler(
@@ -128,6 +143,10 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
         `/projects/${PROJECT_ID}/repository/files/${path}`,
         (req, res) => {
           lastPut = req.body;
+          if (!fileExists) {
+            res.status(400).json({ message: "A file with this name doesn't exist" });
+            return;
+          }
           if (req.body.last_commit_id && req.body.last_commit_id !== lastCommitId) {
             res.status(400).json({
               message:
@@ -142,6 +161,16 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
           commitCount += 1;
           lastCommitId = `commit-${commitCount + 1}`;
           res.json({ file_path: FILE_PATH, branch: req.body.branch });
+        }
+      );
+      mockGitLab.addMockHandler(
+        "post",
+        `/projects/${PROJECT_ID}/repository/files/${path}`,
+        (req, res) => {
+          createCount += 1;
+          fileExists = true;
+          content = req.body.content;
+          res.status(201).json({ file_path: FILE_PATH, branch: req.body.branch });
         }
       );
     }
@@ -303,6 +332,16 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     assert.strictEqual(lastPut?.last_commit_id, "commit-1");
     assert.ok(content.includes("memory: 700Mi"), "the other writer's commit must survive");
     assert.ok(content.includes("suspend: false"), "the stale patch must not be committed");
+  });
+
+  test("a file deleted after the read is not recreated", async () => {
+    deleteAfterFirstRead = true;
+    const msg = await callExpectingError({
+      patch: "<<<<<<< SEARCH\n      suspend: false\n=======\n      suspend: true\n>>>>>>> REPLACE",
+    });
+    assert.match(msg, /doesn't exist/);
+    assert.strictEqual(createCount, 0, "the patch must not create the file again");
+    assert.strictEqual(fileExists, false);
   });
 
   test("a file the Files API converted from ISO-8859-1 is refused", async () => {
