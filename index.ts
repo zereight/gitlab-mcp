@@ -378,6 +378,7 @@ import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
 import { configureTagTools, handleTagToolCall } from "./tools/tags.js";
 import { configureVariableTools, handleVariableToolCall } from "./tools/variables.js";
 import { configureWebhookTools, handleWebhookToolCall } from "./tools/webhooks.js";
+import { configureTodoTools, handleTodoToolCall } from "./tools/todos.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -566,8 +567,6 @@ import {
   type GitLabProjectMember,
   GitLabProjectMemberSchema,
   GitLabProjectSchema,
-  type GitLabTodo,
-  GitLabTodoSchema,
   type GitLabReference,
   GitLabReferenceSchema,
   type GitLabRepository,
@@ -618,8 +617,6 @@ import {
   ListIssueLabelEventsSchema,
   ListIssueStateEventsSchema,
   ListIssuesSchema,
-  type ListTodosOptions,
-  ListTodosSchema,
   ListMergeRequestDiffsSchema, // Added
   GetMergeRequestFileDiffSchema,
   ListMergeRequestChangedFilesSchema,
@@ -681,8 +678,6 @@ import {
   OrbitSchemaSchema,
   OrbitStatusSchema,
   OrbitToolsSchema,
-  MarkAllTodosDoneSchema,
-  MarkTodoDoneSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -1826,7 +1821,7 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, label, tag, variable, and webhook handlers call back into the fetch, error
+// The wiki, milestone, label, tag, variable, webhook, and todo handlers call back into the fetch, error
 // handling, and project scope helpers below; fetch is read at call time because the cookie
 // reload replaces it.
 configureWikiTools({
@@ -1861,6 +1856,11 @@ configureWebhookTools({
   getFetch: () => fetch,
   handleGitLabError,
   getEffectiveProjectId,
+  rejectIfStrictProjectScope,
+});
+configureTodoTools({
+  getFetch: () => fetch,
+  handleGitLabError,
   rejectIfStrictProjectScope,
 });
 
@@ -2705,40 +2705,6 @@ async function listIssues(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueSchema).parse(data);
-}
-
-async function listTodos(options: ListTodosOptions = {}): Promise<GitLabTodo[]> {
-  const url = new URL(`${getEffectiveApiUrl()}/todos`);
-
-  appendFilterParams(url.searchParams, options);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabTodoSchema).parse(data);
-}
-
-async function markTodoDone(id: number): Promise<GitLabTodo> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/${id}/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabTodoSchema.parse(data);
-}
-
-async function markAllTodosDone(): Promise<void> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
 }
 
 /**
@@ -11870,40 +11836,10 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_todos": {
-        rejectIfStrictProjectScope("list_todos");
-        const args = ListTodosSchema.parse(params.arguments);
-        const todos = await listTodos(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todos) }],
-        };
-      }
-
-      case "mark_todo_done": {
-        rejectIfStrictProjectScope("mark_todo_done");
-        const args = MarkTodoDoneSchema.parse(params.arguments);
-        const todo = await markTodoDone(args.id);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todo) }],
-        };
-      }
-
-      case "mark_all_todos_done": {
-        rejectIfStrictProjectScope("mark_all_todos_done");
-        MarkAllTodosDoneSchema.parse(params.arguments);
-        await markAllTodosDone();
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "All pending to-do items marked as done",
-              }),
-            },
-          ],
-        };
-      }
+      case "list_todos":
+      case "mark_todo_done":
+      case "mark_all_todos_done":
+        return await handleTodoToolCall(params);
 
       case "get_merge_request": {
         const args = GetMergeRequestSchema.parse(params.arguments);

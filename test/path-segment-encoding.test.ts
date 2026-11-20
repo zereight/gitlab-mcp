@@ -13,6 +13,7 @@ const pathBuildingSources = [
   readSource("../tools/tags.ts"),
   readSource("../tools/variables.ts"),
   readSource("../tools/webhooks.ts"),
+  readSource("../tools/todos.ts"),
 ];
 
 const rawPathSegmentPatterns = [
@@ -61,6 +62,7 @@ const serverSources = [
   ["tools/tags.ts", "../tools/tags.ts"],
   ["tools/variables.ts", "../tools/variables.ts"],
   ["tools/webhooks.ts", "../tools/webhooks.ts"],
+  ["tools/todos.ts", "../tools/todos.ts"],
   ["downloads/proxy.ts", "../downloads/proxy.ts"],
   ["oauth-proxy.ts", "../oauth-proxy.ts"],
 ] as const;
