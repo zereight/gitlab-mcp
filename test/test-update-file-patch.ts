@@ -18,7 +18,7 @@ import {
 } from "./utils/server-launcher.js";
 import { findMockServerPort, MockGitLabServer } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-update-file-patch-test-token";
+const MOCK_TOKEN = "mock-token-update-file-patch";
 const PROJECT_ID = "123";
 const FILE_PATH = "apps/demo/values.yaml";
 const ENCODED_PATH = encodeURIComponent(FILE_PATH);
@@ -50,6 +50,10 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
   let commitCount = 0;
   let lastPut: Record<string, any> | undefined;
   const readRefs: string[] = [];
+  // Simulates another writer committing right after the tool's first read
+  let commitAfterFirstRead = false;
+  // Bytes of the blob last returned by the Files API (a blob id never changes content)
+  let servedBlob = Buffer.from(ORIGINAL, "utf8");
 
   function resetFile() {
     content = ORIGINAL;
@@ -57,6 +61,7 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     commitCount = 0;
     lastPut = undefined;
     readRefs.length = 0;
+    commitAfterFirstRead = false;
   }
 
   async function call(args: Record<string, unknown>) {
@@ -99,6 +104,7 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
         "get",
         `/projects/${PROJECT_ID}/repository/files/${path}`,
         (req, res) => {
+          servedBlob = Buffer.from(content, "utf8");
           readRefs.push(String(req.query.ref ?? ""));
           res.json({
             file_name: "values.yaml",
@@ -106,9 +112,15 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
             encoding: "base64",
             content: Buffer.from(content, "utf8").toString("base64"),
             ref: String(req.query.ref ?? ""),
+            blob_id: "blob-values",
             commit_id: lastCommitId,
             last_commit_id: lastCommitId,
           });
+          if (commitAfterFirstRead) {
+            commitAfterFirstRead = false;
+            content = content.replace("memory: 600Mi", "memory: 700Mi");
+            lastCommitId = "commit-other-writer";
+          }
         }
       );
       mockGitLab.addMockHandler(
@@ -133,6 +145,35 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
         }
       );
     }
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${PROJECT_ID}/repository/blobs/blob-values/raw`,
+      (_req, res) => {
+        res.type("application/octet-stream").send(servedBlob);
+      }
+    );
+    // Stored as ISO-8859-1; the Files API returns it converted to UTF-8.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${PROJECT_ID}/repository/files/legacy.txt`,
+      (_req, res) => {
+        res.json({
+          file_name: "legacy.txt",
+          file_path: "legacy.txt",
+          encoding: "base64",
+          content: Buffer.from("name: café\nport: 80\n", "utf8").toString("base64"),
+          blob_id: "blob-latin1",
+          last_commit_id: "commit-1",
+        });
+      }
+    );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${PROJECT_ID}/repository/blobs/blob-latin1/raw`,
+      (_req, res) => {
+        res.type("application/octet-stream").send(Buffer.from("name: café\nport: 80\n", "latin1"));
+      }
+    );
     mockGitLab.addMockHandler(
       "get",
       `/projects/${PROJECT_ID}/repository/files/logo.png`,
@@ -252,11 +293,31 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     assert.strictEqual(content, ORIGINAL);
   });
 
+  test("an empty last_commit_id still guards against a commit made after the read", async () => {
+    commitAfterFirstRead = true;
+    const msg = await callExpectingError({
+      patch: "<<<<<<< SEARCH\n      suspend: false\n=======\n      suspend: true\n>>>>>>> REPLACE",
+      last_commit_id: "",
+    });
+    assert.match(msg, /changed since/);
+    assert.strictEqual(lastPut?.last_commit_id, "commit-1");
+    assert.ok(content.includes("memory: 700Mi"), "the other writer's commit must survive");
+    assert.ok(content.includes("suspend: false"), "the stale patch must not be committed");
+  });
+
+  test("a file the Files API converted from ISO-8859-1 is refused", async () => {
+    const msg = await callExpectingError({
+      file_path: "legacy.txt",
+      patch: "<<<<<<< SEARCH\nport: 80\n=======\nport: 8080\n>>>>>>> REPLACE",
+    });
+    assert.match(msg, /not stored as UTF-8/);
+  });
+
   test("a binary file is refused", async () => {
     const msg = await callExpectingError({
       file_path: "logo.png",
       patch: "<<<<<<< SEARCH\nPNG\n=======\nJPG\n>>>>>>> REPLACE",
     });
-    assert.match(msg, /not a UTF-8 text file/);
+    assert.match(msg, /not stored as UTF-8/);
   });
 });

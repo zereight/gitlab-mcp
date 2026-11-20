@@ -2617,6 +2617,19 @@ async function getFileContents(
   return parsedData;
 }
 
+/**
+ * Read a blob's stored bytes. The Files API converts text that is not stored as
+ * UTF-8 (UTF-16, ISO-8859-1) to UTF-8 before encoding it, so only the raw blob
+ * shows how a file is really stored.
+ */
+async function getRepositoryBlobRaw(projectId: string, blobSha: string): Promise<Buffer> {
+  const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(projectId));
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/blobs/${encodeGitLabPathSegment(blobSha)}/raw`;
+  const response = await fetch(url, { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return Buffer.from(await response.arrayBuffer());
+}
+
 async function createIssue(
   projectId: string,
   options: z.infer<typeof CreateIssueOptionsSchema>
@@ -11570,13 +11583,27 @@ async function handleToolCall(params: any) {
             )
           );
         }
-        if (file.encoding !== "utf8") {
-          throw new ToolInputError(
+        const notUtf8 = () =>
+          new ToolInputError(
             withRecoveryHint(
-              `${file_path} is not a UTF-8 text file and cannot be patched`,
-              "use create_or_update_file with encoding base64 for binary files."
+              `${file_path} is not stored as UTF-8 text and cannot be patched`,
+              "use create_or_update_file to write the whole file in the encoding it needs."
             )
           );
+        if (file.encoding !== "utf8" || !file.blob_id) {
+          throw notUtf8();
+        }
+        // The Files API converts non-UTF-8 text to UTF-8, so check the stored bytes of the
+        // same blob: patching converted text would re-encode the lines the patch leaves alone.
+        const rawBytes = await getRepositoryBlobRaw(project_id, file.blob_id);
+        let rawText: string;
+        try {
+          rawText = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(rawBytes);
+        } catch {
+          throw notUtf8();
+        }
+        if (rawText !== file.content) {
+          throw notUtf8();
         }
 
         let result: { description: string; changes: number; summary: string; preview: string };
@@ -11621,7 +11648,9 @@ async function handleToolCall(params: any) {
           args.commit_message,
           branch,
           undefined,
-          args.last_commit_id ?? file.last_commit_id
+          // `||`, not `??`: an empty ID must not reach createOrUpdateFile, which would
+          // replace it with the ID from a second read and lose the guard.
+          args.last_commit_id || file.last_commit_id
         );
 
         return {
