@@ -1,0 +1,3 @@
+### Changed
+
+- Compact-result replies (`GITLAB_MCP_COMPACT_RESULTS`, `GITLAB_MCP_COMPACT_TOOLS`) now carry the `cli` command only when every token reads the same in POSIX shells, cmd.exe (including the npm `.cmd` shim), and PowerShell: a plain word, or a value of ASCII letters, digits, spaces, and `._:/=+,-` in double quotes. Any other value, including an empty string, non-ASCII text, or nested `--args-json`, leaves the reply with `cli_argv` instead: the argv as a JSON array of strings, starting with `zereight-mcp-gitlab`, to run without a shell. A reply never carries both, and arguments that could not be replayed before still get neither.
