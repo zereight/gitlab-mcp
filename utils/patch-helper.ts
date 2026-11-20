@@ -1,5 +1,5 @@
 /**
- * Patch helper for issue description updates.
+ * Patch helper for issue description and repository file updates.
  * Supports two patch formats:
  * - search_replace: exact text search/replace blocks
  * - unified_diff: standard unified diff via the `diff` library
@@ -70,12 +70,14 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
  * @param source - Current text
  * @param blocks - Search/replace blocks
  * @param allowMultiple - If true, replace all occurrences; if false, fail on duplicate match
+ * @param target - What the text is, for error messages (e.g. "issue description", "file")
  * @returns PatchResult or throws on error
  */
 export function applySearchReplace(
   source: string,
   blocks: SearchReplaceBlock[],
-  allowMultiple: boolean = false
+  allowMultiple: boolean = false,
+  target: string = "issue description"
 ): PatchResult {
   let current = source;
   let totalChanges = 0;
@@ -97,7 +99,7 @@ export function applySearchReplace(
 
     if (!occurrences || occurrences.length === 0) {
       throw new Error(
-        `Search text not found in issue description. Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
+        `Search text not found in ${target}. Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
       );
     }
 
@@ -116,7 +118,7 @@ export function applySearchReplace(
     // Detect no-op
     if (replaced === current) {
       throw new Error(
-        `Replacement did not change the description (identical result). Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
+        `Replacement did not change the ${target} (identical result). Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
       );
     }
 
@@ -143,7 +145,11 @@ export function applySearchReplace(
  * Apply a unified diff patch to source text.
  * Delegates to the `diff` library's applyPatch.
  */
-export function applyUnifiedDiff(source: string, patch: string): PatchResult {
+export function applyUnifiedDiff(
+  source: string,
+  patch: string,
+  target: string = "issue description"
+): PatchResult {
 // Validate the patch can be parsed first
   const parsed = parsePatch(patch);
   if (parsed.length === 0 || parsed.every((p) => p.hunks.length === 0)) {
@@ -156,7 +162,7 @@ export function applyUnifiedDiff(source: string, patch: string): PatchResult {
   const result = applyPatch(source, patch);
   if (result === false) {
     throw new Error(
-      "Unified diff could not be applied to the current issue description. " +
+      `Unified diff could not be applied to the current ${target}. ` +
         "The diff context may not match. Use 'dry_run: true' to debug."
     );
   }
@@ -164,7 +170,7 @@ export function applyUnifiedDiff(source: string, patch: string): PatchResult {
   // Detect no-op: patch applied but nothing changed
   if (result === source) {
     throw new Error(
-      "Unified diff applied but did not change the issue description. " +
+      `Unified diff applied but did not change the ${target}. ` +
         "The source text already matches the patched result."
     );
   }

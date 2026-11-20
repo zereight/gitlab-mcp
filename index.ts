@@ -699,6 +699,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
+  UpdateFilePatchSchema,
   ReorderIssueSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -11552,6 +11553,92 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      }
+
+      case "update_file_patch": {
+        const args = UpdateFilePatchSchema.parse(params.arguments);
+        const { project_id, file_path, branch, patch_type, patch, dry_run, allow_multiple } = args;
+
+        // Read the file from the branch the commit goes to
+        const file = await getFileContents(project_id, file_path, branch);
+        if (Array.isArray(file)) {
+          throw new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is a directory, not a file`,
+              "pass the path of a single file; use get_repository_tree to list a directory."
+            )
+          );
+        }
+        if (file.encoding !== "utf8") {
+          throw new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is not a UTF-8 text file and cannot be patched`,
+              "use create_or_update_file with encoding base64 for binary files."
+            )
+          );
+        }
+
+        let result: { description: string; changes: number; summary: string; preview: string };
+        if (patch_type === "search_replace") {
+          const blocks = parseSearchReplaceBlocks(patch);
+          if (blocks.length === 0) {
+            throw new ToolInputError(
+              withRecoveryHint(
+                "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE",
+                'put each <<<<<<< SEARCH, =======, and >>>>>>> REPLACE marker on its own line, or set patch_type to "unified_diff".'
+              )
+            );
+          }
+          result = applySearchReplace(file.content, blocks, allow_multiple, "file");
+        } else {
+          result = applyUnifiedDiff(file.content, patch, "file");
+        }
+
+        if (dry_run) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "preview",
+                  dry_run: true,
+                  changes: result.changes,
+                  summary: result.summary,
+                  preview: result.preview,
+                }),
+              },
+            ],
+          };
+        }
+
+        // Commit against the version just read: GitLab rejects the update if the file
+        // changed since, instead of silently overwriting someone else's change.
+        const commit = await createOrUpdateFile(
+          project_id,
+          file_path,
+          result.description,
+          args.commit_message,
+          branch,
+          undefined,
+          args.last_commit_id ?? file.last_commit_id
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                changes: result.changes,
+                summary: result.summary,
+                preview: result.preview,
+                file_path: commit.file_path,
+                branch: commit.branch,
+                ...(commit.commit_id ? { commit_id: commit.commit_id } : {}),
+              }),
+            },
+          ],
         };
       }
 
