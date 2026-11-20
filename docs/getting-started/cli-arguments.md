@@ -90,7 +90,8 @@ never compacted. The reply carries a `cli` command only when every value is
 shell-safe on POSIX shells, cmd.exe, and PowerShell; otherwise it carries
 `cli_argv` (an argv array) to run without a shell. If the tool's arguments cannot
 be replayed at all (for example, an argument name the tool does not declare), the
-reply keeps its preview and has neither.
+reply keeps its preview and has neither. `cli_argv` was added in v2.3.30;
+v2.3.29 and earlier only emit a POSIX single-quoted `cli` command.
 
 Every command maps to an existing registry tool — no new GitLab API surface.
 
