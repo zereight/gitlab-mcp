@@ -7,6 +7,7 @@ import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import { stripUrlUserinfo } from "./utils/redact-url.js";
 import { apiUrlError, apiUrlUserinfoWarning } from "./utils/url.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
+import { assertNoRemovedConfig } from "./removed-config.js";
 
 const logger = createLogger("gitlab-mcp-auth");
 
@@ -69,10 +70,6 @@ function isReadOnlyMode(
   parsedArgs: Readonly<Record<string, string>>,
   env: NodeJS.ProcessEnv
 ): boolean {
-  const readOnly = parsedArgs["read-only"] ?? env.GITLAB_READ_ONLY_MODE;
-  if (readOnly === "true") {
-    return true;
-  }
   return (parsedArgs["permission-mode"] ?? env.GITLAB_PERMISSION_MODE) === "readonly";
 }
 
@@ -98,6 +95,8 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     stdout.write(AUTH_CLI_HELP);
     return;
   }
+
+  assertNoRemovedConfig(env, argv);
 
   const clientId = readFlag(argv, "client-id") ?? env.GITLAB_OAUTH_CLIENT_ID;
   if (!clientId) {

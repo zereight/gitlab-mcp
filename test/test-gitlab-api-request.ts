@@ -77,7 +77,6 @@ async function withClient(
       GITLAB_DISABLE_VERSION_CHECK: "true",
       LOG_FORMAT: "json",
       LOG_LEVEL: "info",
-      GITLAB_READ_ONLY_MODE: "false",
       GITLAB_PERMISSION_MODE: "full",
       GITLAB_TOOLSETS: "",
       GITLAB_TOOLS: "",
@@ -310,28 +309,6 @@ describe("When the api toolset is listed", { timeout: 180_000 }, () => {
           );
           assert.equal(posted.isError, true);
           assert.match(posted.text, /only GET/);
-        }
-      );
-    });
-  });
-
-  describe("with GITLAB_READ_ONLY_MODE=true", () => {
-    it("should reject POST even if permission mode is full", async () => {
-      await withClient(
-        {
-          GITLAB_TOOLSETS: "api",
-          GITLAB_READ_ONLY_MODE: "true",
-          GITLAB_PERMISSION_MODE: "full",
-        },
-        async client => {
-          const result = readToolText(
-            await client.callTool({
-              name: "gitlab_api_request",
-              arguments: { method: "POST", path: "projects/5", body: { title: "x" } },
-            })
-          );
-          assert.equal(result.isError, true);
-          assert.match(result.text, /only GET/);
         }
       );
     });

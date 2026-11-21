@@ -148,7 +148,7 @@ describe("variables toolset (tools/variables.ts)", () => {
   test("lists the ten variable tools, and only the read ones in read-only mode", async t => {
     const { apiUrl } = await startGitLab(t);
     const full = await connect(t, apiUrl);
-    const readOnly = await connect(t, apiUrl, { GITLAB_READ_ONLY_MODE: "true" });
+    const readOnly = await connect(t, apiUrl, { GITLAB_PERMISSION_MODE: "readonly" });
 
     const listed = (await full.listTools()).tools.filter(tool =>
       VARIABLE_TOOLS.includes(tool.name)
