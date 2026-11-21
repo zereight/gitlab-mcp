@@ -262,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.28`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. `GITLAB_MASKING_ENABLED`를 쓴다면 2.3.29 이상(또는 `@latest`)을 사용하세요. 이전 버전은 GitLab이 masked 또는 hidden으로 지정한 CI/CD 변수 값을 평문으로 반환합니다. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.29`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. `GITLAB_MASKING_ENABLED`를 쓴다면 2.3.29 이상(또는 `@latest`)을 사용하세요. 이전 버전은 GitLab이 masked 또는 hidden으로 지정한 CI/CD 변수 값을 평문으로 반환합니다. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -317,7 +317,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 `zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
-같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude`는 클라이언트 설정을 출력하고, `doctor`는 토큰·API URL·toolset·버전을 점검합니다. 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
+같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude`는 클라이언트 설정을 출력하고, `doctor`는 토큰·API URL·toolset·버전을 점검합니다. 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. 모든 값이 POSIX 셸, cmd.exe, PowerShell 어디서나 셸에 안전할 때만 응답에 `cli` 명령이 들어가고, 그렇지 않으면 셸 없이 실행할 argv 배열 `cli_argv`가 들어갑니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,

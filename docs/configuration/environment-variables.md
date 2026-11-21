@@ -14,7 +14,9 @@ Use an API URL, not the GitLab web root:
 Optional. Set to `true` to replace oversized MCP tool replies with a JSON preview
 and a `zereight-mcp-gitlab tool …` command that prints the full payload in a
 terminal. Default `false` so existing clients keep the complete JSON. Human CLI
-commands are never compacted.
+commands are never compacted. The reply carries that command as `cli` only when
+every value is shell-safe on POSIX shells, cmd.exe, and PowerShell; otherwise it
+carries `cli_argv` (an argv array) to run without a shell.
 
 ### `GITLAB_MCP_COMPACT_RESULT_CHARS`
 
