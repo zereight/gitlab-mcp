@@ -40,7 +40,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | Argument               | Equivalent env var             | Description                                         |
 | ---------------------- | ------------------------------ | --------------------------------------------------- |
 | `--token`              | `GITLAB_PERSONAL_ACCESS_TOKEN` | GitLab Personal Access Token.                       |
-| `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
+| `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). Write a comma inside a username or password as `%2C`; since v3.0.0 a comma that may be inside one stops startup. See [`GITLAB_API_URL`](../configuration/environment-variables.md#gitlab_api_url). |
 | `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead. |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
 | `--toolsets`           | `GITLAB_TOOLSETS`              | Named toolsets. Unset uses lean `core`. Do not pass `all` unless you accept ~73k schema tokens. `all` does not enable `api`; use `--toolsets=api`. |

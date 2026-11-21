@@ -603,6 +603,7 @@ describe("When running the auth command", () => {
   });
 
   // The fetch error for this URL printed "http://alice:Pw7x,http://[REDACTED]@host/...".
+  // Since v3 (#876) the comma may be inside the password, so the value is refused.
   describe("with --api-url split inside the password by a comma", () => {
     it("should fail before calling GitLab without printing the URL", async () => {
       await assert.rejects(
@@ -623,7 +624,10 @@ describe("When running the auth command", () => {
           }),
         (error: unknown) => {
           assert.ok(error instanceof Error);
-          assert.match(error.message, /^--api-url is not a valid URL .*%2C$/);
+          assert.match(
+            error.message,
+            /^--api-url comma 1 of 1 may be inside a username or password, .* as %2C, /
+          );
           assert.equal(/alice|Pw7x/.test(error.message), false);
           return true;
         }
@@ -631,14 +635,47 @@ describe("When running the auth command", () => {
     });
   });
 
-  // A literal comma in the password makes the whole value unparseable.
+  // The server reads the same value as a list and refuses it, so auth does too.
+  describe("with the ambiguous GITLAB_API_URL from #876", () => {
+    const values: Record<string, string> = {
+      "a port-like password start": "http://alice:12,http://w@host",
+      "the issue's example": "https://alice:123,https:pw-secret-876@host",
+    };
+    for (const [name, value] of Object.entries(values)) {
+      it(`should fail for ${name} without calling GitLab or printing the value`, async () => {
+        await assert.rejects(
+          () =>
+            runAuthCommandAsync({
+              argv: ["node", "index.js", "auth", `--client-id=${CLIENT_ID}`],
+              env: { GITLAB_API_URL: value },
+              stdout: createStdoutBuffer().stdout,
+              fetchImpl: async () => {
+                throw new Error("fetch should not run with an ambiguous API URL");
+              },
+            }),
+          (error: unknown) => {
+            assert.ok(error instanceof Error);
+            assert.match(
+              error.message,
+              /^GITLAB_API_URL comma 1 of 1 may be inside a username or password, .* as %2C, /
+            );
+            assert.equal(/alice|12|pw-secret-876/.test(error.message), false);
+            return true;
+          }
+        );
+      });
+    }
+  });
+
+  // A literal comma in the user name, before a ":" and a "/", is not one the
+  // ambiguity check finds; the value then fails to parse as one URL.
   describe("with a GITLAB_API_URL that does not parse", () => {
     it("should fail before calling GitLab without printing the value", async () => {
       await assert.rejects(
         () =>
           runAuthCommandAsync({
             argv: ["node", "index.js", "auth", `--client-id=${CLIENT_ID}`],
-            env: { GITLAB_API_URL: "http://alice:12,http://w@host" },
+            env: { GITLAB_API_URL: "http://alice,:Pw7x/x@host/api/v4" },
             stdout: createStdoutBuffer().stdout,
             fetchImpl: async () => {
               throw new Error("fetch should not run with an invalid API URL");
@@ -647,7 +684,7 @@ describe("When running the auth command", () => {
         (error: unknown) => {
           assert.ok(error instanceof Error);
           assert.match(error.message, /^GITLAB_API_URL is not a valid URL .*%2C$/);
-          assert.equal(/alice|12/.test(error.message), false);
+          assert.equal(/alice|Pw7x/.test(error.message), false);
           return true;
         }
       );
