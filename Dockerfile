@@ -1,7 +1,7 @@
 # bookworm-slim (glibc): node:*-alpine (musl) crashes under QEMU arm64
 # emulation with "uncaught target signal 4 (Illegal instruction)" during npm ci,
 # hanging the multi-platform CI build until the job timeout.
-FROM node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d AS builder
+FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS builder
 
 COPY . /app
 COPY tsconfig.json /tsconfig.json
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 RUN --mount=type=cache,target=/root/.npm-production npm ci --ignore-scripts --omit-dev
 
-FROM node:22.23.4-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS release
+FROM node:22.23.5-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS release
 
 # MCP Registry OCI ownership check; must match "name" in server.json.
 LABEL io.modelcontextprotocol.server.name="io.github.zereight/gitlab-mcp"
