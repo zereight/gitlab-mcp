@@ -678,6 +678,10 @@ class ReleaseSandbox {
         2
       )}\n`
     );
+    this.write(
+      "manifest.json",
+      `${JSON.stringify({ name: "gitlab-mcp", version: "1.0.0" }, null, 2)}\n`
+    );
     for (const readme of ["README.md", "README.ko.md", "README.zh-CN.md", "README.pt-BR.md"]) {
       this.write(readme, "Run `npx -y @zereight/mcp-gitlab@0.9.0`.\n");
     }
@@ -782,6 +786,10 @@ class ReleaseSandbox {
 
   originVersionAt(ref: string): string {
     return JSON.parse(this.read(this.origin, "show", `${ref}:package.json`)).version;
+  }
+
+  originJsonVersionAt(ref: string, file: string): string {
+    return JSON.parse(this.read(this.origin, "show", `${ref}:${file}`)).version;
   }
 
   assertCleanOnMain(): void {
@@ -905,6 +913,10 @@ describe("release.sh end to end", () => {
       assert.strictEqual(pr.title, "chore(release): v1.0.1");
       assert.ok(String(pr.body).includes("- `@alice` (1 PR: #5)"), String(pr.body));
       assert.strictEqual(sandbox.originVersionAt("refs/heads/release/v1.0.1"), "1.0.1");
+      assert.strictEqual(
+        sandbox.originJsonVersionAt("refs/heads/release/v1.0.1", "manifest.json"),
+        "1.0.1"
+      );
       assert.strictEqual(sandbox.originVersionAt("refs/heads/main"), "1.0.0");
       // A real run that stops keeps the local release branch (it matches the
       // pushed PR head) but leaves the checkout on a clean main.
@@ -962,6 +974,7 @@ describe("release.sh end to end", () => {
         "chore(release): v1.0.1 (#42)"
       );
       assert.strictEqual(sandbox.originVersionAt("refs/tags/v1.0.1"), "1.0.1");
+      assert.strictEqual(sandbox.originJsonVersionAt("refs/tags/v1.0.1", "manifest.json"), "1.0.1");
 
       const releases = sandbox.state().releases.filter(r => r.tag === "v1.0.1");
       assert.strictEqual(releases.length, 1);

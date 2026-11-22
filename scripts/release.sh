@@ -126,6 +126,22 @@ tag_exists() {
   git rev-parse -q --verify "refs/tags/$1" >/dev/null
 }
 
+sync_manifest_version() {
+  local version="$1"
+
+  if [ ! -f manifest.json ]; then
+    return
+  fi
+
+  node - "$version" <<'NODE'
+const fs = require("fs");
+const version = process.argv[2];
+const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+manifest.version = version;
+fs.writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
+NODE
+}
+
 sync_registry_metadata_version() {
   local version="$1"
 
@@ -250,6 +266,9 @@ stage_release_paths() {
   git add -A changelog.d
   if [ -f server.json ]; then
     git add server.json
+  fi
+  if [ -f manifest.json ]; then
+    git add manifest.json
   fi
 }
 
@@ -1116,6 +1135,7 @@ cut_release_pr() {
   RELEASE_BRANCH=$(release_branch_name "$NEW_VERSION")
 
   sync_registry_metadata_version "$NEW_VERSION"
+  sync_manifest_version "$NEW_VERSION"
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
