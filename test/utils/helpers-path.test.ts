@@ -21,7 +21,10 @@ describe("assertSafeRelativePath", () => {
   });
 
   test("rejects absolute paths", () => {
-    assert.throws(() => assertSafeRelativePath("/etc/passwd", "file_path"), /traversal/);
+    assert.throws(
+      () => assertSafeRelativePath("/etc/passwd", "file_path"),
+      /absolute paths are not allowed/
+    );
   });
 
   test("rejects parent-directory traversal", () => {

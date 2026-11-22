@@ -4078,7 +4078,11 @@ export const GitLabMarkdownUploadSchema = z.object({
 
 export const MarkdownUploadSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
-  file_path: z.string().describe("Path to the file to upload"),
+  file_path: z
+    .string()
+    .describe(
+      "Path to the file to upload, relative to the MCP server's working directory. Absolute paths and '..' are rejected."
+    ),
 });
 
 export const MarkdownUploadRemoteSchema = z.object({

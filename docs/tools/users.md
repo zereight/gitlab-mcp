@@ -100,7 +100,7 @@ Upload a file for use in markdown content.
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path of the project |
-| `file_path` | string | ✓ | Path to the file to upload |
+| `file_path` | string | ✓ | Path to the file to upload, relative to the MCP server's working directory. Absolute paths and '..' are rejected. |
 
 ### `download_attachment`
 

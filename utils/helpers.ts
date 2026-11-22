@@ -23,8 +23,10 @@ export const EXCLUDED_FILE_PATTERN_MAX_PROGRAM_SIZE = 1000;
  */
 export function assertSafeRelativePath(inputPath: string, label = "path"): string {
   const normalized = path.normalize(inputPath);
+  if (path.isAbsolute(normalized)) {
+    throw new Error(`Invalid ${label}: absolute paths are not allowed.`);
+  }
   if (
-    path.isAbsolute(normalized) ||
     normalized === ".." ||
     normalized.startsWith(".." + path.sep) ||
     normalized.includes(path.sep + ".." + path.sep)
