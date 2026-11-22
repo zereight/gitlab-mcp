@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22.22.2"
+          node-version-file: .nvmrc
           registry-url: "https://registry.npmjs.org/"
       # A re-run of a run that already published must not fail on the
       # existing version, so the Homebrew sync still runs. The tag must match
@@ -91,7 +91,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22.22.2"
+          node-version-file: .nvmrc
 
       - name: Sync formula from npm tarball
         run: bash scripts/sync-homebrew-formula.sh
@@ -136,7 +136,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22.22.2"
+          node-version-file: .nvmrc
           registry-url: "https://registry.npmjs.org/"
       # main push: <next patch>-next.<run number>, e.g. 2.3.5-next.123.
       # Pre-release: the tag version, which must be X.Y.Z-<pre> so it can't
