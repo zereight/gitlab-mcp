@@ -4,6 +4,7 @@ import {
   assertNoRemovedConfig,
   getRemovedConfigErrors,
   MIGRATION_GUIDE_URL,
+  REMOVED_CONFIG_ISSUE_URL,
 } from "../removed-config.js";
 
 describe("When removed configuration is detected", () => {
@@ -121,8 +122,10 @@ describe("When removed configuration is detected", () => {
         () => assertNoRemovedConfig({ GITLAB_READ_ONLY_MODE: "true" }, []),
         error => {
           assert.ok(error instanceof Error);
-          assert.ok(error.message.includes(MIGRATION_GUIDE_URL));
-          assert.ok(error.message.includes("https://github.com/zereight/gitlab-mcp/issues/815"));
+          // Exact line match: a substring check would also pass for a longer or altered URL.
+          const lines = error.message.split("\n");
+          assert.ok(lines.includes(`Migration guide: ${MIGRATION_GUIDE_URL}`));
+          assert.ok(lines.includes(`Tracking issue: ${REMOVED_CONFIG_ISSUE_URL}`));
           return true;
         }
       );
