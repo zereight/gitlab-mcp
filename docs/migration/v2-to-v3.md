@@ -63,7 +63,10 @@ So:
   warning) and the first `tools/list` gains `list_labels`, the only slim-hidden tool in
   `core`, `wiki`, `milestones`, and `pipelines`. To keep the v2 tool list, also set
   `GITLAB_DENIED_TOOLS_REGEX=^list_labels$`. Unlike slim, that regex blocks `list_labels`
-  even when `GITLAB_TOOLS` names it.
+  even when `GITLAB_TOOLS` names it. The variable holds one
+  pattern, so setting it replaces any pattern you already use. If you have one, add
+  `list_labels` to it instead: `^(delete_label|list_labels)$` for a list of names, or
+  append `|^list_labels$` to any pattern, for example `^delete_.*|^list_labels$`.
 
 ## Group access control needs MCP OAuth
 
