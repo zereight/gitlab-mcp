@@ -99,7 +99,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({ USE_GITLAB_WIKI: "true" }, []);
     assertRefused(
       result,
-      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list and keep its other toolsets, without adding core."
+      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 
@@ -107,7 +107,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--use-wiki"]);
     assertRefused(
       result,
-      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list and keep its other toolsets, without adding core."
+      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 
@@ -115,7 +115,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({ USE_MILESTONE: "true" }, []);
     assertRefused(
       result,
-      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list and keep its other toolsets, without adding core."
+      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 
@@ -123,7 +123,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--use-milestone"]);
     assertRefused(
       result,
-      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list and keep its other toolsets, without adding core."
+      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 
@@ -131,7 +131,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({ USE_PIPELINE: "true" }, []);
     assertRefused(
       result,
-      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list and keep its other toolsets, without adding core."
+      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 
@@ -139,7 +139,7 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--use-pipeline"]);
     assertRefused(
       result,
-      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list and keep its other toolsets, without adding core."
+      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core."
     );
   });
 });

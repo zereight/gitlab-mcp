@@ -73,12 +73,12 @@ describe("When removed configuration is detected", () => {
         assert.ok(error.includes(`Use ${toolset} in GITLAB_TOOLSETS (or --toolsets) instead.`));
         assert.ok(
           error.includes(
-            `Append ${toolset} to your existing toolset list and keep its other toolsets, without adding core.`
+            `Append ${toolset} to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core.`
           )
         );
         assert.ok(
           error.includes(
-            `Set GITLAB_TOOLSETS=core,${toolset} only if GITLAB_TOOLSETS was unset or had no valid toolset name (v2 then exposed core).`
+            `Use core,${toolset} only if that list was unset or had no valid toolset name (v2 then exposed core).`
           )
         );
         assert.ok(error.includes("See the migration guide."));

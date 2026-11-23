@@ -47,7 +47,8 @@ toolsets like this, and v3 keeps the same rules:
 So:
 
 - **`GITLAB_TOOLSETS` was unset, empty, or had no valid toolset name** (for example
-  `GITLAB_TOOLSETS=unknown`): v2 fell back to `core`, so keep it: `GITLAB_TOOLSETS=core,wiki`.
+  `GITLAB_TOOLSETS=unknown`): v2 fell back to `core`, so keep it and add each enabled toolset: `GITLAB_TOOLSETS=core,wiki`,
+  `core,milestones`, or `core,pipelines` (or several, such as `core,wiki,pipelines`).
   Writing `GITLAB_TOOLSETS=wiki` or `unknown,wiki` would drop the core tools.
 - **`GITLAB_TOOLSETS` was a list with at least one valid toolset name:** append the new toolset to that list as it is, and do
   not add `core` unless it was already there. For example, `GITLAB_TOOLSETS=search` with
@@ -58,12 +59,15 @@ So:
   leave it exactly as it is. `all` is only valid on its own; `all,wiki` drops `all` as an
   unknown name.
 - Append only the toolsets whose legacy setting was enabled.
+- A non-empty `--toolsets` flag overrides `GITLAB_TOOLSETS`. Apply these rules to whichever
+  one you set.
 - `GITLAB_TOOL_PROFILE=slim` applies only while `GITLAB_TOOLSETS` is unset. If you used
   `slim` with a `USE_*` setting, the explicit list turns slim off (the server logs a
   warning) and the first `tools/list` gains `list_labels`, the only slim-hidden tool in
   `core`, `wiki`, `milestones`, and `pipelines`. To keep the v2 tool list, also set
   `GITLAB_DENIED_TOOLS_REGEX=^list_labels$`. Unlike slim, that regex blocks `list_labels`
-  even when `GITLAB_TOOLS` names it. The variable holds one
+  even when `GITLAB_TOOLS` names it. If `GITLAB_TOOLS` already names `list_labels`, skip this:
+  slim did not hide it for you. The variable holds one
   pattern, so setting it replaces any pattern you already use. If you have one, add
   `list_labels` to it instead: `^(delete_label|list_labels)$` for a list of names, or
   append `|^list_labels$` to any pattern, for example `^delete_.*|^list_labels$`.

@@ -19,8 +19,8 @@ interface RemovedConfig {
  */
 function toolsetDetail(toolset: string, extra = ""): string {
   return (
-    `Append ${toolset} to your existing toolset list and keep its other toolsets, without adding core. ` +
-    `Set GITLAB_TOOLSETS=core,${toolset} only if GITLAB_TOOLSETS was unset or had no valid toolset name (v2 then exposed core). ` +
+    `Append ${toolset} to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core. ` +
+    `Use core,${toolset} only if that list was unset or had no valid toolset name (v2 then exposed core). ` +
     extra +
     "Leave exactly `all` unchanged. See the migration guide."
   );
