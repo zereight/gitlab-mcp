@@ -92,7 +92,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`protect_branch`](../tools/branches.md#protect_branch) — `test/test-protected-branches.ts`
 - [x] [`update_protected_branch`](../tools/branches.md#update_protected_branch) — `test/test-permission-mode.ts`, `test/test-protected-branches.ts`
 - [x] [`unprotect_branch`](../tools/branches.md#unprotect_branch) — `test/test-permission-mode.ts`, `test/test-protected-branches.ts`
-- [x] [`update_default_branch`](../tools/branches.md#update_default_branch) — `test/project-response-redaction.test.ts`, `test/test-protected-branches.ts`
+- [x] [`update_default_branch`](../tools/branches.md#update_default_branch) — `test/live/update-default-branch-redaction.test.ts`, `test/project-response-redaction.test.ts`, `test/test-protected-branches.ts`
 - [ ] [`list_commits`](../tools/branches.md#list_commits)
 - [ ] [`get_commit`](../tools/branches.md#get_commit)
 - [ ] [`get_commit_diff`](../tools/branches.md#get_commit_diff)
