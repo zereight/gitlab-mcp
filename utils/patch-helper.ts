@@ -1,5 +1,5 @@
 /**
- * Patch helper for issue description updates.
+ * Patch helper for issue description and repository file updates.
  * Supports two patch formats:
  * - search_replace: exact text search/replace blocks
  * - unified_diff: standard unified diff via the `diff` library
@@ -36,8 +36,13 @@ export interface SearchReplaceBlock {
  */
 export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
-  // Match SEARCH...REPLACE blocks (greedy multiline)
-  const regex = /<<<<<<< SEARCH[^\S\n]*\n([\s\S]*?)=======[^\S\n]*\n([\s\S]*?)>>>>>>> REPLACE[^\S\n]*/g;
+  // Where each parsed block starts and ends in the patch, to check the text between them.
+  const spans: Array<{ start: number; end: number }> = [];
+  // Match SEARCH...REPLACE blocks. Each marker must be a whole line (`m` flag + `^`):
+  // otherwise a text line that merely ends in "=======" (a setext heading, a
+  // "# ==========" banner) would be taken as the divider and split mid-line.
+  const regex =
+    /^<<<<<<< SEARCH[^\S\n]*\n([\s\S]*?)^=======[^\S\n]*\n([\s\S]*?)^>>>>>>> REPLACE[^\S\n]*$/gm;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(patch)) !== null) {
@@ -46,18 +51,38 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
     // Trim trailing newline from each side (the \n before ======= and before >>>>>>>)
     if (search.endsWith("\n")) search = search.slice(0, -1);
     if (replace.endsWith("\n")) replace = replace.slice(0, -1);
+    // The divider is the first line that is exactly "=======". Another such line means
+    // the SEARCH or REPLACE text contains one, and the split point cannot be known.
+    if (/^=======[^\S\n]*$/m.test(replace)) {
+      throw new Error(
+        'A SEARCH or REPLACE text contains a line that is exactly "=======", so the block ' +
+          'cannot be split unambiguously. Use patch_type "unified_diff" for this change.'
+      );
+    }
     blocks.push({ search, replace });
+    spans.push({ start: match.index, end: regex.lastIndex });
   }
 
-  // Detect malformed blocks: check if SEARCH/REPLACE markers exist but weren't captured
-  const searchMarkers = (patch.match(/<<<<<<<\s+SEARCH/g) || []).length;
-  const replaceMarkers = (patch.match(/>>>>>>>\s+REPLACE/g) || []).length;
-  if (searchMarkers !== blocks.length || replaceMarkers !== blocks.length) {
+  // Text between the parsed blocks may be prose, but a marker-shaped line there is a
+  // block the grammar did not accept: a typo, or text after a marker such as
+  // "<<<<<<< SEARCH file.txt". Applying only the blocks that parsed would drop that edit
+  // silently, so refuse the whole patch. Marker-like text inside a parsed block is content.
+  let outside = "";
+  let last = 0;
+  for (const span of spans) {
+    outside += patch.slice(last, span.start) + "\n";
+    last = span.end;
+  }
+  outside += patch.slice(last);
+  const stray = outside.match(
+    /^(?:<{7}[^\S\n]*SEARCH\b.*|={7}(?:[^\S\n].*)?|>{7}[^\S\n]*REPLACE\b.*)$/m
+  );
+  if (stray) {
     throw new Error(
-      `Found ${searchMarkers} SEARCH marker(s) and ${replaceMarkers} REPLACE marker(s), ` +
-      `but only parsed ${blocks.length} valid block(s). ` +
-      "Some blocks may be malformed (e.g. missing ======= or >>>>>>> REPLACE). " +
-      "Each block must follow the exact format: <<<<<<< SEARCH\ntext\n=======\nnew text\n>>>>>>> REPLACE"
+      `Found a marker line outside a valid block: "${truncate(stray[0], 80)}". ` +
+        `Parsed ${blocks.length} valid block(s); the others are malformed ` +
+        "(e.g. text after a marker, or a missing ======= or >>>>>>> REPLACE). " +
+        "Each marker must be alone on its line: <<<<<<< SEARCH\ntext\n=======\nnew text\n>>>>>>> REPLACE"
     );
   }
 
@@ -70,12 +95,14 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
  * @param source - Current text
  * @param blocks - Search/replace blocks
  * @param allowMultiple - If true, replace all occurrences; if false, fail on duplicate match
+ * @param target - What the text is, for error messages (e.g. "issue description", "file")
  * @returns PatchResult or throws on error
  */
 export function applySearchReplace(
   source: string,
   blocks: SearchReplaceBlock[],
-  allowMultiple: boolean = false
+  allowMultiple: boolean = false,
+  target: string = "issue description"
 ): PatchResult {
   let current = source;
   let totalChanges = 0;
@@ -97,7 +124,7 @@ export function applySearchReplace(
 
     if (!occurrences || occurrences.length === 0) {
       throw new Error(
-        `Search text not found in issue description. Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
+        `Search text not found in ${target}. Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
       );
     }
 
@@ -116,7 +143,7 @@ export function applySearchReplace(
     // Detect no-op
     if (replaced === current) {
       throw new Error(
-        `Replacement did not change the description (identical result). Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
+        `Replacement did not change the ${target} (identical result). Search block:\n---\n${block.search.slice(0, 200)}${block.search.length > 200 ? "..." : ""}\n---`
       );
     }
 
@@ -143,7 +170,11 @@ export function applySearchReplace(
  * Apply a unified diff patch to source text.
  * Delegates to the `diff` library's applyPatch.
  */
-export function applyUnifiedDiff(source: string, patch: string): PatchResult {
+export function applyUnifiedDiff(
+  source: string,
+  patch: string,
+  target: string = "issue description"
+): PatchResult {
 // Validate the patch can be parsed first
   const parsed = parsePatch(patch);
   if (parsed.length === 0 || parsed.every((p) => p.hunks.length === 0)) {
@@ -156,7 +187,7 @@ export function applyUnifiedDiff(source: string, patch: string): PatchResult {
   const result = applyPatch(source, patch);
   if (result === false) {
     throw new Error(
-      "Unified diff could not be applied to the current issue description. " +
+      `Unified diff could not be applied to the current ${target}. ` +
         "The diff context may not match. Use 'dry_run: true' to debug."
     );
   }
@@ -164,7 +195,7 @@ export function applyUnifiedDiff(source: string, patch: string): PatchResult {
   // Detect no-op: patch applied but nothing changed
   if (result === source) {
     throw new Error(
-      "Unified diff applied but did not change the issue description. " +
+      `Unified diff applied but did not change the ${target}. ` +
         "The source text already matches the patched result."
     );
   }

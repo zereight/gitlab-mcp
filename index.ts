@@ -690,6 +690,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
+  UpdateFilePatchSchema,
   ReorderIssueSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -2589,6 +2590,19 @@ async function getFileContents(
   }
 
   return parsedData;
+}
+
+/**
+ * Read a blob's stored bytes. The Files API converts text that is not stored as
+ * UTF-8 (UTF-16, ISO-8859-1) to UTF-8 before encoding it, so only the raw blob
+ * shows how a file is really stored.
+ */
+async function getRepositoryBlobRaw(projectId: string, blobSha: string): Promise<Buffer> {
+  const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(projectId));
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/blobs/${encodeGitLabPathSegment(blobSha)}/raw`;
+  const response = await fetch(url, { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 async function createIssue(
@@ -5755,6 +5769,46 @@ async function createOrUpdateFile(
 
   const data = await response.json();
   return GitLabCreateUpdateFileResponseSchema.parse(data);
+}
+
+/**
+ * Update an existing file with a single PUT. Unlike createOrUpdateFile it never
+ * creates the file, and it sends lastCommitId as given, so GitLab rejects the
+ * commit if the file was changed or deleted since the caller read it.
+ */
+async function updateExistingFile(
+  projectId: string,
+  filePath: string,
+  content: string,
+  commitMessage: string,
+  branch: string,
+  lastCommitId?: string
+): Promise<GitLabCreateUpdateFileResponse> {
+  projectId = decodeURIComponent(projectId);
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/files/${encodeGitLabPathSegment(filePath)}`;
+  const body: Record<string, any> = {
+    branch,
+    content: encodeRepoFilePayloadContent(content, GITLAB_REPO_FILE_ENCODING),
+    commit_message: commitMessage,
+    encoding: GITLAB_REPO_FILE_ENCODING,
+    ...(lastCommitId ? { last_commit_id: lastCommitId } : {}),
+  };
+
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
+    );
+  }
+
+  return GitLabCreateUpdateFileResponseSchema.parse(await response.json());
 }
 
 /**
@@ -11398,6 +11452,106 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      }
+
+      case "update_file_patch": {
+        const args = UpdateFilePatchSchema.parse(params.arguments);
+        const { project_id, file_path, branch, patch_type, patch, dry_run, allow_multiple } = args;
+
+        // Read the file from the branch the commit goes to
+        const file = await getFileContents(project_id, file_path, branch);
+        if (Array.isArray(file)) {
+          throw new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is a directory, not a file`,
+              "pass the path of a single file; use get_repository_tree to list a directory."
+            )
+          );
+        }
+        const notUtf8 = () =>
+          new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is not stored as UTF-8 text and cannot be patched`,
+              "use create_or_update_file to write the whole file in the encoding it needs."
+            )
+          );
+        if (file.encoding !== "utf8" || !file.blob_id) {
+          throw notUtf8();
+        }
+        // The Files API converts non-UTF-8 text to UTF-8, so check the stored bytes of the
+        // same blob: patching converted text would re-encode the lines the patch leaves alone.
+        const rawBytes = await getRepositoryBlobRaw(project_id, file.blob_id);
+        let rawText: string;
+        try {
+          rawText = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(rawBytes);
+        } catch {
+          throw notUtf8();
+        }
+        if (rawText !== file.content) {
+          throw notUtf8();
+        }
+
+        let result: { description: string; changes: number; summary: string; preview: string };
+        if (patch_type === "search_replace") {
+          const blocks = parseSearchReplaceBlocks(patch);
+          if (blocks.length === 0) {
+            throw new ToolInputError(
+              withRecoveryHint(
+                "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE",
+                'put each <<<<<<< SEARCH, =======, and >>>>>>> REPLACE marker on its own line, or set patch_type to "unified_diff".'
+              )
+            );
+          }
+          result = applySearchReplace(file.content, blocks, allow_multiple, "file");
+        } else {
+          result = applyUnifiedDiff(file.content, patch, "file");
+        }
+
+        if (dry_run) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "preview",
+                  dry_run: true,
+                  changes: result.changes,
+                  summary: result.summary,
+                  preview: result.preview,
+                }),
+              },
+            ],
+          };
+        }
+
+        // Commit against the version just read: GitLab rejects the update if the file
+        // changed or was deleted since, instead of overwriting or recreating it.
+        // `||`, not `??`: an empty caller ID falls back to the one read with the file.
+        const commit = await updateExistingFile(
+          project_id,
+          file_path,
+          result.description,
+          args.commit_message,
+          branch,
+          args.last_commit_id || file.last_commit_id
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                changes: result.changes,
+                summary: result.summary,
+                preview: result.preview,
+                file_path: commit.file_path,
+                branch: commit.branch,
+                ...(commit.commit_id ? { commit_id: commit.commit_id } : {}),
+              }),
+            },
+          ],
         };
       }
 

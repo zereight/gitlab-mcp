@@ -18,7 +18,9 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   get_repository_tree:
     "One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file.",
   create_or_update_file:
-    "Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.",
+    "Create or update one repository file. Use `update_file_patch` to change a few lines of an existing file and `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.",
+  update_file_patch:
+    "Change part of an existing UTF-8 file and commit it, sending only the changed lines. The server reads the file from `branch`, applies the patch, and commits with the file's `last_commit_id`, so a file changed in between is not overwritten. Each SEARCH text must match exactly once (add surrounding lines to make it unique). Returns the diff. Use `create_or_update_file` to create a file.",
   push_files:
     "Commit several file changes atomically. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`.",
   create_issue:

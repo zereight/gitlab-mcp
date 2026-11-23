@@ -81,6 +81,91 @@ describe("parseSearchReplaceBlocks", () => {
     );
     assert.strictEqual(blocks.length, 1);
   });
+
+  test("keeps a setext heading underline in SEARCH and REPLACE whole", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\nTitle\n==========\nOld intro\n=======\nTitle\n==========\nNew intro\n>>>>>>> REPLACE"
+    );
+    assert.deepStrictEqual(blocks, [
+      { search: "Title\n==========\nOld intro", replace: "Title\n==========\nNew intro" },
+    ]);
+  });
+
+  test("keeps a '# ==========' comment banner in SEARCH and REPLACE whole", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\n# ==========\n# Old name\n# ==========\n=======\n# ==========\n# New name\n# ==========\n>>>>>>> REPLACE"
+    );
+    assert.deepStrictEqual(blocks, [
+      {
+        search: "# ==========\n# Old name\n# ==========",
+        replace: "# ==========\n# New name\n# ==========",
+      },
+    ]);
+  });
+
+  test("ignores markers that do not start a line", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\nsee ======= here\nx >>>>>>> REPLACE\n=======\ny\n>>>>>>> REPLACE"
+    );
+    assert.deepStrictEqual(blocks, [
+      { search: "see ======= here\nx >>>>>>> REPLACE", replace: "y" },
+    ]);
+  });
+
+  test("treats a line that only starts like a marker as content", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\n<<<<<<< SEARCH example\n=======\nupdated\n>>>>>>> REPLACE"
+    );
+    assert.deepStrictEqual(blocks, [{ search: "<<<<<<< SEARCH example", replace: "updated" }]);
+  });
+
+  test("rejects a second block whose markers carry trailing text", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n" +
+            "<<<<<<< SEARCH file.txt\nc\n=======\nd\n>>>>>>> REPLACE file.txt"
+        ),
+      /outside a valid block/
+    );
+  });
+
+  test("rejects a stray divider line between blocks", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n=======\nleftover"
+        ),
+      /outside a valid block/
+    );
+  });
+
+  test("allows a setext heading in the prose around blocks", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "Notes\n==========\n\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE\n"
+    );
+    assert.deepStrictEqual(blocks, [{ search: "foo", replace: "bar" }]);
+  });
+
+  test("rejects a SEARCH text with a line that is exactly =======", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\nTitle\n=======\nOld\n=======\nTitle\n=======\nNew\n>>>>>>> REPLACE"
+        ),
+      /exactly "=======".*unified_diff/s
+    );
+  });
+
+  test("rejects a REPLACE text with a line that is exactly =======", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\nTitle\n=======\nTitle\n=======\n>>>>>>> REPLACE"
+        ),
+      /exactly "=======".*unified_diff/s
+    );
+  });
 });
 
 describe("applySearchReplace", () => {

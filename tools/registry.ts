@@ -34,6 +34,7 @@ import {
   CreateNoteSchema,
   CreateCommitStatusSchema,
   CreateOrUpdateFileSchema,
+  UpdateFilePatchSchema,
   CreatePipelineSchema,
   CreateProjectMilestoneSchema,
   CreateGroupMilestoneSchema,
@@ -335,6 +336,12 @@ export const allTools = withLazyInputSchemas([
     name: "create_or_update_file",
     description: "Create or update a file in a GitLab project",
     inputSchema: lazyJSONSchema(CreateOrUpdateFileSchema),
+  },
+  {
+    name: "update_file_patch",
+    description:
+      "Patch an existing repository file (search/replace or unified diff) without resending the whole content. dry_run previews",
+    inputSchema: lazyJSONSchema(UpdateFilePatchSchema),
   },
   {
     name: "search_repositories",
@@ -2288,6 +2295,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_file_contents",
       "push_files",
       "create_or_update_file",
+      "update_file_patch",
       "fork_repository",
       "get_repository_tree",
     ]),

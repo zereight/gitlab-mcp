@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 290 tools: 287 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
+GitLab MCP server providing 291 tools: 288 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -16,7 +16,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | core (38 tools) | yes | default lean starter set |
 | merge_requests (46 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
 | issues (27 tools) | no | `GITLAB_TOOLSETS=issues` |
-| repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
+| repositories (8 tools) | no | `GITLAB_TOOLSETS=repositories` |
 | branches (16 tools) | no | `GITLAB_TOOLSETS=branches` |
 | projects (20 tools) | no | `GITLAB_TOOLSETS=projects` |
 | labels (5 tools) | no | `GITLAB_TOOLSETS=labels` |
@@ -42,9 +42,9 @@ Prefer `discover_tools` to list and activate an opt-in category for this session
 
 `gitlab_api_request` bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced by this tool.
 
-The per-toolset counts above sum to 327 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 328 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 287.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 288.
 
 ## Key Workflows
 
@@ -123,7 +123,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 ### File Operations
 
 - Read: `get_file_contents`, `get_repository_tree`
-- Write: `create_or_update_file` (single file), `push_files` (multiple files in one commit)
+- Write: `update_file_patch` (change a few lines of an existing file), `create_or_update_file` (create or replace a file), `push_files` (multiple files in one commit)
 
 ## Token-saving rules
 
