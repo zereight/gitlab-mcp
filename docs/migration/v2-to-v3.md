@@ -62,7 +62,8 @@ So:
 - A non-empty `--toolsets` flag overrides `GITLAB_TOOLSETS`. Apply these rules to whichever
   one you set.
 - `GITLAB_TOOL_PROFILE=slim` applies only while `GITLAB_TOOLSETS` is unset. If you used
-  `slim` with a `USE_*` setting, the explicit list turns slim off (the server logs a
+  `slim` with a `USE_*` setting and no `GITLAB_TOOLSETS` (the only case where slim was
+  active), the explicit list turns slim off (the server logs a
   warning) and the first `tools/list` gains `list_labels`, the only slim-hidden tool in
   `core`, `wiki`, `milestones`, and `pipelines`. To keep the v2 tool list, also set
   `GITLAB_DENIED_TOOLS_REGEX=^list_labels$`. Unlike slim, that regex blocks `list_labels`

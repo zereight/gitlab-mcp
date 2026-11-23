@@ -73,7 +73,7 @@ describe("When removed configuration is detected", () => {
         assert.ok(error.includes(`Use ${toolset} in GITLAB_TOOLSETS (or --toolsets) instead.`));
         assert.ok(
           error.includes(
-            `Append ${toolset} to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core.`
+            `Append ${toolset} to your existing toolset list (--toolsets when non-empty, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core.`
           )
         );
         assert.ok(
@@ -85,7 +85,7 @@ describe("When removed configuration is detected", () => {
       });
       assert.ok(
         errors[2].includes(
-          "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to GITLAB_TOOLS."
+          "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to your tool list (--tools when non-empty, otherwise GITLAB_TOOLS)."
         )
       );
     });

@@ -19,7 +19,7 @@ interface RemovedConfig {
  */
 function toolsetDetail(toolset: string, extra = ""): string {
   return (
-    `Append ${toolset} to your existing toolset list (--toolsets when set, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core. ` +
+    `Append ${toolset} to your existing toolset list (--toolsets when non-empty, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core. ` +
     `Use core,${toolset} only if that list was unset or had no valid toolset name (v2 then exposed core). ` +
     extra +
     "Leave exactly `all` unchanged. See the migration guide."
@@ -61,7 +61,7 @@ const REMOVED_CONFIGS: readonly RemovedConfig[] = [
     boolean: true,
     detail: toolsetDetail(
       "pipelines",
-      "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to GITLAB_TOOLS. "
+      "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to your tool list (--tools when non-empty, otherwise GITLAB_TOOLS). "
     ),
   },
 ];
