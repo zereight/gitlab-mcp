@@ -293,9 +293,6 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
 - `--toolsets` - toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). Não passe `all` a menos que aceite ~73k tokens de schema. `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` (substitui `USE_GITLAB_WIKI`)
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` (substitui `USE_MILESTONE`)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,pipelines` e acrescente `validate_ci_lint,validate_project_ci_lint` à lista `--tools` existente (ou defina `--tools=validate_ci_lint,validate_project_ci_lint` se ela não existir) (substitui `USE_PIPELINE`)
 - `--disable-version-check=true` - desativa o aviso de nova versão na inicialização (substitui `GITLAB_DISABLE_VERSION_CHECK`)
 - `--masking-enabled=true` - ativa o mascaramento de respostas de texto (substitui `GITLAB_MASKING_ENABLED`)
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
@@ -327,7 +324,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Também é possível habilitar grupos de ferramentas com `GITLAB_TOOLSETS=<group,…>`, permitir ferramentas individuais com
 > `GITLAB_TOOLS=<tool,…>` (por exemplo, grupos somente leitura mais algumas ferramentas específicas de escrita) e
 > bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`. As flags legadas `USE_GITLAB_WIKI` /
-> `USE_MILESTONE` / `USE_PIPELINE` estão deprecated (removed in next major (v3.0.0)).
+> `USE_MILESTONE` / `USE_PIPELINE` foram removidas na v3.0.0.
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones` ou `core,pipelines`
 > (`USE_PIPELINE` também precisa acrescentar `validate_ci_lint,validate_project_ci_lint` à lista `GITLAB_TOOLS` existente em vez de substituí-la).
 > Se você já definiu `GITLAB_TOOLSETS`, acrescente o toolset à lista existente em vez de substituí-la.
@@ -337,7 +334,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 
 > [!CAUTION]
 > `gitlab_api_request` (toolset `api`) ignora allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. Com `GITLAB_MCP_OAUTH=true`, a checagem de membros de `GITLAB_OAUTH_ALLOWED_GROUPS` continua decidindo quem pode usar o servidor, mas um usuário admitido pode solicitar recursos fora desses grupos. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
-> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
+> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
 
@@ -780,11 +777,16 @@ Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) aju
 
 ## Configurações removidas na v3.0.0
 
-`GITLAB_READ_ONLY_MODE` / `--read-only` e `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` ativos agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações vazias ou false de `GITLAB_READ_ONLY_MODE` / `--read-only`. Qualquer `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` com valor não vazio interrompe a inicialização, mesmo se for `false`, então remova-o e use `GITLAB_OAUTH_ALLOWED_GROUPS`.
+Configurações legadas ativas agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações legadas vazias ou false.
 
 | Removed environment variable / CLI flag | Replacement |
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (a checagem de membros do grupo só acontece com `GITLAB_MCP_OAUTH=true`; veja [MCP OAuth](#usando-o-proxy-mcp-oauth-gitlab_mcp_oauth)) |
+| `USE_GITLAB_WIKI` / `--use-wiki` | acrescente `wiki` a `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` se não estava definido) |
+| `USE_MILESTONE` / `--use-milestone` | acrescente `milestones` a `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` se não estava definido) |
+| `USE_PIPELINE` / `--use-pipeline` | acrescente `pipelines` a `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` se não estava definido), além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
+
+Use uma substituição só para uma configuração que estava ativada e mantenha exatamente os toolsets que você já tinha. Se `GITLAB_TOOLSETS` não estava definido ou não tinha nenhum nome de toolset válido, a v2 expunha o toolset padrão `core`, então use `core` mais cada toolset ativado (por exemplo `core,wiki` ou `core,pipelines`). Um `--toolsets` não vazio tem prioridade sobre `GITLAB_TOOLSETS`, então aplique isto ao que você definiu. Se era uma lista, acrescente à lista como está e só inclua `core` se ele já estava listado: `GITLAB_TOOLSETS=search` vira `search,wiki`, não `core,search,wiki`. Acrescente a uma lista `GITLAB_TOOLS` existente em vez de substituí-la e deixe um `GITLAB_TOOLSETS=all` existente sem alterações. Se você usava `GITLAB_TOOL_PROFILE=slim` com `USE_*` e sem `GITLAB_TOOLSETS` (o único caso em que o slim estava ativo), uma lista explícita em `GITLAB_TOOLSETS` desativa o slim e adiciona `list_labels` ao primeiro `tools/list`; defina `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` para manter a lista da v2, a menos que `GITLAB_TOOLS` inclua `list_labels` (o slim não a ocultava nesse caso) (se você já define um padrão de bloqueio, acrescente `list_labels` a ele, por exemplo `^delete_.*|^list_labels$`, pois a variável aceita um único padrão).
 
 Consulte o [guia de migração da v2 para a v3](docs/migration/v2-to-v3.md).

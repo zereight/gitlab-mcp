@@ -164,7 +164,7 @@ async function startMaskingServer(
       ...(managed ? { GITLAB_MASKING_POLICY_FILE: policyPath } : {}),
       GITLAB_MASKING_WORKSPACE_DIR: workspace,
       GITLAB_DISABLE_VERSION_CHECK: "true",
-      USE_PIPELINE: "true",
+      GITLAB_TOOLSETS: "all",
       ENABLE_STRICT_PROJECT_SCOPE: "false",
       LOG_LEVEL: "error",
       ...options.env,
@@ -379,7 +379,7 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
         GITLAB_MASKING_POLICY_FILE: policyPath,
         GITLAB_MASKING_WORKSPACE_DIR: workspace,
         GITLAB_DISABLE_VERSION_CHECK: "true",
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "all",
         LOG_LEVEL: "warn",
       },
     });
@@ -476,7 +476,7 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
         GITLAB_DISABLE_VERSION_CHECK: "true",
         OAUTH_STATELESS_MODE: "true",
         OAUTH_STATELESS_SECRET: "stateless-response-masking-test-secret-1234567890",
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "all",
         LOG_LEVEL: "warn",
       },
     });

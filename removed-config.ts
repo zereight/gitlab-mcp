@@ -9,6 +9,21 @@ interface RemovedConfig {
   readonly replacement: string;
   /** Flags that were on/off switches; any other value means "set". */
   readonly boolean: boolean;
+  /** Extra guidance printed after the replacement. */
+  readonly detail?: string;
+}
+
+/**
+ * v2 exposed core only when GITLAB_TOOLSETS was unset or had no valid name, or when the
+ * list named core. Adding core to any other list would expose tools v2 did not.
+ */
+function toolsetDetail(toolset: string, extra = ""): string {
+  return (
+    `Append ${toolset} to your existing toolset list (--toolsets when non-empty, otherwise GITLAB_TOOLSETS) and keep its other toolsets, without adding core. ` +
+    `Use core,${toolset} only if that list was unset or had no valid toolset name (v2 then exposed core). ` +
+    extra +
+    "Leave exactly `all` unchanged. See the migration guide."
+  );
 }
 
 const REMOVED_CONFIGS: readonly RemovedConfig[] = [
@@ -24,6 +39,30 @@ const REMOVED_CONFIGS: readonly RemovedConfig[] = [
     replacement:
       "GITLAB_OAUTH_ALLOWED_GROUPS (or --oauth-allowed-groups; enforced only with GITLAB_MCP_OAUTH=true)",
     boolean: false,
+  },
+  {
+    env: "USE_GITLAB_WIKI",
+    cliFlag: "use-wiki",
+    replacement: "wiki in GITLAB_TOOLSETS (or --toolsets)",
+    boolean: true,
+    detail: toolsetDetail("wiki"),
+  },
+  {
+    env: "USE_MILESTONE",
+    cliFlag: "use-milestone",
+    replacement: "milestones in GITLAB_TOOLSETS (or --toolsets)",
+    boolean: true,
+    detail: toolsetDetail("milestones"),
+  },
+  {
+    env: "USE_PIPELINE",
+    cliFlag: "use-pipeline",
+    replacement: "pipelines in GITLAB_TOOLSETS (or --toolsets)",
+    boolean: true,
+    detail: toolsetDetail(
+      "pipelines",
+      "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to your tool list (--tools when non-empty, otherwise GITLAB_TOOLS). "
+    ),
   },
 ];
 
@@ -50,7 +89,9 @@ function isCliFlagSet(entry: RemovedConfig, argv: readonly string[]): boolean {
  */
 export function getRemovedConfigErrors(env: NodeJS.ProcessEnv, argv: readonly string[]): string[] {
   return REMOVED_CONFIGS.filter(entry => isEnvSet(entry, env) || isCliFlagSet(entry, argv)).map(
-    entry => `${entry.env} (--${entry.cliFlag}) was removed. Use ${entry.replacement} instead.`
+    entry =>
+      `${entry.env} (--${entry.cliFlag}) was removed. Use ${entry.replacement} instead.` +
+      (entry.detail ? ` ${entry.detail}` : "")
   );
 }
 
