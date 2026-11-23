@@ -2099,6 +2099,32 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
     ),
 });
 
+export const UpdateFilePatchSchema = ProjectParamsSchema.extend({
+  file_path: z.string().describe("Path of the existing file to patch"),
+  branch: z.string().describe("Branch to read the file from and commit the change to"),
+  commit_message: z.string().describe("Commit message"),
+  patch_type: z.enum(["search_replace", "unified_diff"]).describe("Type of patch format to apply"),
+  patch: z
+    .string()
+    .min(1)
+    .max(50000)
+    .describe(
+      "The patch to apply to the file's current content. For search_replace: one or more <<<<<<< SEARCH / ======= / >>>>>>> REPLACE blocks, each SEARCH text matching the file exactly once"
+    ),
+  dry_run: coerceBooleanString.optional().describe("If true, return the diff without committing"),
+  allow_multiple: coerceBooleanString
+    .optional()
+    .describe(
+      "For search_replace: allow multiple matches to all be replaced (default: false — fail on duplicate)"
+    ),
+  last_commit_id: z
+    .string()
+    .optional()
+    .describe(
+      "Last known commit ID of the file. When omitted, the one read with the file is used, so the commit fails if the file changed in between"
+    ),
+});
+
 export const SearchRepositoriesSchema = z
   .object({
     search: z.string().optional().describe("Search query"),
