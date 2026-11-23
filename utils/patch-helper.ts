@@ -36,6 +36,8 @@ export interface SearchReplaceBlock {
  */
 export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
+  // Where each parsed block starts and ends in the patch, to check the text between them.
+  const spans: Array<{ start: number; end: number }> = [];
   // Match SEARCH...REPLACE blocks. Each marker must be a whole line (`m` flag + `^`):
   // otherwise a text line that merely ends in "=======" (a setext heading, a
   // "# ==========" banner) would be taken as the divider and split mid-line.
@@ -58,19 +60,29 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
       );
     }
     blocks.push({ search, replace });
+    spans.push({ start: match.index, end: regex.lastIndex });
   }
 
-  // Detect malformed blocks: check if SEARCH/REPLACE markers exist but weren't captured
-  // Same whole-line grammar as the parser, so a text line such as "<<<<<<< SEARCH example"
-  // is content, not a marker.
-  const searchMarkers = (patch.match(/^<<<<<<< SEARCH[^\S\n]*$/gm) || []).length;
-  const replaceMarkers = (patch.match(/^>>>>>>> REPLACE[^\S\n]*$/gm) || []).length;
-  if (searchMarkers !== blocks.length || replaceMarkers !== blocks.length) {
+  // Text between the parsed blocks may be prose, but a marker-shaped line there is a
+  // block the grammar did not accept: a typo, or text after a marker such as
+  // "<<<<<<< SEARCH file.txt". Applying only the blocks that parsed would drop that edit
+  // silently, so refuse the whole patch. Marker-like text inside a parsed block is content.
+  let outside = "";
+  let last = 0;
+  for (const span of spans) {
+    outside += patch.slice(last, span.start) + "\n";
+    last = span.end;
+  }
+  outside += patch.slice(last);
+  const stray = outside.match(
+    /^(?:<{7}[^\S\n]*SEARCH\b.*|={7}(?:[^\S\n].*)?|>{7}[^\S\n]*REPLACE\b.*)$/m
+  );
+  if (stray) {
     throw new Error(
-      `Found ${searchMarkers} SEARCH marker(s) and ${replaceMarkers} REPLACE marker(s), ` +
-      `but only parsed ${blocks.length} valid block(s). ` +
-      "Some blocks may be malformed (e.g. missing ======= or >>>>>>> REPLACE). " +
-      "Each block must follow the exact format: <<<<<<< SEARCH\ntext\n=======\nnew text\n>>>>>>> REPLACE"
+      `Found a marker line outside a valid block: "${truncate(stray[0], 80)}". ` +
+        `Parsed ${blocks.length} valid block(s); the others are malformed ` +
+        "(e.g. text after a marker, or a missing ======= or >>>>>>> REPLACE). " +
+        "Each marker must be alone on its line: <<<<<<< SEARCH\ntext\n=======\nnew text\n>>>>>>> REPLACE"
     );
   }
 

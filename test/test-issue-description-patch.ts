@@ -119,6 +119,34 @@ describe("parseSearchReplaceBlocks", () => {
     assert.deepStrictEqual(blocks, [{ search: "<<<<<<< SEARCH example", replace: "updated" }]);
   });
 
+  test("rejects a second block whose markers carry trailing text", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n" +
+            "<<<<<<< SEARCH file.txt\nc\n=======\nd\n>>>>>>> REPLACE file.txt"
+        ),
+      /outside a valid block/
+    );
+  });
+
+  test("rejects a stray divider line between blocks", () => {
+    assert.throws(
+      () =>
+        parseSearchReplaceBlocks(
+          "<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n=======\nleftover"
+        ),
+      /outside a valid block/
+    );
+  });
+
+  test("allows a setext heading in the prose around blocks", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "Notes\n==========\n\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE\n"
+    );
+    assert.deepStrictEqual(blocks, [{ search: "foo", replace: "bar" }]);
+  });
+
   test("rejects a SEARCH text with a line that is exactly =======", () => {
     assert.throws(
       () =>
