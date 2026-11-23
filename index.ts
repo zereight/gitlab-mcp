@@ -8263,16 +8263,31 @@ async function scopeCiLintResultToAllowlist(
         if (!hasNumericEntries) {
           return false;
         }
-        // Numeric allowlist entries: resolve the path to its project ID.
-        const response = await fetch(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
-          { ...getFetchConfig() }
-        );
-        if (!response.ok) {
+        // Numeric allowlist entries: resolve the path to its project ID. A lookup that
+        // fails counts as a project outside the allowlist, so the lint verdict is still
+        // returned without the expanded configuration.
+        try {
+          const response = await fetch(
+            `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
+            { ...getFetchConfig() }
+          );
+          if (!response.ok) {
+            await response.body?.cancel();
+            logger.debug(
+              { projectPath, status: response.status },
+              "CI lint include project lookup failed; treating it as outside the allowlist"
+            );
+            return false;
+          }
+          const project = (await response.json()) as { id?: number | string };
+          return project.id !== undefined && allowedProjectIds.includes(String(project.id));
+        } catch (error) {
+          logger.debug(
+            { projectPath, error: redactUrlSecretsInErrorMessage(error) },
+            "CI lint include project lookup failed; treating it as outside the allowlist"
+          );
           return false;
         }
-        const project = (await response.json()) as { id?: number | string };
-        return project.id !== undefined && allowedProjectIds.includes(String(project.id));
       })();
       decisions.set(projectPath, decision);
     }

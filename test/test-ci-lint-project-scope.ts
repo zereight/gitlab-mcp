@@ -119,6 +119,21 @@ describe("CI lint project scope", () => {
         res.json({ id: 555, path_with_namespace: "other/components" });
       }
     );
+    // Lookups that fail: an error status and a body that is not JSON.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${encodeURIComponent("broken/status")}`,
+      (_req, res) => {
+        res.status(500).json({ message: "500 Internal Server Error" });
+      }
+    );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${encodeURIComponent("broken/body")}`,
+      (_req, res) => {
+        res.status(200).type("application/json").send("not json");
+      }
+    );
     await mockGitLab.start();
     apiUrl = `${mockGitLab.getUrl()}/api/v4`;
   });
@@ -206,6 +221,17 @@ describe("CI lint project scope", () => {
     const client = await connect("123");
     assertStripped(await lint(client, "validate_ci_lint", "123", [OTHER_COMPONENT]));
     assertStripped(await lint(client, "validate_ci_lint", "123", [UNKNOWN_TYPE]));
+  });
+
+  test("a project lookup that fails keeps the verdict and drops the expanded configuration", async () => {
+    const client = await connect("123");
+    for (const project of ["broken/status", "broken/body"]) {
+      assertStripped(
+        await lint(client, "validate_ci_lint", "123", [
+          { ...OTHER_PROJECT_FILE, extra: { project, ref: "main" } },
+        ])
+      );
+    }
   });
 
   test("includes from the allowed project are kept with a numeric allowlist", async () => {
