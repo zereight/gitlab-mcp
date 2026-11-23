@@ -68,9 +68,33 @@ describe("When removed configuration is detected", () => {
         []
       );
       assert.equal(errors.length, 3);
-      assert.match(errors[0], /GITLAB_TOOLSETS=core,wiki/);
-      assert.match(errors[1], /GITLAB_TOOLSETS=core,milestones/);
-      assert.match(errors[2], /GITLAB_TOOLSETS=core,pipelines/);
+      ["wiki", "milestones", "pipelines"].forEach((toolset, index) => {
+        const error = errors[index];
+        assert.ok(error.includes(`Use ${toolset} in GITLAB_TOOLSETS (or --toolsets) instead.`));
+        assert.ok(
+          error.includes(
+            `Append ${toolset} to your existing toolset list and keep its other toolsets, without adding core.`
+          )
+        );
+        assert.ok(
+          error.includes(
+            `Set GITLAB_TOOLSETS=core,${toolset} only if GITLAB_TOOLSETS was unset or had no valid toolset name (v2 then exposed core).`
+          )
+        );
+        assert.ok(error.includes("See the migration guide."));
+      });
+      assert.ok(
+        errors[2].includes(
+          "If you use CI lint, also append validate_ci_lint,validate_project_ci_lint to GITLAB_TOOLS."
+        )
+      );
+    });
+
+    it("should not tell users with an explicit toolset list to add core", () => {
+      const [error] = getRemovedConfigErrors({ USE_GITLAB_WIKI: "true" }, []);
+      // The only core,<toolset> suggestion is the conditional one for an unset/invalid list.
+      assert.equal(error.split("core,wiki").length - 1, 1);
+      assert.doesNotMatch(error, /Use GITLAB_TOOLSETS=core/);
     });
 
     it("should tell users to leave an exact GITLAB_TOOLSETS=all unchanged, since appending breaks it", () => {
@@ -79,7 +103,7 @@ describe("When removed configuration is detected", () => {
         []
       );
       for (const error of errors) {
-        assert.match(error, /leave exactly `all` unchanged/);
+        assert.match(error, /Leave exactly `all` unchanged\./);
       }
     });
   });

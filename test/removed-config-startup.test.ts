@@ -95,33 +95,51 @@ describe("Removed settings stop server startup", () => {
     const result = await startServer({}, ["--allowed-groups", "my-group"]);
     assertRefused(result, "GITLAB_OAUTH_ALLOWED_GROUPS");
   });
-  it("refuses USE_GITLAB_WIKI=true and names GITLAB_TOOLSETS=core,wiki", async () => {
+  it("refuses USE_GITLAB_WIKI=true and names the wiki toolset without forcing core", async () => {
     const result = await startServer({ USE_GITLAB_WIKI: "true" }, []);
-    assertRefused(result, "GITLAB_TOOLSETS=core,wiki");
+    assertRefused(
+      result,
+      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 
-  it("refuses the --use-wiki CLI flag and names GITLAB_TOOLSETS=core,wiki", async () => {
+  it("refuses the --use-wiki CLI flag and names the wiki toolset without forcing core", async () => {
     const result = await startServer({}, ["--use-wiki"]);
-    assertRefused(result, "GITLAB_TOOLSETS=core,wiki");
+    assertRefused(
+      result,
+      "Use wiki in GITLAB_TOOLSETS (or --toolsets) instead. Append wiki to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 
-  it("refuses USE_MILESTONE=true and names GITLAB_TOOLSETS=core,milestones", async () => {
+  it("refuses USE_MILESTONE=true and names the milestones toolset without forcing core", async () => {
     const result = await startServer({ USE_MILESTONE: "true" }, []);
-    assertRefused(result, "GITLAB_TOOLSETS=core,milestones");
+    assertRefused(
+      result,
+      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 
-  it("refuses the --use-milestone CLI flag and names GITLAB_TOOLSETS=core,milestones", async () => {
+  it("refuses the --use-milestone CLI flag and names the milestones toolset without forcing core", async () => {
     const result = await startServer({}, ["--use-milestone"]);
-    assertRefused(result, "GITLAB_TOOLSETS=core,milestones");
+    assertRefused(
+      result,
+      "Use milestones in GITLAB_TOOLSETS (or --toolsets) instead. Append milestones to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 
-  it("refuses USE_PIPELINE=true and names GITLAB_TOOLSETS=core,pipelines", async () => {
+  it("refuses USE_PIPELINE=true and names the pipelines toolset without forcing core", async () => {
     const result = await startServer({ USE_PIPELINE: "true" }, []);
-    assertRefused(result, "GITLAB_TOOLSETS=core,pipelines");
+    assertRefused(
+      result,
+      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 
-  it("refuses the --use-pipeline CLI flag and names GITLAB_TOOLSETS=core,pipelines", async () => {
+  it("refuses the --use-pipeline CLI flag and names the pipelines toolset without forcing core", async () => {
     const result = await startServer({}, ["--use-pipeline"]);
-    assertRefused(result, "GITLAB_TOOLSETS=core,pipelines");
+    assertRefused(
+      result,
+      "Use pipelines in GITLAB_TOOLSETS (or --toolsets) instead. Append pipelines to your existing toolset list and keep its other toolsets, without adding core."
+    );
   });
 });
