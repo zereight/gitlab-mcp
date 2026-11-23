@@ -1,19 +1,22 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { StdioTestClient } from "./clients/stdio-client.js";
-import { hasMarker, runInShell, withStubWorkspace } from "./cli/shell-replay-harness.js";
+import { runInEveryShell, withStubWorkspace } from "./cli/shell-replay-harness.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-// End to end through the MCP server: with compaction on, the replay line attached
-// to a compacted reply must run as literal arguments when a shell executes it.
+// End to end through the MCP server: with compaction on, a compacted reply carries
+// either a `cli` line that sh, cmd.exe and PowerShell all read as the same literal
+// arguments, or, when no such line exists, the argv as `cli_argv`.
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
 const SERVER_PATH = "build/index.js";
 const MARKER = "PWNED";
+const BINARY = "zereight-mcp-gitlab";
 
 interface CompactedPayload {
   readonly compact: true;
   readonly cli?: string;
+  readonly cli_argv?: readonly string[];
   readonly preview: unknown;
 }
 
@@ -55,16 +58,40 @@ describe("GITLAB_MCP_COMPACT_RESULTS replay line", () => {
     }
   }
 
-  test("runs a search value containing command substitution as one literal argument", async () => {
-    const search = `x$(touch ${MARKER}) \`touch ${MARKER}\` $HOME; echo hi`;
-    const payload = await callCompacted({ project_id: "123", search });
-    assert.equal(typeof payload.cli, "string");
+  test("attaches a double-quoted cli line for a value with a space that every shell reads as one argument", async () => {
+    const payload = await callCompacted({ project_id: "123", search: "foo bar" });
+    assert.notEqual(payload.preview, undefined);
+    assert.equal(payload.cli_argv, undefined);
+    assert.equal(
+      payload.cli,
+      `${BINARY} tool list_merge_requests --project-id 123 --search "foo bar"`
+    );
 
     withStubWorkspace(workspace => {
-      const argv = runInShell(payload.cli as string, workspace);
-      assert.ok(argv !== undefined, "the replay must invoke the binary");
-      assert.equal(hasMarker(workspace, MARKER), false, "the shell executed injected code");
-      assert.deepEqual(argv, [
+      assert.deepEqual(runInEveryShell(payload.cli as string, workspace), [
+        "tool",
+        "list_merge_requests",
+        "--project-id",
+        "123",
+        "--search",
+        "foo bar",
+      ]);
+    });
+  });
+
+  const ARGV_ONLY_SEARCHES = [
+    ["POSIX command substitution", `x$(touch ${MARKER}) \`touch ${MARKER}\` $HOME; echo hi`],
+    ["cmd.exe operators", "x & echo INJECTED > marker & rem "],
+    ["a PowerShell single quote", `x' ; New-Item ${MARKER}2 ; '`],
+  ] as const;
+
+  for (const [label, search] of ARGV_ONLY_SEARCHES) {
+    test(`attaches cli_argv, and no cli line, for a search value with ${label}`, async () => {
+      const payload = await callCompacted({ project_id: "123", search });
+      assert.notEqual(payload.preview, undefined);
+      assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli"), false);
+      assert.deepEqual(payload.cli_argv, [
+        BINARY,
         "tool",
         "list_merge_requests",
         "--project-id",
@@ -73,14 +100,12 @@ describe("GITLAB_MCP_COMPACT_RESULTS replay line", () => {
         search,
       ]);
     });
-  });
+  }
 
-  test("drops the replay line, but keeps the preview, for an argument name with command substitution", async () => {
+  test("drops both cli and cli_argv, but keeps the preview, for an argument name with command substitution", async () => {
     const payload = await callCompacted({ project_id: "123", [`$(touch ${MARKER}KEY)`]: "1" });
     assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli"), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli_argv"), false);
     assert.notEqual(payload.preview, undefined);
-    withStubWorkspace(workspace => {
-      assert.equal(hasMarker(workspace, `${MARKER}KEY`), false);
-    });
   });
 });

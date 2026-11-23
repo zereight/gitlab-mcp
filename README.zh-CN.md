@@ -262,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.27`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.30`。如果设置了 `GITLAB_MASKING_ENABLED`，请使用 2.3.29 或更高版本（或 `@latest`）：更早的版本会以明文返回 GitLab 标记为 masked 或 hidden 的 CI/CD 变量值。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -313,7 +313,7 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
-同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。`setup --cursor` / `setup --claude` 会打印客户端配置；`doctor` 检查 token、API URL、toolset 和版本。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
+同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。`setup --cursor` / `setup --claude` 会打印客户端配置；`doctor` 检查 token、API URL、toolset 和版本。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。仅当每个值在 POSIX shell、cmd.exe 和 PowerShell 中都是 shell 安全的，回复才带 `cli` 命令；否则带 `cli_argv`（argv 数组），不经 shell 直接运行。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、

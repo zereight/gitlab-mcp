@@ -250,7 +250,6 @@ import {
   openSafeOutputWriteStream,
   resolveDownloadRoot,
   readSafeExistingFile,
-  summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
   graphqlQueryContainsWriteOperation,
@@ -372,6 +371,10 @@ import { configureMilestoneTools, handleMilestoneToolCall } from "./tools/milest
 import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
 import { configureTagTools, handleTagToolCall } from "./tools/tags.js";
 import { configureVariableTools, handleVariableToolCall } from "./tools/variables.js";
+import { configureWebhookTools, handleWebhookToolCall } from "./tools/webhooks.js";
+import { configureSnippetTools, handleSnippetToolCall } from "./tools/snippets.js";
+import { configureTodoTools, handleTodoToolCall } from "./tools/todos.js";
+import { ToolInputError } from "./utils/tool-input-error.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -560,8 +563,6 @@ import {
   type GitLabProjectMember,
   GitLabProjectMemberSchema,
   GitLabProjectSchema,
-  type GitLabTodo,
-  GitLabTodoSchema,
   type GitLabReference,
   GitLabReferenceSchema,
   type GitLabRepository,
@@ -612,8 +613,6 @@ import {
   ListIssueLabelEventsSchema,
   ListIssueStateEventsSchema,
   ListIssuesSchema,
-  type ListTodosOptions,
-  ListTodosSchema,
   ListMergeRequestDiffsSchema, // Added
   GetMergeRequestFileDiffSchema,
   ListMergeRequestChangedFilesSchema,
@@ -675,8 +674,6 @@ import {
   OrbitSchemaSchema,
   OrbitStatusSchema,
   OrbitToolsSchema,
-  MarkAllTodosDoneSchema,
-  MarkTodoDoneSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -713,13 +710,6 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
-  ListSnippetsSchema,
-  GetSnippetSchema,
-  CreateSnippetSchema,
-  UpdateSnippetSchema,
-  DeleteSnippetSchema,
-  GitLabSnippetSchema,
-  type GitLabSnippet,
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   GetMergeRequestDiscussionSchema,
@@ -743,12 +733,6 @@ import {
   ListCustomFieldDefinitionsSchema,
   GetTimelineEventsSchema,
   CreateTimelineEventSchema,
-  ListWebhooksSchema,
-  CreateWebhookSchema,
-  UpdateWebhookSchema,
-  DeleteWebhookSchema,
-  ListWebhookEventsSchema,
-  GetWebhookEventSchema,
   HealthCheckSchema,
 } from "./schemas.js";
 
@@ -1822,7 +1806,7 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, label, tag, and variable handlers call back into the fetch, error
+// The wiki, milestone, label, tag, variable, webhook, snippet, and todo handlers call back into the fetch, error
 // handling, and project scope helpers below; fetch is read at call time because the cookie
 // reload replaces it.
 configureWikiTools({
@@ -1852,6 +1836,23 @@ configureVariableTools({
   handleGitLabError,
   getEffectiveProjectId,
   rejectIfProjectScopedDeployment,
+});
+configureWebhookTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  rejectIfStrictProjectScope,
+});
+configureSnippetTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  isProjectScopeActive: () => getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID,
+});
+configureTodoTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  rejectIfStrictProjectScope,
 });
 
 // Create cookie jar with clean Netscape file parsing
@@ -2259,13 +2260,6 @@ function gitLabApiErrorMetadata(error: GitLabApiError): Record<string, unknown> 
   return meta;
 }
 
-class ToolInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ToolInputError";
-  }
-}
-
 class ProjectAccessDeniedError extends Error {
   constructor(message: string) {
     super(message);
@@ -2290,6 +2284,10 @@ const VULNERABILITY_NOT_FOUND_HINT =
 // Unlike the generic getEffectiveProjectId hint, this one does not suggest setting
 // GITLAB_PROJECT_ID: fork_repository is rejected whenever GITLAB_PROJECT_ID is set.
 const FORK_PROJECT_ID_REQUIRED_HINT = "pass project_id (numeric ID or group%2Fproject).";
+// Release tools take a tag_name: a 404 means the project is missing or no release has that tag.
+// Used by handleReleaseTagError() in place of the generic iid hint.
+const RELEASE_TAG_NOT_FOUND_HINT =
+  "check project_id and that tag_name is the Git tag of an existing release; list_releases lists them.";
 
 /**
  * Utility function for handling GitLab API errors
@@ -2682,40 +2680,6 @@ async function listIssues(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueSchema).parse(data);
-}
-
-async function listTodos(options: ListTodosOptions = {}): Promise<GitLabTodo[]> {
-  const url = new URL(`${getEffectiveApiUrl()}/todos`);
-
-  appendFilterParams(url.searchParams, options);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabTodoSchema).parse(data);
-}
-
-async function markTodoDone(id: number): Promise<GitLabTodo> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/${id}/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabTodoSchema.parse(data);
-}
-
-async function markAllTodosDone(): Promise<void> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
 }
 
 /**
@@ -7539,153 +7503,6 @@ async function listGroupProjects(
   return filterProjectsByAllowlist(GitLabProjectSchema.array().parse(projects));
 }
 
-// Webhook API helper functions
-
-/**
- * Build the base URL for webhooks (project or group)
- */
-function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
-  if (projectId) {
-    projectId = decodeURIComponent(projectId);
-    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/hooks`;
-  }
-  rejectIfStrictProjectScope("group webhooks");
-  const decodedGroupId = decodeURIComponent(groupId!);
-  return `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(decodedGroupId)}/hooks`;
-}
-
-/**
- * List webhooks for a project or group
- */
-async function listWebhooks(options: z.infer<typeof ListWebhooksSchema>): Promise<unknown[]> {
-  const url = new URL(buildWebhookBaseUrl(options.project_id, options.group_id));
-
-  if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown[];
-}
-
-function buildWebhookMutationBody(
-  options: z.infer<typeof CreateWebhookSchema> | z.infer<typeof UpdateWebhookSchema>
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(options)) {
-    if (key === "project_id" || key === "group_id" || key === "hook_id") continue;
-    if (value !== undefined) body[key] = value;
-  }
-  return body;
-}
-
-/**
- * Create a webhook on a project or group
- */
-async function createWebhook(options: z.infer<typeof CreateWebhookSchema>): Promise<unknown> {
-  const url = buildWebhookBaseUrl(options.project_id, options.group_id);
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Update a webhook on a project or group
- */
-async function updateWebhook(options: z.infer<typeof UpdateWebhookSchema>): Promise<unknown> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Delete a webhook from a project or group
- */
-async function deleteWebhook(
-  options: z.infer<typeof DeleteWebhookSchema>
-): Promise<{ status: string; hook_id: number }> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "DELETE",
-  });
-  await handleGitLabError(response);
-  return { status: "deleted", hook_id: options.hook_id };
-}
-
-/**
- * Fetch a single page of webhook events
- */
-async function fetchWebhookEventsPage(
-  baseUrl: string,
-  page: number,
-  perPage: number,
-  status?: string | number
-): Promise<Record<string, unknown>[]> {
-  const url = new URL(baseUrl);
-  url.searchParams.set("page", page.toString());
-  url.searchParams.set("per_page", perPage.toString());
-  if (status !== undefined) url.searchParams.append("status", String(status));
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as Record<string, unknown>[];
-}
-
-/**
- * List webhook events for a project or group webhook
- */
-async function listWebhookEvents(
-  options: z.infer<typeof ListWebhookEventsSchema>
-): Promise<unknown[]> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-
-  const events = await fetchWebhookEventsPage(
-    eventsUrl,
-    options.page ?? 1,
-    options.per_page ?? 20,
-    options.status
-  );
-  return options.summary ? summarizeWebhookEvents(events) : events;
-}
-
-/**
- * Get a specific webhook event by ID (searches up to 500 recent events)
- */
-async function getWebhookEvent(
-  options: z.infer<typeof GetWebhookEventSchema>
-): Promise<Record<string, unknown> | null> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-  // GitLab enforces max per_page=20 for webhook events
-  const perPage = 20;
-
-  if (options.page) {
-    // Direct page lookup — single API call
-    const events = await fetchWebhookEventsPage(eventsUrl, options.page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    return match ?? null;
-  }
-
-  // Auto-paginate up to 500 events
-  const maxPages = 25;
-  for (let page = 1; page <= maxPages; page++) {
-    const events = await fetchWebhookEventsPage(eventsUrl, page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    if (match) return match;
-    if (events.length < perPage) break;
-  }
-  return null;
-}
-
 /**
  * List pipelines in a GitLab project
  *
@@ -10917,6 +10734,26 @@ async function getProjectEvents(
 }
 
 /**
+ * Like handleGitLabError, but a 404 from a tag-addressed release endpoint gets the release hint.
+ * Release tools take a tag_name, so the generic hint about the iid would name the wrong argument.
+ * Other responses go through handleGitLabError unchanged.
+ */
+async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
+  if (response.ok || response.status !== 404) {
+    await handleGitLabError(response);
+    return;
+  }
+  const errorBody = await response.text();
+  throw new GitLabApiError(
+    withRecoveryHint(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      RELEASE_TAG_NOT_FOUND_HINT
+    ),
+    response
+  );
+}
+
+/**
  * List all releases for a project
  *
  * @param projectId The ID or URL-encoded path of the project
@@ -10971,7 +10808,7 @@ async function getRelease(
     ...getFetchConfig(),
   });
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -11029,7 +10866,7 @@ async function updateRelease(
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -11053,7 +10890,7 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -11076,7 +10913,7 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 }
 
 /**
@@ -11131,212 +10968,6 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
   } finally {
     clearTimeout(timeout);
   }
-}
-
-/**
- * Build the snippets endpoint URL.
- *
- * When projectId is provided, or when a project allowlist is in effect (env
- * GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS or a session scope narrowed via
- * X-GitLab-Allowed-Project-Ids), returns the project snippets endpoint — routing
- * through getEffectiveProjectId so the effective scope is enforced. Only falls
- * back to the personal /snippets endpoint when no scope is active at all.
- */
-function getSnippetsEndpoint(projectId?: string): string {
-  const scopeActive = getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID;
-  if (projectId || scopeActive) {
-    const decoded = projectId ? decodeURIComponent(projectId) : "";
-    const effectiveProjectId = getEffectiveProjectId(decoded);
-    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/snippets`;
-  }
-  return `${getEffectiveApiUrl()}/snippets`;
-}
-
-/**
- * List snippets — project snippets if projectId is given, otherwise personal snippets.
- */
-async function listSnippets(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof ListSnippetsSchema>, "project_id"> = {}
-): Promise<GitLabSnippet[]> {
-  const url = new URL(getSnippetsEndpoint(projectId));
-
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.array().parse(data);
-}
-
-/**
- * Get a snippet's metadata. Use getSnippetRawContent to fetch the raw file content.
- */
-async function getSnippet(
-  projectId: string | undefined,
-  snippetId: number
-): Promise<GitLabSnippet> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
-}
-
-/**
- * Get the raw content of a single-file snippet via the `/raw` endpoint.
- * For multi-file snippets, use getSnippetFileRawContent instead.
- */
-async function getSnippetRawContent(
-  projectId: string | undefined,
-  snippetId: number
-): Promise<string> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}/raw`, {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  return await response.text();
-}
-
-/**
- * Extract the ref (branch/tag/commit) from a snippet file's raw_url.
- * Anchors on /snippets/{id}/raw/ so branch names or file paths containing
- * the word "raw" don't produce a false match.
- */
-function extractSnippetRef(rawUrl: string, snippetId: number, filePath: string): string {
-  const rawMarker = `/snippets/${snippetId}/raw/`;
-  const decoded = decodeURIComponent(new URL(rawUrl).pathname);
-  const markerIdx = decoded.indexOf(rawMarker);
-  if (markerIdx === -1) {
-    throw new Error(`Cannot extract ref from snippet file raw_url: ${rawUrl}`);
-  }
-  const afterRaw = decoded.slice(markerIdx + rawMarker.length); // "{ref}/{filePath}"
-  const fileStart = afterRaw.lastIndexOf("/" + filePath);
-  if (fileStart === -1) {
-    throw new Error(`Cannot locate file path "${filePath}" in snippet file raw_url: ${rawUrl}`);
-  }
-  return afterRaw.slice(0, fileStart);
-}
-
-/**
- * Fetch the raw content of one file inside a multi-file snippet.
- * Accepts an explicit ref (branch/tag/commit) — callers resolve it via
- * extractSnippetRef or a user-supplied parameter before calling this.
- */
-async function getSnippetFileRawContent(
-  projectId: string | undefined,
-  snippetId: number,
-  ref: string,
-  filePath: string
-): Promise<string> {
-  const encodedRef = encodeGitLabPathSegment(ref);
-  const encodedPath = encodeGitLabPathSegment(filePath);
-  const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodedRef}/${encodedPath}/raw`;
-  const response = await fetch(url, { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return await response.text();
-}
-
-function snippetCreateFilesPayload(
-  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
-): Array<{ file_path: string; content: string }> {
-  if (options.files !== undefined && options.files.length > 0) {
-    return options.files;
-  }
-  if (options.file_name !== undefined && options.content !== undefined) {
-    return [{ file_path: options.file_name, content: options.content }];
-  }
-  throw new ToolInputError(
-    withRecoveryHint(
-      "Provide either files[] (multi-file) or both file_name and content (single-file)",
-      "for one file pass file_name and content; for several pass files: [{ file_path, content }]."
-    )
-  );
-}
-
-/**
- * Create a snippet — project-scoped if projectId is given, otherwise personal.
- */
-async function createSnippet(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
-): Promise<GitLabSnippet> {
-  const { title, description, visibility } = options;
-  const body: Record<string, unknown> = {
-    title,
-    visibility: visibility ?? "private",
-    files: snippetCreateFilesPayload(options),
-  };
-  if (description !== undefined) {
-    body.description = description;
-  }
-
-  const response = await fetch(getSnippetsEndpoint(projectId), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
-}
-
-/**
- * Update an existing snippet — project-scoped if projectId is given, otherwise personal.
- */
-async function updateSnippet(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof UpdateSnippetSchema>, "project_id">
-): Promise<GitLabSnippet> {
-  const { snippet_id, title, file_name, content, files, description, visibility } = options;
-  const body: Record<string, unknown> = {};
-  if (title !== undefined) body.title = title;
-  if (description !== undefined) body.description = description;
-  if (visibility !== undefined) body.visibility = visibility;
-
-  if (files !== undefined) {
-    body.files = files;
-  } else if (file_name !== undefined && content !== undefined) {
-    body.files = [{ action: "update", file_path: file_name, content }];
-  }
-
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippet_id}`, {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
-}
-
-/**
- * Delete a snippet — project-scoped if projectId is given, otherwise personal.
- */
-async function deleteSnippet(projectId: string | undefined, snippetId: number): Promise<void> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
-    ...getFetchConfig(),
-    method: "DELETE",
-  });
-
-  await handleGitLabError(response);
 }
 
 // Request handlers are now registered inside createServer() factory function
@@ -11974,40 +11605,10 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_todos": {
-        rejectIfStrictProjectScope("list_todos");
-        const args = ListTodosSchema.parse(params.arguments);
-        const todos = await listTodos(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todos) }],
-        };
-      }
-
-      case "mark_todo_done": {
-        rejectIfStrictProjectScope("mark_todo_done");
-        const args = MarkTodoDoneSchema.parse(params.arguments);
-        const todo = await markTodoDone(args.id);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todo) }],
-        };
-      }
-
-      case "mark_all_todos_done": {
-        rejectIfStrictProjectScope("mark_all_todos_done");
-        MarkAllTodosDoneSchema.parse(params.arguments);
-        await markAllTodosDone();
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "All pending to-do items marked as done",
-              }),
-            },
-          ],
-        };
-      }
+      case "list_todos":
+      case "mark_todo_done":
+      case "mark_all_todos_done":
+        return await handleTodoToolCall(params);
 
       case "get_merge_request": {
         const args = GetMergeRequestSchema.parse(params.arguments);
@@ -14599,156 +14200,20 @@ async function handleToolCall(params: any) {
       case "unprotect_tag":
         return await handleTagToolCall(params);
 
-      case "list_snippets": {
-        const args = ListSnippetsSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippets = await listSnippets(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippets) }],
-        };
-      }
+      case "list_snippets":
+      case "get_snippet":
+      case "create_snippet":
+      case "update_snippet":
+      case "delete_snippet":
+        return await handleSnippetToolCall(params);
 
-      case "get_snippet": {
-        const args = GetSnippetSchema.parse(params.arguments);
-        const snippet = await getSnippet(args.project_id, args.snippet_id);
-        const result: Record<string, unknown> = { ...snippet };
-        if (args.include_content) {
-          const files = snippet.files ?? [];
-          if (files.length > 1) {
-            const firstFile = files[0];
-            let ref: string;
-            if (args.ref !== undefined) {
-              ref = args.ref;
-            } else {
-              if (!firstFile.raw_url)
-                throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
-              ref = extractSnippetRef(firstFile.raw_url, args.snippet_id, firstFile.path);
-            }
-            result.files = await Promise.all(
-              files.map(async f => ({
-                ...f,
-                content: await getSnippetFileRawContent(
-                  args.project_id,
-                  args.snippet_id,
-                  ref,
-                  f.path
-                ),
-              }))
-            );
-          } else {
-            const file = files[0];
-            const filePath = file?.path ?? snippet.file_name ?? undefined;
-            if (args.ref !== undefined && filePath) {
-              result.content = await getSnippetFileRawContent(
-                args.project_id,
-                args.snippet_id,
-                args.ref,
-                filePath
-              );
-            } else {
-              result.content = await getSnippetRawContent(args.project_id, args.snippet_id);
-            }
-          }
-        }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
-      }
-
-      case "create_snippet": {
-        const args = CreateSnippetSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippet = await createSnippet(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippet) }],
-        };
-      }
-
-      case "update_snippet": {
-        const args = UpdateSnippetSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippet = await updateSnippet(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippet) }],
-        };
-      }
-
-      case "delete_snippet": {
-        const args = DeleteSnippetSchema.parse(params.arguments);
-        await deleteSnippet(args.project_id, args.snippet_id);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Snippet ${args.snippet_id} deleted successfully`,
-              }),
-            },
-          ],
-        };
-      }
-
-      case "list_webhooks": {
-        const args = ListWebhooksSchema.parse(params.arguments);
-        const webhooks = await listWebhooks(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhooks) }],
-        };
-      }
-
-      case "create_webhook": {
-        const args = CreateWebhookSchema.parse(params.arguments);
-        const webhook = await createWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "update_webhook": {
-        const args = UpdateWebhookSchema.parse(params.arguments);
-        const webhook = await updateWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "delete_webhook": {
-        const args = DeleteWebhookSchema.parse(params.arguments);
-        const result = await deleteWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
-      }
-
-      case "list_webhook_events": {
-        const args = ListWebhookEventsSchema.parse(params.arguments);
-        const events = await listWebhookEvents(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(events) }],
-        };
-      }
-
-      case "get_webhook_event": {
-        const args = GetWebhookEventSchema.parse(params.arguments);
-        const event = await getWebhookEvent(args);
-        if (!event) {
-          const searchScope = args.page ? `on page ${args.page}` : "in the 500 most recent events";
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  error: `Webhook event ${args.event_id} not found ${searchScope}`,
-                }),
-              },
-            ],
-          };
-        }
-        return {
-          content: [{ type: "text", text: JSON.stringify(event) }],
-        };
-      }
+      case "list_webhooks":
+      case "create_webhook":
+      case "update_webhook":
+      case "delete_webhook":
+      case "list_webhook_events":
+      case "get_webhook_event":
+        return await handleWebhookToolCall(params);
 
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});

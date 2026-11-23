@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { compactMcpToolResult } from "../../cli/compact-mcp-result.js";
 import { allTools } from "../../tools/registry.js";
-import { hasMarker, runInShell, withStubWorkspace } from "./shell-replay-harness.js";
+import { runInEveryShell, withStubWorkspace } from "./shell-replay-harness.js";
 
 function textResult(text: string): { content: { type: string; text: string }[] } {
   return { content: [{ type: "text", text }] };
@@ -26,6 +26,17 @@ function compactedPayload(compacted: Record<string, unknown>): Record<string, un
 const LONG_ISSUES = JSON.stringify(
   Array.from({ length: 20 }, (_, index) => ({ iid: index + 1, title: "x".repeat(80) }))
 );
+
+function compactIssues(args: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return compactMcpToolResult({
+    result: textResult(LONG_ISSUES),
+    enabled: true,
+    maxChars: 200,
+    toolName: "list_issues",
+    args,
+    inputSchema: schemaFor("list_issues"),
+  });
+}
 
 describe("When compactMcpToolResult wraps an MCP tool reply", () => {
   describe("with compact mode disabled", () => {
@@ -82,46 +93,57 @@ describe("When compactMcpToolResult wraps an MCP tool reply", () => {
       assert.equal(payload.cli, "zereight-mcp-gitlab tool list_issues --project-id 123 --state opened");
     });
 
-    it("should attach a replay that runs the argument value literally", () => {
+    it("should attach a double-quoted cli line for a value with a space, which every shell reads as one argument", () => {
       withStubWorkspace(workspace => {
-        const value = "x$(touch PWNED) `touch PWNED` $HOME";
-        const compacted = compactMcpToolResult({
-          result: textResult(LONG_ISSUES),
-          enabled: true,
-          maxChars: 200,
-          toolName: "list_issues",
-          args: { project_id: "123", search: value },
-          inputSchema: schemaFor("list_issues"),
-        });
+        const payload = compactedPayload(compactIssues({ project_id: "123", search: "foo bar" }));
 
-        const cli = compactedPayload(compacted).cli;
-        assert.equal(typeof cli, "string");
-        const argv = runInShell(cli as string, workspace);
-        assert.ok(argv !== undefined);
-        assert.equal(hasMarker(workspace, "PWNED"), false);
-        assert.deepEqual(argv.slice(0, 3), ["tool", "list_issues", "--project-id"]);
-        assert.equal(argv[4], "--search");
-        assert.equal(argv[5], value);
+        assert.ok(Array.isArray(payload.preview));
+        assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli_argv"), false);
+        assert.equal(payload.cli, 'zereight-mcp-gitlab tool list_issues --project-id 123 --search "foo bar"');
+        assert.deepEqual(runInEveryShell(payload.cli, workspace), [
+          "tool",
+          "list_issues",
+          "--project-id",
+          "123",
+          "--search",
+          "foo bar",
+        ]);
       });
     });
 
-    it("should drop the cli field, but keep the preview, when an argument name is unsafe", () => {
-      withStubWorkspace(workspace => {
-        const compacted = compactMcpToolResult({
-          result: textResult(LONG_ISSUES),
-          enabled: true,
-          maxChars: 200,
-          toolName: "list_issues",
-          args: { project_id: "123", "$(touch PWNED)": "1" },
-          inputSchema: schemaFor("list_issues"),
-        });
+    const ARGV_ONLY_SEARCHES = [
+      ["POSIX command substitution", "x$(touch PWNED) `touch PWNED` $HOME"],
+      ["cmd.exe operators", "x & echo INJECTED > marker & rem "],
+      ["a PowerShell single quote", "x' ; New-Item PWNED2 ; '"],
+    ] as const;
 
-        const payload = compactedPayload(compacted);
+    for (const [label, search] of ARGV_ONLY_SEARCHES) {
+      it(`should attach cli_argv, and no cli line, for a value with ${label}`, () => {
+        const payload = compactedPayload(compactIssues({ project_id: "123", search }));
+
         assert.equal(payload.compact, true);
         assert.ok(Array.isArray(payload.preview));
+        assert.equal(payload.preview.length, 5);
         assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli"), false);
-        assert.equal(hasMarker(workspace, "PWNED"), false);
+        assert.deepEqual(payload.cli_argv, [
+          "zereight-mcp-gitlab",
+          "tool",
+          "list_issues",
+          "--project-id",
+          "123",
+          "--search",
+          search,
+        ]);
       });
+    }
+
+    it("should drop both cli and cli_argv, but keep the preview, when an argument name is unsafe", () => {
+      const payload = compactedPayload(compactIssues({ project_id: "123", "$(touch PWNED)": "1" }));
+
+      assert.equal(payload.compact, true);
+      assert.ok(Array.isArray(payload.preview));
+      assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli"), false);
+      assert.equal(Object.prototype.hasOwnProperty.call(payload, "cli_argv"), false);
     });
   });
 
