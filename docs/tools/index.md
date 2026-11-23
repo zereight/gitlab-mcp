@@ -130,7 +130,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 
 ### [Projects & Files](repositories.md)
 
-Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
+Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(8 tools)*
 
 > Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,repositories`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `repositories` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
@@ -140,7 +140,8 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 | [`create_repository`](repositories.md#create_repository) | Create a new GitLab project. | ✏️ |
 | [`get_file_contents`](repositories.md#get_file_contents) | Get the contents of one file from a GitLab project. `ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`. | 📖 |
 | [`push_files`](repositories.md#push_files) | Push multiple files in a single commit. Commit several file changes atomically. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`. | ✏️ |
-| [`create_or_update_file`](repositories.md#create_or_update_file) | Create or update a file in a GitLab project. Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`. | ✏️ |
+| [`create_or_update_file`](repositories.md#create_or_update_file) | Create or update a file in a GitLab project. Create or update one repository file. Use `update_file_patch` to change a few lines of an existing file and `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`. | ✏️ |
+| [`update_file_patch`](repositories.md#update_file_patch) | Patch an existing repository file (search/replace or unified diff) without resending the whole content. dry_run previews. Change part of an existing UTF-8 file and commit it, sending only the changed lines. The server reads the file from `branch`, applies the patch, and commits with the file's `last_commit_id`, so a file changed in between is not overwritten. Each SEARCH text must match exactly once (add surrounding lines to make it unique). Returns the diff. Use `create_or_update_file` to create a file. | ✏️ |
 | [`fork_repository`](repositories.md#fork_repository) | Fork a project to your account or specified namespace. Fork an existing project into the current user's namespace or a permitted namespace. Use `search_repositories` or `get_project` to inspect without copying. | ✏️ |
 | [`get_repository_tree`](repositories.md#get_repository_tree) | List files and directories in a repository. One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file. | 📖 |
 

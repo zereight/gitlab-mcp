@@ -8,16 +8,16 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 290 |
-| Invoked | 191 |
-| Coverage | 65.9% |
+| Tools | 291 |
+| Invoked | 192 |
+| Coverage | 66.0% |
 
 ## By toolset
 
 | Toolset | Invoked | Total | Coverage |
 | --- | ---: | ---: | ---: |
 | [Projects & Namespaces](#projects) | 18 | 20 | 90.0% |
-| [Projects & Files](#repositories) | 6 | 7 | 85.7% |
+| [Projects & Files](#repositories) | 7 | 8 | 87.5% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
 | [Merge Requests](#merge_requests) | 16 | 46 | 34.8% |
@@ -75,6 +75,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_file_contents`](../tools/repositories.md#get_file_contents) — `test/gitlab-api-tool-errors.test.ts`, `test/response-masking.test.ts`, `test/streamable-http-concurrent-session.test.ts`, `test/test-get-file-contents.ts`
 - [x] [`push_files`](../tools/repositories.md#push_files) — `test/test-permission-mode.ts`
 - [ ] [`create_or_update_file`](../tools/repositories.md#create_or_update_file)
+- [x] [`update_file_patch`](../tools/repositories.md#update_file_patch) — `test/live/update-file-patch.test.ts`, `test/test-update-file-patch.ts`
 - [x] [`fork_repository`](../tools/repositories.md#fork_repository) — `test/gitlab-api-tool-errors.test.ts`, `test/test-geteffectiveprojectid.ts`
 - [x] [`get_repository_tree`](../tools/repositories.md#get_repository_tree) — `test/dynamic-routing-tests.ts`, `test/test-get-file-contents.ts`
 
