@@ -70,7 +70,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: env.GITLAB_READ_ONLY_MODE ?? "true",
+        GITLAB_PERMISSION_MODE: env.GITLAB_PERMISSION_MODE ?? "readonly",
         USE_PIPELINE: "true",
       },
     });
@@ -447,7 +447,7 @@ describe("deployment and environment tools", () => {
     const env = {
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_READ_ONLY_MODE: "false",
+      GITLAB_PERMISSION_MODE: "full",
     };
 
     const created = await callTool(

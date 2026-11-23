@@ -31,7 +31,7 @@ describe("GITLAB_MCP_COMPACT_RESULTS replay line", () => {
     baseEnv = {
       GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_READ_ONLY_MODE: "true",
+      GITLAB_PERMISSION_MODE: "readonly",
       GITLAB_MCP_COMPACT_RESULTS: "true",
       GITLAB_MCP_COMPACT_RESULT_CHARS: "10",
     };
