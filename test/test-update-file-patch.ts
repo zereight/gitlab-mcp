@@ -25,6 +25,9 @@ const ENCODED_PATH = encodeURIComponent(FILE_PATH);
 const BRANCH = "feature/raise-cpu";
 
 const ORIGINAL = [
+  "# ==========",
+  "# Demo app",
+  "# ==========",
   "app:",
   "  psql:",
   "    resources:",
@@ -271,6 +274,15 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     assert.strictEqual(lastPut?.branch, BRANCH);
   });
 
+  test("a '# ==========' banner inside SEARCH and REPLACE is committed intact", async () => {
+    const data = await call({
+      patch:
+        "<<<<<<< SEARCH\n# ==========\n# Demo app\n# ==========\n=======\n# ==========\n# Demo service\n# ==========\n>>>>>>> REPLACE",
+    });
+    assert.strictEqual(data.status, "success");
+    assert.strictEqual(content, ORIGINAL.replace("# Demo app", "# Demo service"));
+  });
+
   test("dry_run returns the diff without committing", async () => {
     const data = await call({
       patch: "<<<<<<< SEARCH\n      suspend: false\n=======\n      suspend: true\n>>>>>>> REPLACE",
@@ -303,7 +315,7 @@ describe("update_file_patch", { timeout: 30_000 }, () => {
     const data = await call({
       patch_type: "unified_diff",
       patch:
-        "--- a/values.yaml\n+++ b/values.yaml\n@@ -7,4 +7,4 @@\n   cronJobs:\n     - name: compact\n-      suspend: false\n+      suspend: true\n       requests:\n",
+        "--- a/values.yaml\n+++ b/values.yaml\n@@ -10,4 +10,4 @@\n   cronJobs:\n     - name: compact\n-      suspend: false\n+      suspend: true\n       requests:\n",
     });
     assert.strictEqual(data.status, "success");
     assert.ok(content.includes("      suspend: true"));

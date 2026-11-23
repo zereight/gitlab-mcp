@@ -36,8 +36,11 @@ export interface SearchReplaceBlock {
  */
 export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
-  // Match SEARCH...REPLACE blocks (greedy multiline)
-  const regex = /<<<<<<< SEARCH[^\S\n]*\n([\s\S]*?)=======[^\S\n]*\n([\s\S]*?)>>>>>>> REPLACE[^\S\n]*/g;
+  // Match SEARCH...REPLACE blocks. Each marker must be a whole line (`m` flag + `^`):
+  // otherwise a text line that merely ends in "=======" (a setext heading, a
+  // "# ==========" banner) would be taken as the divider and split mid-line.
+  const regex =
+    /^<<<<<<< SEARCH[^\S\n]*\n([\s\S]*?)^=======[^\S\n]*\n([\s\S]*?)^>>>>>>> REPLACE[^\S\n]*$/gm;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(patch)) !== null) {
@@ -46,12 +49,20 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
     // Trim trailing newline from each side (the \n before ======= and before >>>>>>>)
     if (search.endsWith("\n")) search = search.slice(0, -1);
     if (replace.endsWith("\n")) replace = replace.slice(0, -1);
+    // The divider is the first line that is exactly "=======". Another such line means
+    // the SEARCH or REPLACE text contains one, and the split point cannot be known.
+    if (/^=======[^\S\n]*$/m.test(replace)) {
+      throw new Error(
+        'A SEARCH or REPLACE text contains a line that is exactly "=======", so the block ' +
+          'cannot be split unambiguously. Use patch_type "unified_diff" for this change.'
+      );
+    }
     blocks.push({ search, replace });
   }
 
   // Detect malformed blocks: check if SEARCH/REPLACE markers exist but weren't captured
-  const searchMarkers = (patch.match(/<<<<<<<\s+SEARCH/g) || []).length;
-  const replaceMarkers = (patch.match(/>>>>>>>\s+REPLACE/g) || []).length;
+  const searchMarkers = (patch.match(/^<<<<<<<[^\S\n]+SEARCH/gm) || []).length;
+  const replaceMarkers = (patch.match(/^>>>>>>>[^\S\n]+REPLACE/gm) || []).length;
   if (searchMarkers !== blocks.length || replaceMarkers !== blocks.length) {
     throw new Error(
       `Found ${searchMarkers} SEARCH marker(s) and ${replaceMarkers} REPLACE marker(s), ` +
