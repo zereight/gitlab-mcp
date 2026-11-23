@@ -253,6 +253,7 @@ import {
 } from "./utils/helpers.js";
 import {
   graphqlQueryContainsWriteOperation,
+  graphqlQuerySecretFields,
   graphqlQueryContainsDeleteOperation,
 } from "./utils/graphql-query.js";
 import {
@@ -262,6 +263,7 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { scopeCiLintResult } from "./utils/ci-lint-scope.js";
 import {
   formatJobLogSearch,
   JobLogSearchError,
@@ -8235,10 +8237,69 @@ async function formatPipelineJobSearch(
   }
 }
 
+/**
+ * Under a project allowlist (GITLAB_ALLOWED_PROJECT_IDS or a session scope), drop the
+ * expanded configuration from a CI lint result when an include reads from a project
+ * outside the allowlist. GitLab expands includes with the token's permissions, so
+ * `include: project:` could otherwise return another project's files. Without an
+ * allowlist the result is returned unchanged and no extra request is made.
+ */
+async function scopeCiLintResultToAllowlist(
+  result: GitLabCiLintResult
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return result;
+  }
+  const hasNumericEntries = allowedProjectIds.some(entry => /^\d+$/.test(entry));
+  const decisions = new Map<string, Promise<boolean>>();
+  const isProjectAllowed = (projectPath: string): Promise<boolean> => {
+    let decision = decisions.get(projectPath);
+    if (decision === undefined) {
+      decision = (async () => {
+        if (allowedProjectIds.includes(projectPath)) {
+          return true;
+        }
+        if (!hasNumericEntries) {
+          return false;
+        }
+        // Numeric allowlist entries: resolve the path to its project ID. A lookup that
+        // fails counts as a project outside the allowlist, so the lint verdict is still
+        // returned without the expanded configuration.
+        try {
+          const response = await fetch(
+            `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
+            { ...getFetchConfig() }
+          );
+          if (!response.ok) {
+            await response.body?.cancel();
+            logger.debug(
+              { projectPath, status: response.status },
+              "CI lint include project lookup failed; treating it as outside the allowlist"
+            );
+            return false;
+          }
+          const project = (await response.json()) as { id?: number | string };
+          return project.id !== undefined && allowedProjectIds.includes(String(project.id));
+        } catch (error) {
+          logger.debug(
+            { projectPath, error: redactUrlSecretsInErrorMessage(error) },
+            "CI lint include project lookup failed; treating it as outside the allowlist"
+          );
+          return false;
+        }
+      })();
+      decisions.set(projectPath, decision);
+    }
+    return decision;
+  };
+  return scopeCiLintResult(result, isProjectAllowed);
+}
+
 async function validateCiLint(
   projectId: string,
   options: Omit<ValidateCiLintOptions, "project_id">
-): Promise<GitLabCiLintResult> {
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
@@ -8252,13 +8313,13 @@ async function validateCiLint(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabCiLintResultSchema.parse(data);
+  return scopeCiLintResultToAllowlist(GitLabCiLintResultSchema.parse(data));
 }
 
 async function validateProjectCiLint(
   projectId: string,
   options: Omit<ValidateProjectCiLintOptions, "project_id">
-): Promise<GitLabCiLintResult> {
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
@@ -8272,7 +8333,7 @@ async function validateProjectCiLint(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabCiLintResultSchema.parse(data);
+  return scopeCiLintResultToAllowlist(GitLabCiLintResultSchema.parse(data));
 }
 
 /**
@@ -11192,6 +11253,17 @@ async function handleToolCall(params: any) {
         ) {
           throw new Error("execute_graphql does not allow destructive mutations in modify mode");
         }
+        const secretFields = graphqlQuerySecretFields(args.query);
+        if (secretFields === null) {
+          throw new ToolInputError(
+            "execute_graphql could not parse the query to check it for credential fields. Send a single valid GraphQL document."
+          );
+        }
+        if (secretFields.length > 0) {
+          throw new ToolInputError(
+            `execute_graphql does not return credential fields (${secretFields.join(", ")}). Remove them from the query; create_pipeline_trigger returns a new trigger token once.`
+          );
+        }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
@@ -11219,6 +11291,9 @@ async function handleToolCall(params: any) {
           if (!response.ok) {
             await handleGitLabError(response);
           }
+          // GitLab returns only the selected fields, and credential fields were refused
+          // above by field name. Response keys are aliases chosen by the caller, so they
+          // are not filtered here: `token: currentUser { username }` is a safe selection.
           const json = await response.json();
           const graphqlResult = {
             content: [{ type: "text", text: JSON.stringify(json) }],
