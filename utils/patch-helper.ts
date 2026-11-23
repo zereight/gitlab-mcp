@@ -61,8 +61,10 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
   }
 
   // Detect malformed blocks: check if SEARCH/REPLACE markers exist but weren't captured
-  const searchMarkers = (patch.match(/^<<<<<<<[^\S\n]+SEARCH/gm) || []).length;
-  const replaceMarkers = (patch.match(/^>>>>>>>[^\S\n]+REPLACE/gm) || []).length;
+  // Same whole-line grammar as the parser, so a text line such as "<<<<<<< SEARCH example"
+  // is content, not a marker.
+  const searchMarkers = (patch.match(/^<<<<<<< SEARCH[^\S\n]*$/gm) || []).length;
+  const replaceMarkers = (patch.match(/^>>>>>>> REPLACE[^\S\n]*$/gm) || []).length;
   if (searchMarkers !== blocks.length || replaceMarkers !== blocks.length) {
     throw new Error(
       `Found ${searchMarkers} SEARCH marker(s) and ${replaceMarkers} REPLACE marker(s), ` +

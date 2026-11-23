@@ -112,6 +112,13 @@ describe("parseSearchReplaceBlocks", () => {
     ]);
   });
 
+  test("treats a line that only starts like a marker as content", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\n<<<<<<< SEARCH example\n=======\nupdated\n>>>>>>> REPLACE"
+    );
+    assert.deepStrictEqual(blocks, [{ search: "<<<<<<< SEARCH example", replace: "updated" }]);
+  });
+
   test("rejects a SEARCH text with a line that is exactly =======", () => {
     assert.throws(
       () =>
