@@ -12,6 +12,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 - [`get_file_contents`](#get_file_contents) — 📖 Read-only
 - [`push_files`](#push_files) — ✏️ Writes
 - [`create_or_update_file`](#create_or_update_file) — ✏️ Writes
+- [`update_file_patch`](#update_file_patch) — ✏️ Writes
 - [`fork_repository`](#fork_repository) — ✏️ Writes
 - [`get_repository_tree`](#get_repository_tree) — 📖 Read-only
 
@@ -82,7 +83,7 @@ Push multiple files in a single commit. Commit several file changes atomically. 
 
 *✏️ Writes*
 
-Create or update a file in a GitLab project. Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.
+Create or update a file in a GitLab project. Create or update one repository file. Use `update_file_patch` to change a few lines of an existing file and `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`.
 
 **Parameters**
 
@@ -97,6 +98,26 @@ Create or update a file in a GitLab project. Create or update one repository fil
 | `last_commit_id` | string |  | Last known file commit ID |
 | `commit_id` | string |  | Current file commit ID (for update operations) |
 | `encoding` | enum (`text` \| `base64`) |  | Content encoding. Use 'base64' for binary files (content must already be base64-encoded). When omitted, GITLAB_REPO_FILE_ENCODING applies. |
+
+### `update_file_patch`
+
+*✏️ Writes*
+
+Patch an existing repository file (search/replace or unified diff) without resending the whole content. dry_run previews. Change part of an existing UTF-8 file and commit it, sending only the changed lines. The server reads the file from `branch`, applies the patch, and commits with the file's `last_commit_id`, so a file changed in between is not overwritten. Each SEARCH text must match exactly once (add surrounding lines to make it unique). Returns the diff. Use `create_or_update_file` to create a file.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `file_path` | string | ✓ | Path of the existing file to patch |
+| `branch` | string | ✓ | Branch to read the file from and commit the change to |
+| `commit_message` | string | ✓ | Commit message |
+| `patch_type` | enum (`search_replace` \| `unified_diff`) | ✓ | Type of patch format to apply |
+| `patch` | string | ✓ | The patch to apply to the file's current content. For search_replace: one or more <<<<<<< SEARCH / ======= / >>>>>>> REPLACE blocks, each SEARCH text matching the file exactly once |
+| `dry_run` | boolean |  | If true, return the diff without committing |
+| `allow_multiple` | boolean |  | For search_replace: allow multiple matches to all be replaced (default: false — fail on duplicate) |
+| `last_commit_id` | string |  | Last known commit ID of the file. When omitted, the one read with the file is used, so the commit fails if the file changed in between |
 
 ### `fork_repository`
 
