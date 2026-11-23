@@ -58,8 +58,11 @@ So:
   unknown name.
 - Append only the toolsets whose legacy setting was enabled.
 - `GITLAB_TOOL_PROFILE=slim` applies only while `GITLAB_TOOLSETS` is unset. If you used
-  `slim` without `GITLAB_TOOLSETS`, setting `GITLAB_TOOLSETS` turns the slim profile off
-  (the server logs a warning).
+  `slim` with a `USE_*` setting, the explicit list turns slim off (the server logs a
+  warning) and the first `tools/list` gains `list_labels`, the only slim-hidden tool in
+  `core`, `wiki`, `milestones`, and `pipelines`. To keep the v2 tool list, also set
+  `GITLAB_DENIED_TOOLS_REGEX=^list_labels$`. Unlike slim, that regex blocks `list_labels`
+  even when `GITLAB_TOOLS` names it.
 
 ## Group access control needs MCP OAuth
 
