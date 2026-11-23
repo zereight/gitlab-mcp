@@ -7,13 +7,12 @@ export interface ExposedToolSelection<T extends { readonly name: string }> {
   readonly tools: readonly T[];
   readonly isInEnabledToolset: (toolName: string) => boolean;
   readonly individuallyEnabledTools: ReadonlySet<string>;
-  readonly featureFlagOverrides: ReadonlySet<string>;
   readonly isAllowedByPermissionMode: (toolName: string) => boolean;
   readonly deniedToolsRegex: RegExp | undefined;
   readonly hiddenToolNames: ReadonlySet<string>;
   readonly applySlimProfile: boolean;
   /**
-   * When false, GITLAB_TOOLS and legacy USE_* flags cannot add the tool.
+   * When false, GITLAB_TOOLS cannot add the tool.
    * Explicit-only tools stay off unless their toolset is already selected.
    */
   readonly isAdditiveEnablementAllowed?: (toolName: string) => boolean;
@@ -34,17 +33,7 @@ export function selectExposedTools<T extends { readonly name: string }>(
         additiveAllowed(tool.name)
     ),
   ];
-  const afterIndividualNames = new Set(toolsAfterIndividual.map(tool => tool.name));
-  const toolsAfterLegacy = [
-    ...toolsAfterIndividual,
-    ...input.tools.filter(
-      tool =>
-        input.featureFlagOverrides.has(tool.name) &&
-        !afterIndividualNames.has(tool.name) &&
-        additiveAllowed(tool.name)
-    ),
-  ];
-  const toolsAfterPermission = toolsAfterLegacy.filter(tool =>
+  const toolsAfterPermission = toolsAfterIndividual.filter(tool =>
     input.isAllowedByPermissionMode(tool.name)
   );
   const deniedToolsRegex = input.deniedToolsRegex;
@@ -82,8 +71,8 @@ export function selectExposedTools<T extends { readonly name: string }>(
 
 /**
  * Hidden tools that would be listed if the hidden policy were ignored.
- * Hiding a tool keeps it callable only while toolsets, `GITLAB_TOOLS`, legacy
- * flags, permission mode, and the regex denylist still expose it.
+ * Hiding a tool keeps it callable only while toolsets, `GITLAB_TOOLS`,
+ * permission mode, and the regex denylist still expose it.
  */
 export function selectCallableHiddenToolNames<T extends { readonly name: string }>(
   input: ExposedToolSelection<T>

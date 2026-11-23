@@ -60,7 +60,7 @@ function callMrDiscussions(args: Record<string, unknown>, env: NodeJS.ProcessEnv
   return new Promise<{ items: Discussion[] }>((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...env, GITLAB_READ_ONLY_MODE: "true" },
+      env: { ...process.env, ...env, GITLAB_PERMISSION_MODE: "readonly" },
     });
 
     let output = "";

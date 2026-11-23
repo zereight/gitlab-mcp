@@ -124,7 +124,7 @@ review.
 2. It bumps the version (`npm version patch`, `minor`, or `major`). A release
    that stopped part way is resumed instead, without a bump; see
    [Resuming a release](#resuming-a-release).
-3. It syncs the version into `server.json` and pins the `npx` examples in
+3. It syncs the version into `server.json` and `manifest.json` and pins the `npx` examples in
    `README*.md` and `docs/` to the previous release, the last known-good
    version. It runs the MCP Registry preflight
    (`npm run release:mcp-registry -- --check`) and `make docs`. It then merges
@@ -158,9 +158,10 @@ review.
 
 Use `minor` or `major` rather than tagging a version by hand. A hand-made
 tag's commit must also bump `server.json` (`version`, the npm package
-`version`, and the image tag; the MCP Registry publish fails on a mismatch),
-pin the `npx` examples to the previous release, regenerate `docs/tools/*.md`
-with `make docs`, and pass `npm run release:mcp-registry -- --check`.
+`version`, and the image tag; the MCP Registry publish fails on a mismatch)
+and `manifest.json` (`version`), pin the `npx` examples to the previous
+release, regenerate `docs/tools/*.md` with `make docs`, and pass
+`npm run release:mcp-registry -- --check`.
 
 The GitHub release notes list the PRs referenced since the previous tag, grouped
 by PR title prefix (`feat`, `fix`, `docs`, ...), followed by contributors. The
