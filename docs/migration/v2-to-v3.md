@@ -1,6 +1,8 @@
 # Migrating from v2 to v3
 
 v3.0.0 removes the settings below. v2 kept them working with deprecation warnings.
+This page describes the complete v3.0.0 release. The removals land together and ship only
+in v3.0.0; no v2 release removes any of them.
 In v3 an **active** removed setting stops the server from starting. The server prints
 the replacement and links back to this page, so a setting is never silently ignored.
 
@@ -13,13 +15,13 @@ leave them in place: the server accepts an inactive flag such as `--read-only=fa
 
 ## Replacements
 
-| Removed environment variable / CLI flag      | Replacement                                                                                   | Notes                                                                                                                                       |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                              | `readonly` exposes read tools only and rejects writes.                                                                                      |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`                                      | Enforced only with `GITLAB_MCP_OAUTH=true`.                                                                                                 |
-| `USE_GITLAB_WIKI` / `--use-wiki`             | `GITLAB_TOOLSETS=core,wiki`                                                                   | Only if it was enabled. Append `wiki` to an existing list.                                                                                  |
-| `USE_MILESTONE` / `--use-milestone`          | `GITLAB_TOOLSETS=core,milestones`                                                             | Only if it was enabled. Append `milestones` to an existing list.                                                                            |
-| `USE_PIPELINE` / `--use-pipeline`            | `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` | Only if it was enabled. The CI lint tools live in the `ci` toolset; append them to an existing `GITLAB_TOOLS` list only if you use CI lint. |
+| Removed environment variable / CLI flag      | Replacement                                                                                             | Notes                                                                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                        | `readonly` exposes read tools only and rejects writes.                                                                                                                                                                           |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`                                                | Enforced only with `GITLAB_MCP_OAUTH=true`.                                                                                                                                                                                      |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | Add `wiki` to `GITLAB_TOOLSETS`                                                                         | Only if it was enabled. See [Choose the new `GITLAB_TOOLSETS` value](#choose-the-new-gitlab_toolsets-value).                                                                                                                     |
+| `USE_MILESTONE` / `--use-milestone`          | Add `milestones` to `GITLAB_TOOLSETS`                                                                   | Only if it was enabled. See [Choose the new `GITLAB_TOOLSETS` value](#choose-the-new-gitlab_toolsets-value).                                                                                                                     |
+| `USE_PIPELINE` / `--use-pipeline`            | Add `pipelines` to `GITLAB_TOOLSETS`, and `validate_ci_lint,validate_project_ci_lint` to `GITLAB_TOOLS` | Only if it was enabled. See [Choose the new `GITLAB_TOOLSETS` value](#choose-the-new-gitlab_toolsets-value). The CI lint tools live in the `ci` toolset; append them to an existing `GITLAB_TOOLS` list only if you use CI lint. |
 
 For the boolean settings (`GITLAB_READ_ONLY_MODE` and the `USE_*` settings), use a replacement
 only if the setting was **enabled** in v2 (`true` or a bare flag). A `false` or empty value
@@ -27,19 +29,37 @@ needs no replacement: delete it. For a `USE_*` setting, do not add its toolset
 (`wiki`, `milestones`, or `pipelines`) to `GITLAB_TOOLSETS`, or you expose tools that v2
 kept off (for example the wiki create, update, and delete tools).
 
-## Keep `core` in `GITLAB_TOOLSETS`
+## Choose the new `GITLAB_TOOLSETS` value
 
-An explicit `GITLAB_TOOLSETS` list **replaces** the default toolsets; it does not merge
-with them. `core` is the default starter set (merge requests, issues, repositories,
-branches, projects, labels, and identity). If you write `GITLAB_TOOLSETS=wiki`, those core
-tools disappear.
+Keep exactly the toolsets you had in v2, then add the replacement for each enabled `USE_*`
+setting. Add `core` only if v2 actually exposed core tools for you. In v2 the server chose
+toolsets like this, and v3 keeps the same rules:
 
-- Always include `core`: `GITLAB_TOOLSETS=core,wiki`, not `GITLAB_TOOLSETS=wiki`.
-- Append to a list you already have. Do not replace it.
+- `GITLAB_TOOLSETS` unset or empty: the default toolset, which is `core` only (merge
+  requests, issues, repositories, branches, projects, labels, and identity). A value with
+  no valid toolset name also falls back to this default.
+- `GITLAB_TOOLSETS` set to a list: exactly the listed toolsets. The list **replaces** the
+  default, so `core` is exposed only if it is listed.
+- `GITLAB_TOOLSETS=all`: every toolset except explicit-only ones such as `api`.
+- `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` added their tools on top of
+  whichever of these applied.
+
+So:
+
+- **`GITLAB_TOOLSETS` was unset:** v2 exposed `core`, so keep it:
+  `GITLAB_TOOLSETS=core,wiki`. Writing `GITLAB_TOOLSETS=wiki` would drop the core tools.
+- **`GITLAB_TOOLSETS` was a list:** append the new toolset to that list as it is, and do
+  not add `core` unless it was already there. For example, `GITLAB_TOOLSETS=search` with
+  `USE_GITLAB_WIKI=true` becomes `GITLAB_TOOLSETS=search,wiki`, not
+  `GITLAB_TOOLSETS=core,search,wiki`. Adding `core` would expose tools such as
+  `create_issue` that v2 did not expose for you.
+- **`GITLAB_TOOLSETS=all`:** it already includes `wiki`, `milestones`, and `pipelines`, so
+  leave it exactly as it is. `all` is only valid on its own; `all,wiki` drops `all` as an
+  unknown name.
 - Append only the toolsets whose legacy setting was enabled.
-- `GITLAB_TOOLSETS=all` already includes `wiki`, `milestones`, and `pipelines`, so leave it
-  exactly as it is. `all` is only valid on its own; `all,wiki` drops `all` as an unknown
-  name and leaves a list without `core`.
+- `GITLAB_TOOL_PROFILE=slim` applies only while `GITLAB_TOOLSETS` is unset. If you used
+  `slim` without `GITLAB_TOOLSETS`, setting `GITLAB_TOOLSETS` turns the slim profile off
+  (the server logs a warning).
 
 ## Group access control needs MCP OAuth
 
@@ -51,7 +71,7 @@ group membership. If you need group restriction, set both `GITLAB_MCP_OAUTH=true
 ## Example
 
 ```bash
-# v2 configuration
+# v2 configuration (GITLAB_TOOLSETS unset, so v2 exposed core)
 GITLAB_READ_ONLY_MODE=true
 GITLAB_ALLOWED_GROUPS=my-group
 USE_GITLAB_WIKI=true
@@ -62,6 +82,13 @@ GITLAB_PERMISSION_MODE=readonly
 GITLAB_OAUTH_ALLOWED_GROUPS=my-group   # requires GITLAB_MCP_OAUTH=true
 GITLAB_TOOLSETS=core,wiki,pipelines
 GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint   # only if you use CI lint
+
+# v2 configuration with an explicit list that omits core
+GITLAB_TOOLSETS=search
+USE_GITLAB_WIKI=true
+
+# v3 configuration: keep the list, append wiki, do not add core
+GITLAB_TOOLSETS=search,wiki
 ```
 
 ## What a leftover setting looks like
