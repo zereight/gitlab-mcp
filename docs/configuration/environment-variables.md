@@ -677,8 +677,13 @@ While an allowlist is in effect, strict scope:
   allowlist requires an explicit `project_id`)
 - refuses instance-wide and group-wide tools that cannot be limited to allowed
   projects: `search_code`, `search_group_code`, `list_events`, the todo tools,
-  group webhooks, and the group merge request, member, wiki, milestone, and
-  iteration tools
+  `list_ci_catalog_resources`, `list_namespaces`, `get_namespace`,
+  `verify_namespace`, group webhooks, and the group merge request, member,
+  wiki, milestone, and iteration tools
+
+User lookups (`get_users`, `get_user`, `whoami`) and `health_check` stay
+available under strict scope. They return account metadata, not project data,
+and are needed to resolve assignees and reviewers for allowed projects.
 
 ### `GITLAB_ALLOWED_HOSTS`
 
@@ -887,6 +892,11 @@ Behavior:
 - Multiple project IDs: restricts access to those projects only
 - `gitlab_api_request` (opt-in `api` toolset) accepts only `/projects/:id` and
   `/projects/:id/...` paths for an allowed project and rejects every other path
+- `get_ci_catalog_resource` returns a CI/CD catalog resource only when its
+  project is allowed, matched by full path or numeric project ID; a resource
+  from any other project is refused, whether it is looked up by `full_path` or
+  by `id`. `list_ci_catalog_resources` still lists every catalog resource unless
+  `ENABLE_STRICT_PROJECT_SCOPE` is set
 - These tools are refused, not scoped, because they cannot be limited to those
   projects: `execute_graphql`, `create_repository`, `create_group`,
   `fork_repository`, and the group variable and dependency proxy tools.
@@ -895,7 +905,7 @@ Behavior:
 
 This is process-level and fixed at startup. To let a caller narrow the scope
 per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`
-refusal applies to a session project scope.
+refusal and `get_ci_catalog_resource` check apply to a session project scope.
 
 ### `GITLAB_READ_ONLY_MODE`
 

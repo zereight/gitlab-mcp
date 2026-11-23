@@ -227,8 +227,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 - [x] [`validate_ci_lint`](../tools/ci.md#validate_ci_lint) — `test/test-ci-lint.ts`
 - [x] [`validate_project_ci_lint`](../tools/ci.md#validate_project_ci_lint) — `test/test-ci-lint.ts`
-- [x] [`list_ci_catalog_resources`](../tools/ci.md#list_ci_catalog_resources) — `test/test-ci-catalog.ts`
-- [x] [`get_ci_catalog_resource`](../tools/ci.md#get_ci_catalog_resource) — `test/test-ci-catalog.ts`
+- [x] [`list_ci_catalog_resources`](../tools/ci.md#list_ci_catalog_resources) — `test/test-ci-catalog-scope.ts`, `test/test-ci-catalog.ts`
+- [x] [`get_ci_catalog_resource`](../tools/ci.md#get_ci_catalog_resource) — `test/test-ci-catalog-scope.ts`, `test/test-ci-catalog.ts`
 
 ## Pipelines, Jobs & Deployments
 
@@ -399,7 +399,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="search"></a>
 
 - [x] [`search_code`](../tools/search.md#search_code) — `test/test-search-code.ts`
-- [x] [`search_project_code`](../tools/search.md#search_project_code) — `test/test-search-code.ts`
+- [x] [`search_project_code`](../tools/search.md#search_project_code) — `test/test-search-code.ts`, `test/test-search-project-code-scope.ts`
 - [x] [`search_group_code`](../tools/search.md#search_group_code) — `test/test-search-code.ts`
 
 ## Dependency Proxy
