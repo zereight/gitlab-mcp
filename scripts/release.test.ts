@@ -623,6 +623,28 @@ interface GhState {
 const REAL_GIT = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
 const REQUIRED_CHECKS = ["test", "code-quality", "docs-build", "schema-tests", "Release notes"];
 
+// Shaped like the real manifest.json: Prettier keeps short arrays on one line.
+// The nested "version" comes first, so a replace of the first match would hit it.
+const SANDBOX_MANIFEST = `{
+  "manifest_version": "0.3",
+  "server": {
+    "type": "node",
+    "version": "1.0.0",
+    "mcp_config": {
+      "command": "node",
+      "args": ["\${__dirname}/build/index.js"]
+    }
+  },
+  "name": "gitlab-mcp",
+  "version": "1.0.0",
+  "keywords": ["gitlab", "merge-requests", "issues"],
+  "privacy_policies": ["https://about.gitlab.com/privacy/"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}
+`;
+
 class ReleaseSandbox {
   readonly root = fs.mkdtempSync(path.join(os.tmpdir(), "release-e2e-"));
   readonly origin = path.join(this.root, "origin.git");
@@ -678,6 +700,7 @@ class ReleaseSandbox {
         2
       )}\n`
     );
+    this.write("manifest.json", SANDBOX_MANIFEST);
     for (const readme of ["README.md", "README.ko.md", "README.zh-CN.md", "README.pt-BR.md"]) {
       this.write(readme, "Run `npx -y @zereight/mcp-gitlab@0.9.0`.\n");
     }
@@ -784,6 +807,18 @@ class ReleaseSandbox {
     return JSON.parse(this.read(this.origin, "show", `${ref}:package.json`)).version;
   }
 
+  originJsonVersionAt(ref: string, file: string): string {
+    return JSON.parse(this.read(this.origin, "show", `${ref}:${file}`)).version;
+  }
+
+  // Exact bytes, without the trim that read() applies.
+  originFileAt(ref: string, file: string): string {
+    return execFileSync(REAL_GIT, ["show", `${ref}:${file}`], {
+      cwd: this.origin,
+      encoding: "utf8",
+    });
+  }
+
   assertCleanOnMain(): void {
     assert.strictEqual(this.read(this.repo, "branch", "--show-current"), "main");
     assert.strictEqual(this.read(this.repo, "status", "--porcelain"), "");
@@ -798,6 +833,41 @@ class ReleaseSandbox {
 function output(result: ReturnType<typeof spawnSync>): string {
   return `${result.stdout}\n${result.stderr}`;
 }
+
+describe("release.sh sync_manifest_version", () => {
+  function syncManifest(content: string) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-manifest-"));
+    try {
+      fs.writeFileSync(path.join(dir, "manifest.json"), content);
+      const result = runFunctions(
+        ["sync_manifest_version"],
+        'cd "$1" && sync_manifest_version 1.0.1',
+        [dir]
+      );
+      return { result, after: fs.readFileSync(path.join(dir, "manifest.json"), "utf8") };
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("exits 1 and leaves the file alone without a top-level version", () => {
+    const nestedOnly =
+      '{\n  "name": "gitlab-mcp",\n  "server": {\n    "version": "1.0.0"\n  }\n}\n';
+    const { result, after } = syncManifest(nestedOnly);
+    assert.strictEqual(result.status, 1, output(result));
+    assert.ok(result.stderr.includes('no top-level "version"'), result.stderr);
+    assert.strictEqual(after, nestedOnly);
+  });
+
+  test("exits 1 when the only own-line version is nested and would be the one replaced", () => {
+    const sharedLine =
+      '{\n  "name": "gitlab-mcp", "version": "1.0.0",\n  "server": {\n    "version": "1.0.0"\n  }\n}\n';
+    const { result, after } = syncManifest(sharedLine);
+    assert.strictEqual(result.status, 1, output(result));
+    assert.ok(result.stderr.includes('could not set the top-level "version"'), result.stderr);
+    assert.strictEqual(after, sharedLine);
+  });
+});
 
 describe("release.sh end to end", () => {
   test("RELEASE_DRY_RUN=1 runs the local steps, prints the remote writes, and changes nothing", () => {
@@ -905,6 +975,10 @@ describe("release.sh end to end", () => {
       assert.strictEqual(pr.title, "chore(release): v1.0.1");
       assert.ok(String(pr.body).includes("- `@alice` (1 PR: #5)"), String(pr.body));
       assert.strictEqual(sandbox.originVersionAt("refs/heads/release/v1.0.1"), "1.0.1");
+      assert.strictEqual(
+        sandbox.originJsonVersionAt("refs/heads/release/v1.0.1", "manifest.json"),
+        "1.0.1"
+      );
       assert.strictEqual(sandbox.originVersionAt("refs/heads/main"), "1.0.0");
       // A real run that stops keeps the local release branch (it matches the
       // pushed PR head) but leaves the checkout on a clean main.
@@ -962,6 +1036,7 @@ describe("release.sh end to end", () => {
         "chore(release): v1.0.1 (#42)"
       );
       assert.strictEqual(sandbox.originVersionAt("refs/tags/v1.0.1"), "1.0.1");
+      assert.strictEqual(sandbox.originJsonVersionAt("refs/tags/v1.0.1", "manifest.json"), "1.0.1");
 
       const releases = sandbox.state().releases.filter(r => r.tag === "v1.0.1");
       assert.strictEqual(releases.length, 1);
@@ -986,6 +1061,29 @@ describe("release.sh end to end", () => {
       );
       assert.strictEqual(sandbox.ghCalls("pr", "create").length, 1);
       assert.strictEqual(sandbox.ghCalls("release", "create").length, 1);
+    } finally {
+      sandbox.cleanup();
+    }
+  });
+
+  test("the release PR changes only the top-level version line of manifest.json", () => {
+    const sandbox = new ReleaseSandbox();
+    try {
+      sandbox.updateState(state => {
+        state.approve = false;
+      });
+      const result = sandbox.release(["patch"], { RELEASE_REVIEW_TIMEOUT: "0" });
+      assert.strictEqual(result.status, 1, output(result));
+      assert.ok(String(result.stdout).includes("No approving review of"), output(result));
+
+      // Byte for byte, so the one-line arrays stay one line and the release PR
+      // still passes format:check. The nested "version" keeps 1.0.0.
+      const topLevelVersion = '\n  "version": "1.0.0",\n';
+      assert.strictEqual(SANDBOX_MANIFEST.split(topLevelVersion).length, 2);
+      assert.strictEqual(
+        sandbox.originFileAt("refs/heads/release/v1.0.1", "manifest.json"),
+        SANDBOX_MANIFEST.replace(topLevelVersion, '\n  "version": "1.0.1",\n')
+      );
     } finally {
       sandbox.cleanup();
     }

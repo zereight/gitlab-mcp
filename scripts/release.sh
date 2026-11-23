@@ -126,6 +126,52 @@ tag_exists() {
   git rev-parse -q --verify "refs/tags/$1" >/dev/null
 }
 
+# Only the top-level "version" value is replaced; every other byte stays as is.
+# manifest.json is Prettier-formatted (one-line arrays), so a JSON.stringify
+# rewrite would fail format:check on the release PR.
+sync_manifest_version() {
+  local version="$1"
+
+  if [ ! -f manifest.json ]; then
+    return
+  fi
+
+  node - "$version" <<'NODE'
+const fs = require("fs");
+const version = process.argv[2];
+const fail = (message) => {
+  console.error(`❌ manifest.json: ${message}`);
+  process.exit(1);
+};
+
+const source = fs.readFileSync("manifest.json", "utf8");
+const manifest = JSON.parse(source);
+if (typeof manifest.version !== "string") fail('no top-level "version" string.');
+
+// The top-level key is the least indented "version" line; nested keys sit deeper.
+const versionLine = /^([ \t]*"version"\s*:\s*)"[^"]*"(\s*,?\s*)$/;
+const lines = source.split("\n");
+const candidates = lines
+  .map((line, index) => ({ index, indent: line.length - line.trimStart().length }))
+  .filter(({ index }) => versionLine.test(lines[index]));
+const topIndent = Math.min(...candidates.map(({ indent }) => indent));
+const top = candidates.filter(({ indent }) => indent === topIndent);
+if (top.length !== 1) fail(`expected one top-level "version" line, found ${top.length}.`);
+lines[top[0].index] = lines[top[0].index].replace(
+  versionLine,
+  (_, prefix, suffix) => `${prefix}${JSON.stringify(version)}${suffix}`
+);
+
+// Parse again: the top-level version must be the new one and nothing else changed.
+const updatedSource = lines.join("\n");
+const updated = JSON.parse(updatedSource);
+const rest = (json) => JSON.stringify({ ...json, version: undefined });
+const changedOnlyVersion = updated.version === version && rest(updated) === rest(manifest);
+if (!changedOnlyVersion) fail(`could not set the top-level "version" to ${version}.`);
+fs.writeFileSync("manifest.json", updatedSource);
+NODE
+}
+
 sync_registry_metadata_version() {
   local version="$1"
 
@@ -250,6 +296,9 @@ stage_release_paths() {
   git add -A changelog.d
   if [ -f server.json ]; then
     git add server.json
+  fi
+  if [ -f manifest.json ]; then
+    git add manifest.json
   fi
 }
 
@@ -1116,6 +1165,7 @@ cut_release_pr() {
   RELEASE_BRANCH=$(release_branch_name "$NEW_VERSION")
 
   sync_registry_metadata_version "$NEW_VERSION"
+  sync_manifest_version "$NEW_VERSION"
   sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
