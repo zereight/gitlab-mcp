@@ -13,13 +13,18 @@ leave them in place: the server accepts an inactive flag such as `--read-only=fa
 
 ## Replacements
 
-| Removed environment variable / CLI flag      | Replacement                                                                                   | Notes                                                                                                                     |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                              | `readonly` exposes read tools only and rejects writes.                                                                    |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`                                      | Enforced only with `GITLAB_MCP_OAUTH=true`.                                                                               |
-| `USE_GITLAB_WIKI` / `--use-wiki`             | `GITLAB_TOOLSETS=core,wiki`                                                                   | Append `wiki` to an existing list.                                                                                        |
-| `USE_MILESTONE` / `--use-milestone`          | `GITLAB_TOOLSETS=core,milestones`                                                             | Append `milestones` to an existing list.                                                                                  |
-| `USE_PIPELINE` / `--use-pipeline`            | `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` | The two CI lint tools live in the `ci` toolset, not `pipelines`. Add them through `GITLAB_TOOLS` only if you use CI lint. |
+| Removed environment variable / CLI flag      | Replacement                                                                                   | Notes                                                                                                                        |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                              | `readonly` exposes read tools only and rejects writes.                                                                       |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`                                      | Enforced only with `GITLAB_MCP_OAUTH=true`.                                                                                  |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | `GITLAB_TOOLSETS=core,wiki`                                                                   | Only if it was enabled. Append `wiki` to an existing list.                                                                   |
+| `USE_MILESTONE` / `--use-milestone`          | `GITLAB_TOOLSETS=core,milestones`                                                             | Only if it was enabled. Append `milestones` to an existing list.                                                             |
+| `USE_PIPELINE` / `--use-pipeline`            | `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` | Only if it was enabled. The CI lint tools live in the `ci` toolset; add them through `GITLAB_TOOLS` only if you use CI lint. |
+
+Use a replacement only for a setting that was **enabled** in v2 (`true` or a bare flag).
+A `false` or empty value needs no replacement: delete it, and do not add that toolset
+(`wiki`, `milestones`, or `pipelines`) to `GITLAB_TOOLSETS`, or you expose tools that v2
+kept off (for example the wiki create, update, and delete tools).
 
 ## Keep `core` in `GITLAB_TOOLSETS`
 
@@ -30,6 +35,7 @@ tools disappear.
 
 - Always include `core`: `GITLAB_TOOLSETS=core,wiki`, not `GITLAB_TOOLSETS=wiki`.
 - Append to a list you already have. Do not replace it.
+- Append only the toolsets whose legacy setting was enabled.
 - `GITLAB_TOOLSETS=all` already includes `wiki`, `milestones`, and `pipelines`, so leave it
   exactly as it is. `all` is only valid on its own; `all,wiki` drops `all` as an unknown
   name and leaves a list without `core`.
