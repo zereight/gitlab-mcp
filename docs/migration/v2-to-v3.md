@@ -6,8 +6,9 @@ the replacement and links back to this page, so a setting is never silently igno
 
 Delete each setting below from your configuration entirely, including `false` and empty
 values (for example, an empty `GITLAB_READ_ONLY_MODE=` line in a templated `.env`). Do not
-leave them in place: the server accepts an inactive `--read-only=false`, but the human CLI
-rejects it as an unknown flag (`tool whoami --read-only=false` fails with
+leave them in place: the server accepts an inactive flag such as `--read-only=false` or
+`--use-wiki=false`, but the human CLI rejects every removed flag as unknown, even with
+`false` or an empty value (`tool whoami --read-only=false` fails with
 `Unknown flag: --read-only`).
 
 ## Replacements
