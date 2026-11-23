@@ -11,8 +11,8 @@
 MCP `CallTool` replies are conversation tokens. Lists, diffs, and job logs are the expensive part. The CLI is the offload: run the same registry tool in a terminal and keep the chat on summaries.
 
 ```text
-MCP client  ── CallTool ──> compact preview + `cli` command   (opt-in)
-terminal    ── tool/mr  ──> full unwrapped payload            (always)
+MCP client  ── CallTool ──> compact preview + `cli` or `cli_argv`   (opt-in)
+terminal    ── tool/mr  ──> full unwrapped payload                  (always)
 ```
 
 `GITLAB_MCP_COMPACT_RESULTS` is **off by default**. Turning it on is the only MCP reply-shape change. Without that flag, tool JSON is unchanged. Human CLI is never compacted.

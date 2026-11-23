@@ -1,5 +1,5 @@
 import { omitInvalidStructuredContent } from "../utils/structured-content.js";
-import { buildToolReplayCommand } from "./replay-command.js";
+import { buildToolReplay } from "./replay-command.js";
 
 const PREVIEW_ARRAY_ITEMS = 5;
 const PREVIEW_TEXT_CHARS = 1500;
@@ -36,14 +36,14 @@ export function compactMcpToolResult(input: CompactMcpToolResultInput): Record<s
   if (text.length <= input.maxChars) {
     return toolResultRecord(input.result);
   }
-  const cli = buildToolReplayCommand(input.toolName, input.args, input.inputSchema);
+  const replay = buildToolReplay(input.toolName, input.args, input.inputSchema);
   const compact = {
     compact: true,
     tool: input.toolName,
     original_chars: text.length,
     ...buildPreview(text),
-    // No safe replay line exists for these arguments: the preview stays, without `cli`.
-    ...(cli === undefined ? {} : { cli }),
+    // `cli` or `cli_argv`; neither when the arguments cannot be replayed, and the preview stays.
+    ...replay,
   };
   return {
     content: [{ type: "text", text: JSON.stringify(compact) }],

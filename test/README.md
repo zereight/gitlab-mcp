@@ -83,7 +83,7 @@ Description edits do not change the fixture. A refactor that moves code without 
 
 ## Default `tools/list` budget
 
-`test/tools-list-budget.test.ts` (pass 3) starts `build/index.js` over stdio with the default configuration and fails when `JSON.stringify({ tools })` is over `DEFAULT_TOOLS_LIST_MAX_BYTES` (70,000 bytes; 54,887 measured on 2026-10-23). Clients send this payload to the model in every session. The failure message lists the five largest tools. Raise the ceiling only for an intended change to the default tools, and give the reason in the PR.
+`test/tools-list-budget.test.ts` (pass 3) starts `build/index.js` over stdio with the default configuration and fails when `JSON.stringify({ tools })` is over `DEFAULT_TOOLS_LIST_MAX_BYTES` (the ceiling is 54,000 bytes; the default list measured 48,173 bytes for 40 tools on 2026-11-20). Clients send this payload to the model in every session. The failure message lists the five largest tools. Raise the ceiling only for an intended change to the default tools, and give the reason in the PR.
 
 ## Mock GitLab server
 
