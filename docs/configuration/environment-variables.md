@@ -891,6 +891,11 @@ Behavior:
   `fork_repository`, and the group variable and dependency proxy tools.
   `execute_graphql` hard-fails while this allowlist is non-empty; it does not
   send the query against only the allowed projects.
+- `validate_ci_lint` and `validate_project_ci_lint` lint only an allowed
+  project. GitLab expands `include:` entries with the token's permissions, so
+  when an include reads from a project outside the allowlist the result keeps
+  `valid`, `errors`, and `warnings` but returns `merged_yaml` and `includes` as
+  `null`, omits `jobs`, and adds a `scope_note`
 
 This is process-level and fixed at startup. To let a caller narrow the scope
 per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`

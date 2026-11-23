@@ -116,7 +116,9 @@ const CLOSING_BRACKET = new Map([
 
 // Parses the executable definitions of a document. Throws on anything else: type-system
 // definitions, stray punctuation, unbalanced brackets, or an empty selection set.
-function parseGraphQLOperations(source: string): GraphQLOperation[] {
+// When `selectedFields` is given, it receives the name of every field selected anywhere
+// in the document (operations and fragments, at any depth), with aliases resolved.
+function parseGraphQLOperations(source: string, selectedFields?: Set<string>): GraphQLOperation[] {
   const tokens = tokenizeGraphQL(source);
   const operations: GraphQLOperation[] = [];
   let pos = 0;
@@ -223,6 +225,7 @@ function parseGraphQLOperations(source: string): GraphQLOperation[] {
           parseSelectionSet();
         }
         fields.push(field);
+        selectedFields?.add(field);
       }
     }
 
@@ -320,4 +323,22 @@ export function graphqlQueryContainsDeleteOperation(query: string): boolean {
       operation.rootFields.some(field => DESTRUCTIVE_FIELD_PATTERN.test(field))
     );
   });
+}
+
+// Fields whose values are live credentials. GitLab returns a pipeline trigger's token, and
+// a new runner's authentication token, to anyone who can read them; the REST tools drop
+// these fields (see utils/redact-sensitive.ts), so execute_graphql must not select them.
+const SECRET_GRAPHQL_FIELDS = ["token", "ephemeralAuthenticationToken"];
+
+// Returns the credential fields (see SECRET_GRAPHQL_FIELDS) the document selects, by
+// field name, so an alias does not hide one. A document that cannot be parsed returns
+// null, which callers treat as a match (fail closed).
+export function graphqlQuerySecretFields(query: string): string[] | null {
+  const selectedFields = new Set<string>();
+  try {
+    parseGraphQLOperations(query, selectedFields);
+  } catch {
+    return null;
+  }
+  return SECRET_GRAPHQL_FIELDS.filter(field => selectedFields.has(field));
 }

@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   graphqlQueryContainsWriteOperation,
   graphqlQueryContainsDeleteOperation,
+  graphqlQuerySecretFields,
 } from "../../utils/graphql-query.js";
 
 describe("When graphqlQueryContainsWriteOperation runs", () => {
@@ -465,5 +466,45 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
         assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
       }
     });
+  });
+});
+
+describe("When graphqlQuerySecretFields runs", () => {
+  test("should list a selected token field", () => {
+    assert.deepEqual(graphqlQuerySecretFields("{ project { pipelineTriggers { nodes { id token } } } }"), [
+      "token",
+    ]);
+  });
+
+  test("should see through an alias", () => {
+    assert.deepEqual(graphqlQuerySecretFields("{ project { pipelineTriggers { nodes { t: token } } } }"), [
+      "token",
+    ]);
+  });
+
+  test("should see fields inside fragments and inline fragments", () => {
+    assert.deepEqual(
+      graphqlQuerySecretFields(
+        "query { project { runners { nodes { ... on CiRunner { ephemeralAuthenticationToken } } } } }"
+      ),
+      ["ephemeralAuthenticationToken"]
+    );
+    assert.deepEqual(
+      graphqlQuerySecretFields("query { a { ...F } } fragment F on PipelineTrigger { token }"),
+      ["token"]
+    );
+  });
+
+  test("should ignore an alias, argument, variable, or string named token", () => {
+    assert.deepEqual(
+      graphqlQuerySecretFields(
+        'query Q($token: String) { token: currentUser { name } project(fullPath: "token") { id } x(token: $token) { id } }'
+      ),
+      []
+    );
+  });
+
+  test("should return null for a document it cannot parse", () => {
+    assert.equal(graphqlQuerySecretFields("{ project { "), null);
   });
 });
