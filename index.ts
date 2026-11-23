@@ -11024,6 +11024,115 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
   }
 }
 
+function ciCatalogProjectDenied(
+  resourceLabel: string | undefined,
+  projectPath: string | undefined,
+  allowedProjectIds: string[]
+): ProjectAccessDeniedError {
+  const allowedList = allowedProjectIds.join(", ");
+  if (resourceLabel === undefined) {
+    return new ProjectAccessDeniedError(
+      `Access denied: Project ${projectPath} is not in the allowed project list: ${allowedList}`
+    );
+  }
+  return new ProjectAccessDeniedError(
+    `Access denied: CI/CD catalog resource ${resourceLabel} belongs to project ${
+      projectPath ?? "unknown"
+    }, which is not in the allowed project list: ${allowedList}`
+  );
+}
+
+/**
+ * Enforce the project allowlist for get_ci_catalog_resource. A catalog resource
+ * is a project published to the CI/CD catalog (its fullPath is the project path),
+ * so the project is checked before the version, README, and component data is
+ * requested, mirroring ensureVulnerabilityProjectAllowed. Allowlist entries may be
+ * numeric IDs or full namespace paths; a path that is not listed costs one project
+ * lookup when the allowlist has numeric entries, and is refused without a request
+ * otherwise.
+ *
+ * @returns undefined when no allowlist is in effect (no extra request), null when a
+ *   lookup by id finds no resource, or the allowed project path the returned
+ *   resource must match (see assertCiCatalogResourceProjectAllowed)
+ */
+async function resolveAllowedCiCatalogProjectPath(args: {
+  id?: string;
+  full_path?: string;
+}): Promise<string | null | undefined> {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return undefined;
+  }
+
+  let projectPath = args.full_path;
+  if (!projectPath) {
+    const data = await executeGraphQL<{
+      ciCatalogResource: { fullPath?: string | null } | null;
+    }>(
+      `query GetCiCatalogResourceProject($id: CiCatalogResourceID) {
+        ciCatalogResource(id: $id) {
+          fullPath
+        }
+      }`,
+      { id: args.id }
+    );
+    if (!data?.ciCatalogResource) {
+      return null;
+    }
+    projectPath = data.ciCatalogResource.fullPath ?? undefined;
+    if (!projectPath) {
+      throw ciCatalogProjectDenied(args.id, undefined, allowedProjectIds);
+    }
+  }
+
+  if (allowedProjectIds.includes(projectPath)) {
+    return projectPath;
+  }
+
+  if (allowedProjectIds.some(entry => /^\d+$/.test(entry))) {
+    const response = await fetch(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
+      { ...getFetchConfig() }
+    );
+    if (response.status !== 404) {
+      await handleGitLabError(response);
+      const project = (await response.json()) as {
+        id?: number | string;
+        path_with_namespace?: string;
+      };
+      if (
+        project.id !== undefined &&
+        allowedProjectIds.includes(String(project.id)) &&
+        project.path_with_namespace
+      ) {
+        return project.path_with_namespace;
+      }
+    }
+  }
+
+  throw ciCatalogProjectDenied(args.id, projectPath, allowedProjectIds);
+}
+
+/**
+ * Refuse a get_ci_catalog_resource result whose resource is not the project that
+ * resolveAllowedCiCatalogProjectPath allowed, for example a path that GitLab
+ * resolved to another project after a move.
+ */
+function assertCiCatalogResourceProjectAllowed(
+  resource: { fullPath?: string | null } | null | undefined,
+  allowedProjectPath: string,
+  resourceLabel: string
+): void {
+  if (!resource || resource.fullPath === allowedProjectPath) {
+    return;
+  }
+  throw ciCatalogProjectDenied(
+    resourceLabel,
+    resource.fullPath ?? undefined,
+    getEffectiveAllowedProjectIds()
+  );
+}
+
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
@@ -11250,7 +11359,9 @@ async function handleToolCall(params: any) {
         const args = SearchProjectCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
-          project_id: args.project_id,
+          // searchBlobs treats an empty project_id as an instance-wide search; resolve it
+          // like other project tools instead (default project, or an input error).
+          project_id: args.project_id || getEffectiveProjectId(args.project_id),
           ref: args.ref,
           filename: args.filename,
           path: args.path,
@@ -12000,6 +12111,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_namespaces": {
+        rejectIfStrictProjectScope("list_namespaces");
         const args = ListNamespacesSchema.parse(params.arguments);
         const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
@@ -12030,6 +12142,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_namespace": {
+        rejectIfStrictProjectScope("get_namespace");
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
           `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
@@ -12049,6 +12162,7 @@ async function handleToolCall(params: any) {
       }
 
       case "verify_namespace": {
+        rejectIfStrictProjectScope("verify_namespace");
         const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(
           `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
@@ -13300,6 +13414,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_ci_catalog_resources": {
+        rejectIfStrictProjectScope("list_ci_catalog_resources");
         const args = ListCiCatalogResourcesSchema.parse(params.arguments);
         const result = await executeGitLabGraphQL(
           `query ListCiCatalogResources(
@@ -13355,6 +13470,14 @@ async function handleToolCall(params: any) {
 
       case "get_ci_catalog_resource": {
         const args = GetCiCatalogResourceSchema.parse(params.arguments);
+        const allowedProjectPath = await resolveAllowedCiCatalogProjectPath(args);
+        if (allowedProjectPath === null) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ data: { ciCatalogResource: null } }) },
+            ],
+          };
+        }
         const result = await executeGitLabGraphQL(
           `query GetCiCatalogResource(
             $id: CiCatalogResourceID,
@@ -13417,6 +13540,15 @@ async function handleToolCall(params: any) {
             includeReadme: args.include_readme ?? false,
           }
         );
+
+        if (allowedProjectPath !== undefined) {
+          assertCiCatalogResourceProjectAllowed(
+            (result as { data?: { ciCatalogResource?: { fullPath?: string | null } | null } })?.data
+              ?.ciCatalogResource,
+            allowedProjectPath,
+            args.id ?? args.full_path ?? "unknown"
+          );
+        }
 
         if (args.component_name) {
           const resource = (result as any)?.data?.ciCatalogResource;
