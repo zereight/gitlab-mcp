@@ -41,13 +41,9 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | ---------------------- | ------------------------------ | --------------------------------------------------- |
 | `--token`              | `GITLAB_PERSONAL_ACCESS_TOKEN` | GitLab Personal Access Token.                       |
 | `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
-| `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` instead. |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
 | `--toolsets`           | `GITLAB_TOOLSETS`              | Named toolsets. Unset uses lean `core`. Do not pass `all` unless you accept ~73k schema tokens. `all` does not enable `api`; use `--toolsets=api`. |
 | `--tools=list_issues`  | `GITLAB_TOOLS`                 | Add individual tools on top of enabled toolsets.    |
-| `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` or `GITLAB_TOOLSETS=core,wiki` instead. |
-| `--use-milestone=true` | `USE_MILESTONE`                | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` or `GITLAB_TOOLSETS=core,milestones` instead. |
-| `--use-pipeline=true`  | `USE_PIPELINE`                 | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,pipelines` or `GITLAB_TOOLSETS=core,pipelines`, and `--tools=validate_ci_lint,validate_project_ci_lint` or `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Append those tools to an existing list instead of replacing it. |
 | `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
 | `--masking-enabled=true` | `GITLAB_MASKING_ENABLED` | Enable text-response masking. |
 | `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
@@ -62,15 +58,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--audit-log-file` | `GITLAB_AUDIT_LOG_FILE` | Append audit lines to this file. Unset writes NDJSON to stderr, never stdout. |
 | `--tool-profile` | `GITLAB_TOOL_PROFILE` | `full` (default) or `slim`. `slim` is ignored when `--toolsets` / `GITLAB_TOOLSETS` is set. |
 
-> **Deprecation notice:** `--read-only=true` / `GITLAB_READ_ONLY_MODE`, `--use-wiki=true` /
-> `USE_GITLAB_WIKI`, `--use-milestone=true` / `USE_MILESTONE`, and `--use-pipeline=true` /
-> `USE_PIPELINE` are kept for backward compatibility but are deprecated (removed in next major (v3.0.0)).
-> Use `--permission-mode=readonly` (or `GITLAB_PERMISSION_MODE=readonly`), `--toolsets=core,wiki`
-> (or `GITLAB_TOOLSETS=core,wiki`), `--toolsets=core,milestones` (or `GITLAB_TOOLSETS=core,milestones`),
-> and `--toolsets=core,pipelines` (or `GITLAB_TOOLSETS=core,pipelines`) plus
-> `--tools=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`).
-> If you already set `GITLAB_TOOLSETS` or `--toolsets`, append the toolset to your existing list instead of replacing it.
-> If `GITLAB_TOOLS` or `--tools` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
+> **Removed in v3.0.0:** See the migration table below. Active legacy settings stop startup with a migration error.
 
 ## Subcommands
 
@@ -113,9 +101,9 @@ zereight-mcp-gitlab user whoami
 - Flags are kebab-case schema keys (`project_id` → `--project-id`). Number and boolean fields are converted from the schema type (`--limit 10`, `--push-events false`). Nested objects and arrays use `--args-json '{...}'`.
 - Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
 - Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
-- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS` / legacy wiki-milestone-pipeline flags, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
+- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
 - `--permission-mode=readonly` refuses writes with exit `2` before any network call.
-- Space-separated booleans keep their value (`--read-only false` stays off). Bare `--read-only` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
+- Space-separated booleans keep their value (`--use-oauth false` stays off). Bare `--use-oauth` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
 - Exit codes: `0` success, `1` API/auth/runtime failure, `2` usage or refused write.
 - Human tables go to stdout; diagnostics go to stderr so `... --output json | jq` stays clean.
 
@@ -189,3 +177,19 @@ same path when you start the MCP server or run the human CLI. See [OAuth2 Authen
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).
+
+## Removed in v3.0.0
+
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](../configuration/environment-variables.md#gitlab_mcp_oauth)) |
+| `USE_GITLAB_WIKI` / `--use-wiki` | add `wiki` to `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` if it was unset) |
+| `USE_MILESTONE` / `--use-milestone` | add `milestones` to `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` if it was unset) |
+| `USE_PIPELINE` / `--use-pipeline` | add `pipelines` to `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` if it was unset), plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+
+Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset or had no valid toolset name, v2 exposed the default `core` toolset, so use `core` plus each enabled toolset (for example `core,wiki` or `core,pipelines`). A non-empty `--toolsets` overrides `GITLAB_TOOLSETS`, so apply this to whichever one you set. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged. If you used `GITLAB_TOOL_PROFILE=slim` with `USE_*` and no `GITLAB_TOOLSETS` (the only case where slim was active), an explicit `GITLAB_TOOLSETS` list turns slim off and adds `list_labels` to the first `tools/list`; set `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` to keep the v2 list, unless `GITLAB_TOOLS` names `list_labels` (slim did not hide it then) (if you already set a deny pattern, add `list_labels` to it, for example `^delete_.*|^list_labels$`, since the variable holds one pattern).
+
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).

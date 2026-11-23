@@ -13,8 +13,7 @@ Click the badge to add the server via `npx`. The badge uses an https redirect so
 | `GITLAB_PERSONAL_ACCESS_TOKEN` | `${input:gitlab-token}` |
 | `GITLAB_API_URL` | `https://gitlab.com/api/v4` |
 
-It does not set `GITLAB_PERMISSION_MODE`, so the server default (`full`) applies unless the
-deprecated `GITLAB_READ_ONLY_MODE=true` is set.
+It does not set `GITLAB_PERMISSION_MODE`, so the server default (`full`) applies.
 
 It also leaves `GITLAB_TOOLSETS` unset, so the server stays on the lean default (~40 tools).
 Call `discover_tools` to expand this session (session-only; with `OAUTH_STATELESS_MODE=true`
@@ -56,7 +55,7 @@ then restart the server. VS Code prompts for the PAT on first start and stores i
 
 Self-hosted GitLab: change `GITLAB_API_URL` to `https://your-host.example.com/api/v4`.
 
-Read-only: add `"GITLAB_PERMISSION_MODE": "readonly"` to `env` (or `modify` to block delete and teardown tools). Without it, the server uses `full`, or `readonly` when the deprecated `GITLAB_READ_ONLY_MODE=true` is set.
+Read-only: add `"GITLAB_PERMISSION_MODE": "readonly"` to `env` (or `modify` to block delete and teardown tools). Without it, the server uses `full`.
 
 Regenerate the badge URL: `node scripts/generate-vscode-install-link.mjs`
 

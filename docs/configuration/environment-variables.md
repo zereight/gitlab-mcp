@@ -491,8 +491,7 @@ Requests from users who are not members of any matching group are denied:
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
-> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but is
-> deprecated (removed in next major (v3.0.0)). Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
+> **Removed in v3.0.0:** `GITLAB_ALLOWED_GROUPS` stops startup. Use `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 Examples:
 
@@ -897,16 +896,6 @@ This is process-level and fixed at startup. To let a caller narrow the scope
 per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`
 refusal applies to a session project scope.
 
-### `GITLAB_READ_ONLY_MODE`
-
-Set to `true` to expose only read-only tools.
-
-> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are deprecated
-> (removed in next major (v3.0.0)).
-> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
-
-When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
-
 ### `GITLAB_PERMISSION_MODE`
 
 Permission level for the exposed tool surface. One of:
@@ -923,7 +912,7 @@ CLI: `--permission-mode`
 
 Behavior:
 
-- `readonly` matches the legacy `GITLAB_READ_ONLY_MODE=true` behavior (deprecated; removed in next major (v3.0.0))
+- `readonly` exposes read-only tools and rejects writes in mixed tools.
 - `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
   `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
@@ -995,8 +984,7 @@ earlier archive of the same job before downloading it again. Point this outside
 your checkout (for example `~/Downloads/gitlab-mcp`) if you do not want
 downloaded files inside the project tree at all.
 
-In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
-`GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`
+In readonly mode (`GITLAB_PERMISSION_MODE=readonly`) neither tool writes files: `download_attachment`
 only returns images inline, and `download_job_artifacts` is rejected.
 
 ## Tool Exposure and Filtering
@@ -1029,15 +1017,15 @@ Special values:
 
 - `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas. It must be the whole value: in a list such as `all,api` it is ignored like an unknown ID, so list every toolset by name to add `api`.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
+- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 
 !!! danger "gitlab_api_request bypasses other restrictions"
 
-    `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
+    `gitlab_api_request` bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
+    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
-    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
+    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
 ### `GITLAB_TOOLS`
 
@@ -1064,7 +1052,7 @@ Examples:
 
 ### `GITLAB_TOOL_POLICY_HIDDEN`
 
-Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS` or a legacy flag, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
+Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS`, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
 
 CLI: `--tool-policy-hidden`
 
@@ -1072,33 +1060,21 @@ Examples:
 
 - `delete_issue,delete_wiki_page`
 
-### `USE_GITLAB_WIKI`
+## Removed in v3.0.0
 
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for wiki-related tools.
-> Use `GITLAB_TOOLSETS=core,wiki` instead. If you already set `GITLAB_TOOLSETS`, append `wiki`
-> to your existing list instead of replacing it.
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
 
-### `USE_MILESTONE`
+| Removed environment variable / CLI flag      | Replacement                                                                                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                                                                               |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth))                                                          |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | add `wiki` to `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` if it was unset)                                                                                                                                                   |
+| `USE_MILESTONE` / `--use-milestone`          | add `milestones` to `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` if it was unset)                                                                                                                                       |
+| `USE_PIPELINE` / `--use-pipeline`            | add `pipelines` to `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` if it was unset), plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
 
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for milestone-related tools.
-> Use `GITLAB_TOOLSETS=core,milestones` instead. If you already set `GITLAB_TOOLSETS`, append
-> `milestones` to your existing list instead of replacing it.
+Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset or had no valid toolset name, v2 exposed the default `core` toolset, so use `core` plus each enabled toolset (for example `core,wiki` or `core,pipelines`). A non-empty `--toolsets` overrides `GITLAB_TOOLSETS`, so apply this to whichever one you set. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged. If you used `GITLAB_TOOL_PROFILE=slim` with `USE_*` and no `GITLAB_TOOLSETS` (the only case where slim was active), an explicit `GITLAB_TOOLSETS` list turns slim off and adds `list_labels` to the first `tools/list`; set `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` to keep the v2 list, unless `GITLAB_TOOLS` names `list_labels` (slim did not hide it then) (if you already set a deny pattern, add `list_labels` to it, for example `^delete_.*|^list_labels$`, since the variable holds one pattern).
 
-### `USE_PIPELINE`
-
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for pipeline-related tools.
-> Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
-> instead. Those two lint tools live in the `ci` toolset, not `pipelines`. If you already set
-> `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it.
-> If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
-
-> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only, cover
-> just three toolsets, and will be removed in the next major (v3.0.0). Only `true` enables the
-> extra tools. Any other value, including `false`, does not enable that toolset — remove the
-> variable, and set the replacement above only if you want those tools in addition to `core`.
-> Use `GITLAB_TOOLSETS` (include `core` so the default starter set stays enabled) and `GITLAB_TOOLS`
-> (individual tools) instead. An explicit `GITLAB_TOOLSETS` list replaces the default toolsets;
-> it does not merge.
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).
 
 ## Logging
 
