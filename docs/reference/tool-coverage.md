@@ -226,7 +226,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="ci"></a>
 
-- [x] [`validate_ci_lint`](../tools/ci.md#validate_ci_lint) — `test/test-ci-lint.ts`
+- [x] [`validate_ci_lint`](../tools/ci.md#validate_ci_lint) — `test/live/ci-lint-include-scope.test.ts`, `test/test-ci-lint.ts`
 - [x] [`validate_project_ci_lint`](../tools/ci.md#validate_project_ci_lint) — `test/test-ci-lint.ts`
 - [x] [`list_ci_catalog_resources`](../tools/ci.md#list_ci_catalog_resources) — `test/test-ci-catalog.ts`
 - [x] [`get_ci_catalog_resource`](../tools/ci.md#get_ci_catalog_resource) — `test/test-ci-catalog.ts`
@@ -450,6 +450,6 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="meta"></a>
 
-- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
+- [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/api-url-credentials.test.ts`, `test/live/execute-graphql-credential-fields.test.ts`, `test/test-audit-log.ts`, `test/test-dynamic-project-scope.ts`, `test/test-execute-graphql-credential-fields.ts`, `test/test-permission-mode.ts`
 - [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/lazy-tool-schemas-stdio.test.ts`, `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
 - [ ] [`help`](../tools/meta.md#help)
