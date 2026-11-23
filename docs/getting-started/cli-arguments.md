@@ -187,6 +187,6 @@ Active legacy settings now stop startup with a migration error, rather than sile
 | `USE_MILESTONE` / `--use-milestone` | add `milestones` to `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` if it was unset) |
 | `USE_PIPELINE` / `--use-pipeline` | add `pipelines` to `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` if it was unset), plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
 
-Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset, v2 exposed the default `core` toolset, so use `core,wiki`. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged.
+Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset or had no valid toolset name, v2 exposed the default `core` toolset, so use `core,wiki`. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged.
 
 See the [v2 to v3 migration guide](../migration/v2-to-v3.md).
