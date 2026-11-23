@@ -783,10 +783,10 @@ npm run test:integration
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (그룹 멤버십은 `GITLAB_MCP_OAUTH=true`일 때만 검사합니다. [MCP OAuth](#mcp-oauth-프록시-사용하기gitlab_mcp_oauth) 참고) |
-| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
-| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, 추가로 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` (CI lint를 사용하는 경우) |
+| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS` / `--toolsets`에 `wiki` 추가 (설정하지 않았던 경우 `core,wiki`) |
+| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS` / `--toolsets`에 `milestones` 추가 (설정하지 않았던 경우 `core,milestones`) |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS` / `--toolsets`에 `pipelines` 추가 (설정하지 않았던 경우 `core,pipelines`), 추가로 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` (CI lint를 사용하는 경우) |
 
-툴셋 목록을 명시하면 기본 목록을 대체합니다. 기본 도구가 필요하면 `core`를 유지하고, 기존 `GITLAB_TOOLSETS`·`GITLAB_TOOLS` 목록을 덮어쓰지 말고 항목을 추가하세요. 기존 `GITLAB_TOOLSETS=all`은 그대로 두세요.
+켜져 있던 설정만 대체하고, 쓰던 툴셋은 그대로 유지하세요. `GITLAB_TOOLSETS`를 설정하지 않았다면 v2는 기본 툴셋인 `core`를 노출했으므로 `core,wiki`를 쓰세요. 목록을 설정했다면 그 목록 뒤에 그대로 추가하고, `core`는 원래 목록에 있었을 때만 넣으세요. 예를 들어 `GITLAB_TOOLSETS=search`는 `core,search,wiki`가 아니라 `search,wiki`가 됩니다. 기존 `GITLAB_TOOLS` 목록은 덮어쓰지 말고 항목을 추가하고, 기존 `GITLAB_TOOLSETS=all`은 그대로 두세요.
 
 [v2에서 v3로의 마이그레이션 가이드](docs/migration/v2-to-v3.md)를 참고하세요.

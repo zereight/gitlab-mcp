@@ -783,10 +783,10 @@ Configurações legadas ativas agora interrompem a inicialização com um erro d
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (a checagem de membros do grupo só acontece com `GITLAB_MCP_OAUTH=true`; veja [MCP OAuth](#usando-o-proxy-mcp-oauth-gitlab_mcp_oauth)) |
-| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
-| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
+| `USE_GITLAB_WIKI` / `--use-wiki` | acrescente `wiki` a `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` se não estava definido) |
+| `USE_MILESTONE` / `--use-milestone` | acrescente `milestones` a `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` se não estava definido) |
+| `USE_PIPELINE` / `--use-pipeline` | acrescente `pipelines` a `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` se não estava definido), além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
 
-Uma lista explícita de toolsets substitui o padrão: mantenha `core` e acrescente às listas existentes de `GITLAB_TOOLSETS` e `GITLAB_TOOLS`, em vez de substituí-las. Deixe um `GITLAB_TOOLSETS=all` existente sem alterações.
+Use uma substituição só para uma configuração que estava ativada e mantenha exatamente os toolsets que você já tinha. Se `GITLAB_TOOLSETS` não estava definido, a v2 expunha o toolset padrão `core`, então use `core,wiki`. Se era uma lista, acrescente à lista como está e só inclua `core` se ele já estava listado: `GITLAB_TOOLSETS=search` vira `search,wiki`, não `core,search,wiki`. Acrescente a uma lista `GITLAB_TOOLS` existente em vez de substituí-la e deixe um `GITLAB_TOOLSETS=all` existente sem alterações.
 
 Consulte o [guia de migração da v2 para a v3](docs/migration/v2-to-v3.md).

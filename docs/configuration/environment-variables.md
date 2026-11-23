@@ -1047,15 +1047,15 @@ Examples:
 
 Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
 
-| Removed environment variable / CLI flag      | Replacement                                                                                                                                                                                            |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                                                       |
-| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth))                                  |
-| `USE_GITLAB_WIKI` / `--use-wiki`             | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki`                                                                                                                                                   |
-| `USE_MILESTONE` / `--use-milestone`          | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones`                                                                                                                                       |
-| `USE_PIPELINE` / `--use-pipeline`            | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`, plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
+| Removed environment variable / CLI flag      | Replacement                                                                                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                                                                               |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth))                                                          |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | add `wiki` to `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` if it was unset)                                                                                                                                                   |
+| `USE_MILESTONE` / `--use-milestone`          | add `milestones` to `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` if it was unset)                                                                                                                                       |
+| `USE_PIPELINE` / `--use-pipeline`            | add `pipelines` to `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` if it was unset), plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
 
-An explicit toolset list replaces the default: keep `core` and append to existing `GITLAB_TOOLSETS` and `GITLAB_TOOLS` lists rather than replacing them. Leave an existing `GITLAB_TOOLSETS=all` unchanged.
+Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset, v2 exposed the default `core` toolset, so use `core,wiki`. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged.
 
 See the [v2 to v3 migration guide](../migration/v2-to-v3.md).
 

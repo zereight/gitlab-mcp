@@ -781,10 +781,10 @@ npm run test:integration
 | --- | --- |
 | `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
 | `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`（仅在 `GITLAB_MCP_OAUTH=true` 时检查群组成员资格，见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)） |
-| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS=core,wiki` / `--toolsets=core,wiki` |
-| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS=core,milestones` / `--toolsets=core,milestones` |
-| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS=core,pipelines` / `--toolsets=core,pipelines`，另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
+| `USE_GITLAB_WIKI` / `--use-wiki` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `wiki`（原来未设置时用 `core,wiki`） |
+| `USE_MILESTONE` / `--use-milestone` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `milestones`（原来未设置时用 `core,milestones`） |
+| `USE_PIPELINE` / `--use-pipeline` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `pipelines`（原来未设置时用 `core,pipelines`），另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
 
-显式的工具集列表会替换默认值：请保留 `core`，并把内容追加到现有的 `GITLAB_TOOLSETS` 和 `GITLAB_TOOLS` 列表中，而不是替换它们。现有的 `GITLAB_TOOLSETS=all` 保持不变。
+只为原本已启用的设置添加替代项，并保持原有的工具集不变。如果原来没有设置 `GITLAB_TOOLSETS`，v2 会暴露默认的 `core` 工具集，因此请使用 `core,wiki`。如果原来是一个列表，请在该列表后原样追加，只有原列表中已有 `core` 时才保留 `core`：`GITLAB_TOOLSETS=search` 应改为 `search,wiki`，而不是 `core,search,wiki`。请追加到现有的 `GITLAB_TOOLS` 列表而不是替换它，现有的 `GITLAB_TOOLSETS=all` 保持不变。
 
 请参阅 [v2 到 v3 迁移指南](docs/migration/v2-to-v3.md)。
