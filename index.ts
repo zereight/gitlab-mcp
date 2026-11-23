@@ -14525,7 +14525,7 @@ async function handleToolCall(params: any) {
               text: JSON.stringify({
                 status: "updated",
                 default_branch: args.default_branch,
-                project: data,
+                project: redactSensitiveGitLabFields(data),
               }),
             },
           ],
