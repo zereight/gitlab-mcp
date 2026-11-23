@@ -46,9 +46,10 @@ toolsets like this, and v3 keeps the same rules:
 
 So:
 
-- **`GITLAB_TOOLSETS` was unset:** v2 exposed `core`, so keep it:
-  `GITLAB_TOOLSETS=core,wiki`. Writing `GITLAB_TOOLSETS=wiki` would drop the core tools.
-- **`GITLAB_TOOLSETS` was a list:** append the new toolset to that list as it is, and do
+- **`GITLAB_TOOLSETS` was unset, empty, or had no valid toolset name** (for example
+  `GITLAB_TOOLSETS=unknown`): v2 fell back to `core`, so keep it: `GITLAB_TOOLSETS=core,wiki`.
+  Writing `GITLAB_TOOLSETS=wiki` or `unknown,wiki` would drop the core tools.
+- **`GITLAB_TOOLSETS` was a list with at least one valid toolset name:** append the new toolset to that list as it is, and do
   not add `core` unless it was already there. For example, `GITLAB_TOOLSETS=search` with
   `USE_GITLAB_WIKI=true` becomes `GITLAB_TOOLSETS=search,wiki`, not
   `GITLAB_TOOLSETS=core,search,wiki`. Adding `core` would expose tools such as
