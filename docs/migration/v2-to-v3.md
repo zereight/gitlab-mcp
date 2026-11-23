@@ -4,9 +4,11 @@ v3.0.0 removes the settings below. v2 kept them working with deprecation warning
 In v3 an **active** removed setting stops the server from starting. The server prints
 the replacement and links back to this page, so a setting is never silently ignored.
 
-Empty values and `false` are harmless for the boolean settings. You can delete them
-from your configuration, or leave them in place (for example, an empty
-`GITLAB_READ_ONLY_MODE=` line in a templated `.env`).
+Delete each setting below from your configuration entirely, including `false` and empty
+values (for example, an empty `GITLAB_READ_ONLY_MODE=` line in a templated `.env`). Do not
+leave them in place: the server accepts an inactive `--read-only=false`, but the human CLI
+rejects it as an unknown flag (`tool whoami --read-only=false` fails with
+`Unknown flag: --read-only`).
 
 ## Replacements
 
