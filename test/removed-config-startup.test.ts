@@ -57,7 +57,7 @@ function startServer(extraEnv: Record<string, string>, args: string[] = []): Pro
       timedOut = true;
       child.kill("SIGKILL");
     }, EXIT_TIMEOUT_MS);
-    child.on("exit", code => {
+    child.on("close", code => {
       clearTimeout(timer);
       resolve({ code, timedOut, stderr });
     });
@@ -69,8 +69,10 @@ function assertRefused(result: StartResult, replacement: string): void {
   assert.equal(result.code, 1, `expected exit code 1, got ${result.code}\n${result.stderr}`);
   assert.match(result.stderr, /Removed configuration detected/);
   assert.ok(result.stderr.includes(replacement), `missing replacement "${replacement}"`);
-  assert.ok(result.stderr.includes(MIGRATION_GUIDE), "missing migration guide link");
-  assert.ok(result.stderr.includes(TRACKING_ISSUE), "missing tracking issue link");
+  // Exact line match, not substring: the links must be the whole URL, not a prefix of a longer one.
+  const lines = result.stderr.split("\n").map(line => line.trim());
+  assert.ok(lines.includes(`Migration guide: ${MIGRATION_GUIDE}`), "missing migration guide link");
+  assert.ok(lines.includes(`Tracking issue: ${TRACKING_ISSUE}`), "missing tracking issue link");
 }
 
 describe("Removed settings stop server startup", () => {
