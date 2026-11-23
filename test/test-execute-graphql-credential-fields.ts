@@ -1,8 +1,8 @@
 /**
  * execute_graphql must not return credential fields. A pipeline trigger's `token` (and a
  * new runner's `ephemeralAuthenticationToken`) is dropped by the REST tools; a query that
- * selects one, under any alias or inside a fragment, is refused before it is sent, and a
- * `token` key in a response is dropped as a second line of defense.
+ * selects one, under any alias or inside a fragment, is refused before it is sent. An
+ * alias named `token` on a safe field is not a credential and keeps its value.
  */
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
@@ -22,14 +22,26 @@ describe("execute_graphql credential fields", () => {
       port: await findMockServerPort(),
       validTokens: [MOCK_TOKEN],
     });
-    mockGitLab.addRootHandler("post", "/api/graphql", (_req, res) => {
+    // Answers like GitLab: only the selected fields, under the caller's aliases.
+    mockGitLab.addRootHandler("post", "/api/graphql", (req, res) => {
       graphqlRequests++;
+      const query = String(req.body?.query ?? "");
+      if (query.includes("token: currentUser")) {
+        res.json({ data: { token: { username: "safe-user" } } });
+        return;
+      }
+      if (query.includes("token: id")) {
+        res.json({
+          data: {
+            project: { pipelineTriggers: { nodes: [{ token: "gid://gitlab/Ci::Trigger/1" }] } },
+          },
+        });
+        return;
+      }
       res.json({
         data: {
           project: {
-            pipelineTriggers: {
-              nodes: [{ id: "gid://gitlab/Ci::Trigger/1", description: "d", token: TRIGGER_TOKEN }],
-            },
+            pipelineTriggers: { nodes: [{ id: "gid://gitlab/Ci::Trigger/1", description: "d" }] },
           },
         },
       });
@@ -90,7 +102,7 @@ describe("execute_graphql credential fields", () => {
     });
   }
 
-  test("a query without credential fields is sent and a token key in the reply is dropped", async () => {
+  test("a query without credential fields is sent", async () => {
     const before = graphqlRequests;
     const outcome = await run(
       '{ project(fullPath: "g/p") { pipelineTriggers { nodes { id description } } } }'
@@ -102,10 +114,18 @@ describe("execute_graphql credential fields", () => {
     assert.strictEqual(parsed.data.project.pipelineTriggers.nodes[0].description, "d");
   });
 
-  test("a field whose alias is token but whose name is not is allowed", async () => {
-    const outcome = await run(
+  test("an alias named token on a safe field keeps its value", async () => {
+    const onField = await run(
       '{ project(fullPath: "g/p") { pipelineTriggers { nodes { token: id } } } }'
     );
-    assert.strictEqual(outcome.isError, false, outcome.text);
+    assert.strictEqual(onField.isError, false, onField.text);
+    assert.strictEqual(
+      JSON.parse(onField.text).data.project.pipelineTriggers.nodes[0].token,
+      "gid://gitlab/Ci::Trigger/1"
+    );
+
+    const onObject = await run("{ token: currentUser { username } }");
+    assert.strictEqual(onObject.isError, false, onObject.text);
+    assert.deepStrictEqual(JSON.parse(onObject.text).data, { token: { username: "safe-user" } });
   });
 });

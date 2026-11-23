@@ -11291,8 +11291,10 @@ async function handleToolCall(params: any) {
           if (!response.ok) {
             await handleGitLabError(response);
           }
-          // Defense in depth: drop credential keys even if a selection slipped past the check.
-          const json = redactSensitiveGitLabFields(await response.json());
+          // GitLab returns only the selected fields, and credential fields were refused
+          // above by field name. Response keys are aliases chosen by the caller, so they
+          // are not filtered here: `token: currentUser { username }` is a safe selection.
+          const json = await response.json();
           const graphqlResult = {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
