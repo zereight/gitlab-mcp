@@ -834,6 +834,46 @@ function output(result: ReturnType<typeof spawnSync>): string {
   return `${result.stdout}\n${result.stderr}`;
 }
 
+describe("release.sh removal_notice", () => {
+  const notice = (version: string) =>
+    callFunction(["removal_notice"], 'removal_notice "$1"', [version]);
+
+  test("releases before v3.0.0 get the removal notice", () => {
+    const text = notice("2.3.32");
+    assert.ok(text.includes("Removed configuration options"), text);
+    assert.ok(text.includes("removed in v3.0.0"), text);
+    assert.ok(!text.includes("grace period"), text);
+  });
+
+  test("v3.0.0 names the removed settings and links the migration guide", () => {
+    const text = notice("3.0.0");
+    assert.ok(text.includes("Removed configuration options"), text);
+    for (const setting of [
+      "GITLAB_READ_ONLY_MODE",
+      "GITLAB_ALLOWED_GROUPS",
+      "USE_GITLAB_WIKI",
+      "USE_MILESTONE",
+      "USE_PIPELINE",
+    ]) {
+      assert.ok(text.includes(setting), `${setting} missing: ${text}`);
+    }
+    assert.ok(text.includes("https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/"), text);
+    assert.ok(text.includes("https://github.com/zereight/gitlab-mcp/issues/815"), text);
+    assert.ok(!text.includes("grace period"), text);
+  });
+
+  test("releases after v3.0.0 get no notice", () => {
+    for (const version of ["3.0.1", "3.1.0", "4.0.0"]) {
+      assert.strictEqual(notice(version), "", version);
+    }
+  });
+
+  test("a non-numeric version gets no notice", () => {
+    assert.strictEqual(notice(""), "");
+    assert.strictEqual(notice("next"), "");
+  });
+});
+
 describe("release.sh sync_manifest_version", () => {
   function syncManifest(content: string) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-manifest-"));

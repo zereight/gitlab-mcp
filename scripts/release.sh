@@ -471,25 +471,22 @@ format_pr_contributors() {
   fi
 }
 
-# Legacy config flags are removed in v3.0.0 (#815). Releases below that major
-# get the notice automatically; v3.0.0+ drops it without another edit.
-DEPRECATION_NOTICE_UNTIL_MAJOR=3
-
-deprecation_notice() {
+# v3.0.0 removes the legacy config options (#815). Releases before v3.0.0 and
+# v3.0.0 itself get the removal notice; later releases get none.
+removal_notice() {
   local version="$1"
   local major="${version%%.*}"
 
   case "$major" in
-    ''|*[!0-9]*) return ;;
+    ''|*[!0-9]*) return 0 ;;
   esac
 
-  if [ "$major" -ge "$DEPRECATION_NOTICE_UNTIL_MAJOR" ]; then
-    return
+  if [ "$major" -lt 3 ] || [ "$version" = "3.0.0" ]; then
+    printf '%s\n' \
+      "### ⚠️ Removed configuration options" \
+      "Legacy configuration options are removed in v3.0.0: \`GITLAB_READ_ONLY_MODE\`, \`GITLAB_ALLOWED_GROUPS\`, \`USE_GITLAB_WIKI\`, \`USE_MILESTONE\`, and \`USE_PIPELINE\`, along with their CLI flags. An active removed setting stops the server from starting. Delete each one from your configuration, including \`false\` and empty values, and add its replacement as described in the [v2 to v3 migration guide](https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/). The tracking issue is [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
   fi
-
-  printf '%s\n' \
-    "### ⚠️ Deprecation notice" \
-    "Deprecated configuration options (e.g. \`GITLAB_READ_ONLY_MODE\`, \`USE_GITLAB_WIKI\`, and other legacy flags) still work during the grace period, but **they will be removed in v3.0.0**. Please migrate to the replacements described in the pinned issue [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
+  return 0
 }
 
 # Generate CHANGELOG-style release notes for previous_tag..end_ref. The end
@@ -632,7 +629,7 @@ generate_changelog_notes() {
   fi
 
   local notice
-  notice=$(deprecation_notice "$version")
+  notice=$(removal_notice "$version")
   if [ -n "$notice" ]; then
     notes+="\n$notice\n"
   fi
