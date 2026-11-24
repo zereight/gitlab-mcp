@@ -155,7 +155,8 @@ describe("live: GITLAB_API_URL comma rule (#876)", { skip: SKIP_REASON }, () => 
     const outcome = await runUntilExitAsync(withUserinfo(FAKE_PASSWORD));
 
     assert.equal(outcome.code, 1, "startup should be refused with exit code 1");
-    assert.equal(outcome.stdout, "", "the refusal should not write to stdout");
+    // Boolean, not assert.equal: a failing equal would print the stdout it was given.
+    assert.ok(outcome.stdout.length === 0, "the refusal should not write to stdout");
     assert.ok(
       AMBIGUOUS_COMMA_ERROR.test(outcome.stderr),
       "the refusal should name the ambiguous comma"
