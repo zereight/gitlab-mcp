@@ -84,7 +84,7 @@ group membership. If you need group restriction, set both `GITLAB_MCP_OAUTH=true
 
 v2 split `GITLAB_API_URL` and `--api-url` at every comma, so a comma inside a password could be
 read as a host and port. v3 stops at startup when a comma may be inside a username or password,
-in the MCP server, the human CLI (`tool`, `doctor`), and `auth`. The error is
+in the MCP server, the human CLI (`tool`, `doctor`, `setup`), and `auth`. The error is
 `GITLAB_API_URL comma 1 of 1 may be inside a username or password, ...`. It names the comma's
 position only and does not print the value.
 

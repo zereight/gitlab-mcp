@@ -28,7 +28,8 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { splitCommaSeparatedUrls } from "../../utils/redact-url.js";
+import { ambiguousApiUrlCommaError, normalizeGitLabApiUrl } from "../../utils/url.js";
 
 dotenv.config();
 
@@ -40,14 +41,36 @@ const GITLAB_TOKEN =
   process.env.GITLAB_TOKEN ||
   process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID || process.env.GITLAB_PROJECT_ID;
-const LIVE_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "https://gitlab.com");
-const LIVE_HOST = new URL(LIVE_API_URL).host;
 
 const SKIP_REASON = !GITLAB_TOKEN
   ? "no GitLab token; set GITLAB_TOKEN_TEST, GITLAB_TOKEN, or GITLAB_PERSONAL_ACCESS_TOKEN"
   : !TEST_PROJECT_ID
     ? "no test project; set TEST_PROJECT_ID (or GITLAB_PROJECT_ID)"
     : false;
+
+// Parsed only after SKIP_REASON has decided the suite will run. A comma list is
+// not passed to `new URL` as one authority: the first entry is used, the same
+// entry the server would try first. An ambiguous value is refused with the
+// shared error, which never echoes the setting.
+function liveApiTarget(): { apiUrl: string; host: string } {
+  const configured = process.env.GITLAB_API_URL || "https://gitlab.com";
+  const ambiguity = ambiguousApiUrlCommaError("GITLAB_API_URL", configured);
+  if (ambiguity !== null) {
+    throw new Error(ambiguity);
+  }
+  const first = splitCommaSeparatedUrls(configured)[0];
+  if (first === undefined || first.length === 0) {
+    throw new Error("GITLAB_API_URL entry 1 is empty (value not shown: it may contain a password)");
+  }
+  const apiUrl = normalizeGitLabApiUrl(first);
+  try {
+    return { apiUrl, host: new URL(apiUrl).host };
+  } catch {
+    throw new Error(
+      "GITLAB_API_URL entry 1 is not a valid URL (value not shown: it may contain a password)"
+    );
+  }
+}
 
 // Fake credentials. The server must not print them, and must not send them to GitLab.
 const FAKE_USER = "e2e-comma-user";
@@ -57,8 +80,8 @@ const AMBIGUOUS_COMMA_ERROR = /GITLAB_API_URL comma 1 of 1 may be inside a usern
 
 // The live API URL with fake userinfo in front of its host. The path is the one
 // GITLAB_API_URL normalizes to (it always ends in /api/v4).
-function withUserinfo(password: string): string {
-  const url = new URL(LIVE_API_URL);
+function withUserinfo(password: string, apiUrl: string): string {
+  const url = new URL(apiUrl);
   return `${url.protocol}//${FAKE_USER}:${password}@${url.host}${url.pathname}`;
 }
 
@@ -152,7 +175,8 @@ async function getProjectOverStdioAsync(apiUrl: string): Promise<ProjectOverStdi
 
 describe("live: GITLAB_API_URL comma rule (#876)", { skip: SKIP_REASON }, () => {
   test("a literal comma in the password stops startup without printing the value", async () => {
-    const outcome = await runUntilExitAsync(withUserinfo(FAKE_PASSWORD));
+    const { apiUrl, host } = liveApiTarget();
+    const outcome = await runUntilExitAsync(withUserinfo(FAKE_PASSWORD, apiUrl));
 
     assert.equal(outcome.code, 1, "startup should be refused with exit code 1");
     // Boolean, not assert.equal: a failing equal would print the stdout it was given.
@@ -161,14 +185,17 @@ describe("live: GITLAB_API_URL comma rule (#876)", { skip: SKIP_REASON }, () => 
       AMBIGUOUS_COMMA_ERROR.test(outcome.stderr),
       "the refusal should name the ambiguous comma"
     );
-    for (const secret of [FAKE_USER, FAKE_PASSWORD, LIVE_HOST]) {
+    for (const secret of [FAKE_USER, FAKE_PASSWORD, host]) {
       const printed = outcome.stdout.includes(secret) || outcome.stderr.includes(secret);
       assert.equal(printed, false, "the refusal printed part of GITLAB_API_URL");
     }
   });
 
   test("the same password written as %2C is accepted and get_project reaches the instance", async () => {
-    const { payload, stderr } = await getProjectOverStdioAsync(withUserinfo(ENCODED_PASSWORD));
+    const { apiUrl } = liveApiTarget();
+    const { payload, stderr } = await getProjectOverStdioAsync(
+      withUserinfo(ENCODED_PASSWORD, apiUrl)
+    );
 
     assert.equal(
       String(payload.id),

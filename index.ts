@@ -16957,6 +16957,9 @@ async function main(): Promise<void> {
       const result = runSetup({
         ...cli.options,
         apiUrl: getConfig("api-url", "GITLAB_API_URL", cli.options.apiUrl),
+        // --api-url is a global flag, so parseArgv does not put it in setup's
+        // toolFlags. Use the same source the server and doctor already resolved.
+        apiUrlSource: API_URL_SOURCE,
       });
       process.stdout.write(result.text);
       process.exit(0);

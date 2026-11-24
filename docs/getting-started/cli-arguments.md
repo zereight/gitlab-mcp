@@ -121,6 +121,12 @@ Print a Cursor `mcp.json` snippet or a Claude Code one-liner. Tokens stay in
 the environment (`${env:GITLAB_PERSONAL_ACCESS_TOKEN}` or `$GITLAB_PERSONAL_ACCESS_TOKEN`).
 Dry-run is the default. `--write` merges `.cursor/mcp.json`.
 
+`--api-url` (or `GITLAB_API_URL`) is copied into the snippet. Since v3.0.0, a
+comma that may be inside a username or password is refused before anything is
+printed or written; the error names only comma positions, never the value.
+Write such a comma as `%2C`, or leave the username and password out. See
+[`GITLAB_API_URL`](../configuration/environment-variables.md#gitlab_api_url).
+
 ```bash
 zereight-mcp-gitlab setup --cursor
 zereight-mcp-gitlab setup --cursor --write --dir .
