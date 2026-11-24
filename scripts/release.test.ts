@@ -857,8 +857,12 @@ describe("release.sh removal_notice", () => {
     ]) {
       assert.ok(text.includes(setting), `${setting} missing: ${text}`);
     }
-    assert.ok(text.includes("https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/"), text);
-    assert.ok(text.includes("https://github.com/zereight/gitlab-mcp/issues/815"), text);
+    // Whole Markdown links, matched as patterns rather than URL substrings.
+    assert.match(
+      text,
+      /\[v2 to v3 migration guide\]\(https:\/\/zereight\.github\.io\/gitlab-mcp\/migration\/v2-to-v3\/\)/
+    );
+    assert.match(text, /\[#815\]\(https:\/\/github\.com\/zereight\/gitlab-mcp\/issues\/815\)/);
     assert.ok(!text.includes("grace period"), text);
   });
 
