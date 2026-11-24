@@ -9,14 +9,14 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 291 |
-| Invoked | 192 |
-| Coverage | 66.0% |
+| Invoked | 193 |
+| Coverage | 66.3% |
 
 ## By toolset
 
 | Toolset | Invoked | Total | Coverage |
 | --- | ---: | ---: | ---: |
-| [Projects & Namespaces](#projects) | 18 | 20 | 90.0% |
+| [Projects & Namespaces](#projects) | 19 | 20 | 95.0% |
 | [Projects & Files](#repositories) | 7 | 8 | 87.5% |
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
@@ -54,7 +54,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_namespace`](../tools/projects.md#get_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`
 - [x] [`verify_namespace`](../tools/projects.md#verify_namespace) — `test/dynamic-api-url-allowlist.test.ts`, `test/gitlab-api-tool-errors.test.ts`, `test/lazy-tool-schemas-stdio.test.ts`
 - [ ] [`list_group_projects`](../tools/projects.md#list_group_projects)
-- [ ] [`list_group_iterations`](../tools/projects.md#list_group_iterations)
+- [x] [`list_group_iterations`](../tools/projects.md#list_group_iterations) — `test/live/group-not-found-hint.test.ts`
 - [x] [`get_group_iteration`](../tools/projects.md#get_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`update_group_iteration`](../tools/projects.md#update_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`create_group_iteration`](../tools/projects.md#create_group_iteration) — `test/test-group-iterations.ts`

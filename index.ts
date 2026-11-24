@@ -331,7 +331,7 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
-import { appendRecoveryHint, withRecoveryHint } from "./utils/error-hints.js";
+import { appendRecoveryHint, GROUP_NOT_FOUND_HINT, withRecoveryHint } from "./utils/error-hints.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -2276,8 +2276,6 @@ const MERGE_REQUEST_IDENTIFIER_REQUIRED =
 // Next-step hints for lookups that found nothing (see withRecoveryHint).
 const PROJECT_NOT_FOUND_HINT =
   "check project_id (numeric ID or group%2Fproject) and that the token can read the project.";
-const GROUP_NOT_FOUND_HINT =
-  "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
 const WORK_ITEM_NOT_FOUND_HINT =
   "check project_id and the work item iid (the #number shown in GitLab, not the global ID).";
 const WORK_ITEM_TYPE_NOT_FOUND_HINT =

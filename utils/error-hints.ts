@@ -1,5 +1,9 @@
 const NEXT_PREFIX = "\nNext: ";
 
+// Shared with the lookups that already know a group was not found (see withRecoveryHint).
+export const GROUP_NOT_FOUND_HINT =
+  "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
+
 export function hasRecoveryHint(message: string): boolean {
   return message.includes(NEXT_PREFIX);
 }
@@ -30,6 +34,11 @@ export function recoveryHintFor(message: string): string | undefined {
     return "check token scopes and GITLAB_PERMISSION_MODE; grant read_user or User:Read for whoami.";
   }
   if (/\b404\b/.test(message) || /404 not found/i.test(message)) {
+    // GitLab's body names the missing group ("404 Group Not Found"). Group tools take
+    // group_id, so the project_id hint below would name the wrong argument.
+    if (/404 Group Not Found/i.test(message)) {
+      return GROUP_NOT_FOUND_HINT;
+    }
     return "check project_id (numeric ID or group%2Fproject) and the resource iid.";
   }
   return undefined;
