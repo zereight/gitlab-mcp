@@ -11,8 +11,9 @@
   comma in its password (`https://alice:p,w@host`) is refused too. Write a comma
   inside a username or password as `%2C`, or remove the username and password,
   which requests do not use. Lists without userinfo, with ports or paths, or
-  with `%2C` in userinfo work as before, except a port before a later `@` even
-  in a path (`https://a.example:443,https://b.example/team@docs`)
+  with `%2C` in userinfo work as before, except when a port is still in an open
+  authority before a later `@`, even in a path
+  (`https://a.example:443,https://b.example/team@docs`)
   ([#876](https://github.com/zereight/gitlab-mcp/issues/876))
 
 ### Fixed
