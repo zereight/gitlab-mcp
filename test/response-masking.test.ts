@@ -566,6 +566,59 @@ describe("When builtin secret masking runs at the MCP boundary", { timeout: 30_0
   });
 });
 
+const PEM_FILE_BODY_LINES = [
+  "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu",
+  "KUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQJAIJLixBy2qpFoS4DSmoEm",
+];
+const PEM_FILE_TEXT = [
+  "# deploy key",
+  "-----BEGIN RSA PRIVATE KEY-----",
+  ...PEM_FILE_BODY_LINES,
+  "-----END RSA PRIVATE KEY-----",
+  "after",
+  "",
+].join("\n");
+
+describe(
+  "When get_file_contents returns a line range with masking enabled",
+  { timeout: 30_000 },
+  () => {
+    test("should not reveal a private key split across or cut by the range", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: { version: 1 },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/id_rsa": {
+            file_name: "id_rsa",
+            file_path: "id_rsa",
+            encoding: "base64",
+            content: Buffer.from(PEM_FILE_TEXT, "utf8").toString("base64"),
+          },
+        },
+      });
+      const pages: string[] = [];
+      for (const range of [
+        { offset: 2, limit: 1 },
+        { offset: 0, limit: 3 },
+        { offset: 3, limit: 3 },
+      ]) {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: { project_id: "12", file_path: "id_rsa", ref: "main", ...range },
+        });
+        assert.notEqual(result.isError, true);
+        pages.push(JSON.stringify(result));
+      }
+      const text = pages.join("\n");
+      for (const line of PEM_FILE_BODY_LINES) {
+        assert.ok(!text.includes(line), `key material leaked: ${line}`);
+      }
+      assert.match(text, /\[Private key masked\]/);
+      assert.match(text, /after/);
+    });
+  }
+);
+
 // 40-character values shaped like AWS secret access keys. The builtin AWS rule
 // only masks them by field name, so they prove which field scope the engine used.
 const awsShaped = (label: string, fill: string) => label.padEnd(40, fill);

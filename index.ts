@@ -1224,16 +1224,17 @@ function createServer(): McpServer {
         request.params.arguments = cleanedArguments;
       }
 
+      const toolCallContext = toolCallContextFor(maskingEngine);
       if (sessionContext) {
         // Policy selection and the tool handler must use the same request-local
         // API URL and project allowlist.
         const result = await sessionAuthStore.run(sessionContext, () =>
-          handleToolCall(request.params)
+          handleToolCall(request.params, toolCallContext)
         );
         return logCompletion(result);
       }
       // Fallback for non-remote-auth mode or if session is not found
-      const result = await handleToolCall(request.params);
+      const result = await handleToolCall(request.params, toolCallContext);
       return logCompletion(result);
     } catch (error) {
       const isRecoverableToolError =
@@ -11092,7 +11093,20 @@ function assertCiCatalogResourceProjectAllowed(
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
-async function handleToolCall(params: any) {
+interface ToolCallContext {
+  /**
+   * Masks text with the request's masking policy. Results are masked as a whole
+   * after the handler returns; a handler that returns only part of a text masks
+   * the whole text first, so a cut cannot split a secret the rules would match.
+   */
+  readonly maskText?: (text: string) => string;
+}
+
+function toolCallContextFor(engine: MaskingEngine | undefined): ToolCallContext {
+  return { maskText: engine ? text => engine.maskText(text) : undefined };
+}
+
+async function handleToolCall(params: any, context: ToolCallContext = {}) {
   try {
     if (!params.arguments) {
       params.arguments = {};
@@ -11404,9 +11418,13 @@ async function handleToolCall(params: any) {
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
         const lineRangeRequested = args.offset !== undefined || args.limit !== undefined;
         // A line range applies only to decoded text; base64 content is returned whole.
+        // Line numbers count lines of the masked text when masking is enabled.
         const result =
           lineRangeRequested && !Array.isArray(contents) && contents.encoding === "utf8"
-            ? { ...contents, ...sliceFileLines(contents.content, args) }
+            ? {
+                ...contents,
+                ...sliceFileLines(context.maskText?.(contents.content) ?? contents.content, args),
+              }
             : contents;
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
@@ -16875,8 +16893,12 @@ async function main(): Promise<void> {
     }
     try {
       initOAuthClient();
-      const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
-      const masked = maskCliToolResult(cli.toolName, redactErrorResultUrls(result));
+      const maskingEngine = selectCliMaskingEngine();
+      const result = await handleToolCall(
+        { name: cli.toolName, arguments: cli.args },
+        toolCallContextFor(maskingEngine)
+      );
+      const masked = maskCliToolResult(maskingEngine, cli.toolName, redactErrorResultUrls(result));
       const formatted = formatToolOutput({
         result: masked,
         mode: cli.output,
@@ -16932,11 +16954,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function maskCliToolResult(toolName: string, result: unknown): unknown {
-  const engine = maskingPolicyResolver?.select({
+function selectCliMaskingEngine(): MaskingEngine | undefined {
+  return maskingPolicyResolver?.select({
     gitlabInstance: GITLAB_API_URL,
     allowBuiltinForUnscoped: true,
   });
+}
+
+function maskCliToolResult(
+  engine: MaskingEngine | undefined,
+  toolName: string,
+  result: unknown
+): unknown {
   if (!engine || !isRecord(result)) {
     return result;
   }

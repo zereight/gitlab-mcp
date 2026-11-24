@@ -15,22 +15,30 @@ export interface FileLineSlice {
   readonly total_lines: number;
 }
 
-// A line is its text plus its "\n" terminator; a last line without one still counts.
-const LINE_PATTERN = /[^\n]*\n|[^\n]+$/g;
-
 /**
- * Select `limit` lines starting at zero-based `offset`. Line terminators are
+ * Select `limit` lines starting at zero-based `offset`. A line is its text plus
+ * its "\n" terminator; a last line without one still counts. Terminators are
  * kept, so the content of consecutive ranges joins back into the original text.
+ * One scan counts the lines and records only where the range starts and ends.
  */
 export function sliceFileLines(text: string, range: FileLineRange): FileLineSlice {
-  const lines = text.match(LINE_PATTERN) ?? [];
   const offset = range.offset ?? 0;
   const limit = Math.min(range.limit ?? FILE_CONTENTS_MAX_LINES, FILE_CONTENTS_MAX_LINES);
-  const selected = lines.slice(offset, offset + limit);
+  let start = text.length;
+  let end = text.length;
+  let totalLines = 0;
+  let position = 0;
+  while (position < text.length) {
+    if (totalLines === offset) start = position;
+    const newline = text.indexOf("\n", position);
+    position = newline === -1 ? text.length : newline + 1;
+    totalLines += 1;
+    if (totalLines === offset + limit) end = position;
+  }
   return {
-    content: selected.join(""),
+    content: text.slice(start, end),
     offset,
-    returned_lines: selected.length,
-    total_lines: lines.length,
+    returned_lines: Math.max(0, Math.min(limit, totalLines - offset)),
+    total_lines: totalLines,
   };
 }
