@@ -471,25 +471,51 @@ format_pr_contributors() {
   fi
 }
 
-# Legacy config flags are removed in v3.0.0 (#815). Releases below that major
-# get the notice automatically; v3.0.0+ drops it without another edit.
-DEPRECATION_NOTICE_UNTIL_MAJOR=3
+# v3.0.0 removes the legacy config options (#815), so only v3.0.0 gets the removal
+# notice. Releases below v3.0.0 get none because require_v3_for_removals refuses to
+# cut them from a tree that has the removals; later releases do not repeat it.
+removal_notice() {
+  local version="$1"
 
-deprecation_notice() {
+  if [ "$version" = "3.0.0" ]; then
+    printf '%s\n' \
+      "### ⚠️ Removed configuration options" \
+      "Legacy configuration options are removed in v3.0.0: \`GITLAB_READ_ONLY_MODE\`, \`GITLAB_ALLOWED_GROUPS\`, \`USE_GITLAB_WIKI\`, \`USE_MILESTONE\`, and \`USE_PIPELINE\`, along with their CLI flags. An active removed setting stops the server from starting. Delete each one from your configuration, including \`false\` and empty values. Add a replacement only for \`GITLAB_READ_ONLY_MODE\` or a \`USE_*\` setting that was enabled (\`true\` or a bare flag). If \`GITLAB_ALLOWED_GROUPS\` is set, its replacement is \`GITLAB_OAUTH_ALLOWED_GROUPS\`, which is enforced only with \`GITLAB_MCP_OAUTH=true\`. See the [v2 to v3 migration guide](https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/). The tracking issue is [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
+  fi
+  return 0
+}
+
+# Refuses a release below v3.0.0 from a checkout that has the v3.0.0 removals
+# (#815). docs/migration/v2-to-v3.md is committed with the removals and exists in
+# no v2 tree, so its presence marks a checkout that has them. This runs after
+# npm's bump. That bump is the only change to the checkout (it was clean at the
+# start), so a refusal restores package.json and package-lock.json before it exits.
+require_v3_for_removals() {
   local version="$1"
   local major="${version%%.*}"
 
-  case "$major" in
-    ''|*[!0-9]*) return ;;
-  esac
-
-  if [ "$major" -ge "$DEPRECATION_NOTICE_UNTIL_MAJOR" ]; then
-    return
+  if [ ! -f docs/migration/v2-to-v3.md ] || [ "$major" -ge 3 ]; then
+    return 0
   fi
+  echo "❌ v$version would ship the v3.0.0 removals (docs/migration/v2-to-v3.md) in a v2 release. Run scripts/release.sh major."
+  git checkout -q -- package.json package-lock.json
+  exit 1
+}
 
-  printf '%s\n' \
-    "### ⚠️ Deprecation notice" \
-    "Deprecated configuration options (e.g. \`GITLAB_READ_ONLY_MODE\`, \`USE_GITLAB_WIKI\`, and other legacy flags) still work during the grace period, but **they will be removed in v3.0.0**. Please migrate to the replacements described in the pinned issue [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
+# The commit form of require_v3_for_removals, for the recovery paths that publish
+# or merge an existing release commit. Nothing is bumped there, so nothing is
+# restored. The remedy is worded for every recovery state: a rerun of
+# `release.sh major` alone would reach the same state and refuse again.
+require_v3_for_removals_at() {
+  local sha="$1" version="$2"
+  local major="${version%%.*}" short
+
+  if [ "$major" -ge 3 ] || ! git cat-file -e "$sha:docs/migration/v2-to-v3.md" 2>/dev/null; then
+    return 0
+  fi
+  short=$(git rev-parse --short "$sha")
+  echo "❌ v$version would ship the v3.0.0 removals (docs/migration/v2-to-v3.md at $short) in a v2 release. Nothing was published. Close the release PR or delete the tag if either exists, revert a merged release commit, then run scripts/release.sh major."
+  exit 1
 }
 
 # Generate CHANGELOG-style release notes for previous_tag..end_ref. The end
@@ -632,7 +658,7 @@ generate_changelog_notes() {
   fi
 
   local notice
-  notice=$(deprecation_notice "$version")
+  notice=$(removal_notice "$version")
   if [ -n "$notice" ]; then
     notes+="\n$notice\n"
   fi
@@ -929,6 +955,7 @@ verify_release_commit() {
     echo "❌ package.json at $sha is $found, not $version."
     exit 1
   fi
+  require_v3_for_removals_at "$sha" "$version"
 }
 
 # Stops when someone pushed to the release branch after the script read it.
@@ -1158,6 +1185,7 @@ cut_release_pr() {
 
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
+  require_v3_for_removals "$NEW_VERSION"
   if tag_exists "v$NEW_VERSION"; then
     echo "❌ Tag v$NEW_VERSION already exists. Check the tags before releasing."
     exit 1
@@ -1303,6 +1331,8 @@ case "$RELEASE_STATE" in
       echo "❌ package.json on $RELEASE_BRANCH ($RELEASE_SHA) is not $NEW_VERSION."
       exit 1
     fi
+    # Before land_release_pr can merge the PR.
+    require_v3_for_removals_at "$RELEASE_SHA" "$NEW_VERSION"
     PREV_TAG=$(get_previous_tag "")
     RELEASE_NOTES=$(generate_changelog_notes "$NEW_VERSION" "$PREV_TAG" "$RELEASE_SHA")
     print_release_notes
