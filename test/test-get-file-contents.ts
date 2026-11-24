@@ -14,6 +14,10 @@ import { findMockServerPort, MockGitLabServer } from "./utils/mock-gitlab-server
 
 const MOCK_TOKEN = "glpat-get-file-contents-test-token";
 const TEST_PROJECT_ID = "123";
+const MULTI_LINE_TEXT = "line 0\nline 1\nline 2\nline 3\nline 4\n";
+const BINARY_CONTENT_BASE64 = Buffer.from([
+  0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xc7, 0xff, 0xd8, 0x00,
+]).toString("base64");
 
 describe("get_file_contents", { timeout: 20_000 }, () => {
   let mockGitLab: MockGitLabServer;
@@ -22,9 +26,6 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
   const treeQueries: string[] = [];
 
   before(async () => {
-    const binaryContent = Buffer.from([
-      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xc7, 0xff, 0xd8, 0x00,
-    ]).toString("base64");
     const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
@@ -38,7 +39,7 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
           file_name: "sample.pdf",
           file_path: "sample.pdf",
           encoding: "base64",
-          content: binaryContent,
+          content: BINARY_CONTENT_BASE64,
         });
       }
     );
@@ -51,6 +52,20 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
           file_path: "README.md",
           encoding: "base64",
           content: Buffer.from("Hello, 世界\n", "utf8").toString("base64"),
+        });
+      }
+    );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/files/values.yaml`,
+      (_req, res) => {
+        res.json({
+          file_name: "values.yaml",
+          file_path: "values.yaml",
+          size: MULTI_LINE_TEXT.length,
+          encoding: "base64",
+          content: Buffer.from(MULTI_LINE_TEXT, "utf8").toString("base64"),
+          last_commit_id: "abc123",
         });
       }
     );
@@ -115,9 +130,6 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
   });
 
   test("preserves non-UTF-8 file content as base64", async () => {
-    const expectedContent = Buffer.from([
-      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xc7, 0xff, 0xd8, 0x00,
-    ]).toString("base64");
     const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
     await client.connect(mcpUrl);
 
@@ -136,7 +148,7 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
       const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
       const file = JSON.parse(responseText) as { content: string; encoding: string };
 
-      assert.strictEqual(file.content, expectedContent);
+      assert.strictEqual(file.content, BINARY_CONTENT_BASE64);
       assert.strictEqual(file.encoding, "base64");
     } finally {
       await client.disconnect();
@@ -158,6 +170,79 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
 
       assert.strictEqual(file.content, "Hello, 世界\n");
       assert.strictEqual(file.encoding, "utf8");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("returns the whole file and no line counts without a line range", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "values.yaml",
+        ref: "main",
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as Record<string, unknown>;
+
+      assert.strictEqual(file.content, MULTI_LINE_TEXT);
+      assert.strictEqual(file.total_lines, undefined);
+      assert.strictEqual(file.returned_lines, undefined);
+      assert.strictEqual(file.offset, undefined);
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("returns only the requested lines of a UTF-8 file with the total line count", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "values.yaml",
+        ref: "main",
+        offset: 1,
+        limit: 2,
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as Record<string, unknown>;
+
+      assert.strictEqual(file.content, "line 1\nline 2\n");
+      assert.strictEqual(file.encoding, "utf8");
+      assert.strictEqual(file.offset, 1);
+      assert.strictEqual(file.returned_lines, 2);
+      assert.strictEqual(file.total_lines, 5);
+      // File metadata still describes the whole file.
+      assert.strictEqual(file.size, MULTI_LINE_TEXT.length);
+      assert.strictEqual(file.last_commit_id, "abc123");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("returns base64 content whole even when a line range is given", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "sample.pdf",
+        ref: "main",
+        offset: 0,
+        limit: 1,
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as Record<string, unknown>;
+
+      assert.strictEqual(file.content, BINARY_CONTENT_BASE64);
+      assert.strictEqual(file.encoding, "base64");
+      assert.strictEqual(file.total_lines, undefined);
     } finally {
       await client.disconnect();
     }

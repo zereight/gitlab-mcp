@@ -490,6 +490,8 @@ Get the contents of one file from a GitLab project. `ref` defaults to the defaul
 | `file_path` | string |  | Path to the file (not a directory). Takes precedence over 'path' when both are provided |
 | `path` | string |  | Alias of file_path |
 | `ref` | string |  | Branch/tag/commit to get contents from |
+| `offset` | integer |  | Zero-based index of the first line to return (default: 0). When offset or limit is set, content of a utf8 file holds only those lines and the result adds offset, returned_lines and total_lines for paging. Omit both to get the whole file. base64 content is always returned whole. |
+| `limit` | integer |  | Maximum number of lines to return (default and maximum: 1000). See offset. |
 
 ### `get_repository_tree`
 

@@ -271,6 +271,7 @@ import {
   searchJobLog,
   type JobLogTail,
 } from "./utils/job-log-search.js";
+import { sliceFileLines } from "./utils/file-line-range.js";
 import {
   classifyHealthCheckTransportError,
   describeFetchTransportError,
@@ -11401,8 +11402,14 @@ async function handleToolCall(params: any) {
       case "get_file_contents": {
         const args = GetFileContentsSchema.parse(params.arguments);
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
+        const lineRangeRequested = args.offset !== undefined || args.limit !== undefined;
+        // A line range applies only to decoded text; base64 content is returned whole.
+        const result =
+          lineRangeRequested && !Array.isArray(contents) && contents.encoding === "utf8"
+            ? { ...contents, ...sliceFileLines(contents.content, args) }
+            : contents;
         return {
-          content: [{ type: "text", text: JSON.stringify(contents) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
