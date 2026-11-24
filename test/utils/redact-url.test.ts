@@ -683,6 +683,33 @@ describe("When splitCommaSeparatedUrls runs", () => {
       );
     });
   });
+
+  // Where these values split depends on whether the password starts with
+  // digits. That guess is why GITLAB_API_URL refuses them at startup (#876,
+  // ambiguousApiUrlCommas); log redaction still has to handle them.
+  describe("with the ambiguous value from #876", () => {
+    it("should split it where the text before the comma parses as a URL", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://alice:123,https:word@host"), [
+        "https://alice:123",
+        "https:word@host",
+      ]);
+    });
+
+    it("should keep it whole when the password does not start with a port", () => {
+      assert.deepEqual(splitCommaSeparatedUrls("https://alice:pw-secret,https:word@host"), [
+        "https://alice:pw-secret,https:word@host",
+      ]);
+    });
+
+    it("should redact the whole userinfo of the value", () => {
+      for (const value of [
+        "https://alice:123,https:Pw7x@host",
+        "https://alice:Pw7x,https:word@host",
+      ]) {
+        assert.equal(redactUrlSecretsInText(value), "https://[REDACTED]@host");
+      }
+    });
+  });
 });
 
 describe("When stripUrlUserinfo runs", () => {

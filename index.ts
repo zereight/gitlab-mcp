@@ -1649,7 +1649,9 @@ const CONFIGURED_GITLAB_API_URLS = parseConfiguredGitLabApiUrls(
 const API_URL_SOURCE: ApiUrlSource = cliArgs["api-url"] ? "--api-url" : "GITLAB_API_URL";
 
 // Checked before the first request: a fetch error would print an entry that
-// does not parse, and that entry can be the start of a password.
+// does not parse, and that entry can be the start of a password. A value with
+// a comma that may be inside a password is refused as a whole (#876). The
+// server, the human CLI (`run`, `doctor`), and `auth` all apply this check.
 function configuredGitLabApiUrlErrors(): string[] {
   const configured = getConfig("api-url", "GITLAB_API_URL");
   return configured === undefined ? [] : configuredApiUrlErrors(API_URL_SOURCE, configured);
@@ -16955,6 +16957,9 @@ async function main(): Promise<void> {
       const result = runSetup({
         ...cli.options,
         apiUrl: getConfig("api-url", "GITLAB_API_URL", cli.options.apiUrl),
+        // --api-url is a global flag, so parseArgv does not put it in setup's
+        // toolFlags. Use the same source the server and doctor already resolved.
+        apiUrlSource: API_URL_SOURCE,
       });
       process.stdout.write(result.text);
       process.exit(0);
@@ -16973,6 +16978,7 @@ async function main(): Promise<void> {
           useOAuth: USE_OAUTH,
         },
         apiUrl: GITLAB_API_URL,
+        apiUrlErrors: configuredGitLabApiUrlErrors(),
         permissionMode: GITLAB_PERMISSION_MODE,
         toolsetsRaw: GITLAB_TOOLSETS_RAW,
         version: packageVersion(),
