@@ -502,6 +502,22 @@ require_v3_for_removals() {
   exit 1
 }
 
+# The commit form of require_v3_for_removals, for the recovery paths that publish
+# or merge an existing release commit. Nothing is bumped there, so nothing is
+# restored. The remedy is worded for every recovery state: a rerun of
+# `release.sh major` alone would reach the same state and refuse again.
+require_v3_for_removals_at() {
+  local sha="$1" version="$2"
+  local major="${version%%.*}" short
+
+  if [ "$major" -ge 3 ] || ! git cat-file -e "$sha:docs/migration/v2-to-v3.md" 2>/dev/null; then
+    return 0
+  fi
+  short=$(git rev-parse --short "$sha")
+  echo "❌ v$version would ship the v3.0.0 removals (docs/migration/v2-to-v3.md at $short) in a v2 release. Nothing was published. Close the release PR or delete the tag if either exists, revert a merged release commit, then run scripts/release.sh major."
+  exit 1
+}
+
 # Generate CHANGELOG-style release notes for previous_tag..end_ref. The end
 # is the release commit, which is not HEAD while the release PR is open.
 generate_changelog_notes() {
@@ -939,6 +955,7 @@ verify_release_commit() {
     echo "❌ package.json at $sha is $found, not $version."
     exit 1
   fi
+  require_v3_for_removals_at "$sha" "$version"
 }
 
 # Stops when someone pushed to the release branch after the script read it.
@@ -1314,6 +1331,8 @@ case "$RELEASE_STATE" in
       echo "❌ package.json on $RELEASE_BRANCH ($RELEASE_SHA) is not $NEW_VERSION."
       exit 1
     fi
+    # Before land_release_pr can merge the PR.
+    require_v3_for_removals_at "$RELEASE_SHA" "$NEW_VERSION"
     PREV_TAG=$(get_previous_tag "")
     RELEASE_NOTES=$(generate_changelog_notes "$NEW_VERSION" "$PREV_TAG" "$RELEASE_SHA")
     print_release_notes

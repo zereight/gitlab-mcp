@@ -967,6 +967,93 @@ describe("release.sh require_v3_for_removals", () => {
   });
 });
 
+describe("release.sh require_v3_for_removals_at", () => {
+  const packageJson = (version: string) =>
+    `${JSON.stringify({ name: "@zereight/mcp-gitlab", version }, null, 2)}\n`;
+
+  function withRepo(run: (dir: string) => void) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-v3-commit-"));
+    try {
+      git(dir, "init", "-q");
+      run(dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // Commits a release at `version` in `dir` and returns its full SHA. The v3
+  // guide is in the commit when `withGuide` is set, and absent otherwise.
+  function commitRelease(dir: string, version: string, withGuide: boolean): string {
+    fs.writeFileSync(path.join(dir, "package.json"), packageJson(version));
+    const guide = path.join(dir, "docs", "migration", "v2-to-v3.md");
+    if (withGuide) {
+      fs.mkdirSync(path.dirname(guide), { recursive: true });
+      fs.writeFileSync(guide, "# Migrating\n");
+    } else {
+      fs.rmSync(guide, { force: true });
+    }
+    git(dir, "add", "-A");
+    git(dir, "commit", "-q", "-m", `release ${version}`);
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim();
+  }
+
+  function checkAt(dir: string, sha: string, version: string) {
+    return runFunctions(
+      ["require_v3_for_removals_at"],
+      'cd "$1" && require_v3_for_removals_at "$2" "$3"',
+      [dir, sha, version]
+    );
+  }
+
+  test("a 2.x commit with the v3 guide exits 1 and names the commit", () => {
+    withRepo(dir => {
+      const sha = commitRelease(dir, "2.3.32", true);
+      const short = execFileSync("git", ["rev-parse", "--short", sha], {
+        cwd: dir,
+        encoding: "utf8",
+      }).trim();
+      const result = checkAt(dir, sha, "2.3.32");
+      assert.strictEqual(result.status, 1, output(result));
+      assert.strictEqual(
+        result.stdout,
+        `❌ v2.3.32 would ship the v3.0.0 removals (docs/migration/v2-to-v3.md at ${short}) in a v2 release. Nothing was published. Close the release PR or delete the tag if either exists, revert a merged release commit, then run scripts/release.sh major.\n`
+      );
+    });
+  });
+
+  test("a 2.x commit without the v3 guide passes silently", () => {
+    withRepo(dir => {
+      const sha = commitRelease(dir, "2.3.32", false);
+      const result = checkAt(dir, sha, "2.3.32");
+      assert.strictEqual(result.status, 0, output(result));
+      assert.strictEqual(result.stdout, "");
+    });
+  });
+
+  test("3.0.0 and later pass with the v3 guide in the commit", () => {
+    withRepo(dir => {
+      for (const version of ["3.0.0", "4.0.0"]) {
+        const sha = commitRelease(dir, version, true);
+        const result = checkAt(dir, sha, version);
+        assert.strictEqual(result.status, 0, `${version}: ${output(result)}`);
+        assert.strictEqual(result.stdout, "", version);
+      }
+    });
+  });
+
+  test("reads the commit it is given, not the working tree or HEAD", () => {
+    withRepo(dir => {
+      const withGuide = commitRelease(dir, "2.3.32", true);
+      const withoutGuide = commitRelease(dir, "2.3.33", false);
+      // HEAD and the working tree have no guide, but the older commit does.
+      const refused = checkAt(dir, withGuide, "2.3.32");
+      assert.strictEqual(refused.status, 1, output(refused));
+      const passed = checkAt(dir, withoutGuide, "2.3.33");
+      assert.strictEqual(passed.status, 0, output(passed));
+    });
+  });
+});
+
 describe("release.sh sync_manifest_version", () => {
   function syncManifest(content: string) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-manifest-"));
@@ -1308,7 +1395,7 @@ describe("release.sh end to end", () => {
       const headBefore = sandbox.read(sandbox.repo, "rev-parse", "HEAD");
       const refsBefore = sandbox.originRefs();
 
-      for (const env of [{ RELEASE_DRY_RUN: "1" }, {}]) {
+      for (const env of [{ RELEASE_DRY_RUN: "1" }, {}] as Record<string, string>[]) {
         const result = sandbox.release(["patch"], env);
         assert.strictEqual(result.status, 1, output(result));
         assert.match(
@@ -1321,6 +1408,49 @@ describe("release.sh end to end", () => {
         assert.strictEqual(sandbox.originRefs(), refsBefore);
       }
       assert.deepStrictEqual(sandbox.ghCalls("pr", "create"), []);
+    } finally {
+      sandbox.cleanup();
+    }
+  });
+
+  test("resuming an open release PR whose head has the v3 guide exits 1 before the merge", () => {
+    const sandbox = new ReleaseSandbox();
+    try {
+      // A release PR whose head bumps to 1.0.1 and carries the v3 guide.
+      git(sandbox.repo, "checkout", "-q", "-b", "release/v1.0.1");
+      const pkg = { name: "@zereight/mcp-gitlab", version: "1.0.1" };
+      sandbox.write("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
+      sandbox.write("docs/migration/v2-to-v3.md", "# Migrating from v2 to v3\n");
+      git(sandbox.repo, "add", "-A");
+      git(sandbox.repo, "commit", "-q", "-m", "chore(release): v1.0.1");
+      git(sandbox.repo, "push", "-q", "origin", "release/v1.0.1");
+      git(sandbox.repo, "checkout", "-q", "main");
+      sandbox.updateState(state => {
+        state.prs["42"] = {
+          number: 42,
+          headRefName: "release/v1.0.1",
+          headRefOid: "",
+          title: "chore(release): v1.0.1",
+          body: "",
+          labels: [],
+          author: { login: "zereight" },
+          state: "OPEN",
+          isCrossRepository: false,
+          mergeCommit: null,
+          mergedAt: null,
+        };
+      });
+      const refsBefore = sandbox.originRefs();
+
+      const result = sandbox.release([]);
+      assert.strictEqual(result.status, 1, output(result));
+      assert.match(
+        String(result.stdout),
+        /^❌ v1\.0\.1 would ship the v3\.0\.0 removals \(docs\/migration\/v2-to-v3\.md at [0-9a-f]{7}\) in a v2 release\. Nothing was published\./m
+      );
+      assert.deepStrictEqual(sandbox.ghCalls("pr", "merge"), []);
+      assert.deepStrictEqual(sandbox.ghCalls("release"), []);
+      assert.strictEqual(sandbox.originRefs(), refsBefore);
     } finally {
       sandbox.cleanup();
     }
