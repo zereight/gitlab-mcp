@@ -471,22 +471,35 @@ format_pr_contributors() {
   fi
 }
 
-# v3.0.0 removes the legacy config options (#815). Releases before v3.0.0 and
-# v3.0.0 itself get the removal notice; later releases get none.
+# v3.0.0 removes the legacy config options (#815), so only v3.0.0 gets the removal
+# notice. Releases below v3.0.0 get none because require_v3_for_removals refuses to
+# cut them from a tree that has the removals; later releases do not repeat it.
 removal_notice() {
+  local version="$1"
+
+  if [ "$version" = "3.0.0" ]; then
+    printf '%s\n' \
+      "### ⚠️ Removed configuration options" \
+      "Legacy configuration options are removed in v3.0.0: \`GITLAB_READ_ONLY_MODE\`, \`GITLAB_ALLOWED_GROUPS\`, \`USE_GITLAB_WIKI\`, \`USE_MILESTONE\`, and \`USE_PIPELINE\`, along with their CLI flags. An active removed setting stops the server from starting. Delete each one from your configuration, including \`false\` and empty values. Add a replacement only for \`GITLAB_READ_ONLY_MODE\` or a \`USE_*\` setting that was enabled (\`true\` or a bare flag). If \`GITLAB_ALLOWED_GROUPS\` is set, its replacement is \`GITLAB_OAUTH_ALLOWED_GROUPS\`, which is enforced only with \`GITLAB_MCP_OAUTH=true\`. See the [v2 to v3 migration guide](https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/). The tracking issue is [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
+  fi
+  return 0
+}
+
+# Refuses a release below v3.0.0 from a checkout that has the v3.0.0 removals
+# (#815). docs/migration/v2-to-v3.md is committed with the removals and exists in
+# no v2 tree, so its presence marks a checkout that has them. This runs after
+# npm's bump. That bump is the only change to the checkout (it was clean at the
+# start), so a refusal restores package.json and package-lock.json before it exits.
+require_v3_for_removals() {
   local version="$1"
   local major="${version%%.*}"
 
-  case "$major" in
-    ''|*[!0-9]*) return 0 ;;
-  esac
-
-  if [ "$major" -lt 3 ] || [ "$version" = "3.0.0" ]; then
-    printf '%s\n' \
-      "### ⚠️ Removed configuration options" \
-      "Legacy configuration options are removed in v3.0.0: \`GITLAB_READ_ONLY_MODE\`, \`GITLAB_ALLOWED_GROUPS\`, \`USE_GITLAB_WIKI\`, \`USE_MILESTONE\`, and \`USE_PIPELINE\`, along with their CLI flags. An active removed setting stops the server from starting. Delete each one from your configuration, including \`false\` and empty values, and add its replacement as described in the [v2 to v3 migration guide](https://zereight.github.io/gitlab-mcp/migration/v2-to-v3/). The tracking issue is [#815](https://github.com/zereight/gitlab-mcp/issues/815)."
+  if [ ! -f docs/migration/v2-to-v3.md ] || [ "$major" -ge 3 ]; then
+    return 0
   fi
-  return 0
+  echo "❌ v$version would ship the v3.0.0 removals (docs/migration/v2-to-v3.md) in a v2 release. Run scripts/release.sh major."
+  git checkout -q -- package.json package-lock.json
+  exit 1
 }
 
 # Generate CHANGELOG-style release notes for previous_tag..end_ref. The end
@@ -1155,6 +1168,7 @@ cut_release_pr() {
 
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
+  require_v3_for_removals "$NEW_VERSION"
   if tag_exists "v$NEW_VERSION"; then
     echo "❌ Tag v$NEW_VERSION already exists. Check the tags before releasing."
     exit 1
