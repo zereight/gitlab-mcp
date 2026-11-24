@@ -14,7 +14,9 @@ Use an API URL, not the GitLab web root:
 Optional. Set to `true` to replace oversized MCP tool replies with a JSON preview
 and a `zereight-mcp-gitlab tool …` command that prints the full payload in a
 terminal. Default `false` so existing clients keep the complete JSON. Human CLI
-commands are never compacted.
+commands are never compacted. The reply carries that command as `cli` only when
+every value is shell-safe on POSIX shells, cmd.exe, and PowerShell; otherwise it
+carries `cli_argv` (an argv array) to run without a shell.
 
 ### `GITLAB_MCP_COMPACT_RESULT_CHARS`
 
@@ -70,7 +72,7 @@ replies unchanged.
 These list tools keep the full reply when `summary` is omitted, because the
 summary would drop the content they return or does not read their reply shape:
 `list_merge_request_diffs`, `list_draft_notes`, `list_merge_request_versions`,
-`list_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
+`list_events`, `list_issue_label_events`, `list_issue_state_events`, `list_todos`, `list_webhooks`, `list_pipeline_triggers`,
 `list_job_artifacts`, `list_protected_branches` (`*_access_levels`,
 `allow_force_push`), `list_protected_tags` (`create_access_levels`),
 `list_project_members` and `list_group_members` (`access_level`, `expires_at`),
@@ -158,10 +160,42 @@ workspace directory when the MCP client does not set the server process cwd.
 
 The config file supports `keyword` rules for literal replacements and `regex`
 rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
-repository. When masking is enabled, built-in rules cover GitLab token prefixes
-`glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`, `glsoat-`, `gloas-`,
-`glagent-`, `glft-`, and `glimt-`, plus IPv4 and IPv6; each can be disabled or given a custom replacement under
-`builtins`. Rules are loaded at startup; invalid configured files fail startup.
+repository. When masking is enabled, built-in rules cover:
+
+- GitLab token prefixes `glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`,
+  `glsoat-`, `gloas-`, `glagent-`, `glft-`, and `glimt-` (`gitlab-token`)
+- IPv4 (`ipv4`) and IPv6 (`ipv6`) addresses
+- JWTs with three base64url segments starting with `eyJ` (`jwt`). A token
+  that directly follows `-` (for example `sess-eyJ...`) is not matched; use a
+  custom rule for that form. Segments longer than 8,192 characters are not
+  matched; use a custom rule for those.
+- PEM private key blocks, including RSA, EC, OPENSSH, PKCS#8, and encrypted
+  variants (`pem-private-key`). A block is matched only up to its own `END`
+  line. A block with no `END` line is not masked, even when another key block
+  follows it. Bodies longer than 32,768 characters are not matched; use a custom
+  rule for those.
+- AWS access key IDs (`AKIA`/`ASIA` plus 16 uppercase alphanumeric characters)
+  and `aws_secret_access_key` / `AWS_SECRET_ACCESS_KEY` assignments, JSON object
+  fields, and GitLab CI variable records that store the name in `key` and the
+  secret in `value` (`aws-access-key`)
+
+Each builtin can be disabled or given a custom replacement under `builtins`.
+
+GitLab CI/CD variables that GitLab flags `masked` or `hidden` are also masked:
+the whole `value` of an object with a string `key` and `masked: true` or
+`hidden: true` becomes `[Masked CI variable value]`, whatever the value looks
+like. This covers the project and group variable tools (list, get, create, and
+update) and the same records returned by other tools. It also covers such
+records in plain-text output (job logs and artifact files), in error messages,
+and in JSON embedded in other text, including JSON stored inside a string. A
+truncated record that ends before its `masked` or `hidden` field is not
+detected. In a part of the text that does not parse as JSON but contains such
+a flag, every `"value": "…"` string is replaced, which can over-mask unrelated
+values. It
+applies whenever masking is enabled and is not configurable under
+`builtins`. With masking disabled, variable values are returned as GitLab sends
+them.
+Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement
 of the earliest match (the longest match wins when start positions are equal).
@@ -457,8 +491,7 @@ Requests from users who are not members of any matching group are denied:
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
-> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but is
-> deprecated (removed in next major (v3.0.0)). Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
+> **Removed in v3.0.0:** `GITLAB_ALLOWED_GROUPS` stops startup. Use `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 Examples:
 
@@ -643,8 +676,13 @@ While an allowlist is in effect, strict scope:
   allowlist requires an explicit `project_id`)
 - refuses instance-wide and group-wide tools that cannot be limited to allowed
   projects: `search_code`, `search_group_code`, `list_events`, the todo tools,
-  group webhooks, and the group merge request, member, wiki, milestone, and
-  iteration tools
+  `list_ci_catalog_resources`, `list_namespaces`, `get_namespace`,
+  `verify_namespace`, group webhooks, and the group merge request, member,
+  wiki, milestone, and iteration tools
+
+User lookups (`get_users`, `get_user`, `whoami`) and `health_check` stay
+available under strict scope. They return account metadata, not project data,
+and are needed to resolve assignees and reviewers for allowed projects.
 
 ### `GITLAB_ALLOWED_HOSTS`
 
@@ -849,7 +887,13 @@ There is no CLI flag; the server reads this name from the environment directly.
 
 ### `GITLAB_PROJECT_ID`
 
-Optional default project ID.
+Optional default project ID, not a lock: an explicit project ID in a tool call
+takes precedence. To restrict which projects tools may operate on, use
+`GITLAB_ALLOWED_PROJECT_IDS`.
+
+When set, these tools are refused because they cannot be limited to one
+project: `execute_graphql`, `create_repository`, `create_group`,
+`fork_repository`, and the group variable and dependency proxy tools.
 
 ### `GITLAB_ALLOWED_PROJECT_IDS`
 
@@ -861,19 +905,25 @@ Behavior:
 - Multiple project IDs: restricts access to those projects only
 - `gitlab_api_request` (opt-in `api` toolset) accepts only `/projects/:id` and
   `/projects/:id/...` paths for an allowed project and rejects every other path
+- `get_ci_catalog_resource` returns a CI/CD catalog resource only when its
+  project is allowed, matched by full path or numeric project ID; a resource
+  from any other project is refused, whether it is looked up by `full_path` or
+  by `id`. `list_ci_catalog_resources` still lists every catalog resource unless
+  `ENABLE_STRICT_PROJECT_SCOPE` is set
+- These tools are refused, not scoped, because they cannot be limited to those
+  projects: `execute_graphql`, `create_repository`, `create_group`,
+  `fork_repository`, and the group variable and dependency proxy tools.
+  `execute_graphql` hard-fails while this allowlist is non-empty; it does not
+  send the query against only the allowed projects.
+- `validate_ci_lint` and `validate_project_ci_lint` lint only an allowed
+  project. GitLab expands `include:` entries with the token's permissions, so
+  when an include reads from a project outside the allowlist the result keeps
+  `valid`, `errors`, and `warnings` but returns `merged_yaml` and `includes` as
+  `null`, omits `jobs`, and adds a `scope_note`
 
 This is process-level and fixed at startup. To let a caller narrow the scope
-per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
-
-### `GITLAB_READ_ONLY_MODE`
-
-Set to `true` to expose only read-only tools.
-
-> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are deprecated
-> (removed in next major (v3.0.0)).
-> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
-
-When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
+per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`. The same `execute_graphql`
+refusal and `get_ci_catalog_resource` check apply to a session project scope.
 
 ### `GITLAB_PERMISSION_MODE`
 
@@ -891,7 +941,7 @@ CLI: `--permission-mode`
 
 Behavior:
 
-- `readonly` matches the legacy `GITLAB_READ_ONLY_MODE=true` behavior (deprecated; removed in next major (v3.0.0))
+- `readonly` exposes read-only tools and rejects writes in mixed tools.
 - `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
   `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
@@ -963,8 +1013,7 @@ earlier archive of the same job before downloading it again. Point this outside
 your checkout (for example `~/Downloads/gitlab-mcp`) if you do not want
 downloaded files inside the project tree at all.
 
-In readonly mode (`GITLAB_PERMISSION_MODE=readonly` or
-`GITLAB_READ_ONLY_MODE=true`) neither tool writes files: `download_attachment`
+In readonly mode (`GITLAB_PERMISSION_MODE=readonly`) neither tool writes files: `download_attachment`
 only returns images inline, and `download_job_artifacts` is rejected.
 
 ## Tool Exposure and Filtering
@@ -986,24 +1035,26 @@ Comma-separated list of toolset IDs to enable. If unset, the server exposes the 
 
 !!! warning "GITLAB_TOOLSETS=all is expensive"
 
-    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`). In a stateful session, activate extra categories with `discover_tools`. With `OAUTH_STATELESS_MODE=true`, persist a named list such as `GITLAB_TOOLSETS=core,wiki` instead — session discovery does not survive the next request. Or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-05).
+    `all` loads every discoverable toolset except `api` into `tools/list` (~73k schema tokens). Keep the unset default (`core` + `discover_tools` + `help`). In a stateful session, activate extra categories with `discover_tools`. With `OAUTH_STATELESS_MODE=true`, persist a named list such as `GITLAB_TOOLSETS=core,wiki` instead — session discovery does not survive the next request. Or use [Skill + CLI](../getting-started/cli-without-mcp.md) and skip MCP schemas. See the [tools/list size table](../comparison/index.md#toolslist-size-measured-2026-11-14).
+
+Unknown IDs are ignored, and the server logs a warning to stderr that names them and lists the known IDs. When no ID is valid, the server falls back to the default `core` toolset.
 
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Special values:
 
-- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas.
+- `all` — enable every toolset except the explicit-only `api` toolset. Do not use this as a default; it loads ~all schemas. It must be the whole value: in a list such as `all,api` it is ignored like an unknown ID, so list every toolset by name to add `api`.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
+- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
 
 !!! danger "gitlab_api_request bypasses other restrictions"
 
-    `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
+    `gitlab_api_request` bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
 
-    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
+    With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`), only `/projects/:id` and `/projects/:id/...` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as `/search`, `/users`, `/groups/:id`, `/runners`, admin endpoints, and the `/projects` collection, is rejected. Body and query parameters that name another project (for example `target_project_id` or `from_project_id`) are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS`, which decide who may use the server) are not enforced by this tool.
 
-    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
+    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
 ### `GITLAB_TOOLS`
 
@@ -1030,7 +1081,7 @@ Examples:
 
 ### `GITLAB_TOOL_POLICY_HIDDEN`
 
-Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS` or a legacy flag, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
+Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly, as long as they are otherwise enabled: their toolset is enabled (through `GITLAB_TOOLSETS` or `discover_tools`) or they are named in `GITLAB_TOOLS`, and permission mode and `GITLAB_DENIED_TOOLS_REGEX` allow them. Hiding a tool does not enable it; a hidden tool that is not otherwise enabled is rejected like any other unavailable tool. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
 
 CLI: `--tool-policy-hidden`
 
@@ -1038,33 +1089,21 @@ Examples:
 
 - `delete_issue,delete_wiki_page`
 
-### `USE_GITLAB_WIKI`
+## Removed in v3.0.0
 
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for wiki-related tools.
-> Use `GITLAB_TOOLSETS=core,wiki` instead. If you already set `GITLAB_TOOLSETS`, append `wiki`
-> to your existing list instead of replacing it.
+Active legacy settings now stop startup with a migration error, rather than silently dropping access restrictions. Remove empty/false legacy settings.
 
-### `USE_MILESTONE`
+| Removed environment variable / CLI flag      | Replacement                                                                                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITLAB_READ_ONLY_MODE` / `--read-only`      | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly`                                                                                                                                                               |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (group membership is checked only with `GITLAB_MCP_OAUTH=true`; see [`GITLAB_MCP_OAUTH`](#gitlab_mcp_oauth))                                                          |
+| `USE_GITLAB_WIKI` / `--use-wiki`             | add `wiki` to `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` if it was unset)                                                                                                                                                   |
+| `USE_MILESTONE` / `--use-milestone`          | add `milestones` to `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` if it was unset)                                                                                                                                       |
+| `USE_PIPELINE` / `--use-pipeline`            | add `pipelines` to `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` if it was unset), plus `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` if you use CI lint |
 
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for milestone-related tools.
-> Use `GITLAB_TOOLSETS=core,milestones` instead. If you already set `GITLAB_TOOLSETS`, append
-> `milestones` to your existing list instead of replacing it.
+Add a replacement only for a setting that was enabled, and keep exactly the toolsets you had. If `GITLAB_TOOLSETS` was unset or had no valid toolset name, v2 exposed the default `core` toolset, so use `core` plus each enabled toolset (for example `core,wiki` or `core,pipelines`). A non-empty `--toolsets` overrides `GITLAB_TOOLSETS`, so apply this to whichever one you set. If it was a list, append to that list as it is and add `core` only if it was already listed: `GITLAB_TOOLSETS=search` becomes `search,wiki`, not `core,search,wiki`. Append to an existing `GITLAB_TOOLS` list rather than replacing it, and leave an existing `GITLAB_TOOLSETS=all` unchanged. If you used `GITLAB_TOOL_PROFILE=slim` with `USE_*` and no `GITLAB_TOOLSETS` (the only case where slim was active), an explicit `GITLAB_TOOLSETS` list turns slim off and adds `list_labels` to the first `tools/list`; set `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` to keep the v2 list, unless `GITLAB_TOOLS` names `list_labels` (slim did not hide it then) (if you already set a deny pattern, add `list_labels` to it, for example `^delete_.*|^list_labels$`, since the variable holds one pattern).
 
-### `USE_PIPELINE`
-
-> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for pipeline-related tools.
-> Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
-> instead. Those two lint tools live in the `ci` toolset, not `pipelines`. If you already set
-> `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it.
-> If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
-
-> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only, cover
-> just three toolsets, and will be removed in the next major (v3.0.0). Only `true` enables the
-> extra tools. Any other value, including `false`, does not enable that toolset — remove the
-> variable, and set the replacement above only if you want those tools in addition to `core`.
-> Use `GITLAB_TOOLSETS` (include `core` so the default starter set stays enabled) and `GITLAB_TOOLS`
-> (individual tools) instead. An explicit `GITLAB_TOOLSETS` list replaces the default toolsets;
-> it does not merge.
+See the [v2 to v3 migration guide](../migration/v2-to-v3.md).
 
 ## Logging
 
@@ -1094,6 +1133,56 @@ Example:
 
 ```bash
 LOG_FORMAT=json LOG_LEVEL=warn npm start
+```
+
+## Audit log
+
+Opt-in NDJSON of MCP tool calls for SIEM ingestion. This is a logging building
+block: retention, access control, and any compliance mapping are the operator's
+responsibility. Disabled by default. When disabled, tool-call behavior and
+output are unchanged.
+
+Each enabled tool call writes one JSON object with an allowlist of fields:
+timestamp (ISO UTC), event type (`tool_call`), transport
+(`stdio` / `streamable-http` / `sse`), session id when present (sealed
+stateless sids are redacted), auth method of the accepted request
+(`pat`, `job-token`, `oauth`, `remote-header`, or `cookie` — never the
+credential; a JOB-TOKEN or Private-Token request is not recorded as `oauth`
+just because MCP OAuth is enabled), GitLab user id/username
+only when already known without an extra API call, tool name, `project_id` /
+`group_id` when those scalars are present in the arguments, outcome
+(`success` / `error`), error class and HTTP status on failure, and duration in
+milliseconds. Argument bodies, response bodies, tokens, headers, and free-text
+messages are never written.
+
+A failure writing the audit log is reported once as a warning and does not fail
+the tool call.
+
+### `GITLAB_AUDIT_LOG`
+
+Optional. Set to `true` to emit one NDJSON audit line per MCP tool call.
+Any other value, including unset, leaves auditing off.
+
+CLI: `--audit-log=true`
+
+Default:
+
+- `false`
+
+### `GITLAB_AUDIT_LOG_FILE`
+
+Optional path. When `GITLAB_AUDIT_LOG=true` and this is unset, lines are
+appended to **stderr** as NDJSON. They are never written to stdout: the stdio
+MCP transport uses stdout for protocol messages. Prefer a file for stdio
+deployments so human logs and MCP traffic stay separate.
+
+CLI: `--audit-log-file`
+
+Example:
+
+```bash
+GITLAB_AUDIT_LOG=true
+GITLAB_AUDIT_LOG_FILE=/var/log/gitlab-mcp/audit.ndjson
 ```
 
 ## Transport and Server Runtime

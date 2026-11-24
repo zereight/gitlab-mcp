@@ -593,11 +593,11 @@ describe("Pipeline schedule tools", () => {
     assert.ok(!names.includes("delete_pipeline_schedule"), "delete should be opt-in");
   });
 
-  test("USE_PIPELINE=true exposes the pipeline schedule tools", async () => {
+  test("GITLAB_TOOLSETS=pipelines exposes the pipeline schedule tools", async () => {
     const names = await listTools({
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
       GITLAB_API_URL: mockApiUrl,
-      USE_PIPELINE: "true",
+      GITLAB_TOOLSETS: "pipelines",
     });
     assert.ok(names.includes("list_pipeline_schedules"), "list should be exposed");
     assert.ok(names.includes("play_pipeline_schedule"), "play should be exposed");
@@ -608,7 +608,7 @@ describe("Pipeline schedule tools", () => {
   });
 
   test("write tools are absent from tools/list in read-only mode", async () => {
-    const names = await listTools({ ...baseEnv, GITLAB_READ_ONLY_MODE: "true" });
+    const names = await listTools({ ...baseEnv, GITLAB_PERMISSION_MODE: "readonly" });
     for (const name of [
       "create_pipeline_schedule",
       "update_pipeline_schedule",
@@ -642,7 +642,7 @@ describe("Pipeline schedule tools", () => {
             ref: "main",
             cron: "0 1 * * *",
           },
-          { ...baseEnv, GITLAB_READ_ONLY_MODE: "true" }
+          { ...baseEnv, GITLAB_PERMISSION_MODE: "readonly" }
         ),
       /read-only|not allowed|Unknown tool/i
     );

@@ -46,10 +46,7 @@ import {
   SSE,
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
-  USE_GITLAB_WIKI,
-  USE_MILESTONE,
   USE_OAUTH,
-  USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
@@ -59,9 +56,7 @@ import {
   GITLAB_MCP_LIST_SUMMARY_DEFAULT,
   GITLAB_TOOL_PROFILE,
   GITLAB_DOWNLOAD_DIR,
-  buildDeprecatedEnvInput,
 } from "./config.js";
-import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -247,6 +242,7 @@ import {
   normalizeGitLabApiUrl,
   parseConfiguredGitLabApiUrls,
   type ApiUrlSource,
+  uploadFilenameForms,
 } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -254,10 +250,10 @@ import {
   openSafeOutputWriteStream,
   resolveDownloadRoot,
   readSafeExistingFile,
-  summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
   graphqlQueryContainsWriteOperation,
+  graphqlQuerySecretFields,
   graphqlQueryContainsDeleteOperation,
 } from "./utils/graphql-query.js";
 import {
@@ -267,6 +263,7 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { scopeCiLintResult } from "./utils/ci-lint-scope.js";
 import {
   formatJobLogSearch,
   JobLogSearchError,
@@ -319,7 +316,6 @@ import {
   type BulkPublishDraftNotesBody,
 } from "./utils/bulk-publish-options.js";
 import {
-  appendFilterParam,
   appendFilterParams,
   cleanMutuallyExclusiveIdUsernameOptions,
   dropBlankArrayEntries,
@@ -335,7 +331,7 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
-import { appendRecoveryHint } from "./utils/error-hints.js";
+import { appendRecoveryHint, withRecoveryHint } from "./utils/error-hints.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -358,7 +354,6 @@ import {
   deleteTools,
   parseEnabledToolsets,
   parseIndividualTools,
-  buildFeatureFlagOverrides,
   isToolInEnabledToolset,
   findSmallestToolsetForTool,
   isExplicitOnlyToolsetId,
@@ -376,6 +371,12 @@ import {
 import { configureWikiTools, handleWikiToolCall } from "./tools/wiki.js";
 import { configureMilestoneTools, handleMilestoneToolCall } from "./tools/milestones.js";
 import { configureLabelTools, handleLabelToolCall } from "./tools/labels.js";
+import { configureTagTools, handleTagToolCall } from "./tools/tags.js";
+import { configureVariableTools, handleVariableToolCall } from "./tools/variables.js";
+import { configureWebhookTools, handleWebhookToolCall } from "./tools/webhooks.js";
+import { configureSnippetTools, handleSnippetToolCall } from "./tools/snippets.js";
+import { configureTodoTools, handleTodoToolCall } from "./tools/todos.js";
+import { ToolInputError } from "./utils/tool-input-error.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -514,7 +515,6 @@ import {
   GitLabForkSchema,
   GitLabBranchSchema,
   GitLabProtectedBranchSchema,
-  GitLabProtectedTagSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -522,6 +522,8 @@ import {
   GitLabIssueSchema,
   type GitLabIssueWithLinkDetails,
   GitLabIssueWithLinkDetailsSchema,
+  GitLabResourceLabelEventSchema,
+  GitLabResourceStateEventSchema,
   GitLabMarkdownUpload,
   GitLabMarkdownUploadSchema,
   type GitLabMergeRequest,
@@ -563,8 +565,6 @@ import {
   type GitLabProjectMember,
   GitLabProjectMemberSchema,
   GitLabProjectSchema,
-  type GitLabTodo,
-  GitLabTodoSchema,
   type GitLabReference,
   GitLabReferenceSchema,
   type GitLabRepository,
@@ -598,18 +598,6 @@ import {
   UpdateGroupIterationCadenceSchema,
   DeleteGroupIterationCadenceSchema,
   ListGroupProjectsSchema,
-  type GitLabCiVariable,
-  GitLabCiVariableSchema,
-  ListProjectVariablesSchema,
-  GetProjectVariableSchema,
-  CreateProjectVariableSchema,
-  UpdateProjectVariableSchema,
-  DeleteProjectVariableSchema,
-  ListGroupVariablesSchema,
-  GetGroupVariableSchema,
-  CreateGroupVariableSchema,
-  UpdateGroupVariableSchema,
-  DeleteGroupVariableSchema,
   GitLabDependencyProxySchema,
   type GitLabDependencyProxy,
   GitLabDependencyProxyBlobSchema,
@@ -624,9 +612,9 @@ import {
   ConfirmVulnerabilitySchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
+  ListIssueLabelEventsSchema,
+  ListIssueStateEventsSchema,
   ListIssuesSchema,
-  type ListTodosOptions,
-  ListTodosSchema,
   ListMergeRequestDiffsSchema, // Added
   GetMergeRequestFileDiffSchema,
   ListMergeRequestChangedFilesSchema,
@@ -688,8 +676,6 @@ import {
   OrbitSchemaSchema,
   OrbitStatusSchema,
   OrbitToolsSchema,
-  MarkAllTodosDoneSchema,
-  MarkTodoDoneSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -706,6 +692,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
+  UpdateFilePatchSchema,
   ReorderIssueSchema,
   UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
@@ -726,26 +713,6 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
-  ListTagsSchema,
-  GetTagSchema,
-  CreateTagSchema,
-  DeleteTagSchema,
-  GetTagSignatureSchema,
-  ListProtectedTagsSchema,
-  GetProtectedTagSchema,
-  ProtectTagSchema,
-  UnprotectTagSchema,
-  GitLabTagSchema,
-  GitLabTagSignatureSchema,
-  type GitLabTag,
-  type GitLabTagSignature,
-  ListSnippetsSchema,
-  GetSnippetSchema,
-  CreateSnippetSchema,
-  UpdateSnippetSchema,
-  DeleteSnippetSchema,
-  GitLabSnippetSchema,
-  type GitLabSnippet,
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   GetMergeRequestDiscussionSchema,
@@ -769,16 +736,18 @@ import {
   ListCustomFieldDefinitionsSchema,
   GetTimelineEventsSchema,
   CreateTimelineEventSchema,
-  ListWebhooksSchema,
-  CreateWebhookSchema,
-  UpdateWebhookSchema,
-  DeleteWebhookSchema,
-  ListWebhookEventsSchema,
-  GetWebhookEventSchema,
   HealthCheckSchema,
 } from "./schemas.js";
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createGraphQLAuditFailure,
+  createToolCallAuditor,
+  graphqlPayloadHasErrors,
+  markToolResultAsAuditFailure,
+  readKnownGitLabUserId,
+  readKnownGitLabUsername,
+} from "./utils/audit-log.js";
 import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
@@ -831,7 +800,6 @@ function createServer(): McpServer {
     tools: allTools,
     isInEnabledToolset: (toolName: string) => isToolInEnabledToolset(toolName, enabledToolsets),
     individuallyEnabledTools,
-    featureFlagOverrides,
     isAllowedByPermissionMode: isToolAllowedByPermissionMode,
     deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
     hiddenToolNames: hiddenToolSet,
@@ -893,7 +861,7 @@ function createServer(): McpServer {
     };
   });
 
-  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any, extra) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
@@ -901,6 +869,14 @@ function createServer(): McpServer {
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
     const requestArguments = readOwnRecord(request.params.arguments);
+    const auditor = createToolCallAuditor({
+      toolName,
+      sessionId: extra.sessionId ?? sessionId,
+      args: requestArguments,
+      startedAtMs: start,
+      gitlabUserId: readKnownGitLabUserId(extra.authInfo?.extra),
+      gitlabUsername: readKnownGitLabUsername(extra.authInfo?.extra),
+    });
     const jmespathExpression = readJmespathExpression(
       requestArguments === undefined ? undefined : { ...requestArguments }
     );
@@ -936,7 +912,7 @@ function createServer(): McpServer {
           })
         : filtered;
       // Last exit for successful results: structuredContent is object-or-absent (#675).
-      return finalizeToolCallResult({
+      const finalized = finalizeToolCallResult({
         result: masked,
         enabled: shouldCompactToolResult(
           toolName,
@@ -946,7 +922,10 @@ function createServer(): McpServer {
         maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
         toolName,
         args: readOwnRecord(request.params.arguments),
+        inputSchema: allTools.find(tool => tool.name === toolName)?.inputSchema,
       });
+      auditor.recordResult(result);
+      return finalized;
     };
 
     const logError = (error: unknown): unknown => {
@@ -965,6 +944,7 @@ function createServer(): McpServer {
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
       flushBufferedLogs(logger);
+      auditor.recordError(safeError);
       return safeError;
     };
 
@@ -984,6 +964,7 @@ function createServer(): McpServer {
             allowedProjectIds: authData.allowedProjectIds,
           }
         : undefined;
+      auditor.setSessionHeader(sessionContext?.header ?? sessionAuthStore.getStore()?.header);
       const selectMaskingPolicy = () => {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
@@ -1661,7 +1642,7 @@ let oauthClient: GitLabOAuth | null = null;
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
 
 // Userinfo is dropped here, before the client pool or any request URL is built.
-// Defined before the first emitDeprecatedEnvWarnings() call, which reports it.
+// Defined before the first emitStartupConfigWarnings() call, which reports it.
 const CONFIGURED_GITLAB_API_URLS = parseConfiguredGitLabApiUrls(
   getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com"
 );
@@ -1676,23 +1657,20 @@ function configuredGitLabApiUrlErrors(): string[] {
   return configured === undefined ? [] : configuredApiUrlErrors(API_URL_SOURCE, configured);
 }
 
-let hasEmittedDeprecatedEnvWarnings = false;
+let hasEmittedStartupConfigWarnings = false;
 
-function emitDeprecatedEnvWarnings(): void {
-  if (hasEmittedDeprecatedEnvWarnings) {
+function emitStartupConfigWarnings(): void {
+  if (hasEmittedStartupConfigWarnings) {
     return;
   }
-  hasEmittedDeprecatedEnvWarnings = true;
+  hasEmittedStartupConfigWarnings = true;
   const warnings = [
-    ...getDeprecatedEnvWarnings(buildDeprecatedEnvInput()),
     ...(CONFIGURED_GITLAB_API_URLS.hadUserinfo ? [apiUrlUserinfoWarning(API_URL_SOURCE)] : []),
   ];
   for (const warning of warnings) {
     logger.warn(warning);
   }
-  if (warnings.length > 0) {
-    flushStartupLogs(logger);
-  }
+  flushStartupLogs(logger);
 }
 
 try {
@@ -1708,7 +1686,7 @@ try {
     console.error("[gitlab-mcp] stateless OAuth mode enabled");
   }
 } catch (err) {
-  emitDeprecatedEnvWarnings();
+  emitStartupConfigWarnings();
   // eslint-disable-next-line no-console -- startup failure must be visible
   console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
@@ -1833,8 +1811,9 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, and label handlers call back into the fetch, error handling, and project
-// scope helpers below; fetch is read at call time because the cookie reload replaces it.
+// The wiki, milestone, label, tag, variable, webhook, snippet, and todo handlers call back into the fetch, error
+// handling, and project scope helpers below; fetch is read at call time because the cookie
+// reload replaces it.
 configureWikiTools({
   getFetch: () => fetch,
   handleGitLabError,
@@ -1851,6 +1830,34 @@ configureLabelTools({
   getFetch: () => fetch,
   handleGitLabError,
   getEffectiveProjectId,
+});
+configureTagTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+});
+configureVariableTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  rejectIfProjectScopedDeployment,
+});
+configureWebhookTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  rejectIfStrictProjectScope,
+});
+configureSnippetTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  isProjectScopeActive: () => getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID,
+});
+configureTodoTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  rejectIfStrictProjectScope,
 });
 
 // Create cookie jar with clean Netscape file parsing
@@ -2052,7 +2059,6 @@ const downloadRedirectOptions = () => ({
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
-const featureFlagOverrides = buildFeatureFlagOverrides();
 const applySlimProfile = shouldApplySlimToolProfile(GITLAB_TOOL_PROFILE, GITLAB_TOOLSETS_RAW);
 if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
   logger.warn("GITLAB_TOOL_PROFILE=slim is ignored because GITLAB_TOOLSETS is set");
@@ -2060,14 +2066,6 @@ if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
 
 function isExcludedFromToolsetListing(toolName: string): boolean {
   return isExcludedBySlimProfile(toolName, applySlimProfile, individuallyEnabledTools);
-}
-
-// Warn about potentially confusing configuration
-if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
-  logger.warn(
-    "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
-      "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
-  );
 }
 
 if (enabledToolsets.has("api")) {
@@ -2174,13 +2172,13 @@ const GITLAB_REPO_FILE_ENCODING =
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
   if (SSE) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
     exitAfterFlush(1);
@@ -2190,13 +2188,13 @@ if (REMOTE_AUTHORIZATION) {
 
 if (GITLAB_MCP_OAUTH) {
   if (SSE) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     exitAfterFlush(1);
@@ -2217,7 +2215,7 @@ if (
 ) {
   // Standard mode: token must be in environment (unless using OAuth).
   // This exit runs before runServer(), so warnings have to be printed here too.
-  emitDeprecatedEnvWarnings();
+  emitStartupConfigWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info(
     "Either set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), " +
@@ -2267,13 +2265,6 @@ function gitLabApiErrorMetadata(error: GitLabApiError): Record<string, unknown> 
   return meta;
 }
 
-class ToolInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ToolInputError";
-  }
-}
-
 class ProjectAccessDeniedError extends Error {
   constructor(message: string) {
     super(message);
@@ -2283,6 +2274,25 @@ class ProjectAccessDeniedError extends Error {
 
 const MERGE_REQUEST_IDENTIFIER_REQUIRED =
   "Either merge_request_iid or source_branch must be provided";
+
+// Next-step hints for lookups that found nothing (see withRecoveryHint).
+const PROJECT_NOT_FOUND_HINT =
+  "check project_id (numeric ID or group%2Fproject) and that the token can read the project.";
+const GROUP_NOT_FOUND_HINT =
+  "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
+const WORK_ITEM_NOT_FOUND_HINT =
+  "check project_id and the work item iid (the #number shown in GitLab, not the global ID).";
+const WORK_ITEM_TYPE_NOT_FOUND_HINT =
+  "this project does not offer that work item type (some types need a higher GitLab tier or are turned off); use another type, such as issue or task.";
+const VULNERABILITY_NOT_FOUND_HINT =
+  "check vulnerability_id; list_project_vulnerabilities lists the vulnerabilities the token can read.";
+// Unlike the generic getEffectiveProjectId hint, this one does not suggest setting
+// GITLAB_PROJECT_ID: fork_repository is rejected whenever GITLAB_PROJECT_ID is set.
+const FORK_PROJECT_ID_REQUIRED_HINT = "pass project_id (numeric ID or group%2Fproject).";
+// Release tools take a tag_name: a 404 means the project is missing or no release has that tag.
+// Used by handleReleaseTagError() in place of the generic iid hint.
+const RELEASE_TAG_NOT_FOUND_HINT =
+  "check project_id and that tag_name is the Git tag of an existing release; list_releases lists them.";
 
 /**
  * Utility function for handling GitLab API errors
@@ -2390,8 +2400,11 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && allowedProjectIds.length > 1) {
-      throw new Error(
-        `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`
+      throw new ToolInputError(
+        withRecoveryHint(
+          `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`,
+          "pass project_id set to one of the allowed projects listed above."
+        )
       );
     }
 
@@ -2404,7 +2417,12 @@ function getEffectiveProjectId(projectId: string): string {
   if (GITLAB_PROJECT_ID) {
     return GITLAB_PROJECT_ID;
   }
-  throw new Error("No project ID provided and GITLAB_PROJECT_ID is not set");
+  throw new ToolInputError(
+    withRecoveryHint(
+      "No project ID provided and GITLAB_PROJECT_ID is not set",
+      "pass project_id (numeric ID or group%2Fproject), or set GITLAB_PROJECT_ID to give the server a default project."
+    )
+  );
 }
 
 function rejectIfProjectScopedDeployment(toolName: string): void {
@@ -2430,6 +2448,14 @@ function rejectIfProjectScopedDeployment(toolName: string): void {
  */
 async function forkProject(projectId: string, namespace?: string): Promise<GitLabFork> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  // fork_repository has already rejected GITLAB_PROJECT_ID and allowlist setups, so there is
+  // no default project to fall back to. Fail here with a fork-specific hint instead of the
+  // generic getEffectiveProjectId one.
+  if (!projectId) {
+    throw new ToolInputError(
+      withRecoveryHint("No project ID provided", FORK_PROJECT_ID_REQUIRED_HINT)
+    );
+  }
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/fork`
@@ -2541,9 +2567,15 @@ async function getFileContents(
     ...getFetchConfig(),
   });
 
-  // Handle file not found
+  // Handle file not found (the Files API also answers 404 for a directory or an unknown ref)
   if (response.status === 404) {
-    throw new GitLabApiError(`File not found: ${filePath}`, response);
+    throw new GitLabApiError(
+      withRecoveryHint(
+        `File not found: ${filePath}`,
+        "check file_path and ref; to list a directory, use get_repository_tree."
+      ),
+      response
+    );
   }
 
   await handleGitLabError(response);
@@ -2562,6 +2594,19 @@ async function getFileContents(
   }
 
   return parsedData;
+}
+
+/**
+ * Read a blob's stored bytes. The Files API converts text that is not stored as
+ * UTF-8 (UTF-16, ISO-8859-1) to UTF-8 before encoding it, so only the raw blob
+ * shows how a file is really stored.
+ */
+async function getRepositoryBlobRaw(projectId: string, blobSha: string): Promise<Buffer> {
+  const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(projectId));
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/blobs/${encodeGitLabPathSegment(blobSha)}/raw`;
+  const response = await fetch(url, { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 async function createIssue(
@@ -2653,40 +2698,6 @@ async function listIssues(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueSchema).parse(data);
-}
-
-async function listTodos(options: ListTodosOptions = {}): Promise<GitLabTodo[]> {
-  const url = new URL(`${getEffectiveApiUrl()}/todos`);
-
-  appendFilterParams(url.searchParams, options);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabTodoSchema).parse(data);
-}
-
-async function markTodoDone(id: number): Promise<GitLabTodo> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/${id}/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabTodoSchema.parse(data);
-}
-
-async function markAllTodosDone(): Promise<void> {
-  const response = await fetch(`${getEffectiveApiUrl()}/todos/mark_as_done`, {
-    ...getFetchConfig(),
-    method: "POST",
-  });
-
-  await handleGitLabError(response);
 }
 
 /**
@@ -3010,7 +3021,12 @@ async function resolveWorkItemGID(
   );
 
   if (!data.namespace?.workItem?.id) {
-    throw new Error(`Work item #${issueIid} not found in namespace ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${issueIid} not found in namespace ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   return { workItemGID: data.namespace.workItem.id, projectPath, namespaceKind };
@@ -3058,17 +3074,38 @@ async function resolveNamesToIds(
   const labelNamespace = namespaceKind === "group" ? data.group : data.project;
 
   if (!labelNamespace) {
-    throw new Error(`Namespace '${projectPath}' not found or inaccessible`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Namespace '${projectPath}' not found or inaccessible`,
+        "check project_id (numeric ID, group%2Fproject, or group:<path> for a group) and that the token can read it."
+      )
+    );
   }
 
   const labelIds = labelNames.map((name, i) => {
     const nodes = labelNamespace[`l${i}`]?.nodes;
-    if (!nodes?.length) throw new Error(`Label '${name}' not found in namespace`);
+    if (!nodes?.length) {
+      throw new ToolInputError(
+        withRecoveryHint(
+          `Label '${name}' not found in namespace`,
+          namespaceKind === "group"
+            ? "use an existing group label title, or create a group label in GitLab first."
+            : "use an existing label title (list_labels shows them), or create it first with create_label."
+        )
+      );
+    }
     return nodes[0].id;
   });
   const userIds = usernames.map(name => {
     const user = data.users.nodes.find(u => u.username === name);
-    if (!user) throw new Error(`User '${name}' not found`);
+    if (!user) {
+      throw new ToolInputError(
+        withRecoveryHint(
+          `User '${name}' not found`,
+          "pass the GitLab username without a leading @; get_users looks usernames up."
+        )
+      );
+    }
     return user.id;
   });
   return { labelIds, userIds };
@@ -3097,7 +3134,12 @@ const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
 async function resolveWorkItemTypeGID(projectPath: string, typeName: string): Promise<string> {
   const targetName = WORK_ITEM_TYPE_NAMES[typeName];
   if (!targetName) {
-    throw new Error(`Unknown work item type: ${typeName}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Unknown work item type: ${typeName}`,
+        `use one of: ${Object.keys(WORK_ITEM_TYPE_NAMES).join(", ")}.`
+      )
+    );
   }
 
   const data = await executeGraphQL<{
@@ -3118,7 +3160,12 @@ async function resolveWorkItemTypeGID(projectPath: string, typeName: string): Pr
 
   const typeNode = data.namespace?.workItemTypes?.nodes?.find(n => n.name === targetName);
   if (!typeNode) {
-    throw new Error(`Work item type '${targetName}' not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${targetName}' not found in project ${projectPath}`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
   return typeNode.id;
 }
@@ -3244,7 +3291,12 @@ async function listIssueStatuses(projectId: string, workItemType: string = "issu
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
   if (!typeNodes || typeNodes.length === 0) {
-    throw new Error(`Work item type '${typeName}' not found in project`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${typeName}' not found in project`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
 
   const typeNode = typeNodes[0];
@@ -3335,7 +3387,12 @@ async function listCustomFieldDefinitions(
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
   if (!typeNodes || typeNodes.length === 0) {
-    throw new Error(`Work item type '${typeName}' not found in project`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item type '${typeName}' not found in project`,
+        WORK_ITEM_TYPE_NOT_FOUND_HINT
+      )
+    );
   }
 
   const typeNode = typeNodes[0];
@@ -3445,7 +3502,12 @@ async function listWorkItemNotes(
 
   const workItem = data.namespace?.workItem;
   if (!workItem) {
-    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${iid} not found in project ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   const notesWidget = workItem.widgets?.find((w: any) => w.discussions);
@@ -3997,7 +4059,12 @@ async function getWorkItem(projectId: string, iid: number): Promise<any> {
   );
 
   if (!data.namespace?.workItem) {
-    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Work item #${iid} not found in project ${projectPath}`,
+        WORK_ITEM_NOT_FOUND_HINT
+      )
+    );
   }
 
   const wi = data.namespace.workItem;
@@ -4834,6 +4901,98 @@ async function listIssueLinks(
   return z.array(GitLabIssueWithLinkDetailsSchema).parse(data);
 }
 
+/** Reduce an event's author to `{ username }`; null for ghost or system events. */
+function toLeanEventUser(user: { username: string } | null | undefined) {
+  return user ? { username: user.username } : null;
+}
+
+/** Map a GitLab resource label event to the lean shape; label is null when it was deleted. */
+function toLeanLabelEvent(event: z.infer<typeof GitLabResourceLabelEventSchema>) {
+  return {
+    created_at: event.created_at,
+    user: toLeanEventUser(event.user),
+    action: event.action,
+    label: event.label ? { name: event.label.name } : null,
+  };
+}
+
+/** Map a GitLab resource state event to the lean shape. */
+function toLeanStateEvent(event: z.infer<typeof GitLabResourceStateEventSchema>) {
+  return {
+    created_at: event.created_at,
+    user: toLeanEventUser(event.user),
+    state: event.state,
+  };
+}
+
+/**
+ * Fetch one page of an issue's resource events (label or state) from GitLab.
+ * Returns the raw JSON; callers parse and map it.
+ */
+async function fetchIssueResourceEvents(
+  projectId: string,
+  issueIid: number | string,
+  resource: "resource_label_events" | "resource_state_events",
+  options: PaginationOptions
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
+      getEffectiveProjectId(projectId)
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/${resource}`
+  );
+
+  appendFilterParams(url.searchParams, options);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  return response.json();
+}
+
+/**
+ * List the label events of an issue (who added or removed which label, when)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns Lean label events in GitLab's order
+ */
+async function listIssueLabelEvents(
+  projectId: string,
+  issueIid: number | string,
+  options: PaginationOptions = {}
+) {
+  const data = await fetchIssueResourceEvents(
+    projectId,
+    issueIid,
+    "resource_label_events",
+    options
+  );
+  return z.array(GitLabResourceLabelEventSchema).parse(data).map(toLeanLabelEvent);
+}
+
+/**
+ * List the state events of an issue (who closed or reopened it, when)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns Lean state events in GitLab's order
+ */
+async function listIssueStateEvents(
+  projectId: string,
+  issueIid: number | string,
+  options: PaginationOptions = {}
+) {
+  const data = await fetchIssueResourceEvents(
+    projectId,
+    issueIid,
+    "resource_state_events",
+    options
+  );
+  return z.array(GitLabResourceStateEventSchema).parse(data).map(toLeanStateEvent);
+}
+
 /**
  * Get a specific issue link
  * 특정 이슈 관계 조회
@@ -5614,6 +5773,46 @@ async function createOrUpdateFile(
 
   const data = await response.json();
   return GitLabCreateUpdateFileResponseSchema.parse(data);
+}
+
+/**
+ * Update an existing file with a single PUT. Unlike createOrUpdateFile it never
+ * creates the file, and it sends lastCommitId as given, so GitLab rejects the
+ * commit if the file was changed or deleted since the caller read it.
+ */
+async function updateExistingFile(
+  projectId: string,
+  filePath: string,
+  content: string,
+  commitMessage: string,
+  branch: string,
+  lastCommitId?: string
+): Promise<GitLabCreateUpdateFileResponse> {
+  projectId = decodeURIComponent(projectId);
+  const url = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/files/${encodeGitLabPathSegment(filePath)}`;
+  const body: Record<string, any> = {
+    branch,
+    content: encodeRepoFilePayloadContent(content, GITLAB_REPO_FILE_ENCODING),
+    commit_message: commitMessage,
+    encoding: GITLAB_REPO_FILE_ENCODING,
+    ...(lastCommitId ? { last_commit_id: lastCommitId } : {}),
+  };
+
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      response
+    );
+  }
+
+  return GitLabCreateUpdateFileResponseSchema.parse(await response.json());
 }
 
 /**
@@ -6606,8 +6805,36 @@ async function getMergeRequestApprovalState(
   };
 }
 
+// `conflictStatus` and `conflictFiles` are experimental fields (GitLab 19.4+); an
+// instance that lacks them answers with a validation error naming exactly these
+// fields, which getMergeRequestConflicts retries without.
+const EXPERIMENTAL_CONFLICT_FIELDS = new Set(["conflictStatus", "conflictFiles"]);
+
+function isUnsupportedConflictFieldsError(message: string): boolean {
+  const fields = [...message.matchAll(/Field '(\w+)' doesn't exist on type 'MergeRequest'/g)].map(
+    match => match[1]
+  );
+  return fields.length > 0 && fields.every(field => EXPERIMENTAL_CONFLICT_FIELDS.has(field));
+}
+
+type MergeRequestConflictsQueryResult = {
+  project: {
+    mergeRequest: {
+      conflicts: boolean;
+      conflictStatus?: string | null;
+      conflictFiles?:
+        { ourPath: string | null; theirPath: string | null; content: string | null }[] | null;
+    } | null;
+  } | null;
+};
+
 /**
- * Get the conflicts of a merge request
+ * Get the conflicts of a merge request.
+ *
+ * There is no REST endpoint for this; GitLab only exposes conflict data over
+ * GraphQL. `conflicts` (a boolean) is stable, while `conflictStatus` and
+ * `conflictFiles` are experimental (GitLab 19.4+), so instances that lack them
+ * are retried with just `conflicts`.
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string | number} mergeRequestIid - The internal ID of the merge request
@@ -6617,19 +6844,66 @@ async function getMergeRequestConflicts(
   projectId: string,
   mergeRequestIid: string | number
 ): Promise<Record<string, unknown>> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
-  );
+  const fullPath = await resolveProjectFullPath(projectId);
+  const variables = { fullPath, iid: String(mergeRequestIid) };
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "GET",
-  });
+  let data: MergeRequestConflictsQueryResult;
+  try {
+    data = await executeGraphQL<MergeRequestConflictsQueryResult>(
+      `query getMergeRequestConflicts($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+          mergeRequest(iid: $iid) {
+            conflicts
+            conflictStatus
+            conflictFiles {
+              ourPath
+              theirPath
+              content
+            }
+          }
+        }
+      }`,
+      variables
+    );
+  } catch (error) {
+    if (!(error instanceof Error) || !isUnsupportedConflictFieldsError(error.message)) {
+      throw error;
+    }
+    data = await executeGraphQL<MergeRequestConflictsQueryResult>(
+      `query getMergeRequestConflicts($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+          mergeRequest(iid: $iid) {
+            conflicts
+          }
+        }
+      }`,
+      variables
+    );
+  }
 
-  await handleGitLabError(response);
+  if (!data.project) {
+    throw new ToolInputError(
+      withRecoveryHint(`Project not found or not accessible: ${fullPath}`, PROJECT_NOT_FOUND_HINT)
+    );
+  }
+  if (!data.project.mergeRequest) {
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Merge request !${mergeRequestIid} not found in project ${fullPath}`,
+        "check merge_request_iid (the !number shown in GitLab, not the global ID)."
+      )
+    );
+  }
 
-  return (await response.json()) as Record<string, unknown>;
+  const { conflicts, conflictStatus, conflictFiles } = data.project.mergeRequest;
+  const result: Record<string, unknown> = { has_conflicts: conflicts };
+  if (conflictStatus !== undefined) {
+    result.conflict_status = conflictStatus;
+  }
+  if (conflictFiles !== undefined) {
+    result.conflict_files = conflictFiles;
+  }
+  return result;
 }
 
 async function getMergeRequestApprovalsFallback(
@@ -7285,153 +7559,6 @@ async function listGroupProjects(
   await handleGitLabError(response);
   const projects = await response.json();
   return filterProjectsByAllowlist(GitLabProjectSchema.array().parse(projects));
-}
-
-// Webhook API helper functions
-
-/**
- * Build the base URL for webhooks (project or group)
- */
-function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
-  if (projectId) {
-    projectId = decodeURIComponent(projectId);
-    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/hooks`;
-  }
-  rejectIfStrictProjectScope("group webhooks");
-  const decodedGroupId = decodeURIComponent(groupId!);
-  return `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(decodedGroupId)}/hooks`;
-}
-
-/**
- * List webhooks for a project or group
- */
-async function listWebhooks(options: z.infer<typeof ListWebhooksSchema>): Promise<unknown[]> {
-  const url = new URL(buildWebhookBaseUrl(options.project_id, options.group_id));
-
-  if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown[];
-}
-
-function buildWebhookMutationBody(
-  options: z.infer<typeof CreateWebhookSchema> | z.infer<typeof UpdateWebhookSchema>
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(options)) {
-    if (key === "project_id" || key === "group_id" || key === "hook_id") continue;
-    if (value !== undefined) body[key] = value;
-  }
-  return body;
-}
-
-/**
- * Create a webhook on a project or group
- */
-async function createWebhook(options: z.infer<typeof CreateWebhookSchema>): Promise<unknown> {
-  const url = buildWebhookBaseUrl(options.project_id, options.group_id);
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Update a webhook on a project or group
- */
-async function updateWebhook(options: z.infer<typeof UpdateWebhookSchema>): Promise<unknown> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(buildWebhookMutationBody(options)),
-  });
-  await handleGitLabError(response);
-  return await response.json();
-}
-
-/**
- * Delete a webhook from a project or group
- */
-async function deleteWebhook(
-  options: z.infer<typeof DeleteWebhookSchema>
-): Promise<{ status: string; hook_id: number }> {
-  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
-  const response = await fetch(url, {
-    ...getFetchConfig(),
-    method: "DELETE",
-  });
-  await handleGitLabError(response);
-  return { status: "deleted", hook_id: options.hook_id };
-}
-
-/**
- * Fetch a single page of webhook events
- */
-async function fetchWebhookEventsPage(
-  baseUrl: string,
-  page: number,
-  perPage: number,
-  status?: string | number
-): Promise<Record<string, unknown>[]> {
-  const url = new URL(baseUrl);
-  url.searchParams.set("page", page.toString());
-  url.searchParams.set("per_page", perPage.toString());
-  if (status !== undefined) url.searchParams.append("status", String(status));
-
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as Record<string, unknown>[];
-}
-
-/**
- * List webhook events for a project or group webhook
- */
-async function listWebhookEvents(
-  options: z.infer<typeof ListWebhookEventsSchema>
-): Promise<unknown[]> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-
-  const events = await fetchWebhookEventsPage(
-    eventsUrl,
-    options.page ?? 1,
-    options.per_page ?? 20,
-    options.status
-  );
-  return options.summary ? summarizeWebhookEvents(events) : events;
-}
-
-/**
- * Get a specific webhook event by ID (searches up to 500 recent events)
- */
-async function getWebhookEvent(
-  options: z.infer<typeof GetWebhookEventSchema>
-): Promise<Record<string, unknown> | null> {
-  const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-  // GitLab enforces max per_page=20 for webhook events
-  const perPage = 20;
-
-  if (options.page) {
-    // Direct page lookup — single API call
-    const events = await fetchWebhookEventsPage(eventsUrl, options.page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    return match ?? null;
-  }
-
-  // Auto-paginate up to 500 events
-  const maxPages = 25;
-  for (let page = 1; page <= maxPages; page++) {
-    const events = await fetchWebhookEventsPage(eventsUrl, page, perPage);
-    const match = events.find(e => e.id === options.event_id);
-    if (match) return match;
-    if (events.length < perPage) break;
-  }
-  return null;
 }
 
 /**
@@ -8112,10 +8239,69 @@ async function formatPipelineJobSearch(
   }
 }
 
+/**
+ * Under a project allowlist (GITLAB_ALLOWED_PROJECT_IDS or a session scope), drop the
+ * expanded configuration from a CI lint result when an include reads from a project
+ * outside the allowlist. GitLab expands includes with the token's permissions, so
+ * `include: project:` could otherwise return another project's files. Without an
+ * allowlist the result is returned unchanged and no extra request is made.
+ */
+async function scopeCiLintResultToAllowlist(
+  result: GitLabCiLintResult
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return result;
+  }
+  const hasNumericEntries = allowedProjectIds.some(entry => /^\d+$/.test(entry));
+  const decisions = new Map<string, Promise<boolean>>();
+  const isProjectAllowed = (projectPath: string): Promise<boolean> => {
+    let decision = decisions.get(projectPath);
+    if (decision === undefined) {
+      decision = (async () => {
+        if (allowedProjectIds.includes(projectPath)) {
+          return true;
+        }
+        if (!hasNumericEntries) {
+          return false;
+        }
+        // Numeric allowlist entries: resolve the path to its project ID. A lookup that
+        // fails counts as a project outside the allowlist, so the lint verdict is still
+        // returned without the expanded configuration.
+        try {
+          const response = await fetch(
+            `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
+            { ...getFetchConfig() }
+          );
+          if (!response.ok) {
+            await response.body?.cancel();
+            logger.debug(
+              { projectPath, status: response.status },
+              "CI lint include project lookup failed; treating it as outside the allowlist"
+            );
+            return false;
+          }
+          const project = (await response.json()) as { id?: number | string };
+          return project.id !== undefined && allowedProjectIds.includes(String(project.id));
+        } catch (error) {
+          logger.debug(
+            { projectPath, error: redactUrlSecretsInErrorMessage(error) },
+            "CI lint include project lookup failed; treating it as outside the allowlist"
+          );
+          return false;
+        }
+      })();
+      decisions.set(projectPath, decision);
+    }
+    return decision;
+  };
+  return scopeCiLintResult(result, isProjectAllowed);
+}
+
 async function validateCiLint(
   projectId: string,
   options: Omit<ValidateCiLintOptions, "project_id">
-): Promise<GitLabCiLintResult> {
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
@@ -8129,13 +8315,13 @@ async function validateCiLint(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabCiLintResultSchema.parse(data);
+  return scopeCiLintResultToAllowlist(GitLabCiLintResultSchema.parse(data));
 }
 
 async function validateProjectCiLint(
   projectId: string,
   options: Omit<ValidateProjectCiLintOptions, "project_id">
-): Promise<GitLabCiLintResult> {
+): Promise<GitLabCiLintResult & { scope_note?: string }> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
@@ -8149,7 +8335,7 @@ async function validateProjectCiLint(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabCiLintResultSchema.parse(data);
+  return scopeCiLintResultToAllowlist(GitLabCiLintResultSchema.parse(data));
 }
 
 /**
@@ -9262,7 +9448,12 @@ async function createCommitStatus(
   options: Omit<CreateCommitStatusOptions, "project_id" | "sha">
 ): Promise<GitLabCommitStatus> {
   if (options.name && options.context) {
-    throw new Error("Use either name or context when creating a commit status, not both.");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Use either name or context when creating a commit status, not both.",
+        "pass only name or only context; both set the same status label."
+      )
+    );
   }
 
   projectId = decodeURIComponent(projectId);
@@ -9765,7 +9956,9 @@ async function listGroupIterationCadences(
     });
 
     if (!data.group) {
-      throw new Error(`Group ${groupPath} was not found`);
+      throw new ToolInputError(
+        withRecoveryHint(`Group ${groupPath} was not found`, GROUP_NOT_FOUND_HINT)
+      );
     }
 
     const { nodes, pageInfo } = data.group.iterationCadences;
@@ -9879,197 +10072,6 @@ async function deleteGroupIterationCadence(cadenceId: string): Promise<void> {
   }
 }
 
-// --- CI/CD Variables ---
-
-async function listProjectVariables(
-  projectId: string,
-  options: Omit<z.infer<typeof ListProjectVariablesSchema>, "project_id"> = {}
-): Promise<GitLabCiVariable[]> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables`
-  );
-  Object.entries(options).forEach(([key, value]) => {
-    if (key === "filter" && typeof value === "object" && value !== null) {
-      Object.entries(value as Record<string, unknown>).forEach(([filterKey, filterValue]) => {
-        appendFilterParam(url.searchParams, `filter[${filterKey}]`, filterValue);
-      });
-      return;
-    }
-
-    appendFilterParam(url.searchParams, key, value);
-  });
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabCiVariableSchema).parse(data);
-}
-
-async function getProjectVariable(
-  projectId: string,
-  key: string,
-  filter?: { environment_scope: string }
-): Promise<GitLabCiVariable> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function createProjectVariable(
-  projectId: string,
-  options: Omit<z.infer<typeof CreateProjectVariableSchema>, "project_id">
-): Promise<GitLabCiVariable> {
-  projectId = decodeURIComponent(projectId);
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables`,
-    { ...getFetchConfig(), method: "POST", body: JSON.stringify(options) }
-  );
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function updateProjectVariable(
-  projectId: string,
-  key: string,
-  options: Omit<z.infer<typeof UpdateProjectVariableSchema>, "project_id" | "key">
-): Promise<GitLabCiVariable> {
-  projectId = decodeURIComponent(projectId);
-  const { filter, ...body } = options;
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function deleteProjectVariable(
-  projectId: string,
-  key: string,
-  filter?: { environment_scope: string }
-): Promise<void> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
-  await handleGitLabError(response);
-}
-
-async function listGroupVariables(
-  groupId: string,
-  options: Omit<z.infer<typeof ListGroupVariablesSchema>, "group_id"> = {}
-): Promise<GitLabCiVariable[]> {
-  const encoded = encodeGitLabPathSegment(groupId);
-  const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/variables`);
-  Object.entries(options).forEach(([key, value]) => {
-    if (key === "filter" && typeof value === "object" && value !== null) {
-      Object.entries(value as Record<string, unknown>).forEach(([filterKey, filterValue]) => {
-        appendFilterParam(url.searchParams, `filter[${filterKey}]`, filterValue);
-      });
-      return;
-    }
-
-    appendFilterParam(url.searchParams, key, value);
-  });
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabCiVariableSchema).parse(data);
-}
-
-async function getGroupVariable(
-  groupId: string,
-  key: string,
-  filter?: { environment_scope: string }
-): Promise<GitLabCiVariable> {
-  const encoded = encodeGitLabPathSegment(groupId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function createGroupVariable(
-  groupId: string,
-  options: Omit<z.infer<typeof CreateGroupVariableSchema>, "group_id">
-): Promise<GitLabCiVariable> {
-  const encoded = encodeGitLabPathSegment(groupId);
-  const response = await fetch(`${getEffectiveApiUrl()}/groups/${encoded}/variables`, {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(options),
-  });
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function updateGroupVariable(
-  groupId: string,
-  key: string,
-  options: Omit<z.infer<typeof UpdateGroupVariableSchema>, "group_id" | "key">
-): Promise<GitLabCiVariable> {
-  const encoded = encodeGitLabPathSegment(groupId);
-  const { filter, ...body } = options;
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabCiVariableSchema.parse(data);
-}
-
-async function deleteGroupVariable(
-  groupId: string,
-  key: string,
-  filter?: { environment_scope: string }
-): Promise<void> {
-  const encoded = encodeGitLabPathSegment(groupId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
-  );
-  if (filter?.environment_scope) {
-    url.searchParams.append("filter[environment_scope]", filter.environment_scope);
-  }
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
-  await handleGitLabError(response);
-}
-
 // --- Dependency Proxy ---
 
 async function resolveGroupFullPath(groupId: string): Promise<string> {
@@ -10106,7 +10108,11 @@ async function getDependencyProxySettings(groupPath: string): Promise<GitLabDepe
     { fullPath }
   );
   const g = data.group;
-  if (!g) throw new Error(`Group not found: ${fullPath}`);
+  if (!g) {
+    throw new ToolInputError(
+      withRecoveryHint(`Group not found: ${fullPath}`, GROUP_NOT_FOUND_HINT)
+    );
+  }
   return GitLabDependencyProxySchema.parse({
     enabled: g.dependencyProxySetting?.enabled ?? false,
     blob_count: g.dependencyProxyBlobCount,
@@ -10125,7 +10131,12 @@ async function updateDependencyProxySettings(
     options.identity === undefined &&
     options.secret === undefined
   ) {
-    throw new Error("At least one of enabled, identity, or secret must be provided");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "At least one of enabled, identity, or secret must be provided",
+        "pass enabled (true or false), identity, or secret; get_dependency_proxy_settings shows the current settings."
+      )
+    );
   }
   const fullPath = await resolveGroupFullPath(groupPath);
   const input: Record<string, unknown> = { groupPath: fullPath };
@@ -10174,7 +10185,14 @@ async function listDependencyProxyBlobs(
     { fullPath, first: options.first ?? 20, after: options.after }
   );
   const conn = data.group?.dependencyProxyBlobs;
-  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${fullPath}`);
+  if (!conn) {
+    throw new ToolInputError(
+      withRecoveryHint(
+        `Group not found or dependency proxy not enabled: ${fullPath}`,
+        "check group_id, then run get_dependency_proxy_settings to see whether the dependency proxy is enabled."
+      )
+    );
+  }
   return {
     blobs: conn.nodes.map(n =>
       GitLabDependencyProxyBlobSchema.parse({
@@ -10208,8 +10226,11 @@ function toVulnerabilityGid(vulnerabilityId: string): string {
   if (/^gid:\/\/gitlab\/Vulnerability\/\d+$/.test(vulnerabilityId)) {
     return vulnerabilityId;
   }
-  throw new Error(
-    `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`
+  throw new ToolInputError(
+    withRecoveryHint(
+      `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`,
+      "copy the id from list_project_vulnerabilities, for example 123 or gid://gitlab/Vulnerability/123."
+    )
   );
 }
 
@@ -10286,7 +10307,9 @@ async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promi
     { id: toVulnerabilityGid(vulnerabilityId) }
   );
   if (!data.vulnerability) {
-    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Vulnerability not found: ${vulnerabilityId}`, VULNERABILITY_NOT_FOUND_HINT)
+    );
   }
   assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
 }
@@ -10409,7 +10432,9 @@ async function listProjectVulnerabilities(
   );
 
   if (!data.project) {
-    throw new Error(`Project not found or not accessible: ${fullPath}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Project not found or not accessible: ${fullPath}`, PROJECT_NOT_FOUND_HINT)
+    );
   }
   return {
     vulnerabilities: data.project.vulnerabilities.nodes,
@@ -10488,7 +10513,9 @@ async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
     { id: toVulnerabilityGid(vulnerabilityId) }
   );
   if (!data.vulnerability) {
-    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+    throw new ToolInputError(
+      withRecoveryHint(`Vulnerability not found: ${vulnerabilityId}`, VULNERABILITY_NOT_FOUND_HINT)
+    );
   }
   assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
   return data.vulnerability;
@@ -10613,7 +10640,12 @@ async function markdownUpload(
     fileBuffer = buffer;
     fileName = safeBasename;
   } else {
-    throw new Error("Either file_path or content must be provided");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Either file_path or content must be provided",
+        "pass a non-empty file_path, or base64 content with filename."
+      )
+    );
   }
 
   // Create form data
@@ -10665,7 +10697,12 @@ function getSafeAttachmentFilename(filename: string): string {
     filename.includes("/") ||
     filename.includes("\\")
   ) {
-    throw new Error("Invalid filename: directory separators are not allowed.");
+    throw new ToolInputError(
+      withRecoveryHint(
+        "Invalid filename: directory separators are not allowed.",
+        "pass only the last segment of the upload URL (/uploads/<secret>/<filename>), without / or \\."
+      )
+    );
   }
 
   return filename;
@@ -10687,13 +10724,32 @@ async function downloadAttachment(
   metadataOnly = false
 ): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const safeFilename = getSafeAttachmentFilename(filename);
+  const requestedFilename = getSafeAttachmentFilename(filename);
 
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
-  );
+  const fetchUpload = (name: string) =>
+    fetchWithValidatedRedirects(
+      new URL(
+        `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(name)}`
+      ).toString(),
+      downloadRedirectOptions()
+    );
 
-  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
+  // GitLab answers 404 when the name's accents are in another Unicode form than the
+  // stored one. The result and a saved file take the name decoded, as GitLab stores it,
+  // so no form may hold a separator.
+  const [firstName = requestedFilename, ...alternatives] = uploadFilenameForms(
+    requestedFilename
+  ).filter(name => !name.includes("/") && !name.includes("\\"));
+  let safeFilename = firstName;
+  let response = await fetchUpload(safeFilename);
+  for (const candidate of alternatives) {
+    if (response.status !== 404) {
+      break;
+    }
+    await response.body?.cancel();
+    safeFilename = candidate;
+    response = await fetchUpload(candidate);
+  }
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -10795,6 +10851,26 @@ async function getProjectEvents(
 }
 
 /**
+ * Like handleGitLabError, but a 404 from a tag-addressed release endpoint gets the release hint.
+ * Release tools take a tag_name, so the generic hint about the iid would name the wrong argument.
+ * Other responses go through handleGitLabError unchanged.
+ */
+async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
+  if (response.ok || response.status !== 404) {
+    await handleGitLabError(response);
+    return;
+  }
+  const errorBody = await response.text();
+  throw new GitLabApiError(
+    withRecoveryHint(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      RELEASE_TAG_NOT_FOUND_HINT
+    ),
+    response
+  );
+}
+
+/**
  * List all releases for a project
  *
  * @param projectId The ID or URL-encoded path of the project
@@ -10849,7 +10925,7 @@ async function getRelease(
     ...getFetchConfig(),
   });
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10907,7 +10983,7 @@ async function updateRelease(
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10931,7 +11007,7 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 
   const data = await response.json();
   return GitLabReleaseSchema.parse(data);
@@ -10954,7 +11030,7 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
     }
   );
 
-  await handleGitLabError(response);
+  await handleReleaseTagError(response);
 }
 
 /**
@@ -10980,128 +11056,6 @@ async function downloadReleaseAsset(
   await handleGitLabError(response);
 
   return await response.text();
-}
-
-/**
- * List repository tags
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Optional parameters for filtering and pagination
- * @returns Array of GitLab tags
- */
-async function listTags(
-  projectId: string,
-  options: Omit<z.infer<typeof ListTagsSchema>, "project_id"> = {}
-): Promise<GitLabTag[]> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`
-  );
-
-  appendFilterParams(url.searchParams, options);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.array().parse(data);
-}
-
-/**
- * Get a repository tag by name
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- * @returns GitLab tag
- */
-async function getTag(projectId: string, tagName: string): Promise<GitLabTag> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
-    {
-      ...getFetchConfig(),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.parse(data);
-}
-
-/**
- * Create a new repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param options Options for creating the tag
- * @returns Created GitLab tag
- */
-async function createTag(
-  projectId: string,
-  options: Omit<z.infer<typeof CreateTagSchema>, "project_id">
-): Promise<GitLabTag> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`,
-    {
-      ...getFetchConfig(),
-      method: "POST",
-      body: JSON.stringify(options),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSchema.parse(data);
-}
-
-/**
- * Delete a repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- */
-async function deleteTag(projectId: string, tagName: string): Promise<void> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
-    {
-      ...getFetchConfig(),
-      method: "DELETE",
-    }
-  );
-
-  await handleGitLabError(response);
-}
-
-/**
- * Get the signature of a repository tag
- *
- * @param projectId The ID or URL-encoded path of the project
- * @param tagName The name of the tag
- * @returns Tag signature
- */
-async function getTagSignature(projectId: string, tagName: string): Promise<GitLabTagSignature> {
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}/signature`,
-    {
-      ...getFetchConfig(),
-    }
-  );
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabTagSignatureSchema.parse(data);
 }
 
 async function executeGitLabGraphQL(query: string, variables: Record<string, unknown> = {}) {
@@ -11133,207 +11087,113 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
   }
 }
 
-/**
- * Build the snippets endpoint URL.
- *
- * When projectId is provided, or when a project allowlist is in effect (env
- * GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS or a session scope narrowed via
- * X-GitLab-Allowed-Project-Ids), returns the project snippets endpoint — routing
- * through getEffectiveProjectId so the effective scope is enforced. Only falls
- * back to the personal /snippets endpoint when no scope is active at all.
- */
-function getSnippetsEndpoint(projectId?: string): string {
-  const scopeActive = getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID;
-  if (projectId || scopeActive) {
-    const decoded = projectId ? decodeURIComponent(projectId) : "";
-    const effectiveProjectId = getEffectiveProjectId(decoded);
-    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/snippets`;
+function ciCatalogProjectDenied(
+  resourceLabel: string | undefined,
+  projectPath: string | undefined,
+  allowedProjectIds: string[]
+): ProjectAccessDeniedError {
+  const allowedList = allowedProjectIds.join(", ");
+  if (resourceLabel === undefined) {
+    return new ProjectAccessDeniedError(
+      `Access denied: Project ${projectPath} is not in the allowed project list: ${allowedList}`
+    );
   }
-  return `${getEffectiveApiUrl()}/snippets`;
-}
-
-/**
- * List snippets — project snippets if projectId is given, otherwise personal snippets.
- */
-async function listSnippets(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof ListSnippetsSchema>, "project_id"> = {}
-): Promise<GitLabSnippet[]> {
-  const url = new URL(getSnippetsEndpoint(projectId));
-
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.array().parse(data);
-}
-
-/**
- * Get a snippet's metadata. Use getSnippetRawContent to fetch the raw file content.
- */
-async function getSnippet(
-  projectId: string | undefined,
-  snippetId: number
-): Promise<GitLabSnippet> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
-}
-
-/**
- * Get the raw content of a single-file snippet via the `/raw` endpoint.
- * For multi-file snippets, use getSnippetFileRawContent instead.
- */
-async function getSnippetRawContent(
-  projectId: string | undefined,
-  snippetId: number
-): Promise<string> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}/raw`, {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  return await response.text();
-}
-
-/**
- * Extract the ref (branch/tag/commit) from a snippet file's raw_url.
- * Anchors on /snippets/{id}/raw/ so branch names or file paths containing
- * the word "raw" don't produce a false match.
- */
-function extractSnippetRef(rawUrl: string, snippetId: number, filePath: string): string {
-  const rawMarker = `/snippets/${snippetId}/raw/`;
-  const decoded = decodeURIComponent(new URL(rawUrl).pathname);
-  const markerIdx = decoded.indexOf(rawMarker);
-  if (markerIdx === -1) {
-    throw new Error(`Cannot extract ref from snippet file raw_url: ${rawUrl}`);
-  }
-  const afterRaw = decoded.slice(markerIdx + rawMarker.length); // "{ref}/{filePath}"
-  const fileStart = afterRaw.lastIndexOf("/" + filePath);
-  if (fileStart === -1) {
-    throw new Error(`Cannot locate file path "${filePath}" in snippet file raw_url: ${rawUrl}`);
-  }
-  return afterRaw.slice(0, fileStart);
-}
-
-/**
- * Fetch the raw content of one file inside a multi-file snippet.
- * Accepts an explicit ref (branch/tag/commit) — callers resolve it via
- * extractSnippetRef or a user-supplied parameter before calling this.
- */
-async function getSnippetFileRawContent(
-  projectId: string | undefined,
-  snippetId: number,
-  ref: string,
-  filePath: string
-): Promise<string> {
-  const encodedRef = encodeGitLabPathSegment(ref);
-  const encodedPath = encodeGitLabPathSegment(filePath);
-  const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodedRef}/${encodedPath}/raw`;
-  const response = await fetch(url, { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return await response.text();
-}
-
-function snippetCreateFilesPayload(
-  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
-): Array<{ file_path: string; content: string }> {
-  if (options.files !== undefined && options.files.length > 0) {
-    return options.files;
-  }
-  if (options.file_name !== undefined && options.content !== undefined) {
-    return [{ file_path: options.file_name, content: options.content }];
-  }
-  throw new Error(
-    "Provide either files[] (multi-file) or both file_name and content (single-file)"
+  return new ProjectAccessDeniedError(
+    `Access denied: CI/CD catalog resource ${resourceLabel} belongs to project ${
+      projectPath ?? "unknown"
+    }, which is not in the allowed project list: ${allowedList}`
   );
 }
 
 /**
- * Create a snippet — project-scoped if projectId is given, otherwise personal.
+ * Enforce the project allowlist for get_ci_catalog_resource. A catalog resource
+ * is a project published to the CI/CD catalog (its fullPath is the project path),
+ * so the project is checked before the version, README, and component data is
+ * requested, mirroring ensureVulnerabilityProjectAllowed. Allowlist entries may be
+ * numeric IDs or full namespace paths; a path that is not listed costs one project
+ * lookup when the allowlist has numeric entries, and is refused without a request
+ * otherwise.
+ *
+ * @returns undefined when no allowlist is in effect (no extra request), null when a
+ *   lookup by id finds no resource, or the allowed project path the returned
+ *   resource must match (see assertCiCatalogResourceProjectAllowed)
  */
-async function createSnippet(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
-): Promise<GitLabSnippet> {
-  const { title, description, visibility } = options;
-  const body: Record<string, unknown> = {
-    title,
-    visibility: visibility ?? "private",
-    files: snippetCreateFilesPayload(options),
-  };
-  if (description !== undefined) {
-    body.description = description;
+async function resolveAllowedCiCatalogProjectPath(args: {
+  id?: string;
+  full_path?: string;
+}): Promise<string | null | undefined> {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return undefined;
   }
 
-  const response = await fetch(getSnippetsEndpoint(projectId), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  let projectPath = args.full_path;
+  if (!projectPath) {
+    const data = await executeGraphQL<{
+      ciCatalogResource: { fullPath?: string | null } | null;
+    }>(
+      `query GetCiCatalogResourceProject($id: CiCatalogResourceID) {
+        ciCatalogResource(id: $id) {
+          fullPath
+        }
+      }`,
+      { id: args.id }
+    );
+    if (!data?.ciCatalogResource) {
+      return null;
+    }
+    projectPath = data.ciCatalogResource.fullPath ?? undefined;
+    if (!projectPath) {
+      throw ciCatalogProjectDenied(args.id, undefined, allowedProjectIds);
+    }
+  }
 
-  await handleGitLabError(response);
+  if (allowedProjectIds.includes(projectPath)) {
+    return projectPath;
+  }
 
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
+  if (allowedProjectIds.some(entry => /^\d+$/.test(entry))) {
+    const response = await fetch(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(projectPath)}`,
+      { ...getFetchConfig() }
+    );
+    if (response.status !== 404) {
+      await handleGitLabError(response);
+      const project = (await response.json()) as {
+        id?: number | string;
+        path_with_namespace?: string;
+      };
+      if (
+        project.id !== undefined &&
+        allowedProjectIds.includes(String(project.id)) &&
+        project.path_with_namespace
+      ) {
+        return project.path_with_namespace;
+      }
+    }
+  }
+
+  throw ciCatalogProjectDenied(args.id, projectPath, allowedProjectIds);
 }
 
 /**
- * Update an existing snippet — project-scoped if projectId is given, otherwise personal.
+ * Refuse a get_ci_catalog_resource result whose resource is not the project that
+ * resolveAllowedCiCatalogProjectPath allowed, for example a path that GitLab
+ * resolved to another project after a move.
  */
-async function updateSnippet(
-  projectId: string | undefined,
-  options: Omit<z.infer<typeof UpdateSnippetSchema>, "project_id">
-): Promise<GitLabSnippet> {
-  const { snippet_id, title, file_name, content, files, description, visibility } = options;
-  const body: Record<string, unknown> = {};
-  if (title !== undefined) body.title = title;
-  if (description !== undefined) body.description = description;
-  if (visibility !== undefined) body.visibility = visibility;
-
-  if (files !== undefined) {
-    body.files = files;
-  } else if (file_name !== undefined && content !== undefined) {
-    body.files = [{ action: "update", file_path: file_name, content }];
+function assertCiCatalogResourceProjectAllowed(
+  resource: { fullPath?: string | null } | null | undefined,
+  allowedProjectPath: string,
+  resourceLabel: string
+): void {
+  if (!resource || resource.fullPath === allowedProjectPath) {
+    return;
   }
-
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippet_id}`, {
-    ...getFetchConfig(),
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return GitLabSnippetSchema.parse(data);
-}
-
-/**
- * Delete a snippet — project-scoped if projectId is given, otherwise personal.
- */
-async function deleteSnippet(projectId: string | undefined, snippetId: number): Promise<void> {
-  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
-    ...getFetchConfig(),
-    method: "DELETE",
-  });
-
-  await handleGitLabError(response);
+  throw ciCatalogProjectDenied(
+    resourceLabel,
+    resource.fullPath ?? undefined,
+    getEffectiveAllowedProjectIds()
+  );
 }
 
 // Request handlers are now registered inside createServer() factory function
@@ -11395,6 +11255,17 @@ async function handleToolCall(params: any) {
         ) {
           throw new Error("execute_graphql does not allow destructive mutations in modify mode");
         }
+        const secretFields = graphqlQuerySecretFields(args.query);
+        if (secretFields === null) {
+          throw new ToolInputError(
+            "execute_graphql could not parse the query to check it for credential fields. Send a single valid GraphQL document."
+          );
+        }
+        if (secretFields.length > 0) {
+          throw new ToolInputError(
+            `execute_graphql does not return credential fields (${secretFields.join(", ")}). Remove them from the query; create_pipeline_trigger returns a new trigger token once.`
+          );
+        }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
@@ -11422,14 +11293,21 @@ async function handleToolCall(params: any) {
           if (!response.ok) {
             await handleGitLabError(response);
           }
+          // GitLab returns only the selected fields, and credential fields were refused
+          // above by field name. Response keys are aliases chosen by the caller, so they
+          // are not filtered here: `token: currentUser { username }` is a safe selection.
           const json = await response.json();
-          return {
+          const graphqlResult = {
             content: [{ type: "text", text: JSON.stringify(json) }],
           };
+          if (graphqlPayloadHasErrors(json)) {
+            markToolResultAsAuditFailure(graphqlResult, createGraphQLAuditFailure());
+          }
+          return graphqlResult;
         } catch (err) {
           // Returned as data, not isError, so the central error redaction does not see it.
           const message = describeFetchTransportError(err) ?? redactUrlSecretsInErrorMessage(err);
-          return {
+          const graphqlFailure = {
             content: [
               {
                 type: "text",
@@ -11437,6 +11315,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(graphqlFailure, err);
+          return graphqlFailure;
         } finally {
           clearTimeout(timeout);
         }
@@ -11477,6 +11357,11 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
+          // Argument errors (e.g. an empty project_id) belong to the central handler, which
+          // returns them as isError results with a Next: hint.
+          if (forkError instanceof ToolInputError) {
+            throw forkError;
+          }
           logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
@@ -11484,7 +11369,7 @@ async function handleToolCall(params: any) {
               describeFetchTransportError(forkError) ?? redactUrlSecretsInErrorMessage(forkError);
             forkErrorMessage = `${forkErrorMessage}: ${reason}`;
           }
-          return {
+          const forkFailure = {
             content: [
               {
                 type: "text",
@@ -11492,6 +11377,8 @@ async function handleToolCall(params: any) {
               },
             ],
           };
+          markToolResultAsAuditFailure(forkFailure, forkError);
+          return forkFailure;
         }
       }
 
@@ -11549,7 +11436,9 @@ async function handleToolCall(params: any) {
         const args = SearchProjectCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
-          project_id: args.project_id,
+          // searchBlobs treats an empty project_id as an instance-wide search; resolve it
+          // like other project tools instead (default project, or an input error).
+          project_id: args.project_id || getEffectiveProjectId(args.project_id),
           ref: args.ref,
           filename: args.filename,
           path: args.path,
@@ -11640,6 +11529,106 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      }
+
+      case "update_file_patch": {
+        const args = UpdateFilePatchSchema.parse(params.arguments);
+        const { project_id, file_path, branch, patch_type, patch, dry_run, allow_multiple } = args;
+
+        // Read the file from the branch the commit goes to
+        const file = await getFileContents(project_id, file_path, branch);
+        if (Array.isArray(file)) {
+          throw new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is a directory, not a file`,
+              "pass the path of a single file; use get_repository_tree to list a directory."
+            )
+          );
+        }
+        const notUtf8 = () =>
+          new ToolInputError(
+            withRecoveryHint(
+              `${file_path} is not stored as UTF-8 text and cannot be patched`,
+              "use create_or_update_file to write the whole file in the encoding it needs."
+            )
+          );
+        if (file.encoding !== "utf8" || !file.blob_id) {
+          throw notUtf8();
+        }
+        // The Files API converts non-UTF-8 text to UTF-8, so check the stored bytes of the
+        // same blob: patching converted text would re-encode the lines the patch leaves alone.
+        const rawBytes = await getRepositoryBlobRaw(project_id, file.blob_id);
+        let rawText: string;
+        try {
+          rawText = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(rawBytes);
+        } catch {
+          throw notUtf8();
+        }
+        if (rawText !== file.content) {
+          throw notUtf8();
+        }
+
+        let result: { description: string; changes: number; summary: string; preview: string };
+        if (patch_type === "search_replace") {
+          const blocks = parseSearchReplaceBlocks(patch);
+          if (blocks.length === 0) {
+            throw new ToolInputError(
+              withRecoveryHint(
+                "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE",
+                'put each <<<<<<< SEARCH, =======, and >>>>>>> REPLACE marker on its own line, or set patch_type to "unified_diff".'
+              )
+            );
+          }
+          result = applySearchReplace(file.content, blocks, allow_multiple, "file");
+        } else {
+          result = applyUnifiedDiff(file.content, patch, "file");
+        }
+
+        if (dry_run) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "preview",
+                  dry_run: true,
+                  changes: result.changes,
+                  summary: result.summary,
+                  preview: result.preview,
+                }),
+              },
+            ],
+          };
+        }
+
+        // Commit against the version just read: GitLab rejects the update if the file
+        // changed or was deleted since, instead of overwriting or recreating it.
+        // `||`, not `??`: an empty caller ID falls back to the one read with the file.
+        const commit = await updateExistingFile(
+          project_id,
+          file_path,
+          result.description,
+          args.commit_message,
+          branch,
+          args.last_commit_id || file.last_commit_id
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: "success",
+                changes: result.changes,
+                summary: result.summary,
+                preview: result.preview,
+                file_path: commit.file_path,
+                branch: commit.branch,
+                ...(commit.commit_id ? { commit_id: commit.commit_id } : {}),
+              }),
+            },
+          ],
         };
       }
 
@@ -11958,40 +11947,10 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_todos": {
-        rejectIfStrictProjectScope("list_todos");
-        const args = ListTodosSchema.parse(params.arguments);
-        const todos = await listTodos(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todos) }],
-        };
-      }
-
-      case "mark_todo_done": {
-        rejectIfStrictProjectScope("mark_todo_done");
-        const args = MarkTodoDoneSchema.parse(params.arguments);
-        const todo = await markTodoDone(args.id);
-        return {
-          content: [{ type: "text", text: JSON.stringify(todo) }],
-        };
-      }
-
-      case "mark_all_todos_done": {
-        rejectIfStrictProjectScope("mark_all_todos_done");
-        MarkAllTodosDoneSchema.parse(params.arguments);
-        await markAllTodosDone();
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: "All pending to-do items marked as done",
-              }),
-            },
-          ],
-        };
-      }
+      case "list_todos":
+      case "mark_todo_done":
+      case "mark_all_todos_done":
+        return await handleTodoToolCall(params);
 
       case "get_merge_request": {
         const args = GetMergeRequestSchema.parse(params.arguments);
@@ -12229,6 +12188,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_namespaces": {
+        rejectIfStrictProjectScope("list_namespaces");
         const args = ListNamespacesSchema.parse(params.arguments);
         const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
@@ -12259,6 +12219,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_namespace": {
+        rejectIfStrictProjectScope("get_namespace");
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
           `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
@@ -12278,6 +12239,7 @@ async function handleToolCall(params: any) {
       }
 
       case "verify_namespace": {
+        rejectIfStrictProjectScope("verify_namespace");
         const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(
           `${getEffectiveApiUrl()}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
@@ -12641,8 +12603,11 @@ async function handleToolCall(params: any) {
         if (patch_type === "search_replace") {
           const blocks = parseSearchReplaceBlocks(patch);
           if (blocks.length === 0) {
-            throw new Error(
-              "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE"
+            throw new ToolInputError(
+              withRecoveryHint(
+                "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE",
+                'put each <<<<<<< SEARCH, =======, and >>>>>>> REPLACE marker on its own line, or set patch_type to "unified_diff".'
+              )
             );
           }
           result = applySearchReplace(currentDescription, blocks, allow_multiple);
@@ -12730,6 +12695,26 @@ async function handleToolCall(params: any) {
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(links) }],
+        };
+      }
+
+      case "list_issue_label_events": {
+        const { project_id, issue_iid, ...options } = ListIssueLabelEventsSchema.parse(
+          params.arguments
+        );
+        const events = await listIssueLabelEvents(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events) }],
+        };
+      }
+
+      case "list_issue_state_events": {
+        const { project_id, issue_iid, ...options } = ListIssueStateEventsSchema.parse(
+          params.arguments
+        );
+        const events = await listIssueStateEvents(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events) }],
         };
       }
 
@@ -13506,6 +13491,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_ci_catalog_resources": {
+        rejectIfStrictProjectScope("list_ci_catalog_resources");
         const args = ListCiCatalogResourcesSchema.parse(params.arguments);
         const result = await executeGitLabGraphQL(
           `query ListCiCatalogResources(
@@ -13561,6 +13547,14 @@ async function handleToolCall(params: any) {
 
       case "get_ci_catalog_resource": {
         const args = GetCiCatalogResourceSchema.parse(params.arguments);
+        const allowedProjectPath = await resolveAllowedCiCatalogProjectPath(args);
+        if (allowedProjectPath === null) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ data: { ciCatalogResource: null } }) },
+            ],
+          };
+        }
         const result = await executeGitLabGraphQL(
           `query GetCiCatalogResource(
             $id: CiCatalogResourceID,
@@ -13623,6 +13617,15 @@ async function handleToolCall(params: any) {
             includeReadme: args.include_readme ?? false,
           }
         );
+
+        if (allowedProjectPath !== undefined) {
+          assertCiCatalogResourceProjectAllowed(
+            (result as { data?: { ciCatalogResource?: { fullPath?: string | null } | null } })?.data
+              ?.ciCatalogResource,
+            allowedProjectPath,
+            args.id ?? args.full_path ?? "unknown"
+          );
+        }
 
         if (args.component_name) {
           const resource = (result as any)?.data?.ciCatalogResource;
@@ -14211,98 +14214,17 @@ async function handleToolCall(params: any) {
         };
       }
 
-      // --- CI/CD Variables ---
-
-      case "list_project_variables": {
-        const args = ListProjectVariablesSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const variables = await listProjectVariables(project_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variables) }] };
-      }
-
-      case "get_project_variable": {
-        const args = GetProjectVariableSchema.parse(params.arguments);
-        const variable = await getProjectVariable(args.project_id, args.key, args.filter);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "create_project_variable": {
-        const args = CreateProjectVariableSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const variable = await createProjectVariable(project_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "update_project_variable": {
-        const args = UpdateProjectVariableSchema.parse(params.arguments);
-        const { project_id, key, ...options } = args;
-        const variable = await updateProjectVariable(project_id, key, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "delete_project_variable": {
-        const args = DeleteProjectVariableSchema.parse(params.arguments);
-        await deleteProjectVariable(args.project_id, args.key, args.filter);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Variable '${args.key}' deleted from project`,
-              }),
-            },
-          ],
-        };
-      }
-
-      case "list_group_variables": {
-        rejectIfProjectScopedDeployment("list_group_variables");
-        const args = ListGroupVariablesSchema.parse(params.arguments);
-        const { group_id, ...options } = args;
-        const variables = await listGroupVariables(group_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variables) }] };
-      }
-
-      case "get_group_variable": {
-        rejectIfProjectScopedDeployment("get_group_variable");
-        const args = GetGroupVariableSchema.parse(params.arguments);
-        const variable = await getGroupVariable(args.group_id, args.key, args.filter);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "create_group_variable": {
-        rejectIfProjectScopedDeployment("create_group_variable");
-        const args = CreateGroupVariableSchema.parse(params.arguments);
-        const { group_id, ...options } = args;
-        const variable = await createGroupVariable(group_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "update_group_variable": {
-        rejectIfProjectScopedDeployment("update_group_variable");
-        const args = UpdateGroupVariableSchema.parse(params.arguments);
-        const { group_id, key, ...options } = args;
-        const variable = await updateGroupVariable(group_id, key, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
-      }
-
-      case "delete_group_variable": {
-        rejectIfProjectScopedDeployment("delete_group_variable");
-        const args = DeleteGroupVariableSchema.parse(params.arguments);
-        await deleteGroupVariable(args.group_id, args.key, args.filter);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Variable '${args.key}' deleted from group`,
-              }),
-            },
-          ],
-        };
-      }
+      case "list_project_variables":
+      case "get_project_variable":
+      case "create_project_variable":
+      case "update_project_variable":
+      case "delete_project_variable":
+      case "list_group_variables":
+      case "get_group_variable":
+      case "create_group_variable":
+      case "update_group_variable":
+      case "delete_group_variable":
+        return await handleVariableToolCall(params);
 
       case "get_dependency_proxy_settings": {
         rejectIfProjectScopedDeployment("get_dependency_proxy_settings");
@@ -14630,296 +14552,31 @@ async function handleToolCall(params: any) {
         };
       }
 
-      case "list_tags": {
-        const args = ListTagsSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const tags = await listTags(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tags) }],
-        };
-      }
+      case "list_tags":
+      case "get_tag":
+      case "create_tag":
+      case "delete_tag":
+      case "get_tag_signature":
+      case "list_protected_tags":
+      case "get_protected_tag":
+      case "protect_tag":
+      case "unprotect_tag":
+        return await handleTagToolCall(params);
 
-      case "get_tag": {
-        const args = GetTagSchema.parse(params.arguments);
-        const tag = await getTag(args.project_id, args.tag_name);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tag) }],
-        };
-      }
+      case "list_snippets":
+      case "get_snippet":
+      case "create_snippet":
+      case "update_snippet":
+      case "delete_snippet":
+        return await handleSnippetToolCall(params);
 
-      case "create_tag": {
-        const args = CreateTagSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const tag = await createTag(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(tag) }],
-        };
-      }
-
-      case "delete_tag": {
-        const args = DeleteTagSchema.parse(params.arguments);
-        await deleteTag(args.project_id, args.tag_name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Tag '${args.tag_name}' deleted successfully`,
-              }),
-            },
-          ],
-        };
-      }
-
-      case "get_tag_signature": {
-        const args = GetTagSignatureSchema.parse(params.arguments);
-        const signature = await getTagSignature(args.project_id, args.tag_name);
-        return {
-          content: [{ type: "text", text: JSON.stringify(signature) }],
-        };
-      }
-
-      case "list_protected_tags": {
-        const args = ListProtectedTagsSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
-        );
-        if (args.page) url.searchParams.append("page", String(args.page));
-        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-        });
-
-        await handleGitLabError(response);
-        const data = z.array(GitLabProtectedTagSchema).parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "get_protected_tag": {
-        const args = GetProtectedTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
-        );
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-        });
-
-        await handleGitLabError(response);
-        const data = GitLabProtectedTagSchema.parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "protect_tag": {
-        const args = ProtectTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
-        );
-
-        const body: Record<string, unknown> = { name: args.tag_name };
-        if (args.create_access_level !== undefined) {
-          body.create_access_level = args.create_access_level;
-        }
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-
-        await handleGitLabError(response);
-        const data = GitLabProtectedTagSchema.parse(await response.json());
-        return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
-        };
-      }
-
-      case "unprotect_tag": {
-        const args = UnprotectTagSchema.parse(params.arguments);
-        const projectId = decodeURIComponent(args.project_id);
-        const effectiveProjectId = getEffectiveProjectId(projectId);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
-        );
-
-        const response = await fetch(url.toString(), {
-          ...getFetchConfig(),
-          method: "DELETE",
-        });
-
-        await handleGitLabError(response);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "unprotected", tag: args.tag_name }),
-            },
-          ],
-        };
-      }
-
-      case "list_snippets": {
-        const args = ListSnippetsSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippets = await listSnippets(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippets) }],
-        };
-      }
-
-      case "get_snippet": {
-        const args = GetSnippetSchema.parse(params.arguments);
-        const snippet = await getSnippet(args.project_id, args.snippet_id);
-        const result: Record<string, unknown> = { ...snippet };
-        if (args.include_content) {
-          const files = snippet.files ?? [];
-          if (files.length > 1) {
-            const firstFile = files[0];
-            let ref: string;
-            if (args.ref !== undefined) {
-              ref = args.ref;
-            } else {
-              if (!firstFile.raw_url)
-                throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
-              ref = extractSnippetRef(firstFile.raw_url, args.snippet_id, firstFile.path);
-            }
-            result.files = await Promise.all(
-              files.map(async f => ({
-                ...f,
-                content: await getSnippetFileRawContent(
-                  args.project_id,
-                  args.snippet_id,
-                  ref,
-                  f.path
-                ),
-              }))
-            );
-          } else {
-            const file = files[0];
-            const filePath = file?.path ?? snippet.file_name ?? undefined;
-            if (args.ref !== undefined && filePath) {
-              result.content = await getSnippetFileRawContent(
-                args.project_id,
-                args.snippet_id,
-                args.ref,
-                filePath
-              );
-            } else {
-              result.content = await getSnippetRawContent(args.project_id, args.snippet_id);
-            }
-          }
-        }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
-      }
-
-      case "create_snippet": {
-        const args = CreateSnippetSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippet = await createSnippet(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippet) }],
-        };
-      }
-
-      case "update_snippet": {
-        const args = UpdateSnippetSchema.parse(params.arguments);
-        const { project_id, ...options } = args;
-        const snippet = await updateSnippet(project_id, options);
-        return {
-          content: [{ type: "text", text: JSON.stringify(snippet) }],
-        };
-      }
-
-      case "delete_snippet": {
-        const args = DeleteSnippetSchema.parse(params.arguments);
-        await deleteSnippet(args.project_id, args.snippet_id);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "success",
-                message: `Snippet ${args.snippet_id} deleted successfully`,
-              }),
-            },
-          ],
-        };
-      }
-
-      case "list_webhooks": {
-        const args = ListWebhooksSchema.parse(params.arguments);
-        const webhooks = await listWebhooks(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhooks) }],
-        };
-      }
-
-      case "create_webhook": {
-        const args = CreateWebhookSchema.parse(params.arguments);
-        const webhook = await createWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "update_webhook": {
-        const args = UpdateWebhookSchema.parse(params.arguments);
-        const webhook = await updateWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(webhook) }],
-        };
-      }
-
-      case "delete_webhook": {
-        const args = DeleteWebhookSchema.parse(params.arguments);
-        const result = await deleteWebhook(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
-      }
-
-      case "list_webhook_events": {
-        const args = ListWebhookEventsSchema.parse(params.arguments);
-        const events = await listWebhookEvents(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(events) }],
-        };
-      }
-
-      case "get_webhook_event": {
-        const args = GetWebhookEventSchema.parse(params.arguments);
-        const event = await getWebhookEvent(args);
-        if (!event) {
-          const searchScope = args.page ? `on page ${args.page}` : "in the 500 most recent events";
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  error: `Webhook event ${args.event_id} not found ${searchScope}`,
-                }),
-              },
-            ],
-          };
-        }
-        return {
-          content: [{ type: "text", text: JSON.stringify(event) }],
-        };
-      }
+      case "list_webhooks":
+      case "create_webhook":
+      case "update_webhook":
+      case "delete_webhook":
+      case "list_webhook_events":
+      case "get_webhook_event":
+        return await handleWebhookToolCall(params);
 
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});
@@ -15212,7 +14869,7 @@ async function handleToolCall(params: any) {
               text: JSON.stringify({
                 status: "updated",
                 default_branch: args.default_branch,
-                project: data,
+                project: redactSensitiveGitLabFields(data),
               }),
             },
           ],
@@ -17233,7 +16890,7 @@ async function runServer() {
   try {
     // Print before validateConfiguration(), which process.exit()s on failure.
     // logger.warn goes to stderr; stdio transport owns stdout for JSON-RPC.
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
 
     // Validate configuration before starting server
     validateConfiguration();
@@ -17286,12 +16943,12 @@ async function runServer() {
 async function main(): Promise<void> {
   const cli = resolveCli(process.argv);
   if (cli.kind === "help") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     process.stdout.write(cli.text);
     process.exit(0);
   }
   if (cli.kind === "usage" || cli.kind === "refused") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
@@ -17342,7 +16999,7 @@ async function main(): Promise<void> {
     }
   }
   if (cli.kind === "run") {
-    emitDeprecatedEnvWarnings();
+    emitStartupConfigWarnings();
     if (!hasCliCredentials()) {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"

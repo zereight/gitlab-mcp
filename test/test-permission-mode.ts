@@ -2,7 +2,7 @@
  * Permission Mode Test Suite
  *
  * Tests GITLAB_PERMISSION_MODE (readonly / modify / full), its interaction with
- * the legacy GITLAB_READ_ONLY_MODE flag, and enforcement at list_tools,
+ * the removed GITLAB_READ_ONLY_MODE flag (fails startup), and enforcement at list_tools,
  * call_tool, and execute_graphql levels.
  */
 
@@ -415,6 +415,44 @@ describe("Permission Mode", { concurrency: 1 }, () => {
     });
   });
 
+  // Separate server: the modify-mode block above already uses most of the default
+  // 60 requests-per-minute budget, so these cases get their own counter.
+  describe("modify mode with comma-separated mutation headers", () => {
+    let server: ServerInstance;
+    const servers: ServerInstance[] = [];
+
+    before(async () => {
+      server = await launchMcpServer({ GITLAB_PERMISSION_MODE: "modify" });
+      servers.push(server);
+    });
+
+    after(() => cleanupServers(servers));
+
+    test("rejects a destructive field behind a comma-separated mutation header", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query:
+                'mutation ($c: Boolean = true), { a: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors }, mutation: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors } environmentStop(input: {id: "gid://gitlab/Environment/1"}) { errors } }',
+            }),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
+          "a destructive field after a comma-separated mutation header must be rejected"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("does not apply the modify-mode guard to comma-separated non-destructive mutations", async () => {
+      await assertQueryReachesGitLab(
+        server,
+        'mutation ($c: Boolean = true), { a: issueSetConfidential(input: {projectPath: "g/p", iid: "1", confidential: $c}) { errors } }'
+      );
+    });
+  });
+
   describe("call-time enforcement of list filters (modify mode)", () => {
     const servers: ServerInstance[] = [];
 
@@ -686,39 +724,12 @@ describe("Permission Mode", { concurrency: 1 }, () => {
     });
   });
 
-  describe("legacy GITLAB_READ_ONLY_MODE interaction", () => {
-    const servers: ServerInstance[] = [];
-
-    after(() => cleanupServers(servers));
-
-    test("GITLAB_READ_ONLY_MODE=true still behaves as readonly", async () => {
-      const server = await launchMcpServer({ GITLAB_READ_ONLY_MODE: "true" });
-      servers.push(server);
-      const names = await getToolNames(server);
-      assert.ok(names.includes("list_issues"), "read tool should be present");
-      assert.ok(!names.includes("create_issue"), "write tool should be absent");
-      assert.ok(!names.includes("delete_issue"), "delete tool should be absent");
-    });
-
-    test("GITLAB_READ_ONLY_MODE=true wins over GITLAB_PERMISSION_MODE=full", async () => {
-      const server = await launchMcpServer({
-        GITLAB_READ_ONLY_MODE: "true",
-        GITLAB_PERMISSION_MODE: "full",
-      });
-      servers.push(server);
-      const names = await getToolNames(server);
-      assert.ok(!names.includes("create_issue"), "legacy readonly should take precedence");
-      assert.ok(!names.includes("delete_issue"), "legacy readonly should take precedence");
-    });
-
-    test("rejects invalid GITLAB_PERMISSION_MODE even when GITLAB_READ_ONLY_MODE=true", async () => {
+  describe("removed GITLAB_READ_ONLY_MODE", () => {
+    test("fails startup instead of silently running with full access", async () => {
       await assert.rejects(
-        launchMcpServer({
-          GITLAB_READ_ONLY_MODE: "true",
-          GITLAB_PERMISSION_MODE: "write",
-        }),
+        launchMcpServer({ GITLAB_READ_ONLY_MODE: "true" }),
         (error: Error) => error.message.includes("Server process exited with code 1"),
-        "invalid permission mode should fail startup before legacy override applies"
+        "removed env var must fail closed"
       );
     });
   });

@@ -1,14 +1,22 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
 📖 **[Documentação →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 288 no total (285 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
+**Padrão: 40 ferramentas** (38 `core` + `discover_tools` + `help`). Existem 290 no total (287 em toolsets + `execute_graphql` + `discover_tools` + `help`). Comece enxuto; chame `discover_tools` para ativar mais nesta sessão.
 
-> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-05) e [comparação](./docs/comparison/index.md).
+> **Orçamento de tokens:** clientes MCP enviam o `tools/list` inteiro ao modelo no início da sessão. Mantenha o padrão (~40 ferramentas, ~12k tokens de schema). Chame `discover_tools` para ativar uma categoria nesta sessão (somente nesta sessão; com `OAUTH_STATELESS_MODE=true` persista uma lista `GITLAB_TOOLSETS`), ou use [Skill + CLI](./docs/getting-started/cli-without-mcp.md) e pule os schemas MCP. **Não defina `GITLAB_TOOLSETS=all`** — carrega quase todas as ferramentas e custa ~73k tokens de schema. Veja [tamanho do tools/list](#tamanho-do-toolslist-medido-em-2026-11-14) e [comparação](./docs/comparison/index.md).
 
 Instale o binário `zereight-mcp-gitlab` antes. `npm install -g @zereight/mcp-gitlab`, ou Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` e `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. Listagem oficial no MCP Registry: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). Instalação em uma linha: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -140,7 +148,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 288 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão. `GITLAB_TOOLSETS=all` custa ~73k tokens de schema; prefira descoberta sob demanda ou Skill + CLI
+- **40 ferramentas por padrão (38 `core` + `discover_tools` + `help`); 290 no total** — comece enxuto; chame `discover_tools` para expandir nesta sessão. `GITLAB_TOOLSETS=all` custa ~73k tokens de schema; prefira descoberta sob demanda ou Skill + CLI
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -154,20 +162,20 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
-| **Modelo de ferramentas** | 288 ferramentas: 285 em toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Modelo de ferramentas** | 290 ferramentas: 287 em toolsets + `execute_graphql` + `discover_tools` + `help` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
 | **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
 | **Node.js**               | >=20.0.0                                                                | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
 
-### Tamanho do tools/list (medido em 2026-11-05)
+### Tamanho do tools/list (medido em 2026-11-14)
 
 O cliente envia o `tools/list` inteiro ao modelo no início da sessão. A estimativa de tokens é bytes UTF-8 / 4.
 
 | Perfil | Ferramentas | Bytes JSON | Tokens estimados |
 | ------ | ----------: | ---------: | ---------------: |
-| Padrão (`core` + `discover_tools` + `help`) | 40 | 46.943 | 11.736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45.935 | 11.484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293.906 | 73.477 |
+| Padrão (`core` + `discover_tools` + `help`) | 40 | 47.822 | 11.956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46.814 | 11.704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295.933 | 73.984 |
 
 Após alterar descrições ou schemas, meça de novo com `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`).
 
@@ -254,7 +262,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.21`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.3.30`. Se você usa `GITLAB_MASKING_ENABLED`, use a 2.3.29 ou posterior (ou `@latest`): versões anteriores retornam em texto puro os valores de variáveis de CI/CD que o GitLab marca como masked ou hidden. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. Para testar uma correção já mesclada na `main` antes da próxima versão estável, use `npx -y @zereight/mcp-gitlab@next`, um build de pré-lançamento que não é indicado para produção. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Instalação com um clique no Claude Desktop (MCP Bundle)
 
@@ -282,13 +290,9 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 
 - `--token` - GitLab Personal Access Token (substitui `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` (substitui `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
 - `--toolsets` - toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). Não passe `all` a menos que aceite ~73k tokens de schema. `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` (substitui `USE_GITLAB_WIKI`)
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` (substitui `USE_MILESTONE`)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,pipelines` e acrescente `validate_ci_lint,validate_project_ci_lint` à lista `--tools` existente (ou defina `--tools=validate_ci_lint,validate_project_ci_lint` se ela não existir) (substitui `USE_PIPELINE`)
 - `--disable-version-check=true` - desativa o aviso de nova versão na inicialização (substitui `GITLAB_DISABLE_VERSION_CHECK`)
 - `--masking-enabled=true` - ativa o mascaramento de respostas de texto (substitui `GITLAB_MASKING_ENABLED`)
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
@@ -299,6 +303,8 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
 - `--list-summary-default=true` - ferramentas `list_*` tratam o argumento `summary` omitido como `true`; `summary: false` ainda retorna o JSON completo (substitui `GITLAB_MCP_LIST_SUMMARY_DEFAULT`; desativado por padrão)
+- `--audit-log=true` - log de auditoria NDJSON opcional das chamadas de ferramentas MCP para ingestão SIEM (substitui `GITLAB_AUDIT_LOG`; desativado por padrão)
+- `--audit-log-file` - anexa as linhas de auditoria a este arquivo; se omitido, escreve NDJSON em stderr, nunca em stdout (substitui `GITLAB_AUDIT_LOG_FILE`)
 - `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
 
 Se você já definiu `GITLAB_TOOLSETS` ou `--toolsets`, acrescente `wiki`, `milestones` ou `pipelines` a essa lista em vez de substituí-la. Se você já definiu `GITLAB_TOOLS` ou `--tools`, acrescente `validate_ci_lint` e `validate_project_ci_lint` a essa lista em vez de substituí-la. Uma lista explícita substitui o toolset padrão `core`; ela não é mesclada.
@@ -307,7 +313,7 @@ Os argumentos de CLI têm precedência sobre as variáveis de ambiente.
 
 `zereight-mcp-gitlab auth` é um subcomando, não uma flag do servidor MCP. Ele executa o device flow do GitLab e encerra. Veja [Argumentos de CLI](./docs/getting-started/cli-arguments.md#auth).
 
-O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou formas curadas como `mr list`). **Não é necessário registrar o MCP** — defina um PAT, ou execute `auth` e defina `GITLAB_USE_OAUTH=true`: veja [CLI sem MCP](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude` imprime a configuração do cliente; `doctor` verifica token, URL da API, toolsets e versão. Use-o para ver a carga completa no terminal. As respostas do MCP permanecem no chat, a menos que você defina `GITLAB_MCP_COMPACT_RESULTS=true` (ou `--compact-results`), o que substitui respostas grandes de ferramentas por uma prévia e um comando CLI. A CLI humana nunca é compactada. Os mesmos filtros de permission mode, toolsets, denied-tools regex e tool-policy se aplicam. Ferramentas destrutivas e ferramentas com `GITLAB_TOOL_POLICY_APPROVE` exigem `--yes`. Consulte [CLI Humana](./docs/getting-started/cli-arguments.md#human-cli).
+O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou formas curadas como `mr list`). **Não é necessário registrar o MCP** — defina um PAT, ou execute `auth` e defina `GITLAB_USE_OAUTH=true`: veja [CLI sem MCP](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude` imprime a configuração do cliente; `doctor` verifica token, URL da API, toolsets e versão. Use-o para ver a carga completa no terminal. As respostas do MCP permanecem no chat, a menos que você defina `GITLAB_MCP_COMPACT_RESULTS=true` (ou `--compact-results`), o que substitui respostas grandes de ferramentas por uma prévia e um comando CLI. A resposta só traz um comando `cli` quando todos os valores são seguros para shell em shells POSIX, cmd.exe e PowerShell; caso contrário, traz `cli_argv` (um array argv) para executar sem shell. A CLI humana nunca é compactada. Os mesmos filtros de permission mode, toolsets, denied-tools regex e tool-policy se aplicam. Ferramentas destrutivas e ferramentas com `GITLAB_TOOL_POLICY_APPROVE` exigem `--yes`. Consulte [CLI Humana](./docs/getting-started/cli-arguments.md#human-cli).
 
 > **Filtragem granular de ferramentas:** use `GITLAB_PERMISSION_MODE=modify` para permitir criação/atualização enquanto
 > bloqueia todas as ferramentas de exclusão e as ferramentas destrutivas de teardown (`cancel_pipeline`,
@@ -318,7 +324,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Também é possível habilitar grupos de ferramentas com `GITLAB_TOOLSETS=<group,…>`, permitir ferramentas individuais com
 > `GITLAB_TOOLS=<tool,…>` (por exemplo, grupos somente leitura mais algumas ferramentas específicas de escrita) e
 > bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`. As flags legadas `USE_GITLAB_WIKI` /
-> `USE_MILESTONE` / `USE_PIPELINE` estão deprecated (removed in next major (v3.0.0)).
+> `USE_MILESTONE` / `USE_PIPELINE` foram removidas na v3.0.0.
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones` ou `core,pipelines`
 > (`USE_PIPELINE` também precisa acrescentar `validate_ci_lint,validate_project_ci_lint` à lista `GITLAB_TOOLS` existente em vez de substituí-la).
 > Se você já definiu `GITLAB_TOOLSETS`, acrescente o toolset à lista existente em vez de substituí-la.
@@ -327,8 +333,8 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
 > [!CAUTION]
-> `gitlab_api_request` (toolset `api`) ignora `GITLAB_ALLOWED_GROUPS` e outras restrições de grupo, allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
-> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
+> `gitlab_api_request` (toolset `api`) ignora allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. Com `GITLAB_MCP_OAUTH=true`, a checagem de membros de `GITLAB_OAUTH_ALLOWED_GROUPS` continua decidindo quem pode usar o servidor, mas um usuário admitido pode solicitar recursos fora desses grupos. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
+> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS` e `GITLAB_TOOL_PROFILE` não ligam). Com `GITLAB_ALLOWED_PROJECT_IDS` ou um escopo de projeto da sessão, só caminhos `/projects/:id` de um projeto permitido são aceitos. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` são rejeitados. Parâmetros de corpo e de query que apontam para outro projeto não são verificados. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
 
@@ -770,3 +776,19 @@ Todos os testes de autorização remota usam um servidor GitLab mockado e não e
 ## Patrocínio 💖
 
 Os patrocínios pelo [GitHub Sponsors](https://github.com/sponsors/zereight) ajudam a cobrir os custos dos testes E2E com o GitLab: um plano pago do GitLab para testar recursos Premium/Ultimate (como gráficos de burndown de milestones e iterations) que a instância de teste gratuita não alcança, e a infraestrutura dos testes de API ao vivo.
+
+## Configurações removidas na v3.0.0
+
+Configurações legadas ativas agora interrompem a inicialização com um erro de migração, em vez de descartar silenciosamente as restrições de acesso. Remova também as configurações legadas vazias ou false.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (a checagem de membros do grupo só acontece com `GITLAB_MCP_OAUTH=true`; veja [MCP OAuth](#usando-o-proxy-mcp-oauth-gitlab_mcp_oauth)) |
+| `USE_GITLAB_WIKI` / `--use-wiki` | acrescente `wiki` a `GITLAB_TOOLSETS` / `--toolsets` (`core,wiki` se não estava definido) |
+| `USE_MILESTONE` / `--use-milestone` | acrescente `milestones` a `GITLAB_TOOLSETS` / `--toolsets` (`core,milestones` se não estava definido) |
+| `USE_PIPELINE` / `--use-pipeline` | acrescente `pipelines` a `GITLAB_TOOLSETS` / `--toolsets` (`core,pipelines` se não estava definido), além de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` se você usar CI lint |
+
+Use uma substituição só para uma configuração que estava ativada e mantenha exatamente os toolsets que você já tinha. Se `GITLAB_TOOLSETS` não estava definido ou não tinha nenhum nome de toolset válido, a v2 expunha o toolset padrão `core`, então use `core` mais cada toolset ativado (por exemplo `core,wiki` ou `core,pipelines`). Um `--toolsets` não vazio tem prioridade sobre `GITLAB_TOOLSETS`, então aplique isto ao que você definiu. Se era uma lista, acrescente à lista como está e só inclua `core` se ele já estava listado: `GITLAB_TOOLSETS=search` vira `search,wiki`, não `core,search,wiki`. Acrescente a uma lista `GITLAB_TOOLS` existente em vez de substituí-la e deixe um `GITLAB_TOOLSETS=all` existente sem alterações. Se você usava `GITLAB_TOOL_PROFILE=slim` com `USE_*` e sem `GITLAB_TOOLSETS` (o único caso em que o slim estava ativo), uma lista explícita em `GITLAB_TOOLSETS` desativa o slim e adiciona `list_labels` ao primeiro `tools/list`; defina `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` para manter a lista da v2, a menos que `GITLAB_TOOLS` inclua `list_labels` (o slim não a ocultava nesse caso) (se você já define um padrão de bloqueio, acrescente `list_labels` a ele, por exemplo `^delete_.*|^list_labels$`, pois a variável aceita um único padrão).
+
+Consulte o [guia de migração da v2 para a v3](docs/migration/v2-to-v3.md).

@@ -1,14 +1,22 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 288개(toolset 285개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 290개(toolset 287개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
-> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-05-실측)와 [비교](./docs/comparison/index.md)를 보세요.
+> **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-14-실측)와 [비교](./docs/comparison/index.md)를 보세요.
 
 `zereight-mcp-gitlab` 바이너리를 먼저 설치하세요. `npm install -g @zereight/mcp-gitlab`, 또는 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 다음 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`. 공식 MCP Registry 항목: [`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp). 한 줄 설치: `npx -y @zereight/mcp-gitlab@latest`.
 
@@ -140,7 +148,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 288개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 290개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -154,20 +162,20 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 288개 도구: toolset 285개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 290개 도구: toolset 287개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
 
-### tools/list 크기 (2026-11-05 실측)
+### tools/list 크기 (2026-11-14 실측)
 
 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 토큰 추정은 UTF-8 바이트 / 4입니다.
 
 | 프로필 | 도구 수 | JSON 바이트 | 추정 토큰 |
 | ------ | ------: | ----------: | --------: |
-| 기본값 (`core` + `discover_tools` + `help`) | 40 | 46,943 | 11,736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
+| 기본값 (`core` + `discover_tools` + `help`) | 40 | 47,822 | 11,956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46,814 | 11,704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295,933 | 73,984 |
 
 설명이나 스키마를 바꾼 뒤에는 `npm run build && npm run test:mock` (`test/tools-list-budget.test.ts`)으로 다시 측정하세요.
 
@@ -254,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.21`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.30`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. `GITLAB_MASKING_ENABLED`를 쓴다면 2.3.29 이상(또는 `@latest`)을 사용하세요. 이전 버전은 GitLab이 masked 또는 hidden으로 지정한 CI/CD 변수 값을 평문으로 반환합니다. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -282,13 +290,9 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
 - `--toolsets` - 지정한 툴셋 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값). `all`은 스키마 ~73k 토큰이므로 쓰지 마세요. `gitlab_api_request`는 `--toolsets=api`
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,milestones`를 사용 (`USE_MILESTONE` 대체)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,pipelines`를 사용하고, 기존 `--tools` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가하세요. 목록이 없으면 `--tools=validate_ci_lint,validate_project_ci_lint`를 설정하세요 (`USE_PIPELINE` 대체)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 - `--masking-enabled=true` - 텍스트 응답 마스킹 활성화 (`GITLAB_MASKING_ENABLED` 대체)
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
@@ -299,6 +303,8 @@ v2.3.1 이후의 GitHub 릴리스마다 `gitlab-mcp.mcpb` [MCP Bundle](https://g
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
 - `--list-summary-default=true` - `list_*` 도구에서 `summary` 인자를 생략하면 `true`로 처리. `summary: false`를 넘기면 전체 JSON을 반환 (`GITLAB_MCP_LIST_SUMMARY_DEFAULT` 대체, 기본 꺼짐)
+- `--audit-log=true` - MCP 도구 호출 SIEM용 NDJSON 감사 로그 (선택, `GITLAB_AUDIT_LOG` 대체, 기본 꺼짐)
+- `--audit-log-file` - 감사 로그 파일 경로. 비우면 stderr NDJSON, stdout에는 쓰지 않음 (`GITLAB_AUDIT_LOG_FILE` 대체)
 - `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
 
 이미 `GITLAB_TOOLSETS` 또는 `--toolsets`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 이미 `GITLAB_TOOLS` 또는 `--tools`를 설정했다면 `validate_ci_lint`와 `validate_project_ci_lint`를 그 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.
@@ -307,7 +313,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 `zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
-같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude`는 클라이언트 설정을 출력하고, `doctor`는 토큰·API URL·toolset·버전을 점검합니다. 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
+같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). `setup --cursor` / `setup --claude`는 클라이언트 설정을 출력하고, `doctor`는 토큰·API URL·toolset·버전을 점검합니다. 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. 모든 값이 POSIX 셸, cmd.exe, PowerShell 어디서나 셸에 안전할 때만 응답에 `cli` 명령이 들어가고, 그렇지 않으면 셸 없이 실행할 argv 배열 `cli_argv`가 들어갑니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
@@ -318,7 +324,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는
-> deprecated (removed in next major (v3.0.0))입니다.
+> v3.0.0에서 제거되었습니다. 활성화된 구 설정은 시작 오류를 냅니다.
 > `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, `core,pipelines`를 사용하세요
 > (`USE_PIPELINE`은 기존 `GITLAB_TOOLS` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가해야 하며, 그 목록을 통째로 바꾸면 안 됩니다).
 > 이미 `GITLAB_TOOLSETS`를 설정했다면 toolset을 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
@@ -327,8 +333,8 @@ CLI 인자는 환경 변수보다 우선합니다.
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 > [!CAUTION]
-> `gitlab_api_request`(`api` 툴셋)는 `GITLAB_ALLOWED_GROUPS`와 그 밖의 그룹 제한, 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
-> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, 레거시 `USE_*`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`나 세션 프로젝트 범위가 있으면 허용된 프로젝트의 `/projects/:id` 경로만 받습니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 거부됩니다. 본문과 쿼리 파라미터가 가리키는 다른 프로젝트는 검사하지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
+> `gitlab_api_request`(`api` 툴셋)는 프로젝트 허용 목록, 도구 단위 제한(`GITLAB_TOOLS`, 다른 도구에 걸린 `GITLAB_DENIED_TOOLS_REGEX`), 개별 도구 안전 검사를 우회합니다. `GITLAB_MCP_OAUTH=true`이면 `GITLAB_OAUTH_ALLOWED_GROUPS` 멤버십 검사는 그대로 서버를 쓸 수 있는 사용자를 정하지만, 허용된 사용자는 그 그룹 밖의 리소스도 요청할 수 있습니다. 토큰 권한 범위 전체가 노출됩니다. 프롬프트 인젝션이 이 도구를 호출할 수 있습니다. 이런 제한에 의존하는 운영자는 켜면 안 됩니다.
+> `GITLAB_TOOLSETS`에 `api`를 직접 적을 때만 켜집니다 (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, `GITLAB_TOOL_PROFILE`로는 안 됩니다). `GITLAB_ALLOWED_PROJECT_IDS`나 세션 프로젝트 범위가 있으면 허용된 프로젝트의 `/projects/:id` 경로만 받습니다. `/search`, `/users`, `/groups/:id`, `/runners` 같은 엔드포인트는 거부됩니다. 본문과 쿼리 파라미터가 가리키는 다른 프로젝트는 검사하지 않습니다. `GITLAB_PROJECT_ID`와 OAuth 그룹 허용 목록은 이 도구가 검사하지 않습니다.
 
 - sse
 
@@ -770,3 +776,19 @@ npm run test:integration
 ## 후원 💖
 
 [GitHub Sponsors](https://github.com/sponsors/zereight) 후원금은 GitLab E2E 테스트 비용에 쓰입니다. 무료 테스트 인스턴스로는 확인할 수 없는 Premium/Ultimate 기능(milestone burndown 차트, iteration 등)을 테스트하기 위한 유료 GitLab 플랜과 live API 테스트 인프라 비용입니다.
+
+## v3.0.0에서 제거된 설정
+
+활성화된 구 설정은 접근 제한을 조용히 해제하는 대신 마이그레이션 오류로 서버 시작을 중단합니다. 비어 있거나 false인 구 설정도 구성에서 삭제하세요.
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups` (그룹 멤버십은 `GITLAB_MCP_OAUTH=true`일 때만 검사합니다. [MCP OAuth](#mcp-oauth-프록시-사용하기gitlab_mcp_oauth) 참고) |
+| `USE_GITLAB_WIKI` / `--use-wiki` | `GITLAB_TOOLSETS` / `--toolsets`에 `wiki` 추가 (설정하지 않았던 경우 `core,wiki`) |
+| `USE_MILESTONE` / `--use-milestone` | `GITLAB_TOOLSETS` / `--toolsets`에 `milestones` 추가 (설정하지 않았던 경우 `core,milestones`) |
+| `USE_PIPELINE` / `--use-pipeline` | `GITLAB_TOOLSETS` / `--toolsets`에 `pipelines` 추가 (설정하지 않았던 경우 `core,pipelines`), 추가로 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint` (CI lint를 사용하는 경우) |
+
+켜져 있던 설정만 대체하고, 쓰던 툴셋은 그대로 유지하세요. `GITLAB_TOOLSETS`를 설정하지 않았거나 유효한 툴셋 이름이 하나도 없었다면 v2는 기본 툴셋인 `core`를 노출했으므로 `core`에 켜져 있던 툴셋을 더해 쓰세요(예: `core,wiki`, `core,pipelines`). 비어 있지 않은 `--toolsets`가 `GITLAB_TOOLSETS`보다 우선하므로, 실제로 설정한 쪽에 적용하세요. 목록을 설정했다면 그 목록 뒤에 그대로 추가하고, `core`는 원래 목록에 있었을 때만 넣으세요. 예를 들어 `GITLAB_TOOLSETS=search`는 `core,search,wiki`가 아니라 `search,wiki`가 됩니다. 기존 `GITLAB_TOOLS` 목록은 덮어쓰지 말고 항목을 추가하고, 기존 `GITLAB_TOOLSETS=all`은 그대로 두세요. `GITLAB_TOOL_PROFILE=slim`과 `USE_*`를 `GITLAB_TOOLSETS` 없이 함께 썼다면(slim이 실제로 적용되던 유일한 경우), `GITLAB_TOOLSETS` 목록을 명시하는 순간 slim이 꺼지고 첫 `tools/list`에 `list_labels`가 추가됩니다. v2와 같은 목록을 유지하려면 `GITLAB_DENIED_TOOLS_REGEX=^list_labels$`도 설정하세요. 단, `GITLAB_TOOLS`에 `list_labels`가 있으면 slim도 숨기지 않았으므로 넣지 마세요. 이미 차단 패턴을 쓰고 있다면 이 변수는 패턴 하나만 받으므로, 덮어쓰지 말고 `^delete_.*|^list_labels$`처럼 기존 패턴에 `list_labels`를 합치세요.
+
+[v2에서 v3로의 마이그레이션 가이드](docs/migration/v2-to-v3.md)를 참고하세요.

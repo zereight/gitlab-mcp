@@ -9,6 +9,7 @@ EXCLUDE_OPTS=(
   ! -name 'test-merge-request-approvals.ts'
   # Need a live GitLab token (GITLAB_TOKEN_TEST / TEST_PROJECT_ID)
   ! -name 'remote-auth-tests.ts' ! -name 'test-all-transport-server.ts'
+  ! -path 'test/live/*'
 )
 
 run_mock_tests() {
@@ -32,7 +33,7 @@ run_mock_tests 4 \
   -o -path 'test/stateless/callback-proxy.test.ts' \
   -o -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
   -o -path 'test/oauth-startup.test.ts' \
-  -o -path 'test/deprecated-env.test.ts' \
+  -o -path 'test/removed-config.test.ts' \
   -o -path 'test/oauth-scopes.test.ts' \
   -o -path 'test/oauth-device-flow-tests.ts' \
   -o -path 'test/personal-access-token-file.test.ts' \
@@ -44,7 +45,7 @@ run_mock_tests 4 \
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
 node --import tsx/esm --test --experimental-test-isolation=none \
   scripts/tool-coverage/coverage.test.ts scripts/release.test.ts \
-  scripts/merge-changelog-fragments.test.ts
+  scripts/merge-changelog-fragments.test.ts scripts/code-coverage-summary.test.ts
 
 # Server-spawning suites — sequential to avoid port races and node:test IPC flakes
 run_mock_tests 1 \
@@ -60,7 +61,7 @@ run_mock_tests 1 \
   ! -path 'test/stateless/callback-proxy.test.ts' \
   ! -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
   ! -path 'test/oauth-startup.test.ts' \
-  ! -path 'test/deprecated-env.test.ts' \
+  ! -path 'test/removed-config.test.ts' \
   ! -path 'test/oauth-scopes.test.ts' \
   ! -path 'test/oauth-device-flow-tests.ts' \
   ! -path 'test/personal-access-token-file.test.ts' \

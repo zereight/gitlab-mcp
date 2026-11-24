@@ -45,16 +45,14 @@ const GLOBAL_FLAG_NAMES = new Set([
   "cookie-path",
   "use-oauth",
   "is-old",
-  "read-only",
   "masking-enabled",
   "masking-config",
   "masking-policy-file",
   "masking-workspace-dir",
+  "audit-log",
+  "audit-log-file",
   "download-dir",
   "permission-mode",
-  "use-wiki",
-  "use-milestone",
-  "use-pipeline",
   "disable-version-check",
   "toolsets",
   "tools",
@@ -71,7 +69,6 @@ const GLOBAL_FLAG_NAMES = new Set([
   "oauth-scopes",
   "oauth-callback-proxy",
   "oauth-allowed-redirect-uris",
-  "allowed-groups",
   "oauth-allowed-groups",
   "oauth-disable-refresh-token",
   "enable-dynamic-api-url",
@@ -309,9 +306,11 @@ export function isCliOutputMode(value: string): value is OutputMode {
 
 function userArgv(argv: readonly string[]): readonly string[] {
   const args = argv.slice(2);
-  const start = args.findIndex(arg => !arg.startsWith("-") && SCRIPT_PATH_PATTERN.test(arg));
-  if (start >= 0) {
-    return args.slice(start + 1);
+  // Only the first positional can be the script a runner passes in. A later
+  // value such as `src/app.ts` is a tool argument, not a script path.
+  const first = args.findIndex(arg => !arg.startsWith("-"));
+  if (first >= 0 && SCRIPT_PATH_PATTERN.test(args[first])) {
+    return args.slice(first + 1);
   }
   return args;
 }

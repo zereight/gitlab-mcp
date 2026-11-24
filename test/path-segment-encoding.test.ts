@@ -7,7 +7,15 @@ const readSource = (relativePath: string): string =>
   readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
 const indexSource = readSource("../index.ts");
-const pathBuildingSources = [indexSource, readSource("../tools/milestones.ts")];
+const pathBuildingSources = [
+  indexSource,
+  readSource("../tools/milestones.ts"),
+  readSource("../tools/tags.ts"),
+  readSource("../tools/variables.ts"),
+  readSource("../tools/webhooks.ts"),
+  readSource("../tools/snippets.ts"),
+  readSource("../tools/todos.ts"),
+];
 
 const rawPathSegmentPatterns = [
   "/issues/${issueIid}",
@@ -52,6 +60,11 @@ const queryStringEncoders = [
 const serverSources = [
   ["index.ts", "../index.ts"],
   ["tools/milestones.ts", "../tools/milestones.ts"],
+  ["tools/tags.ts", "../tools/tags.ts"],
+  ["tools/variables.ts", "../tools/variables.ts"],
+  ["tools/webhooks.ts", "../tools/webhooks.ts"],
+  ["tools/snippets.ts", "../tools/snippets.ts"],
+  ["tools/todos.ts", "../tools/todos.ts"],
   ["downloads/proxy.ts", "../downloads/proxy.ts"],
   ["oauth-proxy.ts", "../oauth-proxy.ts"],
 ] as const;

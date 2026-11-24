@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 288 tools: 285 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
+GitLab MCP server providing 291 tools: 288 tools across 24 toolsets, plus `execute_graphql`, the always-available `discover_tools` meta-tool, and `help`.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -15,17 +15,17 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 |---|---|---|
 | core (38 tools) | yes | default lean starter set |
 | merge_requests (46 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
-| issues (25 tools) | no | `GITLAB_TOOLSETS=issues` |
-| repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
+| issues (27 tools) | no | `GITLAB_TOOLSETS=issues` |
+| repositories (8 tools) | no | `GITLAB_TOOLSETS=repositories` |
 | branches (16 tools) | no | `GITLAB_TOOLSETS=branches` |
 | projects (20 tools) | no | `GITLAB_TOOLSETS=projects` |
 | labels (5 tools) | no | `GITLAB_TOOLSETS=labels` |
 | ci (4 tools) | no | `GITLAB_TOOLSETS=ci` |
 | groups (1 tool) | no | `GITLAB_TOOLSETS=groups` |
 | users (7 tools) | no | `GITLAB_TOOLSETS=users` |
-| pipelines (58 tools) | no | `GITLAB_TOOLSETS=core,pipelines` (deprecated `USE_PIPELINE`; if `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, otherwise append those tools instead of replacing the list) |
-| milestones (17 tools) | no | `GITLAB_TOOLSETS=core,milestones` (deprecated `USE_MILESTONE`) |
-| wiki (10 tools) | no | `GITLAB_TOOLSETS=core,wiki` (deprecated `USE_GITLAB_WIKI`) |
+| pipelines (58 tools) | no | `GITLAB_TOOLSETS=core,pipelines` (for CI lint, if `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, otherwise append those tools instead of replacing the list) |
+| milestones (17 tools) | no | `GITLAB_TOOLSETS=core,milestones` |
+| wiki (10 tools) | no | `GITLAB_TOOLSETS=core,wiki` |
 | releases (7 tools) | no | `GITLAB_TOOLSETS=releases` |
 | tags (9 tools) | no | `GITLAB_TOOLSETS=tags` |
 | snippets (5 tools) | no | `GITLAB_TOOLSETS=snippets` |
@@ -38,13 +38,13 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | orbit (4 tools) | no | `GITLAB_TOOLSETS=orbit` |
 | api (1 tool) | no | `GITLAB_TOOLSETS=api` only (not `all`, not `discover_tools`, not `GITLAB_TOOLS`) |
 
-Prefer `discover_tools` to list and activate an opt-in category for this session (except `api`). Session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list (include `core` to keep the default set). `GITLAB_TOOLSETS=all` loads every discoverable toolset except `api` and costs ~73k schema tokens — avoid it. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset, except explicit-only tools such as `gitlab_api_request`. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` are deprecated (removed in next major (v3.0.0)). If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
+Prefer `discover_tools` to list and activate an opt-in category for this session (except `api`). Session-only; with `OAUTH_STATELESS_MODE=true` persist a named `GITLAB_TOOLSETS` list (include `core` to keep the default set). `GITLAB_TOOLSETS=all` loads every discoverable toolset except `api` and costs ~73k schema tokens — avoid it. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset, except explicit-only tools such as `gitlab_api_request`. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` were removed in v3.0.0; active legacy settings stop startup. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
 
-`gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced.
+`gitlab_api_request` bypasses project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. With `GITLAB_MCP_OAUTH=true`, the `GITLAB_OAUTH_ALLOWED_GROUPS` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection can drive this tool. Operators who rely on these restrictions must NOT enable it. With `GITLAB_ALLOWED_PROJECT_IDS` or a session project scope, only `/projects/:id` paths for an allowed project are accepted; `/search`, `/users`, `/groups/:id`, `/runners`, and other paths are rejected. Body and query parameters that name another project are not checked. `GITLAB_PROJECT_ID` and OAuth group allowlists are not enforced by this tool.
 
-The per-toolset counts above sum to 325 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 328 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 285.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 288.
 
 ## Key Workflows
 
@@ -66,6 +66,8 @@ in their full category (`get_branch` and `list_branches` additionally appear in 
 Use `update_issue_description_patch` for small edits to long issue descriptions instead of resending the full body.
 
 Board order: `reorder_issue` with `move_after_id` / `move_before_id` (the neighbor issue's global `id`, not its `iid`).
+
+History: `list_issue_label_events` / `list_issue_state_events` for label and state changes over time (flow of label-based board columns).
 
 ### Projects & Namespaces
 
@@ -121,7 +123,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 ### File Operations
 
 - Read: `get_file_contents`, `get_repository_tree`
-- Write: `create_or_update_file` (single file), `push_files` (multiple files in one commit)
+- Write: `update_file_patch` (change a few lines of an existing file), `create_or_update_file` (create or replace a file), `push_files` (multiple files in one commit)
 
 ## Token-saving rules
 

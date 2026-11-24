@@ -20,7 +20,7 @@ directly from `TOOLSET_DEFINITIONS` in
 | Status | Groups |
 |---|---|
 | **Default** — always exposed | [Core](core.md) |
-| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (legacy `USE_PIPELINE=true` is deprecated; removed in next major (v3.0.0)), [Milestones](milestones.md) (legacy `USE_MILESTONE=true` is deprecated; removed in next major (v3.0.0)), [Wiki](wiki.md) (legacy `USE_GITLAB_WIKI=true` is deprecated; removed in next major (v3.0.0)), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
+| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md), [Milestones](milestones.md), [Wiki](wiki.md), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
 | **Explicit opt-in** — not included in `all` or `discover_tools` | [Raw API](api.md) |
 | **Not a toolset** — `discover_tools` and `help` are always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
@@ -31,13 +31,11 @@ directly from `TOOLSET_DEFINITIONS` in
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.
 - `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
 Permission modes control which tools are exposed:
 
 - `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles. Mixed tools (`execute_graphql`, `gitlab_api_request`) stay listed; their handlers reject writes.
 - `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, plus `push_files` `delete`/`move` actions.
-- `GITLAB_READ_ONLY_MODE=true` is deprecated (removed in next major (v3.0.0)) — same as `readonly`; use `GITLAB_PERMISSION_MODE=readonly` instead.
 
 The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).
 
@@ -85,8 +83,8 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 | [`create_issue_note`](core.md#create_issue_note) | Add a note to an issue, optionally replying to a discussion thread. Add a note to an existing issue, optionally as a reply. Use `update_issue` for issue fields. | ✏️ |
 | [`list_issue_discussions`](core.md#list_issue_discussions) | List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records. | 📖 |
 | [`update_issue_description_patch`](core.md#update_issue_description_patch) | Patch an issue description (search/replace or unified diff) without resending the full body. dry_run previews; create_note summarizes. | ✏️ |
-| [`get_file_contents`](core.md#get_file_contents) | Get contents of a file or directory from a GitLab project. | 📖 |
-| [`get_repository_tree`](core.md#get_repository_tree) | List files and directories in a repository. | 📖 |
+| [`get_file_contents`](core.md#get_file_contents) | Get the contents of one file from a GitLab project. `ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`. | 📖 |
+| [`get_repository_tree`](core.md#get_repository_tree) | List files and directories in a repository. One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file. | 📖 |
 | [`search_repositories`](core.md#search_repositories) | Search for GitLab projects. If the identifier is known, use a typed get or list tool. | 📖 |
 | [`get_branch`](core.md#get_branch) | Get branch details (commit, protection status). To find resources, use the matching list or search tool. | 📖 |
 | [`list_branches`](core.md#list_branches) | List branches in project with search filter. For one known resource, use the matching get tool. | 📖 |
@@ -132,7 +130,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 
 ### [Projects & Files](repositories.md)
 
-Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
+Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(8 tools)*
 
 > Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,repositories`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `repositories` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
@@ -140,11 +138,12 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 |---|---|:-:|
 | [`search_repositories`](repositories.md#search_repositories) | Search for GitLab projects. If the identifier is known, use a typed get or list tool. | 📖 |
 | [`create_repository`](repositories.md#create_repository) | Create a new GitLab project. | ✏️ |
-| [`get_file_contents`](repositories.md#get_file_contents) | Get contents of a file or directory from a GitLab project. | 📖 |
+| [`get_file_contents`](repositories.md#get_file_contents) | Get the contents of one file from a GitLab project. `ref` defaults to the default branch. `encoding` is `utf8` when a UTF-8 round-trip test passes, else `base64`; binaries with valid UTF-8 bytes (e.g. 0x00) also pass. Read `encoding`, don't infer it. Directories are not supported: use `get_repository_tree`. | 📖 |
 | [`push_files`](repositories.md#push_files) | Push multiple files in a single commit. Commit several file changes atomically. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`. | ✏️ |
-| [`create_or_update_file`](repositories.md#create_or_update_file) | Create or update a file in a GitLab project. Create or update one repository file. Use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`. | ✏️ |
+| [`create_or_update_file`](repositories.md#create_or_update_file) | Create or update a file in a GitLab project. Create or update one repository file. Use `update_file_patch` to change a few lines of an existing file and `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING`. | ✏️ |
+| [`update_file_patch`](repositories.md#update_file_patch) | Patch an existing repository file (search/replace or unified diff) without resending the whole content. dry_run previews. Change part of an existing UTF-8 file and commit it, sending only the changed lines. The server reads the file from `branch`, applies the patch, and commits with the file's `last_commit_id`, so a file changed in between is not overwritten. Each SEARCH text must match exactly once (add surrounding lines to make it unique). Returns the diff. Use `create_or_update_file` to create a file. | ✏️ |
 | [`fork_repository`](repositories.md#fork_repository) | Fork a project to your account or specified namespace. Fork an existing project into the current user's namespace or a permitted namespace. Use `search_repositories` or `get_project` to inspect without copying. | ✏️ |
-| [`get_repository_tree`](repositories.md#get_repository_tree) | List files and directories in a repository. | 📖 |
+| [`get_repository_tree`](repositories.md#get_repository_tree) | List files and directories in a repository. One level under `path` unless `recursive` is true. Use `get_file_contents` to read a file. | 📖 |
 
 ### [Branches & Commits](branches.md)
 
@@ -238,7 +237,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 ### [Issues](issues.md)
 
-Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools)*
+Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(27 tools)*
 
 > Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,issues`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `issues` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest. With `GITLAB_TOOL_PROFILE=slim` and `GITLAB_TOOLSETS` unset, `discover_tools` skips 6 of these tools (`list_issue_emoji_reactions`, `list_issue_note_emoji_reactions`, `create_issue_emoji_reaction`, `delete_issue_emoji_reaction`, `create_issue_note_emoji_reaction`, `delete_issue_note_emoji_reaction`); add a tool name to `GITLAB_TOOLS` to expose it. Setting `GITLAB_TOOLSETS` disables the slim profile.
 
@@ -259,6 +258,8 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(25 tools
 | [`update_issue_note`](issues.md#update_issue_note) | Modify an existing issue thread note. Use the create tool for new resources. | ✏️ |
 | [`list_issue_links`](issues.md#list_issue_links) | List all issue links for a specific issue. For one known resource, use the matching get tool. | 📖 |
 | [`list_issue_discussions`](issues.md#list_issue_discussions) | List discussions for an issue. List threaded discussions for an issue. Use `list_issues` or `get_issue` for issue records. | 📖 |
+| [`list_issue_label_events`](issues.md#list_issue_label_events) | List an issue's label history: who added or removed which label, when. Lean events: created_at, user.username, action, label.name (label is null if deleted). Paginated via page/per_page. | 📖 |
+| [`list_issue_state_events`](issues.md#list_issue_state_events) | List an issue's state history: who closed or reopened it, when. Lean events: created_at, user.username, state. Paginated via page/per_page. | 📖 |
 | [`get_issue_link`](issues.md#get_issue_link) | Get a specific issue link. To find resources, use the matching list or search tool. | 📖 |
 | [`create_issue_link`](issues.md#create_issue_link) | Create an issue link between two issues. | ✏️ |
 | [`delete_issue_link`](issues.md#delete_issue_link) | Delete an issue link. Remove a relationship between two issues. Verify first with `list_issue_links` or `get_issue_link`. | ✏️ |
@@ -328,7 +329,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view. *(58 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,pipelines`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). The removed `USE_PIPELINE=true` also exposed `validate_ci_lint` and `validate_project_ci_lint` (toolset `ci`): to keep them, append both to an existing `GITLAB_TOOLS` list, or set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` if it is unset.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -395,7 +396,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,milestones`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,milestones`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -421,7 +422,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Opt-in. Prefer `discover_tools`, or persist with `GITLAB_TOOLSETS=core,wiki`. Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Prefer `discover_tools` at runtime, or persist with `GITLAB_TOOLSETS=core,wiki`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged). Avoid `GITLAB_TOOLSETS=all` (loads ~all schemas into tools/list).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -589,7 +590,7 @@ Snippet CRUD — list, get (with optional file content), create, update, and del
 
 Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of core, not enabled by GITLAB_TOOLSETS=all, and not activatable with discover_tools. *(1 tools)*
 
-> Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it.
+> Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, and `GITLAB_TOOL_PROFILE` do not enable it.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

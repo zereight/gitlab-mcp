@@ -63,7 +63,7 @@ describe('GitLab MCP Server - Stdio Transport', () => {
     GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN,
     GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
     GITLAB_PROJECT_ID: TEST_PROJECT_ID,
-    GITLAB_READ_ONLY_MODE: 'true',
+    GITLAB_PERMISSION_MODE: 'readonly',
     // Explicitly disable other transport modes to ensure stdio mode
     SSE: 'false',
     STREAMABLE_HTTP: 'false'

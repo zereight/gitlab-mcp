@@ -363,7 +363,7 @@ export function buildCoverageMarkdown(
     "",
     "This is **MCP `tools/call` coverage**, not GitLab REST coverage and not line coverage.",
     "",
-    'A tool counts as invoked when a test sends that name through MCP (`callTool` / `callToolJson` / `callToolAsync` / `client.callTool`, or a `tools/call` payload with `name: "…"`). Listing a name in a toolset filter or description-quality test does not count. `test:live` (`test/validate-api.js`) is a REST smoke check and is not included.',
+    'A tool counts as invoked when a test sends that name through MCP (`callTool` / `callToolJson` / `callToolAsync` / `client.callTool`, or a `tools/call` payload with `name: "…"`). Listing a name in a toolset filter or description-quality test does not count. `test/validate-api.js` (part of `test:live`) is a REST smoke check and is not included.',
     "",
     "| | |",
     "| --- | ---: |",

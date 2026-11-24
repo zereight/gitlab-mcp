@@ -196,7 +196,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'false',
+        GITLAB_PERMISSION_MODE: 'full',
         GITLAB_TOOLSETS: 'all',
       }
     });
@@ -365,7 +365,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
         GITLAB_TOOLSETS: 'all',
       }
     });
@@ -471,7 +471,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: `${DEFAULT_PROJECT_ID},${OTHER_PROJECT_ID}`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);
@@ -498,16 +498,26 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
   });
 
   test('should require explicit project_id when multiple projects allowed', async () => {
-    try {
-      await client.callTool('get_project', {
-        project_id: ''
-      });
-      assert.fail('Should have required explicit project_id');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('Please specify a project ID'), 'Should require project ID');
-      console.log('  ✓ Correctly required explicit project_id');
-    }
+    const result = await client.callTool('get_project', {
+      project_id: ''
+    });
+
+    // A tool result (not a JSON-RPC error) that keeps the old text and adds a hint.
+    assert.strictEqual(result.isError, true, 'Should return a tool error');
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    assert.ok(
+      content.text.startsWith(
+        `Multiple projects allowed (${DEFAULT_PROJECT_ID}, ${OTHER_PROJECT_ID}). Please specify a project ID.\nNext: `
+      ),
+      `Should require project ID, got: ${content.text}`
+    );
+    assert.ok(
+      content.text.includes('pass project_id set to one of the allowed projects'),
+      'Should add the project_id hint'
+    );
+    console.log('  ✓ Correctly required explicit project_id');
   });
 
   test('should allow access to first allowed project', async () => {
@@ -782,7 +792,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
   });
 });
 
-describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
+describe('GITLAB_PERMISSION_MODE=readonly enforces read-only for all write tools', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
   const servers: ServerInstance[] = [];
@@ -805,7 +815,7 @@ describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
       env: {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

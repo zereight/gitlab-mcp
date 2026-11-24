@@ -111,7 +111,7 @@ describe("list summary default through the tool call path (#963)", () => {
     await client.connect("build/index.js", {
       GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_READ_ONLY_MODE: "true",
+      GITLAB_PERMISSION_MODE: "readonly",
       GITLAB_TOOLSETS: "projects",
       GITLAB_MCP_LIST_SUMMARY_DEFAULT: "true",
     });

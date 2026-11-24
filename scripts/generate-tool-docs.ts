@@ -31,33 +31,6 @@ interface GroupMeta {
   blurb: string;
 }
 
-// Legacy single-group env flags that pre-date GITLAB_TOOLSETS.
-// Only three groups have these for backward compatibility; everything else
-// opt-in is configured via GITLAB_TOOLSETS / GITLAB_TOOLS / discover_tools.
-const LEGACY_TOGGLE_ENV: Partial<Record<ToolsetId, string>> = {
-  pipelines: "USE_PIPELINE",
-  milestones: "USE_MILESTONE",
-  wiki: "USE_GITLAB_WIKI",
-};
-
-// USE_PIPELINE also exposes these two tools, but they live in `ci`, not `pipelines`.
-const LEGACY_PIPELINE_TOOLS = "validate_ci_lint,validate_project_ci_lint";
-
-function legacyToolsetReplacement(id: ToolsetId): string {
-  const toolsets = `\`GITLAB_TOOLSETS=core,${id}\``;
-  if (id === "pipelines") {
-    return `${toolsets} and \`GITLAB_TOOLS=${LEGACY_PIPELINE_TOOLS}\``;
-  }
-  return toolsets;
-}
-
-function legacyToolsAppendNote(id: ToolsetId): string {
-  if (id !== "pipelines") {
-    return "";
-  }
-  return ` If \`GITLAB_TOOLS\` is already set, append \`${LEGACY_PIPELINE_TOOLS}\` instead of replacing that list.`;
-}
-
 function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
@@ -89,11 +62,17 @@ function formatSlimOverlapNote(toolNames: readonly string[]): string {
   return ` With \`GITLAB_TOOL_PROFILE=slim\` and \`GITLAB_TOOLSETS\` unset, \`discover_tools\` skips ${skipped}; add a tool name to \`GITLAB_TOOLS\` to expose it. Setting \`GITLAB_TOOLSETS\` disables the slim profile.`;
 }
 
+/** The removed USE_PIPELINE also exposed two `ci` tools that the `pipelines` toolset does not include. */
+function formatLegacyPipelineNote(id: ToolsetId): string {
+  if (id !== "pipelines") return "";
+  return " The removed `USE_PIPELINE=true` also exposed `validate_ci_lint` and `validate_project_ci_lint` (toolset `ci`): to keep them, append both to an existing `GITLAB_TOOLS` list, or set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` if it is unset.";
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
   if (isExplicitOnlyToolset(id)) {
-    return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, legacy \`USE_*\` flags, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
+    return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
   }
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools and help are always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
@@ -101,18 +80,7 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
     return "Mixed availability. `discover_tools` and `help` are always exposed (the server re-adds them after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable only while they are otherwise enabled (toolset / `GITLAB_TOOLS` / permission mode) and do not match `GITLAB_DENIED_TOOLS_REGEX`; hiding a tool does not enable it.";
   }
   const overlapNotes = formatDefaultOverlapNote(toolNames) + formatSlimOverlapNote(toolNames);
-  const legacy = LEGACY_TOGGLE_ENV[id];
-  if (legacy) {
-    return (
-      `Opt-in. Prefer \`discover_tools\`, or persist with ${legacyToolsetReplacement(id)}. ` +
-      `Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list). ` +
-      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged).` +
-      `${legacyToolsAppendNote(id)} ` +
-      `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
-      overlapNotes
-    );
-  }
-  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${overlapNotes}`;
+  return `Opt-in. Prefer \`discover_tools\` at runtime, or persist with \`GITLAB_TOOLSETS=core,${id}\`. An explicit GITLAB_TOOLSETS list replaces core; include core to keep the default set. If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it (leave \`GITLAB_TOOLSETS=all\` unchanged). Avoid \`GITLAB_TOOLSETS=all\` (loads ~all schemas into tools/list).${formatLegacyPipelineNote(id)}${overlapNotes}`;
 }
 
 const META_GROUP_ID = "meta";
@@ -370,11 +338,11 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   if (isExplicitOnlyToolset(id)) {
     lines.push(`!!! danger "Raw API escape hatch"`);
     lines.push(
-      `    \`gitlab_api_request\` bypasses \`GITLAB_ALLOWED_GROUPS\` and other group restrictions, project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
+      `    \`gitlab_api_request\` bypasses project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. With \`GITLAB_MCP_OAUTH=true\`, the \`GITLAB_OAUTH_ALLOWED_GROUPS\` membership check still decides who may use the server, but an admitted user can request resources outside those groups. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
     );
     lines.push("    ");
     lines.push(
-      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
+      `    With \`GITLAB_ALLOWED_PROJECT_IDS\` or a session project scope, only \`/projects/:id\` and \`/projects/:id/...\` paths for an allowed project are accepted, on the first request and on every redirect hop that keeps the credentials. Every other path, such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, admin endpoints, and the \`/projects\` collection, is rejected. Body and query parameters that name another project (for example \`target_project_id\` or \`from_project_id\`) are not checked. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced by this tool.`
     );
     lines.push("");
   }
@@ -424,11 +392,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     items
       .map(([id]) => {
         const slug = id.replace(/_/g, "-");
-        const legacy = LEGACY_TOGGLE_ENV[id];
-        const suffix = legacy
-          ? ` (legacy \`${legacy}=true\` is deprecated; removed in next major (v3.0.0))`
-          : "";
-        return `[${GROUP_META[id].title}](${slug}.md)${suffix}`;
+        return `[${GROUP_META[id].title}](${slug}.md)`;
       })
       .join(", ");
 
@@ -455,11 +419,6 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
     "- `GITLAB_TOOLSETS=all` — loads every discoverable group except `api`. This is expensive (~73k schema tokens). Prefer `discover_tools` (stateful) or a named `GITLAB_TOOLSETS=core,<group>` list.",
     "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
-    "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
-      " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
-      " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
-      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it (leave `GITLAB_TOOLSETS=all` unchanged)." +
-      " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
   ];
 }
 
@@ -490,7 +449,6 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles. Mixed tools (`execute_graphql`, `gitlab_api_request`) stay listed; their handlers reject writes.",
     "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, plus `push_files` `delete`/`move` actions.",
-    "- `GITLAB_READ_ONLY_MODE=true` is deprecated (removed in next major (v3.0.0)) — same as `readonly`; use `GITLAB_PERMISSION_MODE=readonly` instead.",
     "",
     "The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).",
     "",

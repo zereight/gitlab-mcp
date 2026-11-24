@@ -31,10 +31,9 @@ async function callTool(
       env: {
         ...process.env,
         // Saving archives is refused in readonly mode, so tests opt into it explicitly.
-        GITLAB_READ_ONLY_MODE: 'false',
         GITLAB_PERMISSION_MODE: 'full',
         ...env,
-        USE_PIPELINE: 'true',
+        GITLAB_TOOLSETS: 'core,pipelines',
       },
     });
 
@@ -396,7 +395,7 @@ describe('job artifacts tools', () => {
   test('download_job_artifacts does not write in readonly mode', async () => {
     const { workspace } = freshWorkspace();
     await assert.rejects(
-      () => downloadArtifacts(TEST_JOB_ID, workspace, 'readonly', { GITLAB_READ_ONLY_MODE: 'true' }),
+      () => downloadArtifacts(TEST_JOB_ID, workspace, 'readonly', { GITLAB_PERMISSION_MODE: "readonly" }),
       (err: Error) => /readonly/i.test(String(err.message || err))
     );
     assert.deepStrictEqual(fs.readdirSync(workspace), [], 'readonly mode must not touch the disk');

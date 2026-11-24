@@ -1,14 +1,22 @@
+<p align="center">
+  <img src="assets/logo.png" alt="GitLab MCP" width="160">
+</p>
+
 # GitLab MCP Server
 
 [![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![GitHub License](https://badgen.net/github/license/zereight/gitlab-mcp)](https://github.com/zereight/gitlab-mcp/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zereight/gitlab-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/zereight/gitlab-mcp)
+[![CodeQL](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/codeql.yml?query=branch%3Amain)
+[![Live API Tests](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml/badge.svg?branch=main)](https://github.com/zereight/gitlab-mcp/actions/workflows/live-tests.yml?query=branch%3Amain)
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md) | [Português (Brasil)](./README.pt-BR.md)
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 288 个（toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 290 个（toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
-> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-05-实测) 和 [对比](./docs/comparison/index.md)。
+> **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-14-实测) 和 [对比](./docs/comparison/index.md)。
 
 先安装 `zereight-mcp-gitlab` 二进制。`npm install -g @zereight/mcp-gitlab`，或 Homebrew `brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp` 然后 `brew install zereight/gitlab-mcp/zereight-mcp-gitlab`。官方 MCP Registry 条目：[`io.github.zereight/gitlab-mcp`](https://registry.modelcontextprotocol.io/?q=io.github.zereight%2Fgitlab-mcp)。一键安装：`npx -y @zereight/mcp-gitlab@latest`。
 
@@ -140,7 +148,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 288 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 290 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -154,20 +162,20 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 288 个工具：toolset 中 285 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 290 个工具：toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
 
-### tools/list 体积（2026-11-05 实测）
+### tools/list 体积（2026-11-14 实测）
 
 客户端会在会话开始时把整份 `tools/list` 发给模型。Token 估算为 UTF-8 字节 / 4。
 
 | 配置 | 工具数 | JSON 字节 | 估算 token |
 | ---- | -----: | --------: | ---------: |
-| 默认（`core` + `discover_tools` + `help`） | 40 | 46,943 | 11,736 |
-| `GITLAB_TOOL_PROFILE=slim` | 39 | 45,935 | 11,484 |
-| `GITLAB_TOOLSETS=all` | 286 | 293,906 | 73,477 |
+| 默认（`core` + `discover_tools` + `help`） | 40 | 47,822 | 11,956 |
+| `GITLAB_TOOL_PROFILE=slim` | 39 | 46,814 | 11,704 |
+| `GITLAB_TOOLSETS=all` | 286 | 295,933 | 73,984 |
 
 更改描述或 schema 后，用 `npm run build && npm run test:mock`（`test/tools-list-budget.test.ts`）重新测量。
 
@@ -254,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.21`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.30`。如果设置了 `GITLAB_MASKING_ENABLED`，请使用 2.3.29 或更高版本（或 `@latest`）：更早的版本会以明文返回 GitLab 标记为 masked 或 hidden 的 CI/CD 变量值。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -282,13 +290,9 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
-- `--read-only=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--permission-mode=readonly`（替代 `GITLAB_READ_ONLY_MODE`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--toolsets` - 指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。不要传 `all`，除非接受约 73k schema token。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,pipelines`，并把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `--tools` 列表（如果还没有该列表，则设置 `--tools=validate_ci_lint,validate_project_ci_lint`）（替代 `USE_PIPELINE`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
@@ -299,6 +303,8 @@ v2.3.1 之后的每个 GitHub Release 都附带 `gitlab-mcp.mcpb` [MCP Bundle](h
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
 - `--list-summary-default=true` - `list_*` 工具省略 `summary` 参数时按 `true` 处理；传 `summary: false` 仍返回完整 JSON（替代 `GITLAB_MCP_LIST_SUMMARY_DEFAULT`，默认关闭）
+- `--audit-log=true` - 可选的 MCP 工具调用 NDJSON 审计日志，供 SIEM 采集（替代 `GITLAB_AUDIT_LOG`，默认关闭）
+- `--audit-log-file` - 将审计行追加到该文件；未设置时写入 stderr 的 NDJSON，绝不写入 stdout（替代 `GITLAB_AUDIT_LOG_FILE`）
 - `--tool-profile` - `full`（默认）或 `slim`。`slim` 会从初始列表中移除 draft note、表情回应、标签、CI 目录工具以及 `create_group`。仅当 `GITLAB_TOOLSETS` 设置为非空白值时忽略（替代 `GITLAB_TOOL_PROFILE`）
 
 如果已经设置了 `GITLAB_TOOLSETS` 或 `--toolsets`，请把 `wiki`、`milestones` 或 `pipelines` 追加到该列表，不要整段替换。如果已经设置了 `GITLAB_TOOLS` 或 `--tools`，请把 `validate_ci_lint` 和 `validate_project_ci_lint` 追加到该列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。
@@ -307,7 +313,7 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
-同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。`setup --cursor` / `setup --claude` 会打印客户端配置；`doctor` 检查 token、API URL、toolset 和版本。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
+同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。`setup --cursor` / `setup --claude` 会打印客户端配置；`doctor` 检查 token、API URL、toolset 和版本。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。仅当每个值在 POSIX shell、cmd.exe 和 PowerShell 中都是 shell 安全的，回复才带 `cli` 命令；否则带 `cli_argv`（argv 数组），不经 shell 直接运行。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
@@ -316,8 +322,7 @@ CLI 参数优先于环境变量。
 > `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
-> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 已弃用
-> （Deprecated, removed in next major (v3.0.0)）。
+> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 已在 v3.0.0 中移除。
 > 请改用 `GITLAB_TOOLSETS=core,wiki`、`core,milestones` 或 `core,pipelines`
 > （`USE_PIPELINE` 还需要把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `GITLAB_TOOLS`，不要整段替换）。
 > 如果已经设置了 `GITLAB_TOOLSETS`，请把 toolset 追加到现有列表，不要整段替换。
@@ -326,8 +331,8 @@ CLI 参数优先于环境变量。
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
 > [!CAUTION]
-> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
-> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
+> `gitlab_api_request`（`api` 工具集）会绕过项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。启用 `GITLAB_MCP_OAUTH=true` 时，`GITLAB_OAUTH_ALLOWED_GROUPS` 的成员检查仍然决定谁可以使用服务器，但已获准的用户可以请求这些群组之外的资源。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
+> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、`GITLAB_TOOL_PROFILE` 都不会）。设置 `GITLAB_ALLOWED_PROJECT_IDS` 或会话项目范围后，只接受允许项目的 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点会被拒绝。请求体和查询参数中指向其他项目的值不会被检查。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
 
@@ -769,3 +774,19 @@ npm run test:integration
 ## 赞助 💖
 
 通过 [GitHub Sponsors](https://github.com/sponsors/zereight) 的赞助将用于 GitLab E2E 测试费用：用于测试免费测试实例无法覆盖的 Premium/Ultimate 功能（如 milestone burndown 图表和 iterations）的付费 GitLab 方案，以及 live API 测试基础设施。
+
+## v3.0.0 中移除的设置
+
+已启用的旧版设置现在会以迁移错误中止启动，而不是悄悄丢弃访问限制。值为空或 false 的旧版设置也请删除。
+
+| Removed environment variable / CLI flag | Replacement |
+| --- | --- |
+| `GITLAB_READ_ONLY_MODE` / `--read-only` | `GITLAB_PERMISSION_MODE=readonly` / `--permission-mode=readonly` |
+| `GITLAB_ALLOWED_GROUPS` / `--allowed-groups` | `GITLAB_OAUTH_ALLOWED_GROUPS` / `--oauth-allowed-groups`（仅在 `GITLAB_MCP_OAUTH=true` 时检查群组成员资格，见 [MCP OAuth](#使用-mcp-oauth-代理gitlab_mcp_oauth)） |
+| `USE_GITLAB_WIKI` / `--use-wiki` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `wiki`（原来未设置时用 `core,wiki`） |
+| `USE_MILESTONE` / `--use-milestone` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `milestones`（原来未设置时用 `core,milestones`） |
+| `USE_PIPELINE` / `--use-pipeline` | 在 `GITLAB_TOOLSETS` / `--toolsets` 中追加 `pipelines`（原来未设置时用 `core,pipelines`），另外还需 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` / `--tools=validate_ci_lint,validate_project_ci_lint`（如果使用 CI lint） |
+
+只为原本已启用的设置添加替代项，并保持原有的工具集不变。如果原来没有设置 `GITLAB_TOOLSETS` 或其中没有任何有效的工具集名称，v2 会暴露默认的 `core` 工具集，因此请使用 `core` 加上每个已启用的工具集（例如 `core,wiki` 或 `core,pipelines`）。非空的 `--toolsets` 优先于 `GITLAB_TOOLSETS`，请对你实际设置的那一个应用这些规则。如果原来是一个列表，请在该列表后原样追加，只有原列表中已有 `core` 时才保留 `core`：`GITLAB_TOOLSETS=search` 应改为 `search,wiki`，而不是 `core,search,wiki`。请追加到现有的 `GITLAB_TOOLS` 列表而不是替换它，现有的 `GITLAB_TOOLSETS=all` 保持不变。如果你同时使用了 `GITLAB_TOOL_PROFILE=slim` 和 `USE_*`，且没有设置 `GITLAB_TOOLSETS`（只有这种情况下 slim 才生效），显式的 `GITLAB_TOOLSETS` 列表会关闭 slim，并在首次 `tools/list` 中多出 `list_labels`；设置 `GITLAB_DENIED_TOOLS_REGEX=^list_labels$` 即可保持 v2 的工具列表；如果 `GITLAB_TOOLS` 中已包含 `list_labels`，则不需要这样做（此时 slim 本来就不会隐藏它）（如果你已经设置了拒绝模式，请把 `list_labels` 合并进去，例如 `^delete_.*|^list_labels$`，因为该变量只接受一个模式）。
+
+请参阅 [v2 到 v3 迁移指南](docs/migration/v2-to-v3.md)。

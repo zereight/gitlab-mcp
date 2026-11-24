@@ -11,8 +11,8 @@
 MCP `CallTool` replies are conversation tokens. Lists, diffs, and job logs are the expensive part. The CLI is the offload: run the same registry tool in a terminal and keep the chat on summaries.
 
 ```text
-MCP client  ── CallTool ──> compact preview + `cli` command   (opt-in)
-terminal    ── tool/mr  ──> full unwrapped payload            (always)
+MCP client  ── CallTool ──> compact preview + `cli` or `cli_argv`   (opt-in)
+terminal    ── tool/mr  ──> full unwrapped payload                  (always)
 ```
 
 `GITLAB_MCP_COMPACT_RESULTS` is **off by default**. Turning it on is the only MCP reply-shape change. Without that flag, tool JSON is unchanged. Human CLI is never compacted.
@@ -32,8 +32,8 @@ Non-goals for this design:
 - `Formula/zereight-mcp-gitlab.rb` wraps the npm tarball and symlinks the bins, so the Homebrew install is already a shell-runnable binary.
 - `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `setup`, `doctor`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`. Boolean MCP flags accept `--flag`, `--flag=true`, or `--flag false`; they do not swallow the next positional command.
-- Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS` / legacy flags, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
-- Tool inventory: 288 tools in `allTools` (285 toolset tools plus `execute_graphql`, `discover_tools`, and `help`), grouped into 24 toolsets in `TOOLSET_DEFINITIONS`. The `api` toolset is explicit-only (`GITLAB_TOOLSETS=all` does not enable it). Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
+- Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
+- Tool inventory: 290 tools in `allTools` (287 toolset tools plus `execute_graphql`, `discover_tools`, and `help`), grouped into 24 toolsets in `TOOLSET_DEFINITIONS`. The `api` toolset is explicit-only (`GITLAB_TOOLSETS=all` does not enable it). Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
 
 ---
 
@@ -45,7 +45,7 @@ Two layers. The generic layer guarantees full coverage with zero per-tool code. 
 zereight-mcp-gitlab auth ...                        # unchanged
 zereight-mcp-gitlab setup --cursor|--claude [...]   # print or write client config
 zereight-mcp-gitlab doctor [--probe]                # token, API URL, toolset, version
-zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 288 tools
+zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 290 tools
 zereight-mcp-gitlab <group> <action> [options]      # curated, phased rollout
 zereight-mcp-gitlab --help | <group> --help         # generated help
 ```
@@ -71,7 +71,7 @@ Group names mirror toolset IDs in kebab-case. `mr` is the only short alias.
 | Group | Toolset | Phase |
 |---|---|---|
 | `mr` (`merge-requests`) | `merge_requests` (45 tools) | 1 reads, 2 writes |
-| `issue` | `issues` (25 tools) | 1 reads, 2 writes |
+| `issue` | `issues` (27 tools) | 1 reads, 2 writes |
 | `pipeline` | `pipelines` (58 tools) | 1 reads, 2 writes |
 | `project` | `projects` (11 tools) | 1 |
 | `branch` | `branches` (16 tools) | 1 |

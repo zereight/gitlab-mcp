@@ -30,7 +30,8 @@ describe("Docker image Node runtime", () => {
   it("uses a Node release with current security fixes", () => {
     for (const tag of nodeTags) {
       const v = parse(tag);
-      if (v[0] === 22) assert.ok(atLeast(v, MIN_NODE_22), `node:${tag} is older than 22.23.4`);
+      if (v[0] === 22)
+        assert.ok(atLeast(v, MIN_NODE_22), `node:${tag} is older than ${MIN_NODE_22.join(".")}`);
       else assert.ok(v[0] > 22, `node:${tag} is older than the supported 22.x line`);
     }
   });

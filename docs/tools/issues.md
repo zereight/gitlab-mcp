@@ -22,6 +22,8 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions.
 - [`update_issue_note`](#update_issue_note) — ✏️ Writes
 - [`list_issue_links`](#list_issue_links) — 📖 Read-only
 - [`list_issue_discussions`](#list_issue_discussions) — 📖 Read-only
+- [`list_issue_label_events`](#list_issue_label_events) — 📖 Read-only
+- [`list_issue_state_events`](#list_issue_state_events) — 📖 Read-only
 - [`get_issue_link`](#get_issue_link) — 📖 Read-only
 - [`create_issue_link`](#create_issue_link) — ✏️ Writes
 - [`delete_issue_link`](#delete_issue_link) — ✏️ Writes
@@ -74,7 +76,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 | `created_before` | string |  | Created before |
 | `due_date` | string |  | Due date |
 | `labels` | array<string> |  | Label names |
-| `milestone` | string |  | Milestone title |
+| `milestone` | string |  | Exact milestone title, not an ID; None for no milestone, Any for any milestone. For a milestone ID, use get_milestone_issue or get_group_milestone_issue (milestones toolset); the group tool omits subgroup issues. |
 | `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | issue, incident, test_case, or task |
 | `iteration_id` | string |  | Iteration ID, none (no iteration), or any (has an iteration). |
 | `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Issue scope |
@@ -83,6 +85,8 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 | `updated_after` | string |  | Updated after |
 | `updated_before` | string |  | Updated before |
 | `with_labels_details` | boolean |  | Include label details |
+| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `due_date` \| `relative_position` \| `label_priority` \| `milestone_due` \| `popularity` \| `title` \| `weight`) |  | Order field (default created_at); relative_position = manual board order |
+| `sort` | enum (`asc` \| `desc`) |  | Sort direction (default desc) |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 
@@ -292,6 +296,36 @@ List discussions for an issue. List threaded discussions for an issue. Use `list
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `issue_iid` | string | ✓ | The internal ID of the project issue |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
+
+### `list_issue_label_events`
+
+*📖 Read-only*
+
+List an issue's label history: who added or removed which label, when. Lean events: created_at, user.username, action, label.name (label is null if deleted). Paginated via page/per_page.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `issue_iid` | string | ✓ | The IID of an issue |
+| `page` | number |  | Page number (default 1) |
+| `per_page` | number |  | Items per page (max 100, default 20) |
+
+### `list_issue_state_events`
+
+*📖 Read-only*
+
+List an issue's state history: who closed or reopened it, when. Lean events: created_at, user.username, state. Paginated via page/per_page.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `issue_iid` | string | ✓ | The IID of an issue |
 | `page` | number |  | Page number (default 1) |
 | `per_page` | number |  | Items per page (max 100, default 20) |
 

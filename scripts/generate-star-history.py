@@ -16,7 +16,7 @@ from pathlib import Path
 try:
     from PIL import Image, ImageDraw, ImageFont
 except ImportError:  # pragma: no cover
-    print("Pillow is required: python -m pip install pillow", file=sys.stderr)
+    print("Pillow is required: python -m pip install --require-hashes -r requirements-star-history.txt", file=sys.stderr)
     raise
 
 REPO = os.environ.get("STAR_HISTORY_REPO", "zereight/gitlab-mcp")
