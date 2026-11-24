@@ -10,6 +10,12 @@ export interface DoctorCredentials {
 export interface DoctorInput {
   readonly credentials: DoctorCredentials;
   readonly apiUrl: string;
+  /**
+   * Startup validation errors for the configured API URL setting. They never
+   * echo the value. When there are any, `apiUrl` is not shown or probed: it was
+   * cut from a value that may hold a password ("https://alice:123/api/v4").
+   */
+  readonly apiUrlErrors?: readonly string[];
   readonly permissionMode: string;
   readonly toolsetsRaw: string | undefined;
   readonly version: string;
@@ -56,7 +62,7 @@ export function packageVersion(): string {
 export function runDoctor(input: DoctorInput): DoctorReport {
   const checks = [
     credentialCheck(input.credentials),
-    apiUrlCheck(input.apiUrl),
+    apiUrlCheck(input.apiUrl, input.apiUrlErrors ?? []),
     permissionModeCheck(input.permissionMode),
     toolsetCheck(input.toolsetsRaw),
     versionCheck(input.version),
@@ -68,6 +74,12 @@ export async function runDoctorWithOptionalProbe(input: DoctorInput): Promise<Do
   const report = runDoctor(input);
   if (input.probe === undefined) {
     return report;
+  }
+  if ((input.apiUrlErrors ?? []).length > 0) {
+    return formatDoctorReport([
+      ...report.checks,
+      { name: "gitlab_user", ok: false, detail: "not probed: fix api_url first" },
+    ]);
   }
   const probe = await input.probe(input.apiUrl);
   return formatDoctorReport([
@@ -101,7 +113,10 @@ function credentialCheck(credentials: DoctorCredentials): DoctorCheck {
   };
 }
 
-function apiUrlCheck(apiUrl: string): DoctorCheck {
+function apiUrlCheck(apiUrl: string, apiUrlErrors: readonly string[]): DoctorCheck {
+  if (apiUrlErrors.length > 0) {
+    return { name: "api_url", ok: false, detail: apiUrlErrors.join("; ") };
+  }
   try {
     const parsed = new URL(apiUrl);
     const hasApi = parsed.pathname.includes("/api/");
