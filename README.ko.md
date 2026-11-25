@@ -14,7 +14,7 @@
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 290개(toolset 287개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
+**기본 노출: 40개 도구** (`core` 38개 + `discover_tools` + `help`). 전체는 291개(toolset 288개 + `execute_graphql` + `discover_tools` + `help`). 작게 시작하고, 세션에서 `discover_tools`로 확장하세요.
 
 > **토큰 예산:** MCP 클라이언트는 세션 시작 때 `tools/list` 전체를 모델에 보냅니다. 기본값(~40개 도구, 스키마 ~12k 토큰)을 유지하세요. 확장은 `discover_tools`로 이 세션에만 카테고리를 켜거나(`OAUTH_STATELESS_MODE=true`면 `GITLAB_TOOLSETS`로 남기세요), [Skill + CLI](./docs/getting-started/cli-without-mcp.md)로 MCP 스키마를 건너뛰세요. **`GITLAB_TOOLSETS=all`은 쓰지 마세요** — 거의 모든 도구를 올려 스키마만 ~73k 토큰입니다. [tools/list 크기](#toolslist-크기-2026-11-14-실측)와 [비교](./docs/comparison/index.md)를 보세요.
 
@@ -148,7 +148,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 290개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
+- **기본 40개 도구(`core` 38 + `discover_tools` + `help`); 전체 291개** — 작게 시작하고, `discover_tools`로 세션에서 확장. `GITLAB_TOOLSETS=all`은 스키마 ~73k 토큰; 필요할 때만 켜거나 Skill + CLI를 쓰세요
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -162,7 +162,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 |                 | @zereight/mcp-gitlab                                             | GitLab MCP A (커뮤니티 CQRS형)             | GitLab 공식 MCP 서버                                                                                                                            |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **적합한 경우** | AI 에이전트 워크플로우                                           | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구   | GitLab에 내장, 별도 설치 없음                                                                                                                   |
-| **도구 모델**   | 290개 도구: toolset 287개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
+| **도구 모델**   | 291개 도구: toolset 288개 + `execute_graphql` + `discover_tools` + `help` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 | HTTP 헤더로 고르는 toolset                                                                                                                      |
 | **MR 리뷰**     | 2단계 배치 diff                                                  | 서버마다 다름                              | `get_merge_request`에 diffs                                                                                                                     |
 | **Node.js**     | >=20.0.0                                                         | 보통 >=24                                  | stdio는 `mcp-remote`, Node.js 20+                                                                                                               |
 | **라이선스**    | MIT                                                              | 서버마다 다름                              | GitLab의 일부                                                                                                                                   |
@@ -262,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.30`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. `GITLAB_MASKING_ENABLED`를 쓴다면 2.3.29 이상(또는 `@latest`)을 사용하세요. 이전 버전은 GitLab이 masked 또는 hidden으로 지정한 CI/CD 변수 값을 평문으로 반환합니다. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.3.31`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. `GITLAB_MASKING_ENABLED`를 쓴다면 2.3.29 이상(또는 `@latest`)을 사용하세요. 이전 버전은 GitLab이 masked 또는 hidden으로 지정한 CI/CD 변수 값을 평문으로 반환합니다. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. `main`에 머지된 수정을 다음 안정 버전 전에 확인하려면 프리릴리스 빌드인 `npx -y @zereight/mcp-gitlab@next`를 사용하세요(운영 환경용이 아닙니다). 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### Claude Desktop 원클릭 설치(MCP Bundle)
 
@@ -427,7 +427,7 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | 환경 변수                     | 필수 | 설명                                                                                                                            |
 | ----------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                                                                                             |
-| `GITLAB_API_URL`              | 예   | GitLab API base URL. URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. |
+| `GITLAB_API_URL`              | 예   | GitLab API base URL. URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 사용자 이름이나 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. v3.0.0부터는 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 있으면 시작 단계에서 거부됩니다. |
 | `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                                                                                     |
 | `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
 | `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
@@ -524,6 +524,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`(또는 `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true`(리버스 프록시 뒤), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 또는 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **여러 배포를 동시에 운영**: 배포마다 `MCP_SERVER_NAME`을 다르게 설정(예: `gitlab-selfhosted-readonly`)하면 클라이언트, 로그, 텔레메트리에서 서로 구분할 수 있습니다
 - **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
+
+> **v3.0.0 호환성 변경(breaking change): `GITLAB_API_URL` 목록.** `GITLAB_API_URL`(및 `--api-url`)에는 `https://a.example/api/v4,https://b.example/api/v4`처럼 쉼표로 구분한 여러 URL을 넣을 수 있습니다. 사용자 이름이나 비밀번호 안의 쉼표는 반드시 `%2C`로 적어야 합니다(`https://alice:p%2Cw@host`). v3.0.0부터는 `https://alice:123,https:word@host`처럼 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 들어간 값을 추측해서 나누지 않고, 시작 단계에서 오류를 내고 멈춥니다. 오류 메시지에는 쉼표의 위치만 나오고 값은 나오지 않습니다. 쉼표를 `%2C`로 바꾸거나, 요청에 쓰이지 않는 사용자 이름과 비밀번호를 URL에서 빼면 됩니다. 자세한 내용은 [`GITLAB_API_URL`](./docs/configuration/environment-variables.md#gitlab_api_url)을 참고하세요.
 
 자주 참조하는 변수:
 
@@ -701,7 +703,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 예     | 활성화하려면 `true`                                                                                                                                                        |
 | `GITLAB_OAUTH_APP_ID`                       | 예     | 사전 등록 GitLab OAuth 애플리케이션의 client ID                                                                                                                            |
 | `MCP_SERVER_URL`                            | 예     | MCP 서버의 공개 HTTPS URL                                                                                                                                                  |
-| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다.             |
+| `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`). URL에 자격 증명(`user:pass@`)을 넣지 마세요. 넣어도 무시됩니다. 사용자 이름이나 비밀번호의 쉼표는 반드시 `%2C`로 적어야 합니다. v3.0.0부터는 사용자 이름이나 비밀번호 안에 있을 수 있는 쉼표가 있으면 시작 단계에서 거부됩니다.             |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 한도(고정 1시간 윈도우). 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |

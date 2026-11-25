@@ -58,14 +58,135 @@ export function commaSplitHint(source: string): string {
   return `${source} is split at commas: ${COMMA_IN_PASSWORD_HINT}`;
 }
 
+// A piece of the value that starts a URL: a scheme, then "//" or "/" if any.
+const URL_START_PATTERN = /^\s*[a-z][a-z0-9+.-]*:(?:\/\/|\/)?/i;
+// What can end the userinfo ("@") or the authority ("/", "?", "#") after a comma.
+const AUTHORITY_STOP_PATTERN = /[@/?#]/g;
+
 /**
- * Startup errors for a configured GITLAB_API_URL list, one per bad entry, and
- * none of them echo the entry. Each entry must be an http or https URL:
- * fetch() cannot use another scheme, and a value without "//" such as
- * "alice:p,w@host" parses as a URL whose scheme is the username. The scheme
- * is checked, not the "//": fetch() also accepts "https:/host".
+ * The 1-based positions of the literal commas in a GITLAB_API_URL value that
+ * are ambiguous: the comma may be inside a username or password, so the value
+ * may be one URL as well as a list split there. Any such comma is rejected at
+ * startup; a comma inside a username or password has to be written as %2C.
+ *
+ * Each comma ends a piece of the value. A piece that starts with a scheme
+ * ("https:", "https:/", or "https://") starts a URL, and its authority runs
+ * from there to the first "/", "?" or "#". A piece without a scheme continues
+ * the URL before it. A comma is ambiguous when the authority of its URL is
+ * still open at the comma (no "/", "?" or "#" since the scheme; an "@" does
+ * not end it, because the userinfo ends at the last "@") and either:
+ *
+ *   (a) the next "/", "?", "#" or "@" after the comma is an "@". The whole
+ *       value then parses as one URL with the comma in its userinfo:
+ *       "https://alice:p,w@host", "https://ali,ce@host", and
+ *       "https://alice:123,https:word@host" (#876), which also splits into two
+ *       URLs that both parse; or
+ *   (b) the authority before the comma has a ":" and no "@", so it reads as
+ *       "user:password" as well as "host:port", and an "@" follows anywhere
+ *       after the comma. The text up to that "@" can be a password with an
+ *       unencoded "/": "http://alice:12,http://w@host" gives "http://alice:12",
+ *       whose port is the start of the password.
+ *
+ * A value without an "@" after a comma never has an ambiguous comma, so lists
+ * without userinfo are not affected. These stay unambiguous:
+ * "https://a.example,https://b.example", "https://gitlab.example:443,https://b.example",
+ * "https://a.example/api/v4,https://bob:pw@b.example" (the "/" ends the first
+ * authority), "https://a.example,https://bob:pw@b.example" (no ":" before the
+ * comma, and "/" comes before the "@"), and "https://alice:p%2Cw@a.example,https://b.example".
+ *
+ * Not detected: a comma inside a username followed by a password that has an
+ * unencoded "/" ("https://a.example,https://bob:pw@b.example" read as user
+ * "a.example,https" and password "//bob:pw"). That reading is not a valid URL,
+ * and the startup log still hides the first host (see parseConfiguredGitLabApiUrls).
+ *
+ * Linear in the length of the value: each character is read at most twice.
+ */
+export function ambiguousApiUrlCommas(value: string): number[] {
+  const ambiguous: number[] = [];
+  const lastAt = value.lastIndexOf("@");
+  let authorityOpen = false;
+  let colonBeforeComma = false;
+  let atBeforeComma = false;
+  let nextStop = -1;
+  let commaNumber = 0;
+  let start = 0;
+  for (;;) {
+    const comma = value.indexOf(",", start);
+    const end = comma === -1 ? value.length : comma;
+    const urlStart = URL_START_PATTERN.exec(value.slice(start, end));
+    let index = start;
+    if (urlStart !== null) {
+      authorityOpen = true;
+      colonBeforeComma = false;
+      atBeforeComma = false;
+      index = start + urlStart[0].length;
+    }
+    for (; authorityOpen && index < end; index += 1) {
+      const char = value[index];
+      if (char === "/" || char === "?" || char === "#") {
+        authorityOpen = false;
+      } else if (char === "@") {
+        atBeforeComma = true;
+      } else if (char === ":") {
+        colonBeforeComma = true;
+      }
+    }
+    if (comma === -1) {
+      return ambiguous;
+    }
+    commaNumber += 1;
+    if (authorityOpen && lastAt > comma) {
+      if (nextStop <= comma) {
+        AUTHORITY_STOP_PATTERN.lastIndex = comma + 1;
+        nextStop = AUTHORITY_STOP_PATTERN.exec(value)?.index ?? value.length;
+      }
+      const userinfoEndsAfterComma = value[nextStop] === "@";
+      const passwordCutAtComma = colonBeforeComma && !atBeforeComma;
+      if (userinfoEndsAfterComma || passwordCutAtComma) {
+        ambiguous.push(commaNumber);
+      }
+    }
+    start = comma + 1;
+  }
+}
+
+/**
+ * The startup error for a GITLAB_API_URL value with an ambiguous comma (see
+ * ambiguousApiUrlCommas), or null when it has none. It names the commas by
+ * position only: any text around them can be part of a password.
+ */
+export function ambiguousApiUrlCommaError(source: ApiUrlSource, value: string): string | null {
+  const ambiguous = ambiguousApiUrlCommas(value);
+  if (ambiguous.length === 0) {
+    return null;
+  }
+  const total = value.split(",").length - 1;
+  const positions =
+    ambiguous.length === 1
+      ? `comma ${ambiguous[0]}`
+      : `commas ${ambiguous.slice(0, -1).join(", ")} and ${ambiguous[ambiguous.length - 1]}`;
+  return (
+    `${source} ${positions} of ${total} may be inside a username or password, so the value ` +
+    `cannot be split into URLs safely ${HIDDEN_VALUE_NOTE}. Write a comma inside a username ` +
+    "or password as %2C, or leave the username and password out: requests do not use them."
+  );
+}
+
+/**
+ * Startup errors for a configured GITLAB_API_URL list, and none of them echo
+ * the value. A value with an ambiguous comma gets one error for the whole
+ * value (see ambiguousApiUrlCommaError): where it splits is not known, so
+ * errors about its entries would mislead. Otherwise there is one error per bad
+ * entry. Each entry must be an http or https URL: fetch() cannot use another
+ * scheme, and a value without "//" such as "alice:pw@host" parses as a URL
+ * whose scheme is the username. The scheme is checked, not the "//": fetch()
+ * also accepts "https:/host".
  */
 export function configuredApiUrlErrors(source: ApiUrlSource, value: string): string[] {
+  const ambiguity = ambiguousApiUrlCommaError(source, value);
+  if (ambiguity !== null) {
+    return [ambiguity];
+  }
   const entries = splitCommaSeparatedUrls(value);
   const errors: string[] = [];
   let hasInvalidEntry = false;
@@ -90,7 +211,8 @@ export function configuredApiUrlErrors(source: ApiUrlSource, value: string): str
 
 /**
  * The error for one API URL that is not split at commas (the `auth` command),
- * or null when it is an http or https URL.
+ * or null when it is an http or https URL. The `auth` command checks the raw
+ * value with ambiguousApiUrlCommaError first, as the server does.
  */
 export function apiUrlError(source: ApiUrlSource, url: string): string | null {
   const problem = apiUrlProblem(url.trim());
@@ -125,6 +247,10 @@ export interface ConfiguredGitLabApiUrls {
  * Split a comma-separated GITLAB_API_URL, drop userinfo from each entry, and
  * normalize it. fetch() refuses a URL with credentials, so a URL that kept
  * them would fail every request and echo the password in the error.
+ * This runs at module load, before configuredApiUrlErrors rejects a value
+ * with an ambiguous comma, so it must not log or throw anything itself. For a
+ * value that passes that check, the split is the same as a plain split at
+ * every comma.
  */
 export function parseConfiguredGitLabApiUrls(value: string): ConfiguredGitLabApiUrls {
   const rawEntries = splitCommaSeparatedUrls(value);
@@ -145,8 +271,12 @@ const INVALID_HOSTNAME = "<invalid>";
  * built from them. A password with literal commas can be split into several
  * URLs: "http://alice:12,http://password:34,http://tail@host" gives
  * "http://password:34", whose host is part of the password, and no single
- * entry shows that. The password ends at an "@", so every entry before the last
- * one with an "@" shows as "<invalid>", even when it is a whole URL of its own.
+ * entry shows that. Startup rejects such values (see ambiguousApiUrlCommas),
+ * but the list is parsed before that check runs, and an accepted list such as
+ * "https://a.example,https://bob:pw@b.example" can still be read as one
+ * userinfo that has an unencoded "/". The password ends at an "@", so every
+ * entry before the last one with an "@" shows as "<invalid>", even when it is
+ * a whole URL of its own.
  */
 function apiUrlHostnamesForLog(rawEntries: readonly string[], urls: readonly string[]): string[] {
   let lastWithAt = -1;

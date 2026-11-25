@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { configuredApiUrlErrors, type ApiUrlSource } from "../utils/url.js";
 import { CliUsageError } from "./args.js";
 
 export type SetupClient = "cursor" | "claude";
@@ -11,6 +12,7 @@ export interface SetupOptions {
   readonly skill: boolean;
   readonly directory: string;
   readonly apiUrl: string;
+  readonly apiUrlSource: ApiUrlSource;
 }
 
 export interface SetupResult {
@@ -60,6 +62,7 @@ export function readSetupOptions(
     skill: flags.skill === "true",
     directory: flags.dir ?? directory,
     apiUrl: flags.api_url ?? DEFAULT_API_URL,
+    apiUrlSource: flags.api_url !== undefined ? "--api-url" : "GITLAB_API_URL",
   };
 }
 
@@ -90,6 +93,10 @@ export function claudeMcpAddCommand(options: SetupOptions): string {
 }
 
 export function runSetup(options: SetupOptions): SetupResult {
+  const apiUrlErrors = configuredApiUrlErrors(options.apiUrlSource, options.apiUrl);
+  if (apiUrlErrors.length > 0) {
+    throw new CliUsageError(apiUrlErrors.join("\n"));
+  }
   switch (options.client) {
     case "cursor":
       return runCursorSetup(options);
