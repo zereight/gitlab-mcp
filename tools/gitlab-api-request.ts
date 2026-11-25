@@ -300,7 +300,12 @@ function formatHttpError(status: number, statusText: string, rawBody: string): s
   }
 }
 
-function formatSuccessBody(rawBody: string): string {
+function formatSuccessBody(bytes: Buffer): string {
+  const utf8Body = bytes.toString("utf8");
+  let rawBody = utf8Body;
+  if (utf8Body.charCodeAt(0) === 0xfeff) {
+    rawBody = utf8Body.slice(utf8Body.charCodeAt(1) === 0xfeff ? 2 : 1);
+  }
   const trimmed = rawBody.trim();
   if (trimmed.length === 0) {
     return "";
@@ -310,7 +315,11 @@ function formatSuccessBody(rawBody: string): string {
     redactSensitiveGitLabFields(parsed);
     return JSON.stringify(parsed, null, 2);
   } catch {
-    return redactSensitiveGitLabText(rawBody);
+    const redactedBody = redactSensitiveGitLabText(rawBody);
+    if (redactedBody !== rawBody || Buffer.from(utf8Body, "utf8").equals(bytes)) {
+      return redactedBody;
+    }
+    return JSON.stringify({ content: bytes.toString("base64"), encoding: "base64" });
   }
 }
 
@@ -360,14 +369,15 @@ export async function executeGitLabApiRequestAsync(
         );
       },
     });
-    const rawBody = await response.text();
     if (!response.ok) {
       throw new GitLabApiRequestHttpError(
-        formatHttpError(response.status, response.statusText, rawBody),
+        formatHttpError(response.status, response.statusText, await response.text()),
         response
       );
     }
-    return { content: [{ type: "text", text: formatSuccessBody(rawBody) }] };
+
+    const text = formatSuccessBody(Buffer.from(await response.arrayBuffer()));
+    return { content: [{ type: "text", text }] };
   } catch (error) {
     if (error instanceof UnsafeRedirectError) {
       throw new GitLabApiRequestHttpError(error.message);

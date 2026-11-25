@@ -205,6 +205,100 @@ describe("When the api toolset is listed", { timeout: 180_000 }, () => {
     });
   });
 
+  describe("with a binary response", () => {
+    it("should preserve the original bytes as base64", async () => {
+      await withClient({ GITLAB_TOOLSETS: "api" }, async (client, _stderr, mock) => {
+        const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+        mock.addMockHandler("get", "/projects/5/avatar", (_req, res) => {
+          res.end(png);
+        });
+
+        const result = readToolText(
+          await client.callTool({
+            name: "gitlab_api_request",
+            arguments: { path: "/projects/5/avatar" },
+          })
+        );
+        assert.equal(result.isError, false);
+        assert.deepEqual(JSON.parse(result.text), {
+          content: png.toString("base64"),
+          encoding: "base64",
+        });
+      });
+    });
+  });
+
+  describe("with text responses", () => {
+    it("should preserve UTF-8 text, JSON with a BOM, and empty responses", async () => {
+      await withClient({ GITLAB_TOOLSETS: "api" }, async (client, _stderr, mock) => {
+        const text = "Привет, 世界";
+        for (const [requestPath, body, expected] of [
+          ["/projects/5/text", text, text],
+          ["/projects/5/json", `\uFEFF${JSON.stringify({ text })}`, JSON.stringify({ text }, null, 2)],
+          ["/projects/5/empty", "", ""],
+        ]) {
+          mock.addMockHandler("get", requestPath, (_req, res) => {
+            res.end(body);
+          });
+          const result = readToolText(
+            await client.callTool({
+              name: "gitlab_api_request",
+              arguments: { path: requestPath },
+            })
+          );
+          assert.equal(result.isError, false);
+          assert.equal(result.text, expected);
+        }
+      });
+    });
+
+    it("should redact JSON credentials after two leading BOMs", async () => {
+      await withClient({ GITLAB_TOOLSETS: "api" }, async (client, _stderr, mock) => {
+        const path = "/projects/5/double-bom";
+        mock.addMockHandler("get", path, (_req, res) => {
+          res.end('\uFEFF\uFEFF{"to\\u006ben":"secret","name":"visible"}');
+        });
+        const result = readToolText(
+          await client.callTool({ name: "gitlab_api_request", arguments: { path } })
+        );
+        assert.equal(result.isError, false);
+        assert.equal(result.text, JSON.stringify({ name: "visible" }, null, 2));
+      });
+    });
+
+    it("should preserve credential redaction for invalid UTF-8", async () => {
+      await withClient({ GITLAB_TOOLSETS: "api" }, async (client, _stderr, mock) => {
+        const cases = [
+          {
+            path: "/projects/5/json-token",
+            body: '{"token":"secret","name":"bad\xff"}',
+            expected: JSON.stringify({ name: "bad\uFFFD" }, null, 2),
+          },
+          {
+            path: "/projects/5/duplicate-key",
+            body: '{"data":{"token":"secret"},"data":"bad\xff"}',
+            expected: JSON.stringify({ data: "bad\uFFFD" }, null, 2),
+          },
+          {
+            path: "/projects/5/text-token",
+            body: "token: secret\nbad\xff",
+            expected: "token: [REDACTED]\nbad\uFFFD",
+          },
+        ];
+        for (const { path, body, expected } of cases) {
+          mock.addMockHandler("get", path, (_req, res) => {
+            res.end(Buffer.from(body, "latin1"));
+          });
+          const result = readToolText(
+            await client.callTool({ name: "gitlab_api_request", arguments: { path } })
+          );
+          assert.equal(result.isError, false);
+          assert.equal(result.text, expected);
+        }
+      });
+    });
+  });
+
   describe("with query parameters", () => {
     it("should encode them", async () => {
       await withClient({ GITLAB_TOOLSETS: "api" }, async (client, _stderr, mock) => {
