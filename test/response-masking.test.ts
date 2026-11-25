@@ -673,6 +673,14 @@ describe(
     test("should mask what a jmespath expression derives from the range", async t => {
       const { client } = await startMaskingServer(t, {
         managed: false,
+        localConfig: {
+          version: 1,
+          rules: [
+            { id: "local", type: "keyword", match: "ProjectOneSecret", replacement: "[local]" },
+            // Not idempotent: masking the range a second time would add a line.
+            { id: "extra", type: "keyword", match: "Secret", replacement: "Secret\nextra" },
+          ],
+        },
         jsonResponses: {
           "/api/v4/projects/12/repository/files/split.txt": {
             file_name: "ProjectOne",
