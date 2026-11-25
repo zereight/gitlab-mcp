@@ -4,6 +4,7 @@ import {
   appendRecoveryHint,
   GROUP_NOT_FOUND_HINT,
   hasRecoveryHint,
+  PROJECT_ID_NOT_FOUND_HINT,
   recoveryHintFor,
   withRecoveryHint,
 } from "../../utils/error-hints.js";
@@ -32,6 +33,12 @@ describe("When a GitLab tool error is returned", () => {
 
       assert.match(String(hint), /group%2Fproject/);
       assert.match(String(hint), /iid/);
+    });
+
+    it("should use the project_id hint constant", () => {
+      assert.equal(recoveryHintFor("GitLab API error: 404 Not Found"), PROJECT_ID_NOT_FOUND_HINT);
+      assert.match(PROJECT_ID_NOT_FOUND_HINT, /project_id/);
+      assert.doesNotMatch(PROJECT_ID_NOT_FOUND_HINT, /group_id/);
     });
   });
 

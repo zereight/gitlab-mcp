@@ -60,7 +60,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`create_group_iteration`](../tools/projects.md#create_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`delete_group_iteration`](../tools/projects.md#delete_group_iteration) — `test/test-group-iterations.ts`
 - [x] [`list_project_iterations`](../tools/projects.md#list_project_iterations) — `test/test-group-iterations.ts`
-- [x] [`list_group_iteration_cadences`](../tools/projects.md#list_group_iteration_cadences) — `test/test-group-iterations.ts`
+- [x] [`list_group_iteration_cadences`](../tools/projects.md#list_group_iteration_cadences) — `test/group-not-found-hint-namespace.test.ts`, `test/test-group-iterations.ts`
 - [x] [`create_group_iteration_cadence`](../tools/projects.md#create_group_iteration_cadence) — `test/test-group-iterations.ts`
 - [x] [`update_group_iteration_cadence`](../tools/projects.md#update_group_iteration_cadence) — `test/test-group-iterations.ts`
 - [x] [`delete_group_iteration_cadence`](../tools/projects.md#delete_group_iteration_cadence) — `test/test-group-iterations.ts`
@@ -203,7 +203,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="workitems"></a>
 
-- [x] [`get_work_item`](../tools/workitems.md#get_work_item) — `test/test-work-item-ce-widgets.ts`
+- [x] [`get_work_item`](../tools/workitems.md#get_work_item) — `test/group-not-found-hint-namespace.test.ts`, `test/live/group-not-found-hint.test.ts`, `test/test-work-item-ce-widgets.ts`
 - [x] [`list_work_items`](../tools/workitems.md#list_work_items) — `test/test-geteffectiveprojectid.ts`, `test/test-work-item-ce-widgets.ts`
 - [x] [`create_work_item`](../tools/workitems.md#create_work_item) — `test/test-geteffectiveprojectid.ts`
 - [x] [`update_work_item`](../tools/workitems.md#update_work_item) — `test/response-masking.test.ts`, `test/test-geteffectiveprojectid.ts`, `test/test-work-item-ce-widgets.ts`, `test/test-work-item-iteration.ts`
