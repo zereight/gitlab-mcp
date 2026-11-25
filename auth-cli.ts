@@ -4,7 +4,7 @@ import { parseCliArgs } from "./cli-boolean-flags.js";
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import { stripUrlUserinfo } from "./utils/redact-url.js";
-import { apiUrlError, apiUrlUserinfoWarning } from "./utils/url.js";
+import { ambiguousApiUrlCommaError, apiUrlError, apiUrlUserinfoWarning } from "./utils/url.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
 import { assertNoRemovedConfig } from "./removed-config.js";
 
@@ -96,7 +96,14 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
 
   const apiUrlFlag = readFlag(argv, "api-url");
   const apiUrlSource = apiUrlFlag !== undefined ? "--api-url" : "GITLAB_API_URL";
-  const configuredApiUrl = stripUrlUserinfo(apiUrlFlag ?? env.GITLAB_API_URL ?? DEFAULT_API_URL);
+  const rawApiUrl = apiUrlFlag ?? env.GITLAB_API_URL ?? DEFAULT_API_URL;
+  // The server reads the same setting as a comma-separated list and refuses a
+  // comma that may be inside a password, so one value works the same in both.
+  const ambiguousApiUrl = ambiguousApiUrlCommaError(apiUrlSource, rawApiUrl);
+  if (ambiguousApiUrl !== null) {
+    throw new Error(ambiguousApiUrl);
+  }
+  const configuredApiUrl = stripUrlUserinfo(rawApiUrl);
   if (configuredApiUrl.hadUserinfo) {
     logger.warn(apiUrlUserinfoWarning(apiUrlSource));
     flushStartupLogs(logger);

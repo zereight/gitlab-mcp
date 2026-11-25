@@ -80,6 +80,23 @@ variable set and OAuth off, the server logs `Group access control enabled` but d
 group membership. If you need group restriction, set both `GITLAB_MCP_OAUTH=true` and
 `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
+## GITLAB_API_URL with a comma
+
+v2 split `GITLAB_API_URL` and `--api-url` at every comma, so a comma inside a password could be
+read as a host and port. v3 stops at startup when a comma may be inside a username or password,
+in the MCP server, the human CLI (`tool`, `doctor`, `setup`), and `auth`. The error is
+`GITLAB_API_URL comma 1 of 1 may be inside a username or password, ...`. It names the comma's
+position only and does not print the value.
+
+Write the comma as `%2C`:
+
+```bash
+GITLAB_API_URL=https://alice:p%2Cw@gitlab.example.com/api/v4
+```
+
+Or remove the username and password, because requests do not use them. Lists without userinfo,
+such as `https://a.example/api/v4,https://b.example/api/v4`, work as before.
+
 ## Example
 
 ```bash

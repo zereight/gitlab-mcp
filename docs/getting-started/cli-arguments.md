@@ -19,7 +19,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.30 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.3.31 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -40,7 +40,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | Argument               | Equivalent env var             | Description                                         |
 | ---------------------- | ------------------------------ | --------------------------------------------------- |
 | `--token`              | `GITLAB_PERSONAL_ACCESS_TOKEN` | GitLab Personal Access Token.                       |
-| `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
+| `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). Write a comma inside a username or password as `%2C`; since v3.0.0 a comma that may be inside one stops startup. See [`GITLAB_API_URL`](../configuration/environment-variables.md#gitlab_api_url). |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
 | `--toolsets`           | `GITLAB_TOOLSETS`              | Named toolsets. Unset uses lean `core`. Do not pass `all` unless you accept ~73k schema tokens. `all` does not enable `api`; use `--toolsets=api`. |
 | `--tools=list_issues`  | `GITLAB_TOOLS`                 | Add individual tools on top of enabled toolsets.    |
@@ -120,6 +120,12 @@ See [Human CLI Design](../reference/cli-usage-design.md) for the command catalog
 Print a Cursor `mcp.json` snippet or a Claude Code one-liner. Tokens stay in
 the environment (`${env:GITLAB_PERSONAL_ACCESS_TOKEN}` or `$GITLAB_PERSONAL_ACCESS_TOKEN`).
 Dry-run is the default. `--write` merges `.cursor/mcp.json`.
+
+`--api-url` (or `GITLAB_API_URL`) is copied into the snippet. Since v3.0.0, a
+comma that may be inside a username or password is refused before anything is
+printed or written; the error names only comma positions, never the value.
+Write such a comma as `%2C`, or leave the username and password out. See
+[`GITLAB_API_URL`](../configuration/environment-variables.md#gitlab_api_url).
 
 ```bash
 zereight-mcp-gitlab setup --cursor

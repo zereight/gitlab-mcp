@@ -14,7 +14,7 @@
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** · [llms.txt](./llms.txt) · [llms-full.txt](./llms-full.txt)
 
-**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 290 个（toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
+**默认暴露 40 个工具**（38 个 `core` + `discover_tools` + `help`）。总共 291 个（toolset 中 288 个 + `execute_graphql` + `discover_tools` + `help`）。先用精简集，再在本会话中用 `discover_tools` 扩展。
 
 > **Token 预算：** MCP 客户端会在会话开始时把整份 `tools/list` 发给模型。请保持默认（约 40 个工具，约 12k schema token）。用 `discover_tools` 为本会话激活类别（仅限本会话；`OAUTH_STATELESS_MODE=true` 时请改用命名的 `GITLAB_TOOLSETS`），或走 [Skill + CLI](./docs/getting-started/cli-without-mcp.md) 以跳过 MCP schema。**不要设置 `GITLAB_TOOLSETS=all`** — 它会加载几乎全部工具，schema 约 73k token。见 [tools/list 体积](#toolslist-体积2026-11-14-实测) 和 [对比](./docs/comparison/index.md)。
 
@@ -148,7 +148,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 
 ### 为什么使用这个 GitLab MCP？
 
-- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 290 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
+- **默认 40 个工具（38 个 `core` + `discover_tools` + `help`）；共 291 个** — 先精简，再用 `discover_tools` 在本会话扩展。`GITLAB_TOOLSETS=all` 约 73k schema token；按需发现或使用 Skill + CLI
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -162,7 +162,7 @@ GitLab 合并请求、议题和流水线走此 MCP（@zereight/mcp-gitlab）。
 |              | @zereight/mcp-gitlab                                                 | GitLab MCP A（社区 CQRS 型）               | GitLab 官方 MCP 服务器                                                                                                                  |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **更适合**   | AI 代理工作流                                                        | 企业多实例 / 分组工具                      | 内置于 GitLab，无需单独安装                                                                                                             |
-| **工具模型** | 290 个工具：toolset 中 287 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
+| **工具模型** | 291 个工具：toolset 中 288 个 + `execute_graphql` + `discover_tools` + `help` | ~50–60 个 `browse_*` / `manage_*` 分组工具 | 用 HTTP 头选择 toolset                                                                                                                  |
 | **MR 审查**  | 两步批量 diff                                                        | 因服务器而异                               | `get_merge_request` 带 diffs                                                                                                            |
 | **Node.js**  | >=20.0.0                                                             | 通常 >=24                                  | stdio 经 `mcp-remote`，需要 Node.js 20+                                                                                                 |
 | **许可证**   | MIT                                                                  | 因服务器而异                               | GitLab 的一部分                                                                                                                         |
@@ -262,7 +262,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.30`。如果设置了 `GITLAB_MASKING_ENABLED`，请使用 2.3.29 或更高版本（或 `@latest`）：更早的版本会以明文返回 GitLab 标记为 masked 或 hidden 的 CI/CD 变量值。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.3.31`。如果设置了 `GITLAB_MASKING_ENABLED`，请使用 2.3.29 或更高版本（或 `@latest`）：更早的版本会以明文返回 GitLab 标记为 masked 或 hidden 的 CI/CD 变量值。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。如需在下一个稳定版本发布前试用已合并到 `main` 的修复，请使用 `npx -y @zereight/mcp-gitlab@next`（预发布版本，不适用于生产环境）。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### Claude Desktop 一键安装（MCP Bundle）
 
@@ -425,7 +425,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | 环境变量                      | 必需 | 说明                                                                                                        |
 | ----------------------------- | ---- | ----------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                                                                        |
-| `GITLAB_API_URL`              | 是   | GitLab API base URL。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
+| `GITLAB_API_URL`              | 是   | GitLab API base URL。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。用户名或密码中的逗号必须写成 `%2C`；从 v3.0.0 起，可能位于用户名或密码内的逗号会导致启动失败。 |
 | `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                                                                                 |
 | `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                                                                               |
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
@@ -522,6 +522,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`（或 `GITLAB_MCP_OAUTH=true`）, `MCP_TRUST_PROXY=true`（反向代理后）, `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 或 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **并行运行多个部署**：为每个实例设置不同的 `MCP_SERVER_NAME`（例如 `gitlab-selfhosted-readonly`），以便在客户端、日志和遥测数据中区分它们
 - **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./docs/configuration/stateless-mode.md)。
+
+> **v3.0.0 破坏性变更：`GITLAB_API_URL` 列表。** `GITLAB_API_URL`（以及 `--api-url`）可以列出多个以逗号分隔的 URL，例如 `https://a.example/api/v4,https://b.example/api/v4`。用户名或密码中的逗号必须写成 `%2C`（`https://alice:p%2Cw@host`）。从 v3.0.0 起，如果值中的某个逗号可能位于用户名或密码内（例如 `https://alice:123,https:word@host`），服务不再猜测如何拆分，而是在启动时报错并退出；错误信息只给出逗号的位置，不会显示值本身。修复方法：把该逗号写成 `%2C`，或者从 URL 中删除用户名和密码（请求不会使用它们）。详见 [`GITLAB_API_URL`](./docs/configuration/environment-variables.md#gitlab_api_url)。
 
 常用变量：
 
@@ -699,7 +701,7 @@ node build/index.js
 | `GITLAB_MCP_OAUTH`                          | 是   | 设置为 `true` 以启用                                                                                                                     |
 | `GITLAB_OAUTH_APP_ID`                       | 是   | 预先注册的 GitLab OAuth 应用 client ID                                                                                                   |
 | `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
-| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。密码中的逗号必须写成 `%2C`。 |
+| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）。不要在 URL 中嵌入凭据（`user:pass@`），嵌入的凭据会被忽略。用户名或密码中的逗号必须写成 `%2C`；从 v3.0.0 起，可能位于用户名或密码内的逗号会导致启动失败。 |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP 限制（固定 1 小时窗口）。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |

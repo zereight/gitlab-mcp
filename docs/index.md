@@ -8,7 +8,7 @@ A comprehensive **Model Context Protocol** server for GitLab. Manage projects,
 merge requests, issues, pipelines, wikis, releases, tags, milestones, and more
 from any MCP-compatible AI client.
 
-**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 290 tools exist in total.
+**Default: 40 tools** (38 `core` + `discover_tools` + `help`). 291 tools exist in total.
 Start lean; call `discover_tools` to activate more for this session
 (session-only; with `OAUTH_STATELESS_MODE=true` persist `GITLAB_TOOLSETS`).
 Do not set `GITLAB_TOOLSETS=all`
@@ -85,7 +85,7 @@ Official MCP Registry listing: [`io.github.zereight/gitlab-mcp`](https://registr
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.30`. If you set `GITLAB_MASKING_ENABLED`, use 2.3.29 or later (or `@latest`): older releases return the values of CI/CD variables that GitLab flags masked or hidden in plain text. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production.
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.3.31`. If you set `GITLAB_MASKING_ENABLED`, use 2.3.29 or later (or `@latest`): older releases return the values of CI/CD variables that GitLab flags masked or hidden in plain text. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. To try a fix merged to `main` before the next stable release, use `npx -y @zereight/mcp-gitlab@next`, a pre-release build that is not meant for production.
 
 === "Personal Access Token"
 
