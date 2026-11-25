@@ -34,11 +34,17 @@ describe("live: group hint (group-not-found-hint)", { skip: SKIP_REASON }, () =>
 
   before(async () => {
     client = new StdioTestClient();
+    // connect() inherits process.env, so pin the project-scope settings here. An
+    // inherited allowlist could stop the missing-group request before it reaches GitLab,
+    // and the hint assertions would then test the wrong error path.
     await client.connect("build/index.js", {
       GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN ?? "",
       GITLAB_API_URL,
       GITLAB_TOOLSETS: "projects,workitems",
       GITLAB_PERMISSION_MODE: "readonly",
+      GITLAB_PROJECT_ID: "",
+      GITLAB_ALLOWED_PROJECT_IDS: "",
+      ENABLE_STRICT_PROJECT_SCOPE: "false",
     });
   });
 
