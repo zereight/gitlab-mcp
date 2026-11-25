@@ -60,7 +60,12 @@ interface MaskMatch {
 export interface MaskingEngine {
   readonly configPath?: string;
   maskText(text: string): string;
-  maskValue<T>(value: T): T;
+  /**
+   * Masks every string in a value. A string in `masked` was masked before: it gets
+   * only the rules that depend on where it sits (secret field names and CI variable
+   * records), not the text rules again.
+   */
+  maskValue<T>(value: T, options?: { masked?: ReadonlySet<string> }): T;
   maskToolResult<T extends Record<string, unknown>>(
     result: T,
     options?: { textFormat?: "plain" | "json" }
@@ -969,7 +974,15 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
   return {
     configPath,
     maskText,
-    maskValue: <T>(value: T): T => maskStrings(value, maskString) as T,
+    maskValue: <T>(value: T, options?: { masked?: ReadonlySet<string> }): T => {
+      const masked = options?.masked;
+      if (!masked) return maskStrings(value, maskString) as T;
+      return maskStrings(value, (text, parentKey) =>
+        masked.has(text)
+          ? applyAwsSecretFieldMask(parentKey, text, text, awsSecretFieldReplacement)
+          : maskString(text, parentKey)
+      ) as T;
+    },
     maskToolResult: <T extends Record<string, unknown>>(
       result: T,
       options?: { textFormat?: "plain" | "json" }

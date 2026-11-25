@@ -705,6 +705,38 @@ describe(
         returned_lines: 1,
       });
     });
+
+    test("should mask a range that jmespath moves into a secret field", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: { version: 1 },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/key.txt": {
+            file_name: "key.txt",
+            file_path: "key.txt",
+            encoding: "base64",
+            content: Buffer.from("a".repeat(40), "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (range: { offset?: number; limit?: number }) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: {
+            project_id: "12",
+            file_path: "key.txt",
+            ref: "main",
+            jmespath: "{aws_secret_access_key: content}",
+            ...range,
+          },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      const expected = { aws_secret_access_key: "[AWS key masked]" };
+      assert.deepEqual(await read({}), expected);
+      assert.deepEqual(await read({ limit: 1 }), expected);
+    });
   }
 );
 

@@ -912,7 +912,10 @@ function createServer(): McpServer {
       const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
         ...completionOptions,
         maskValue: engine ? (value: unknown) => engine.maskValue(value) : undefined,
-        maskDerivedValue: handlerMasked ? (value: unknown) => policy.maskValue(value) : undefined,
+        maskDerivedValue: handlerMasked
+          ? (value: unknown, maskedStrings: ReadonlySet<string>) =>
+              policy.maskValue(value, { masked: maskedStrings })
+          : undefined,
       });
       const masked = engine
         ? engine.maskToolResult(filtered, {

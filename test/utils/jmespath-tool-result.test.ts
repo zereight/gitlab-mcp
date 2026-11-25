@@ -71,7 +71,7 @@ describe("jmespath tool result helpers", () => {
     assert.deepEqual(JSON.parse((result.content as { text: string }[])[0].text), [false]);
   });
 
-  test("applyJmespathToToolResult masks only output strings that the input lacks", () => {
+  test("applyJmespathToToolResult hands maskDerivedValue the output and the input's strings", () => {
     const result = applyJmespathToToolResult(
       {
         content: [
@@ -80,10 +80,10 @@ describe("jmespath tool result helpers", () => {
       },
       "{kept: content, joined: join('', [name, content]), parts: [name, 'literal']}",
       {
-        maskDerivedValue: value =>
+        maskDerivedValue: (value, maskedStrings) =>
           JSON.parse(
             JSON.stringify(value, (_key, item) =>
-              typeof item === "string" ? `[masked ${item}]` : item
+              typeof item === "string" && !maskedStrings.has(item) ? `[masked ${item}]` : item
             )
           ),
       }

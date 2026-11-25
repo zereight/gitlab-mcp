@@ -52,12 +52,11 @@ export interface JmespathApplyOptions {
   /** When set, applied to parsed JSON before JMESPath (mask-then-filter for response masking). */
   maskValue?: (value: unknown) => unknown;
   /**
-   * For JSON that is already masked: applied to the JMESPath output, whose strings that
-   * are not string values of the input are replaced by their masked form. Text taken
-   * over unchanged is not masked again; text the expression derives, such as a join of
-   * fields, is.
+   * For JSON that is already masked: masks the JMESPath output, given the string values
+   * of its input. Those were masked before and must not get the text rules again; text
+   * the expression derives, such as a join of fields, must.
    */
-  maskDerivedValue?: (value: unknown) => unknown;
+  maskDerivedValue?: (value: unknown, maskedStrings: ReadonlySet<string>) => unknown;
 }
 
 function collectStrings(value: unknown, strings: Set<string>): Set<string> {
@@ -66,29 +65,6 @@ function collectStrings(value: unknown, strings: Set<string>): Set<string> {
   else if (value && typeof value === "object")
     Object.values(value).forEach(item => collectStrings(item, strings));
   return strings;
-}
-
-// `masked` has the shape of `output`; keep each string of `output` found in `kept`.
-function keepStrings(output: unknown, masked: unknown, kept: Set<string>): unknown {
-  if (typeof output === "string") return kept.has(output) ? output : masked;
-  if (Array.isArray(output) && Array.isArray(masked))
-    return output.map((item, index) => keepStrings(item, masked[index], kept));
-  if (output && typeof output === "object" && masked && typeof masked === "object")
-    return Object.fromEntries(
-      Object.entries(output).map(([key, item]) => [
-        key,
-        keepStrings(item, (masked as Record<string, unknown>)[key], kept),
-      ])
-    );
-  return masked;
-}
-
-function maskDerivedStrings(
-  input: unknown,
-  output: unknown,
-  maskValue: (value: unknown) => unknown
-): unknown {
-  return keepStrings(output, maskValue(output), collectStrings(input, new Set()));
 }
 
 function isContentBlock(value: unknown): value is { type?: unknown; text?: unknown } {
@@ -132,7 +108,7 @@ export function applyJmespathToToolResult<T extends ToolResultLike>(
   const filter = (data: unknown) => {
     const input = prepareDataForJmespath(data, maskValue);
     const output = applyJmespathFilter(input, expression);
-    return maskDerivedValue ? maskDerivedStrings(input, output, maskDerivedValue) : output;
+    return maskDerivedValue ? maskDerivedValue(output, collectStrings(input, new Set())) : output;
   };
 
   try {

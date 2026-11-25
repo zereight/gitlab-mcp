@@ -855,6 +855,27 @@ describe("When builtin AWS key masking runs", () => {
     });
   });
 
+  describe("with strings that were masked before", () => {
+    test("should apply the field rules but not the text rules to them", () => {
+      const engine = createEnabledEngine({
+        version: 1,
+        rules: [{ id: "extra", type: "keyword", match: "Secret", replacement: "Secret extra" }],
+      });
+      const masked = new Set(["Secret", EXAMPLE_AWS_SECRET]);
+      assert.deepEqual(
+        engine.maskValue(
+          { kept: "Secret", AWS_SECRET_ACCESS_KEY: EXAMPLE_AWS_SECRET, derived: "a Secret" },
+          { masked }
+        ),
+        {
+          kept: "Secret",
+          AWS_SECRET_ACCESS_KEY: "[AWS key masked]",
+          derived: "a Secret extra",
+        }
+      );
+    });
+  });
+
   describe("with JSON tool text containing an AWS secret field", () => {
     test("should mask the field value", () => {
       const engine = createEnabledEngine();
