@@ -2175,7 +2175,7 @@ export const GetFileContentsSchema = z
       .min(0)
       .optional()
       .describe(
-        "Zero-based index of the first line to return (default: 0). When offset or limit is set, content of a utf8 file holds only those lines and the result adds offset, returned_lines and total_lines for paging. Omit both to get the whole file. base64 content is always returned whole."
+        "Zero-based index of the first line to return (default: 0). When offset or limit is set, content of a utf8 file holds only those lines and the result adds offset, returned_lines and total_lines for paging. Omit both to get the whole file. base64 content is always returned whole. With response masking enabled, the whole file is masked before the range is cut, so line numbers count lines of the masked text."
       ),
     limit: z.coerce
       .number()

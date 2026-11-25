@@ -616,6 +616,59 @@ describe(
       assert.match(text, /\[Private key masked\]/);
       assert.match(text, /after/);
     });
+
+    test("should count the lines of the masked text it returns", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: {
+          version: 1,
+          rules: [
+            // The second replacement contains the first rule's match: masking a range
+            // again after cutting it would turn its one line into two.
+            { id: "inner", type: "keyword", match: "[outer]", replacement: "[inner]\n[inner]" },
+            {
+              id: "outer",
+              type: "keyword",
+              match: "ProjectOneSecret",
+              replacement: "[outer]\n[outer]",
+            },
+          ],
+        },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/config.txt": {
+            file_name: "config.txt",
+            file_path: "config.txt",
+            encoding: "base64",
+            content: Buffer.from("ProjectOneSecret\nafter\n", "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (range: { offset?: number; limit?: number }) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: { project_id: "12", file_path: "config.txt", ref: "main", ...range },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      const whole = await read({});
+      assert.equal(whole.content, "[outer]\n[outer]\nafter\n");
+      const pages: string[] = [];
+      for (let offset = 0; offset < 3; offset += 1) {
+        const page = await read({ offset, limit: 1 });
+        assert.deepEqual(
+          {
+            offset: page.offset,
+            returned_lines: page.returned_lines,
+            total_lines: page.total_lines,
+          },
+          { offset, returned_lines: 1, total_lines: 3 }
+        );
+        assert.equal(page.content.split("\n").length - 1, page.returned_lines, page.content);
+        pages.push(page.content);
+      }
+      assert.equal(pages.join(""), whole.content);
+    });
   }
 );
 

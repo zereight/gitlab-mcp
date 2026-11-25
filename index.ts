@@ -904,12 +904,13 @@ function createServer(): McpServer {
         listSummaryRequested,
         toolName
       );
+      const engine = resultMaskingEngine(maskingEngine, result);
       const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
         ...completionOptions,
-        maskValue: maskingEngine ? (value: unknown) => maskingEngine!.maskValue(value) : undefined,
+        maskValue: engine ? (value: unknown) => engine.maskValue(value) : undefined,
       });
-      const masked = maskingEngine
-        ? maskingEngine.maskToolResult(filtered, {
+      const masked = engine
+        ? engine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
@@ -11095,18 +11096,36 @@ function assertCiCatalogResourceProjectAllowed(
 
 interface ToolCallContext {
   /**
-   * Masks text with the request's masking policy. Results are masked as a whole
-   * after the handler returns; a handler that returns only part of a text masks
-   * the whole text first, so a cut cannot split a secret the rules would match.
+   * Masks every string in a value with the request's masking policy; undefined
+   * when masking is off. Results are masked as a whole after the handler returns.
+   * A handler that returns only part of a text masks the whole value first, so a
+   * cut cannot split a secret the rules would match, and returns the result
+   * through maskedByHandler so the cut is not masked a second time.
    */
-  readonly maskText?: (text: string) => string;
+  readonly maskValue: (<T>(value: T) => T) | undefined;
 }
 
 function toolCallContextFor(engine: MaskingEngine | undefined): ToolCallContext {
-  return { maskText: engine ? text => engine.maskText(text) : undefined };
+  return { maskValue: engine ? value => engine.maskValue(value) : undefined };
 }
 
-async function handleToolCall(params: any, context: ToolCallContext = {}) {
+// Tool results that their handler already masked with ToolCallContext.maskValue.
+const handlerMaskedResults = new WeakSet<object>();
+
+function maskedByHandler<T extends object>(result: T): T {
+  handlerMaskedResults.add(result);
+  return result;
+}
+
+/** The engine that masks a handler's result, or undefined when the handler did. */
+function resultMaskingEngine(
+  engine: MaskingEngine | undefined,
+  result: unknown
+): MaskingEngine | undefined {
+  return isRecord(result) && handlerMaskedResults.has(result) ? undefined : engine;
+}
+
+async function handleToolCall(params: any, context: ToolCallContext) {
   try {
     if (!params.arguments) {
       params.arguments = {};
@@ -11418,17 +11437,22 @@ async function handleToolCall(params: any, context: ToolCallContext = {}) {
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
         const lineRangeRequested = args.offset !== undefined || args.limit !== undefined;
         // A line range applies only to decoded text; base64 content is returned whole.
-        // Line numbers count lines of the masked text when masking is enabled.
-        const result =
-          lineRangeRequested && !Array.isArray(contents) && contents.encoding === "utf8"
-            ? {
-                ...contents,
-                ...sliceFileLines(context.maskText?.(contents.content) ?? contents.content, args),
-              }
-            : contents;
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
+        if (!lineRangeRequested || Array.isArray(contents) || contents.encoding !== "utf8") {
+          return {
+            content: [{ type: "text", text: JSON.stringify(contents) }],
+          };
+        }
+        // Mask the whole file once, then cut the range, so a cut cannot split a secret
+        // and offset, returned_lines and total_lines count lines of the returned text.
+        const masked = context.maskValue ? context.maskValue(contents) : contents;
+        return maskedByHandler({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ ...masked, ...sliceFileLines(masked.content, args) }),
+            },
+          ],
+        });
       }
 
       case "create_or_update_file": {
@@ -16898,7 +16922,11 @@ async function main(): Promise<void> {
         { name: cli.toolName, arguments: cli.args },
         toolCallContextFor(maskingEngine)
       );
-      const masked = maskCliToolResult(maskingEngine, cli.toolName, redactErrorResultUrls(result));
+      const masked = maskCliToolResult(
+        resultMaskingEngine(maskingEngine, result),
+        cli.toolName,
+        redactErrorResultUrls(result)
+      );
       const formatted = formatToolOutput({
         result: masked,
         mode: cli.output,
