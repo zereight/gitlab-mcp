@@ -904,10 +904,15 @@ function createServer(): McpServer {
         listSummaryRequested,
         toolName
       );
-      const engine = resultMaskingEngine(maskingEngine, result);
+      // A result its handler masked is not masked again; only what a JMESPath
+      // expression derives from it is.
+      const policy = maskingEngine;
+      const handlerMasked = policy !== undefined && isMaskedByHandler(result);
+      const engine = handlerMasked ? undefined : policy;
       const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
         ...completionOptions,
         maskValue: engine ? (value: unknown) => engine.maskValue(value) : undefined,
+        maskDerivedValue: handlerMasked ? (value: unknown) => policy.maskValue(value) : undefined,
       });
       const masked = engine
         ? engine.maskToolResult(filtered, {
@@ -11100,7 +11105,8 @@ interface ToolCallContext {
    * when masking is off. Results are masked as a whole after the handler returns.
    * A handler that returns only part of a text masks the whole value first, so a
    * cut cannot split a secret the rules would match, and returns the result
-   * through maskedByHandler so the cut is not masked a second time.
+   * through maskedByHandler so the cut is not masked a second time (only what a
+   * JMESPath expression derives from it is).
    */
   readonly maskValue: (<T>(value: T) => T) | undefined;
 }
@@ -11117,12 +11123,8 @@ function maskedByHandler<T extends object>(result: T): T {
   return result;
 }
 
-/** The engine that masks a handler's result, or undefined when the handler did. */
-function resultMaskingEngine(
-  engine: MaskingEngine | undefined,
-  result: unknown
-): MaskingEngine | undefined {
-  return isRecord(result) && handlerMaskedResults.has(result) ? undefined : engine;
+function isMaskedByHandler(result: unknown): boolean {
+  return isRecord(result) && handlerMaskedResults.has(result);
 }
 
 async function handleToolCall(params: any, context: ToolCallContext) {
@@ -16923,7 +16925,7 @@ async function main(): Promise<void> {
         toolCallContextFor(maskingEngine)
       );
       const masked = maskCliToolResult(
-        resultMaskingEngine(maskingEngine, result),
+        isMaskedByHandler(result) ? undefined : maskingEngine,
         cli.toolName,
         redactErrorResultUrls(result)
       );

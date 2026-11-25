@@ -669,6 +669,42 @@ describe(
       }
       assert.equal(pages.join(""), whole.content);
     });
+
+    test("should mask what a jmespath expression derives from the range", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/split.txt": {
+            file_name: "ProjectOne",
+            file_path: "split.txt",
+            encoding: "base64",
+            content: Buffer.from("Secret\nafter\n", "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (jmespath: string) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: {
+            project_id: "12",
+            file_path: "split.txt",
+            ref: "main",
+            offset: 0,
+            limit: 1,
+            jmespath,
+          },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      // Neither field holds the keyword; joining them does.
+      assert.equal(await read("join('', [file_name, content])"), "[local]\n");
+      // Text taken over unchanged from the range is not masked again.
+      assert.deepEqual(await read("{content: content, returned_lines: returned_lines}"), {
+        content: "Secret\n",
+        returned_lines: 1,
+      });
+    });
   }
 );
 

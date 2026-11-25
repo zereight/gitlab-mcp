@@ -212,7 +212,8 @@ string values are rewritten; numeric values and JSON formatting are preserved.
 
 `get_file_contents` with `offset` or `limit` masks the whole file once and
 then cuts the line range, so a range cannot split a secret that a rule would
-match, and the range is not masked again. Its `offset`, `returned_lines`, and
+match, and the range is not masked again; only strings a `jmespath` expression
+derives from it, such as a join of fields, are. Its `offset`, `returned_lines`, and
 `total_lines` count lines of the masked text: a masked PEM private key block is
 one line, and a custom rule whose replacement adds or removes line breaks
 shifts later line numbers against the file in GitLab.
