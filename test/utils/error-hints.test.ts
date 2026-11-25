@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   appendRecoveryHint,
+  GROUP_NOT_FOUND_HINT,
   hasRecoveryHint,
+  PROJECT_ID_NOT_FOUND_HINT,
   recoveryHintFor,
   withRecoveryHint,
 } from "../../utils/error-hints.js";
@@ -31,6 +33,28 @@ describe("When a GitLab tool error is returned", () => {
 
       assert.match(String(hint), /group%2Fproject/);
       assert.match(String(hint), /iid/);
+    });
+
+    it("should use the project_id hint constant", () => {
+      assert.equal(recoveryHintFor("GitLab API error: 404 Not Found"), PROJECT_ID_NOT_FOUND_HINT);
+      assert.match(PROJECT_ID_NOT_FOUND_HINT, /project_id/);
+      assert.doesNotMatch(PROJECT_ID_NOT_FOUND_HINT, /group_id/);
+    });
+  });
+
+  describe("with a 404 body that names a missing group", () => {
+    const message = 'GitLab API error: 404 Not Found\n{"message":"404 Group Not Found"}';
+
+    it("should name group_id and not project_id", () => {
+      const hint = String(recoveryHintFor(message));
+
+      assert.match(hint, /group_id/);
+      assert.doesNotMatch(hint, /project_id/);
+      assert.equal(hint, GROUP_NOT_FOUND_HINT);
+    });
+
+    it("should append the group hint at the tool-call boundary", () => {
+      assert.equal(appendRecoveryHint(message), `${message}\nNext: ${GROUP_NOT_FOUND_HINT}`);
     });
   });
 

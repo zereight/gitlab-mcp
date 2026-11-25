@@ -331,7 +331,12 @@ import {
   omitJmespathArgument,
   readJmespathExpression,
 } from "./utils/jmespath-tool-result.js";
-import { appendRecoveryHint, withRecoveryHint } from "./utils/error-hints.js";
+import {
+  appendRecoveryHint,
+  GROUP_NOT_FOUND_HINT,
+  PROJECT_ID_NOT_FOUND_HINT,
+  withRecoveryHint,
+} from "./utils/error-hints.js";
 import {
   applyListSummaryToToolResult,
   omitListSummaryArgument,
@@ -2274,8 +2279,6 @@ const MERGE_REQUEST_IDENTIFIER_REQUIRED =
 // Next-step hints for lookups that found nothing (see withRecoveryHint).
 const PROJECT_NOT_FOUND_HINT =
   "check project_id (numeric ID or group%2Fproject) and that the token can read the project.";
-const GROUP_NOT_FOUND_HINT =
-  "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
 const WORK_ITEM_NOT_FOUND_HINT =
   "check project_id and the work item iid (the #number shown in GitLab, not the global ID).";
 const WORK_ITEM_TYPE_NOT_FOUND_HINT =
@@ -3913,12 +3916,28 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 }
 
 /**
+ * Error handling for a /groups/ lookup made by resolveProjectOrGroupPath. GitLab answers a
+ * missing group with "404 Group Not Found", which the body-based hint names as group_id. Only
+ * group tools take group_id; namespace tools take project_id, so they get the project_id hint.
+ */
+function handleGroupLookupError(
+  response: UndiciResponse,
+  callerArg: "project_id" | "group_id"
+): Promise<void> {
+  return callerArg === "group_id"
+    ? handleGitLabError(response)
+    : handleGitLabErrorWithNotFoundHint(response, PROJECT_ID_NOT_FOUND_HINT);
+}
+
+/**
  * Resolve a project or group path and identify which GraphQL root field to use.
  * Bare numeric IDs resolve as projects for backwards compatibility; use group:<id>
  * when the numeric value is a GitLab group ID.
+ * callerArg names the argument the calling tool takes, so a missing group gets the hint for it.
  */
 async function resolveProjectOrGroupPath(
-  projectId: string
+  projectId: string,
+  callerArg: "project_id" | "group_id" = "project_id"
 ): Promise<{ path: string; kind: "project" | "group" }> {
   const decodedProjectId = decodeURIComponent(projectId);
   const namespaceMatch = decodedProjectId.match(/^(group|project):(.+)$/i);
@@ -3940,7 +3959,7 @@ async function resolveProjectOrGroupPath(
     const groupResponse = await fetch(groupUrl.toString(), {
       ...getFetchConfig(),
     });
-    await handleGitLabError(groupResponse);
+    await handleGroupLookupError(groupResponse, callerArg);
     const group: any = await groupResponse.json();
     return { path: group.full_path as string, kind: "group" };
   }
@@ -3973,7 +3992,7 @@ async function resolveProjectOrGroupPath(
       return { path: group.full_path as string, kind: "group" };
     }
     // Surface the group error
-    await handleGitLabError(groupResponse);
+    await handleGroupLookupError(groupResponse, callerArg);
   }
 
   await handleGitLabError(projectResponse);
@@ -9805,7 +9824,7 @@ function normalizeIterationCadenceId(cadenceId: string): string {
 
 async function resolveGroupPath(groupId: string): Promise<string> {
   const groupReference = /^group:/i.test(groupId) ? groupId : `group:${groupId}`;
-  const { path } = await resolveProjectOrGroupPath(groupReference);
+  const { path } = await resolveProjectOrGroupPath(groupReference, "group_id");
   return path;
 }
 
@@ -10714,11 +10733,13 @@ async function getProjectEvents(
 }
 
 /**
- * Like handleGitLabError, but a 404 from a tag-addressed release endpoint gets the release hint.
- * Release tools take a tag_name, so the generic hint about the iid would name the wrong argument.
+ * Like handleGitLabError, but a 404 gets the given hint instead of the one picked from the body.
  * Other responses go through handleGitLabError unchanged.
  */
-async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
+async function handleGitLabErrorWithNotFoundHint(
+  response: UndiciResponse,
+  hint: string
+): Promise<void> {
   if (response.ok || response.status !== 404) {
     await handleGitLabError(response);
     return;
@@ -10727,10 +10748,18 @@ async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
   throw new GitLabApiError(
     withRecoveryHint(
       `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
-      RELEASE_TAG_NOT_FOUND_HINT
+      hint
     ),
     response
   );
+}
+
+/**
+ * Like handleGitLabError, but a 404 from a tag-addressed release endpoint gets the release hint.
+ * Release tools take a tag_name, so the generic hint about the iid would name the wrong argument.
+ */
+async function handleReleaseTagError(response: UndiciResponse): Promise<void> {
+  await handleGitLabErrorWithNotFoundHint(response, RELEASE_TAG_NOT_FOUND_HINT);
 }
 
 /**
