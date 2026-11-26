@@ -125,7 +125,7 @@ Human CLI 从不 compact。破坏性工具和 `GITLAB_TOOL_POLICY_APPROVE` 工�
 
 **本地 OAuth、MCP OAuth 和远程授权有何区别？** 本地 OAuth 在服务器同一台机器上打开浏览器。MCP OAuth 用于公网 HTTPS 服务器和 Claude.ai 这类客户端。远程授权转发调用者的 PAT 或 job token，没有 OAuth 流程。
 
-**如何缩小巨大响应？** 在任意工具调用上传递 `jmespath`。或设置 `GITLAB_MCP_COMPACT_RESULTS=true`，把过大的 MCP 回复变成预览加 CLI 命令。需要完整载荷时用 CLI。
+**如何缩小巨大响应？** 在任意工具调用上传递 `jmespath`。或设置 `GITLAB_MCP_COMPACT_RESULTS=true`，把过大的 MCP 回复变成预览加 CLI 命令。需要完整载荷时用 CLI。推荐按需开启的设置（默认均关闭）：`GITLAB_MCP_LIST_SUMMARY_DEFAULT=true`（`--list-summary-default=true`）在调用未传 `summary: false` 时让 list 工具返回摘要；`GITLAB_MCP_COMPACT_TOOLS`（`--compact-tools`）只对你列出的工具（如 `get_pipeline_job_output`）的过大回复进行 compact。参见 [环境变量参考](./docs/configuration/environment-variables.md#compact-mcp-results)。
 
 **为什么 `api` toolset 危险？** `gitlab_api_request` 会绕过组/项目允许列表、其他工具过滤和单工具安全检查。提示注入可以驱动它。只有在 `GITLAB_TOOLSETS` 中列出 `api` 时才启用。`all`、`discover_tools` 和 `GITLAB_TOOLS` 都不会启用它。
 
