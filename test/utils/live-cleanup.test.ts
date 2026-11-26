@@ -56,12 +56,37 @@ describe("live cleanup: deleteScratch", () => {
     assert.deepEqual(h.logs, []);
   });
 
-  test("429 without headers backs off exponentially and each wait is capped", async () => {
-    const h = harness([429], [429], [429, { "Retry-After": "600" }], [204]);
+  test("429 without headers backs off exponentially", async () => {
+    const h = harness([429], [429], [429], [204]);
     await h.run();
     assert.deepEqual(h.calls, [429, 429, 429, 204]);
-    assert.deepEqual(h.waits, [1000, 2000, 30_000]);
+    assert.deepEqual(h.waits, [1000, 2000, 4000]);
     assert.deepEqual(h.logs, []);
+  });
+
+  test("429 with a wait over the 30s cap sleeps in capped chunks, then retries once", async () => {
+    const h = harness([429, { "Retry-After": "90" }], [204]);
+    await h.run();
+    assert.deepEqual(h.calls, [429, 204]);
+    assert.deepEqual(h.waits, [30_000, 30_000, 30_000]);
+    assert.deepEqual(h.logs, []);
+  });
+
+  test("429 with a wait over the 5 minute ceiling gives up without sleeping", async () => {
+    const reset = String(Date.parse("2026-01-01T00:10:00Z") / 1000);
+    const cases: Array<Record<string, string>> = [
+      { "Retry-After": "600" },
+      { "RateLimit-Reset": reset },
+    ];
+    for (const headers of cases) {
+      const h = harness([429, headers], [204]);
+      await h.run();
+      assert.deepEqual(h.calls, [429]);
+      assert.deepEqual(h.waits, []);
+      assert.deepEqual(h.logs, [
+        "could not delete branch scratch (429, advertised wait exceeds the 5 minute ceiling); delete it by hand",
+      ]);
+    }
   });
 
   test("429 on every attempt logs once and does not throw", async () => {

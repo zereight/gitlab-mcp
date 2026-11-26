@@ -1,5 +1,8 @@
 const MAX_ATTEMPTS = 5;
 const MAX_WAIT_MS = 30_000;
+// 5 minute ceiling: give up instead of sleeping out a longer advertised wait,
+// so CI teardown cannot hang.
+const MAX_TOTAL_WAIT_MS = 5 * 60_000;
 
 export interface DeleteScratchIo {
   sleep?: (ms: number) => Promise<void>;
@@ -19,7 +22,7 @@ function retryDelayMs(response: Response, attempt: number, now: number): number 
     ms = Number(reset) * 1000 - now;
   }
   if (Number.isNaN(ms)) ms = 1000 * 2 ** attempt;
-  return Math.min(Math.max(ms, 0), MAX_WAIT_MS);
+  return Math.max(ms, 0);
 }
 
 // GitLab rate-limits bursts with 429; 404 means the resource is already gone.
@@ -39,6 +42,16 @@ export async function deleteScratch(
       log(`could not delete ${what} (${response.status}); ${hint}`);
       return;
     }
-    await sleep(retryDelayMs(response, attempt, now()));
+    let wait = retryDelayMs(response, attempt, now());
+    if (wait > MAX_TOTAL_WAIT_MS) {
+      log(`could not delete ${what} (429, advertised wait exceeds the 5 minute ceiling); ${hint}`);
+      return;
+    }
+    // Sleep out the whole wait in capped chunks; only the DELETE after it counts as an attempt.
+    do {
+      const chunk = Math.min(wait, MAX_WAIT_MS);
+      await sleep(chunk);
+      wait -= chunk;
+    } while (wait > 0);
   }
 }
