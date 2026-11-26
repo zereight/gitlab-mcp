@@ -566,6 +566,188 @@ describe("When builtin secret masking runs at the MCP boundary", { timeout: 30_0
   });
 });
 
+const PEM_FILE_BODY_LINES = [
+  "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu",
+  "KUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQJAIJLixBy2qpFoS4DSmoEm",
+];
+const PEM_FILE_TEXT = [
+  "# deploy key",
+  "-----BEGIN RSA PRIVATE KEY-----",
+  ...PEM_FILE_BODY_LINES,
+  "-----END RSA PRIVATE KEY-----",
+  "after",
+  "",
+].join("\n");
+
+describe(
+  "When get_file_contents returns a line range with masking enabled",
+  { timeout: 30_000 },
+  () => {
+    test("should not reveal a private key split across or cut by the range", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: { version: 1 },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/id_rsa": {
+            file_name: "id_rsa",
+            file_path: "id_rsa",
+            encoding: "base64",
+            content: Buffer.from(PEM_FILE_TEXT, "utf8").toString("base64"),
+          },
+        },
+      });
+      const pages: string[] = [];
+      for (const range of [
+        { offset: 2, limit: 1 },
+        { offset: 0, limit: 3 },
+        { offset: 3, limit: 3 },
+      ]) {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: { project_id: "12", file_path: "id_rsa", ref: "main", ...range },
+        });
+        assert.notEqual(result.isError, true);
+        pages.push(JSON.stringify(result));
+      }
+      const text = pages.join("\n");
+      for (const line of PEM_FILE_BODY_LINES) {
+        assert.ok(!text.includes(line), `key material leaked: ${line}`);
+      }
+      assert.match(text, /\[Private key masked\]/);
+      assert.match(text, /after/);
+    });
+
+    test("should count the lines of the masked text it returns", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: {
+          version: 1,
+          rules: [
+            // The second replacement contains the first rule's match: masking a range
+            // again after cutting it would turn its one line into two.
+            { id: "inner", type: "keyword", match: "[outer]", replacement: "[inner]\n[inner]" },
+            {
+              id: "outer",
+              type: "keyword",
+              match: "ProjectOneSecret",
+              replacement: "[outer]\n[outer]",
+            },
+          ],
+        },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/config.txt": {
+            file_name: "config.txt",
+            file_path: "config.txt",
+            encoding: "base64",
+            content: Buffer.from("ProjectOneSecret\nafter\n", "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (range: { offset?: number; limit?: number }) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: { project_id: "12", file_path: "config.txt", ref: "main", ...range },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      const whole = await read({});
+      assert.equal(whole.content, "[outer]\n[outer]\nafter\n");
+      const pages: string[] = [];
+      for (let offset = 0; offset < 3; offset += 1) {
+        const page = await read({ offset, limit: 1 });
+        assert.deepEqual(
+          {
+            offset: page.offset,
+            returned_lines: page.returned_lines,
+            total_lines: page.total_lines,
+          },
+          { offset, returned_lines: 1, total_lines: 3 }
+        );
+        assert.equal(page.content.split("\n").length - 1, page.returned_lines, page.content);
+        pages.push(page.content);
+      }
+      assert.equal(pages.join(""), whole.content);
+    });
+
+    test("should mask what a jmespath expression derives from the range", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: {
+          version: 1,
+          rules: [
+            { id: "local", type: "keyword", match: "ProjectOneSecret", replacement: "[local]" },
+            // Not idempotent: masking the range a second time would add a line.
+            { id: "extra", type: "keyword", match: "Secret", replacement: "Secret\nextra" },
+          ],
+        },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/split.txt": {
+            file_name: "ProjectOne",
+            file_path: "split.txt",
+            encoding: "base64",
+            content: Buffer.from("Secret\nafter\n", "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (jmespath: string) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: {
+            project_id: "12",
+            file_path: "split.txt",
+            ref: "main",
+            offset: 0,
+            limit: 1,
+            jmespath,
+          },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      // Neither field holds the keyword; joining them does.
+      assert.equal(await read("join('', [file_name, content])"), "[local]\n");
+      // Text taken over unchanged from the range is not masked again.
+      assert.deepEqual(await read("{content: content, returned_lines: returned_lines}"), {
+        content: "Secret\n",
+        returned_lines: 1,
+      });
+    });
+
+    test("should mask a range that jmespath moves into a secret field", async t => {
+      const { client } = await startMaskingServer(t, {
+        managed: false,
+        localConfig: { version: 1 },
+        jsonResponses: {
+          "/api/v4/projects/12/repository/files/key.txt": {
+            file_name: "key.txt",
+            file_path: "key.txt",
+            encoding: "base64",
+            content: Buffer.from("a".repeat(40), "utf8").toString("base64"),
+          },
+        },
+      });
+      const read = async (range: { offset?: number; limit?: number }) => {
+        const result = await client.callTool({
+          name: "get_file_contents",
+          arguments: {
+            project_id: "12",
+            file_path: "key.txt",
+            ref: "main",
+            jmespath: "{aws_secret_access_key: content}",
+            ...range,
+          },
+        });
+        assert.notEqual(result.isError, true);
+        return JSON.parse((result.content as Array<{ text: string }>)[0].text);
+      };
+      const expected = { aws_secret_access_key: "[AWS key masked]" };
+      assert.deepEqual(await read({}), expected);
+      assert.deepEqual(await read({ limit: 1 }), expected);
+    });
+  }
+);
+
 // 40-character values shaped like AWS secret access keys. The builtin AWS rule
 // only masks them by field name, so they prove which field scope the engine used.
 const awsShaped = (label: string, fill: string) => label.padEnd(40, fill);

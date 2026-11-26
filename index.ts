@@ -271,6 +271,7 @@ import {
   searchJobLog,
   type JobLogTail,
 } from "./utils/job-log-search.js";
+import { sliceFileLines } from "./utils/file-line-range.js";
 import {
   classifyHealthCheckTransportError,
   describeFetchTransportError,
@@ -903,12 +904,21 @@ function createServer(): McpServer {
         listSummaryRequested,
         toolName
       );
+      // A result its handler masked is not masked again; only what a JMESPath
+      // expression derives from it is.
+      const policy = maskingEngine;
+      const handlerMasked = policy !== undefined && isMaskedByHandler(result);
+      const engine = handlerMasked ? undefined : policy;
       const filtered = applyJmespathToToolResult(summarized, jmespathExpression, {
         ...completionOptions,
-        maskValue: maskingEngine ? (value: unknown) => maskingEngine!.maskValue(value) : undefined,
+        maskValue: engine ? (value: unknown) => engine.maskValue(value) : undefined,
+        maskDerivedValue: handlerMasked
+          ? (value: unknown, maskedStrings: ReadonlySet<string>) =>
+              policy.maskValue(value, { masked: maskedStrings })
+          : undefined,
       });
-      const masked = maskingEngine
-        ? maskingEngine.maskToolResult(filtered, {
+      const masked = engine
+        ? engine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
@@ -1223,16 +1233,17 @@ function createServer(): McpServer {
         request.params.arguments = cleanedArguments;
       }
 
+      const toolCallContext = toolCallContextFor(maskingEngine);
       if (sessionContext) {
         // Policy selection and the tool handler must use the same request-local
         // API URL and project allowlist.
         const result = await sessionAuthStore.run(sessionContext, () =>
-          handleToolCall(request.params)
+          handleToolCall(request.params, toolCallContext)
         );
         return logCompletion(result);
       }
       // Fallback for non-remote-auth mode or if session is not found
-      const result = await handleToolCall(request.params);
+      const result = await handleToolCall(request.params, toolCallContext);
       return logCompletion(result);
     } catch (error) {
       const isRecoverableToolError =
@@ -11091,7 +11102,35 @@ function assertCiCatalogResourceProjectAllowed(
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
-async function handleToolCall(params: any) {
+interface ToolCallContext {
+  /**
+   * Masks every string in a value with the request's masking policy; undefined
+   * when masking is off. Results are masked as a whole after the handler returns.
+   * A handler that returns only part of a text masks the whole value first, so a
+   * cut cannot split a secret the rules would match, and returns the result
+   * through maskedByHandler so the cut is not masked a second time (only what a
+   * JMESPath expression derives from it is).
+   */
+  readonly maskValue: (<T>(value: T) => T) | undefined;
+}
+
+function toolCallContextFor(engine: MaskingEngine | undefined): ToolCallContext {
+  return { maskValue: engine ? value => engine.maskValue(value) : undefined };
+}
+
+// Tool results that their handler already masked with ToolCallContext.maskValue.
+const handlerMaskedResults = new WeakSet<object>();
+
+function maskedByHandler<T extends object>(result: T): T {
+  handlerMaskedResults.add(result);
+  return result;
+}
+
+function isMaskedByHandler(result: unknown): boolean {
+  return isRecord(result) && handlerMaskedResults.has(result);
+}
+
+async function handleToolCall(params: any, context: ToolCallContext) {
   try {
     if (!params.arguments) {
       params.arguments = {};
@@ -11401,9 +11440,24 @@ async function handleToolCall(params: any) {
       case "get_file_contents": {
         const args = GetFileContentsSchema.parse(params.arguments);
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
-        return {
-          content: [{ type: "text", text: JSON.stringify(contents) }],
-        };
+        const lineRangeRequested = args.offset !== undefined || args.limit !== undefined;
+        // A line range applies only to decoded text; base64 content is returned whole.
+        if (!lineRangeRequested || Array.isArray(contents) || contents.encoding !== "utf8") {
+          return {
+            content: [{ type: "text", text: JSON.stringify(contents) }],
+          };
+        }
+        // Mask the whole file once, then cut the range, so a cut cannot split a secret
+        // and offset, returned_lines and total_lines count lines of the returned text.
+        const masked = context.maskValue ? context.maskValue(contents) : contents;
+        return maskedByHandler({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ ...masked, ...sliceFileLines(masked.content, args) }),
+            },
+          ],
+        });
       }
 
       case "create_or_update_file": {
@@ -16868,8 +16922,16 @@ async function main(): Promise<void> {
     }
     try {
       initOAuthClient();
-      const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
-      const masked = maskCliToolResult(cli.toolName, redactErrorResultUrls(result));
+      const maskingEngine = selectCliMaskingEngine();
+      const result = await handleToolCall(
+        { name: cli.toolName, arguments: cli.args },
+        toolCallContextFor(maskingEngine)
+      );
+      const masked = maskCliToolResult(
+        isMaskedByHandler(result) ? undefined : maskingEngine,
+        cli.toolName,
+        redactErrorResultUrls(result)
+      );
       const formatted = formatToolOutput({
         result: masked,
         mode: cli.output,
@@ -16925,11 +16987,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function maskCliToolResult(toolName: string, result: unknown): unknown {
-  const engine = maskingPolicyResolver?.select({
+function selectCliMaskingEngine(): MaskingEngine | undefined {
+  return maskingPolicyResolver?.select({
     gitlabInstance: GITLAB_API_URL,
     allowBuiltinForUnscoped: true,
   });
+}
+
+function maskCliToolResult(
+  engine: MaskingEngine | undefined,
+  toolName: string,
+  result: unknown
+): unknown {
   if (!engine || !isRecord(result)) {
     return result;
   }

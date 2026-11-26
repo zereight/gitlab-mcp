@@ -3,6 +3,7 @@ import {
   EXCLUDED_FILE_PATTERN_MAX_COUNT,
   EXCLUDED_FILE_PATTERN_MAX_LENGTH,
 } from "./utils/helpers.js";
+import { FILE_CONTENTS_MAX_LINES } from "./utils/file-line-range.js";
 import { omitIncompleteMergeRequestPosition } from "./utils/merge-request-position.js";
 
 // Helper: coerce a JSON-stringified array to an actual array.
@@ -2168,6 +2169,23 @@ export const GetFileContentsSchema = z
       ),
     path: z.string().optional().describe("Alias of file_path"),
     ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
+    offset: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe(
+        "Zero-based index of the first line to return (default: 0). When offset or limit is set, content of a utf8 file holds only those lines and the result adds offset, returned_lines and total_lines for paging. Omit both to get the whole file. base64 content is always returned whole. With response masking enabled, the whole file is masked before the range is cut, so line numbers count lines of the masked text."
+      ),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(FILE_CONTENTS_MAX_LINES)
+      .optional()
+      .describe(
+        `Maximum number of lines to return (default and maximum: ${FILE_CONTENTS_MAX_LINES}). See offset.`
+      ),
   })
   .superRefine((data, ctx) => {
     const fp = data.file_path?.trim();
@@ -2192,6 +2210,8 @@ export const GetFileContentsSchema = z
     project_id: (data.project_id ?? "").trim() || undefined,
     file_path: ((data.file_path ?? "").trim() || (data.path ?? "").trim()).trim(),
     ref: (data.ref ?? "").trim() || undefined,
+    offset: data.offset,
+    limit: data.limit,
   }));
 
 export const PushFilesSchema = ProjectParamsSchema.extend({

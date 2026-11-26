@@ -210,6 +210,16 @@ and Streamable HTTP modes, including stateless HTTP requests.
 Plain text outputs preserve their formatting. For JSON text responses, only
 string values are rewritten; numeric values and JSON formatting are preserved.
 
+`get_file_contents` with `offset` or `limit` masks the whole file once and
+then cuts the line range, so a range cannot split a secret that a rule would
+match, and the range is not masked again. A `jmespath` expression's output is
+masked, except that strings taken over unchanged from the masked result get only
+the field rules (such as an `aws_secret_access_key` field), not the text rules
+again. Its `offset`, `returned_lines`, and
+`total_lines` count lines of the masked text: a masked PEM private key block is
+one line, and a custom rule whose replacement adds or removes line breaks
+shifts later line numbers against the file in GitLab.
+
 This release does not inspect files returned through download URLs, local files,
 image or other binary content, or base64-encoded payloads. Treat those outputs
 as outside the masking boundary.

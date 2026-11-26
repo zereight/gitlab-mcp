@@ -71,6 +71,30 @@ describe("jmespath tool result helpers", () => {
     assert.deepEqual(JSON.parse((result.content as { text: string }[])[0].text), [false]);
   });
 
+  test("applyJmespathToToolResult hands maskDerivedValue the output and the input's strings", () => {
+    const result = applyJmespathToToolResult(
+      {
+        content: [
+          { type: "text", text: JSON.stringify({ name: "ProjectOne", content: "Secret" }) },
+        ],
+      },
+      "{kept: content, joined: join('', [name, content]), parts: [name, 'literal']}",
+      {
+        maskDerivedValue: (value, maskedStrings) =>
+          JSON.parse(
+            JSON.stringify(value, (_key, item) =>
+              typeof item === "string" && !maskedStrings.has(item) ? `[masked ${item}]` : item
+            )
+          ),
+      }
+    );
+    assert.deepEqual(JSON.parse((result.content as { text: string }[])[0].text), {
+      kept: "Secret",
+      joined: "[masked ProjectOneSecret]",
+      parts: ["ProjectOne", "[masked literal]"],
+    });
+  });
+
   test("shouldApplyJmespathFilter is false for isError and explicit skip", () => {
     const errorResult = {
       content: [{ type: "text", text: 'Unknown category "foo"' }],

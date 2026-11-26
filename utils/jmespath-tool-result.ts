@@ -51,6 +51,20 @@ export interface JmespathApplyOptions {
   skipJmespath?: boolean;
   /** When set, applied to parsed JSON before JMESPath (mask-then-filter for response masking). */
   maskValue?: (value: unknown) => unknown;
+  /**
+   * For JSON that is already masked: masks the JMESPath output, given the string values
+   * of its input. Those were masked before and must not get the text rules again; text
+   * the expression derives, such as a join of fields, must.
+   */
+  maskDerivedValue?: (value: unknown, maskedStrings: ReadonlySet<string>) => unknown;
+}
+
+function collectStrings(value: unknown, strings: Set<string>): Set<string> {
+  if (typeof value === "string") strings.add(value);
+  else if (Array.isArray(value)) value.forEach(item => collectStrings(item, strings));
+  else if (value && typeof value === "object")
+    Object.values(value).forEach(item => collectStrings(item, strings));
+  return strings;
 }
 
 function isContentBlock(value: unknown): value is { type?: unknown; text?: unknown } {
@@ -90,8 +104,12 @@ export function applyJmespathToToolResult<T extends ToolResultLike>(
 ): T {
   if (!expression || !shouldApplyJmespathFilter(result, expression, options)) return result;
   const maskValue = options?.maskValue;
-  const filter = (data: unknown) =>
-    applyJmespathFilter(prepareDataForJmespath(data, maskValue), expression);
+  const maskDerivedValue = options?.maskDerivedValue;
+  const filter = (data: unknown) => {
+    const input = prepareDataForJmespath(data, maskValue);
+    const output = applyJmespathFilter(input, expression);
+    return maskDerivedValue ? maskDerivedValue(output, collectStrings(input, new Set())) : output;
+  };
 
   try {
     const content = Array.isArray(result.content)
