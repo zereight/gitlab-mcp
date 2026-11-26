@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "gitlab-mcp",
   "display_name": "GitLab MCP",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
   "long_description": "Connects Claude to GitLab.com or a self-managed GitLab instance with a Personal Access Token. Covers projects, repositories, merge requests, issues, pipelines, wiki, releases, and more. Use the permission mode and toolset settings to limit which tools are exposed.",
   "author": {
