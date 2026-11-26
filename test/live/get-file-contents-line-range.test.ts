@@ -19,6 +19,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { deleteScratch } from "./cleanup.js";
 
 dotenv.config();
 
@@ -177,18 +178,19 @@ describe("live: get_file_contents line range", { skip: SKIP_REASON }, () => {
   });
 
   after(async () => {
-    await client?.disconnect();
-    await maskingClient?.disconnect();
-    if (workspace) fs.rmSync(workspace, { recursive: true, force: true });
-    if (!branchCreated) return;
-    const response = await gitlab(
-      "DELETE",
-      `${projectPath}/repository/branches/${encodeURIComponent(branch)}`
-    );
-    if (!response.ok) {
-      process.stderr.write(
-        `could not delete branch ${branch} (${response.status}); delete it by hand\n`
-      );
+    try {
+      await client?.disconnect();
+      await maskingClient?.disconnect();
+      if (workspace) fs.rmSync(workspace, { recursive: true, force: true });
+    } finally {
+      if (branchCreated) {
+        await deleteScratch(
+          () =>
+            gitlab("DELETE", `${projectPath}/repository/branches/${encodeURIComponent(branch)}`),
+          `branch ${branch}`,
+          "delete it by hand"
+        );
+      }
     }
   });
 

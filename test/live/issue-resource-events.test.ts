@@ -14,6 +14,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { deleteScratch } from "./cleanup.js";
 
 dotenv.config();
 
@@ -128,14 +129,18 @@ describe("live: issue label and state events (#1003)", { skip: SKIP_REASON }, ()
   });
 
   after(async () => {
-    await client?.disconnect();
-    if (!issuePath) return;
-    // Deleting an issue needs the Owner role; a Maintainer token leaves it closed.
-    const response = await gitlab("DELETE", issuePath);
-    if (!response.ok) {
-      process.stderr.write(
-        `could not delete ${issuePath} (${response.status}); it stays closed in the test project\n`
-      );
+    try {
+      await client?.disconnect();
+    } finally {
+      // Deleting an issue needs the Owner role; a Maintainer token leaves it closed.
+      const target = issuePath;
+      if (target) {
+        await deleteScratch(
+          () => gitlab("DELETE", target),
+          target,
+          "it stays closed in the test project"
+        );
+      }
     }
   });
 
