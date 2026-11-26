@@ -15,6 +15,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { deleteScratch } from "./cleanup.js";
 
 dotenv.config();
 
@@ -144,16 +145,17 @@ describe("live: update_file_patch", { skip: SKIP_REASON }, () => {
   });
 
   after(async () => {
-    await client?.disconnect();
-    if (!branchCreated) return;
-    const response = await gitlab(
-      "DELETE",
-      `${projectPath}/repository/branches/${encodeURIComponent(branch)}`
-    );
-    if (!response.ok) {
-      process.stderr.write(
-        `could not delete branch ${branch} (${response.status}); delete it by hand\n`
-      );
+    try {
+      await client?.disconnect();
+    } finally {
+      if (branchCreated) {
+        await deleteScratch(
+          () =>
+            gitlab("DELETE", `${projectPath}/repository/branches/${encodeURIComponent(branch)}`),
+          `branch ${branch}`,
+          "delete it by hand"
+        );
+      }
     }
   });
 
