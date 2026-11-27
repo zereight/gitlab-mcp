@@ -132,7 +132,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - Prefer a `jmespath` filter or `GITLAB_MCP_COMPACT_RESULTS` / `--compact-results` before asking the model to read a large JSON reply.
 - Paginate `get_pipeline_job_output` with `limit` and `offset` instead of fetching an entire job log in one call.
 - Pass `summary: true` on `list_*` tools and `mr_discussions` when high-signal fields are enough.
-- Recommended opt-in server settings (both default off): `GITLAB_MCP_LIST_SUMMARY_DEFAULT=true` / `--list-summary-default` treats an omitted `summary` as `true` on most list tools (`summary: false` still returns the full JSON), and `GITLAB_MCP_COMPACT_TOOLS` / `--compact-tools` compacts oversized replies from only the listed tools (for example `get_pipeline_job_output`) without turning on `GITLAB_MCP_COMPACT_RESULTS`.
+- Recommended opt-in server settings (both default off): `GITLAB_MCP_LIST_SUMMARY_DEFAULT=true` / `--list-summary-default` treats an omitted `summary` as `true` on most list tools (`summary: false` skips the summary; an oversized reply can still be compacted if that tool is listed), and `GITLAB_MCP_COMPACT_TOOLS` / `--compact-tools` compacts oversized replies from only the listed tools (for example `get_pipeline_job_output`) without turning on `GITLAB_MCP_COMPACT_RESULTS`.
 
 ## Parameter Hints
 

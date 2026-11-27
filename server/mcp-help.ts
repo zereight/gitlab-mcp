@@ -95,7 +95,7 @@ const GUIDES: Record<HelpTopic, string> = {
     "Pass summary: true on list_* tools and mr_discussions for high-signal fields only.",
     "Recommended opt-in server settings (default off):",
     "GITLAB_MCP_LIST_SUMMARY_DEFAULT=true (--list-summary-default) treats an omitted summary as true",
-    "on most of those tools; summary: false still returns the full JSON.",
+    "on most of those tools; summary: false skips the summary (an oversized reply can still be compacted if that tool is listed).",
     "GITLAB_MCP_COMPACT_TOOLS=<tool>,<tool> (--compact-tools) compacts oversized replies from only",
     "those tools (e.g. get_pipeline_job_output) without turning on GITLAB_MCP_COMPACT_RESULTS.",
     "Wait on CI with wait_for_pipeline / wait_for_job instead of polling list tools.",
