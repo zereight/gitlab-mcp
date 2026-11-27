@@ -1,6 +1,16 @@
-import type { FileOperation } from "../schemas.js";
-
 export type RepoFileEncoding = "text" | "base64";
+
+/**
+ * Structurally the same as FileOperation in schemas.ts. Declared here so utils/
+ * does not import schemas/ (the schema module imports utils/ helpers).
+ */
+export type RepoFileOperation = {
+  path: string;
+  content?: string;
+  action?: "create" | "update" | "delete" | "move";
+  encoding?: RepoFileEncoding;
+  previous_path?: string;
+};
 
 export type GitLabCommitAction = {
   action: "create" | "update" | "delete" | "move";
@@ -11,7 +21,7 @@ export type GitLabCommitAction = {
 };
 
 export function fileOperationsIncludeDeleteOrMove(
-  files: ReadonlyArray<Pick<FileOperation, "action">>
+  files: ReadonlyArray<Pick<RepoFileOperation, "action">>
 ): boolean {
   return files.some(file => file.action === "delete" || file.action === "move");
 }
@@ -42,7 +52,7 @@ function applyContentAndEncoding(
 }
 
 export function toGitLabCommitActions(
-  actions: FileOperation[],
+  actions: RepoFileOperation[],
   globalEncoding: RepoFileEncoding
 ): GitLabCommitAction[] {
   return actions.map(action => {

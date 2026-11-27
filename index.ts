@@ -30,7 +30,10 @@ import {
   HOST,
   HTTP_PROXY,
   HTTPS_PROXY,
+  GITLAB_AUDIT_LOG,
+  GITLAB_AUDIT_LOG_FILE,
   IS_OLD,
+  IS_REMOTE,
   MCP_SERVER_URL,
   NODE_TLS_REJECT_UNAUTHORIZED,
   NO_PROXY,
@@ -58,8 +61,19 @@ import {
   GITLAB_DOWNLOAD_DIR,
 } from "./config.js";
 
-/** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
-const IS_REMOTE = SSE || STREAMABLE_HTTP;
+configureAuditLog({
+  enabled: GITLAB_AUDIT_LOG,
+  filePath: GITLAB_AUDIT_LOG_FILE,
+  transport: determineTransportMode(),
+  auth: {
+    remoteAuthorization: REMOTE_AUTHORIZATION,
+    mcpOAuth: GITLAB_MCP_OAUTH,
+    useOAuth: USE_OAUTH,
+    hasPat: Boolean(GITLAB_PERSONAL_ACCESS_TOKEN),
+    hasJobToken: Boolean(GITLAB_JOB_TOKEN),
+    hasCookie: Boolean(GITLAB_AUTH_COOKIE_PATH),
+  },
+});
 const STREAMABLE_HTTP_AUTH_TOKEN = getConfig(
   "streamable-http-auth-token",
   "STREAMABLE_HTTP_AUTH_TOKEN"
@@ -306,7 +320,7 @@ import {
   sortDeploymentsByCreatedAtDesc,
   toMergeRequestDeploymentSummaryRecord,
   type GitLabMergeRequestWithDeploymentSummary,
-} from "./utils/merge-request-summary.js";
+} from "./tools/merge-request-summary.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -735,6 +749,7 @@ import {
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import {
+  configureAuditLog,
   createGraphQLAuditFailure,
   createToolCallAuditor,
   graphqlPayloadHasErrors,

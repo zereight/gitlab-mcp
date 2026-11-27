@@ -37,6 +37,9 @@ jobs:
     - name: Check runtime dependencies
       run: npm run check:runtime-deps
 
+    - name: Check module group cycles
+      run: npm run check:module-cycles
+
     - name: Run consumer install smoke test
       run: npm run test:consumer-smoke
 

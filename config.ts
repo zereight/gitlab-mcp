@@ -1,10 +1,10 @@
 import { parseCliArgs } from "./cli-boolean-flags.js";
 import { assertNoRemovedConfig } from "./removed-config.js";
+import { parseToolProfile } from "./config-tool-profile.js";
 import {
   readPersonalAccessTokenFile,
   resolvePersonalAccessToken,
-} from "./personal-access-token.js";
-import { parseToolProfile } from "./tools/tool-profile.js";
+} from "./config-personal-access-token.js";
 import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 
@@ -122,6 +122,8 @@ export const GITLAB_TOOL_POLICY_HIDDEN_RAW = getConfig(
 
 export const SSE = getConfig("sse", "SSE") === "true";
 export const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
+/** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
+export const IS_REMOTE = SSE || STREAMABLE_HTTP;
 export const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
 export const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
 export const GITLAB_MCP_REQUEST_BODY_LIMIT =

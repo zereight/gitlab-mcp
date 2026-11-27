@@ -40,6 +40,7 @@ run_mock_tests 4 \
   -o -path 'test/config-allowed-groups.test.ts' \
   -o -path 'test/oauth-disable-refresh-token.test.ts' \
   -o -path 'test/no-proxy-test.ts' \
+  -o -path 'test/check-module-cycles.test.ts' \
   -o -path 'test/cli/*.test.ts' \)
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
@@ -68,6 +69,7 @@ run_mock_tests 1 \
   ! -path 'test/config-allowed-groups.test.ts' \
   ! -path 'test/oauth-disable-refresh-token.test.ts' \
   ! -path 'test/no-proxy-test.ts' \
+  ! -path 'test/check-module-cycles.test.ts' \
   ! -path 'test/cli/*'
 
 tsx test/oauth-tests.ts

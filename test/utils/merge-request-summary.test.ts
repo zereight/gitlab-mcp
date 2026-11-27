@@ -8,7 +8,7 @@ import {
   parseApprovalsResponse,
   sortDeploymentsByCreatedAtDesc,
   toMergeRequestDeploymentSummaryRecord,
-} from "../../utils/merge-request-summary.js";
+} from "../../tools/merge-request-summary.js";
 
 function approvalUser(id: string, username: string): GitLabApprovalUser {
   return {
