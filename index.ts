@@ -387,6 +387,7 @@ import {
   handleDependencyProxyToolCall,
 } from "./tools/dependency-proxy.js";
 import { configureReleaseTools, handleReleaseToolCall } from "./tools/releases.js";
+import { configureSearchTools, handleSearchToolCall } from "./tools/search.js";
 import { ToolInputError } from "./utils/tool-input-error.js";
 import {
   buildUnavailableToolMessage,
@@ -580,8 +581,6 @@ import {
   GitLabReferenceSchema,
   type GitLabRepository,
   GitLabRepositorySchema,
-  GitLabSearchBlobResultSchema,
-  type GitLabSearchBlobResult,
   type GitLabSearchResponse,
   GitLabSearchResponseSchema,
   type GitLabTreeItem,
@@ -687,9 +686,6 @@ import {
   PushFilesSchema,
   RetryPipelineJobSchema,
   RetryPipelineSchema,
-  SearchCodeSchema,
-  SearchGroupCodeSchema,
-  SearchProjectCodeSchema,
   SearchRepositoriesSchema,
   UpdateDraftNoteSchema,
   UpdateIssueNoteSchema,
@@ -2299,6 +2295,12 @@ configureReleaseTools({
   buildDownloadUrl,
   downloadRedirectOptions,
   isRemote: IS_REMOTE,
+});
+configureSearchTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  getEffectiveProjectId,
+  rejectIfStrictProjectScope,
 });
 configureDependencyProxyTools({
   getFetch: () => fetch,
@@ -5944,66 +5946,6 @@ async function searchProjects(
     current_page: page,
     items: projects,
   });
-}
-
-/**
- * Search for code blobs using GitLab Search API
- * Supports global, project-level, and group-level search
- */
-async function searchBlobs(params: {
-  search: string;
-  project_id?: string;
-  group_id?: string;
-  ref?: string;
-  filename?: string;
-  path?: string;
-  extension?: string;
-  page?: number;
-  per_page?: number;
-}): Promise<GitLabSearchBlobResult[]> {
-  let basePath: string;
-  if (params.project_id) {
-    const decodedProjectId = decodeURIComponent(params.project_id);
-    const projectId = encodeGitLabPathSegment(getEffectiveProjectId(decodedProjectId));
-    basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
-  } else if (params.group_id) {
-    basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(params.group_id)}/search`;
-  } else {
-    basePath = `${getEffectiveApiUrl()}/search`;
-  }
-
-  const url = new URL(basePath);
-  url.searchParams.append("scope", "blobs");
-  url.searchParams.append("search", params.search);
-
-  if (params.ref) {
-    url.searchParams.append("ref", params.ref);
-  }
-  if (params.page) {
-    url.searchParams.append("page", params.page.toString());
-  }
-  if (params.per_page) {
-    url.searchParams.append("per_page", params.per_page.toString());
-  }
-
-  if (params.filename) {
-    url.searchParams.append("filename", params.filename);
-  }
-  if (params.path) {
-    url.searchParams.append("path", params.path);
-  }
-  if (params.extension) {
-    url.searchParams.append("extension", params.extension);
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-
-  const data = await response.json();
-  return z.array(GitLabSearchBlobResultSchema).parse(data);
 }
 
 /**
@@ -11148,57 +11090,10 @@ async function handleToolCall(params: any, context: ToolCallContext) {
         };
       }
 
-      case "search_code": {
-        rejectIfStrictProjectScope("search_code");
-        const args = SearchCodeSchema.parse(params.arguments);
-        const results = await searchBlobs({
-          search: args.search,
-          filename: args.filename,
-          path: args.path,
-          extension: args.extension,
-          page: args.page,
-          per_page: args.per_page,
-        });
-        return {
-          content: [{ type: "text", text: JSON.stringify(results) }],
-        };
-      }
-
-      case "search_project_code": {
-        const args = SearchProjectCodeSchema.parse(params.arguments);
-        const results = await searchBlobs({
-          search: args.search,
-          // searchBlobs treats an empty project_id as an instance-wide search; resolve it
-          // like other project tools instead (default project, or an input error).
-          project_id: args.project_id || getEffectiveProjectId(args.project_id),
-          ref: args.ref,
-          filename: args.filename,
-          path: args.path,
-          extension: args.extension,
-          page: args.page,
-          per_page: args.per_page,
-        });
-        return {
-          content: [{ type: "text", text: JSON.stringify(results) }],
-        };
-      }
-
-      case "search_group_code": {
-        rejectIfStrictProjectScope("search_group_code");
-        const args = SearchGroupCodeSchema.parse(params.arguments);
-        const results = await searchBlobs({
-          search: args.search,
-          group_id: args.group_id,
-          filename: args.filename,
-          path: args.path,
-          extension: args.extension,
-          page: args.page,
-          per_page: args.per_page,
-        });
-        return {
-          content: [{ type: "text", text: JSON.stringify(results) }],
-        };
-      }
+      case "search_code":
+      case "search_project_code":
+      case "search_group_code":
+        return await handleSearchToolCall(params);
 
       case "create_repository": {
         rejectIfProjectScopedDeployment("create_repository");
