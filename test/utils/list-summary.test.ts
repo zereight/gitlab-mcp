@@ -465,7 +465,6 @@ describe("When deciding whether a tool follows the server summary default", () =
   describe("with a list tool whose summary drops an id or type other tools need", () => {
     it("should keep the full reply but still accept an explicit summary", () => {
       for (const toolName of [
-        "list_issue_links",
         "list_pipeline_trigger_jobs",
         "list_project_variables",
         "list_group_variables",
@@ -476,5 +475,42 @@ describe("When deciding whether a tool follows the server summary default", () =
         assert.equal(toolUsesListSummaryDefault(toolName), false, toolName);
       }
     });
+  });
+});
+
+describe("When a list_issue_links summary is requested", () => {
+  const link = {
+    id: 42,
+    iid: 7,
+    title: "Blocks the release",
+    state: "opened",
+    description: "Long description that the summary should drop",
+    web_url: "https://gitlab.example.com/group/project/-/issues/7",
+    issue_link_id: 1001,
+    link_type: "is_blocked_by",
+  };
+
+  it("should follow the list summary default", () => {
+    assert.equal(toolAcceptsDecoratedSummary("list_issue_links"), true);
+    assert.equal(toolUsesListSummaryDefault("list_issue_links"), true);
+  });
+
+  it("should keep issue_link_id and link_type next to the standard summary fields", () => {
+    const [summarized] = summarizeListPayload([link], "list_issue_links") as Record<
+      string,
+      unknown
+    >[];
+    assert.equal(summarized.issue_link_id, 1001);
+    assert.equal(summarized.link_type, "is_blocked_by");
+    assert.equal(summarized.iid, 7);
+    assert.equal(summarized.title, "Blocks the release");
+    assert.equal(summarized.state, "opened");
+    assert.equal("description" in summarized, false);
+  });
+
+  it("should drop issue_link_id and link_type without the tool name", () => {
+    const [summarized] = summarizeListPayload([link]) as Record<string, unknown>[];
+    assert.equal("issue_link_id" in summarized, false);
+    assert.equal("link_type" in summarized, false);
   });
 });

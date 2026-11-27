@@ -34,7 +34,8 @@ const SUMMARY_FIELDS = [
 
 /**
  * Extra fields a tool's summary keeps on top of SUMMARY_FIELDS: the access and
- * protection fields (#942) or the event fields these tools exist to answer.
+ * protection fields (#942), the event fields these tools exist to answer, or the
+ * ids and types other tools need.
  */
 const TOOL_SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
   list_branches: [
@@ -57,6 +58,7 @@ const TOOL_SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
   list_group_members: ["access_level", "expires_at"],
   list_issue_label_events: ["created_at", "user", "action", "label"],
   list_issue_state_events: ["created_at", "user"],
+  list_issue_links: ["issue_link_id", "link_type"],
 };
 
 /** Fields kept per note when a summarized item carries discussion `notes`. */
@@ -96,7 +98,6 @@ const LIST_SUMMARY_DEFAULT_EXCLUDED_TOOLS = new Set([
   "list_custom_field_definitions", // { work_item_type, custom_fields }
   "list_work_item_statuses", // single object
   // The summary drops an id or type that callers pass to other tools.
-  "list_issue_links", // issue_link_id, link_type
   "list_pipeline_trigger_jobs", // downstream_pipeline.id
   "list_project_variables", // environment_scope, variable_type
   "list_group_variables", // environment_scope, variable_type
@@ -145,6 +146,7 @@ export const LIST_SUMMARY_SAFE_TOOLS: Readonly<Record<string, readonly string[]>
     "developers_can_push",
     "developers_can_merge",
   ],
+  list_issue_links: ["issue_link_id", "link_type"],
   list_tags: ["name"],
   list_releases: ["name", "tag_name"],
   list_milestones: ["id", "iid", "title", "state"],
