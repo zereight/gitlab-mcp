@@ -4,6 +4,10 @@ const NEXT_PREFIX = "\nNext: ";
 export const GROUP_NOT_FOUND_HINT =
   "check group_id (numeric ID or URL-encoded path such as parent%2Fchild) and that the token can read the group.";
 
+// Shared with the lookups that already know a project was not found (see withRecoveryHint).
+export const PROJECT_NOT_FOUND_HINT =
+  "check project_id (numeric ID or group%2Fproject) and that the token can read the project.";
+
 // The generic 404 hint. Namespace tools (project_id) get it for any 404, including a
 // group:<path> lookup that GitLab answers with "404 Group Not Found".
 export const PROJECT_ID_NOT_FOUND_HINT =
@@ -43,6 +47,10 @@ export function recoveryHintFor(message: string): string | undefined {
     // group_id, so the project_id hint below would name the wrong argument.
     if (/404 Group Not Found/i.test(message)) {
       return GROUP_NOT_FOUND_HINT;
+    }
+    // A missing project has no iid to check, so the generic hint's "resource iid" does not apply.
+    if (/404 Project Not Found/i.test(message)) {
+      return PROJECT_NOT_FOUND_HINT;
     }
     return PROJECT_ID_NOT_FOUND_HINT;
   }

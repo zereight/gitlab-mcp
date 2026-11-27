@@ -5,6 +5,7 @@ import {
   GROUP_NOT_FOUND_HINT,
   hasRecoveryHint,
   PROJECT_ID_NOT_FOUND_HINT,
+  PROJECT_NOT_FOUND_HINT,
   recoveryHintFor,
   withRecoveryHint,
 } from "../../utils/error-hints.js";
@@ -55,6 +56,23 @@ describe("When a GitLab tool error is returned", () => {
 
     it("should append the group hint at the tool-call boundary", () => {
       assert.equal(appendRecoveryHint(message), `${message}\nNext: ${GROUP_NOT_FOUND_HINT}`);
+    });
+  });
+
+  describe("with a 404 body that names a missing project", () => {
+    const message = 'GitLab API error: 404 Not Found\n{"message":"404 Project Not Found"}';
+
+    it("should name project_id and the token read check, not the iid", () => {
+      const hint = String(recoveryHintFor(message));
+
+      assert.equal(hint, PROJECT_NOT_FOUND_HINT);
+      assert.match(hint, /project_id/);
+      assert.match(hint, /token can read the project/);
+      assert.doesNotMatch(hint, /iid/);
+    });
+
+    it("should append the project hint at the tool-call boundary", () => {
+      assert.equal(appendRecoveryHint(message), `${message}\nNext: ${PROJECT_NOT_FOUND_HINT}`);
     });
   });
 
