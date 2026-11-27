@@ -9,17 +9,6 @@
  * compliance mapping are the operator's responsibility.
  */
 import fs from "node:fs";
-import {
-  GITLAB_AUDIT_LOG,
-  GITLAB_AUDIT_LOG_FILE,
-  GITLAB_AUTH_COOKIE_PATH,
-  GITLAB_JOB_TOKEN,
-  GITLAB_MCP_OAUTH,
-  GITLAB_PERSONAL_ACCESS_TOKEN,
-  REMOTE_AUTHORIZATION,
-  USE_OAUTH,
-} from "../config.js";
-import { TransportMode, determineTransportMode } from "../server/transport-mode.js";
 import { createLogger } from "./logger.js";
 
 export const AUDIT_EVENT_TYPE = "tool_call";
@@ -60,6 +49,40 @@ export type AuditOutcome = "success" | "error";
 export type AuditAuthMethod = "pat" | "job-token" | "oauth" | "remote-header" | "cookie";
 export type AuditSessionHeader = "Authorization" | "Private-Token" | "JOB-TOKEN";
 export type AuditTransport = "stdio" | "sse" | "streamable-http";
+
+/**
+ * Process-wide audit inputs. index.ts passes the config values once at startup
+ * through configureAuditLog(); this module does not import config or server/.
+ * Until configured, the audit log stays disabled.
+ */
+export interface AuditLogSettings {
+  /** GITLAB_AUDIT_LOG === "true". */
+  readonly enabled: boolean;
+  /** GITLAB_AUDIT_LOG_FILE. Undefined writes NDJSON lines to stderr. */
+  readonly filePath: string | undefined;
+  /** Transport of this process. */
+  readonly transport: AuditTransport;
+  /** Static auth configuration used to derive the authMethod field. */
+  readonly auth: Omit<AuditAuthMethodInput, "sessionHeader">;
+}
+
+let auditLogSettings: AuditLogSettings = {
+  enabled: false,
+  filePath: undefined,
+  transport: "stdio",
+  auth: {
+    remoteAuthorization: false,
+    mcpOAuth: false,
+    useOAuth: false,
+    hasPat: false,
+    hasJobToken: false,
+    hasCookie: false,
+  },
+};
+
+export function configureAuditLog(settings: AuditLogSettings): void {
+  auditLogSettings = settings;
+}
 
 const SAFE_ERROR_CLASS = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const DEFAULT_ERROR_CLASS = "Error";
@@ -140,7 +163,7 @@ export function resetAuditLogWriteWarningForTests(): void {
   writeFailureWarned = false;
 }
 
-export function isAuditLogEnabled(enabled: boolean = GITLAB_AUDIT_LOG): boolean {
+export function isAuditLogEnabled(enabled: boolean = auditLogSettings.enabled): boolean {
   return enabled === true;
 }
 
@@ -299,7 +322,7 @@ export function recordToolCallAudit(
   input: RecordToolCallAuditInput,
   deps: RecordToolCallAuditDeps = {}
 ): void {
-  if (!isAuditLogEnabled(deps.enabled ?? GITLAB_AUDIT_LOG)) {
+  if (!isAuditLogEnabled(deps.enabled ?? auditLogSettings.enabled)) {
     return;
   }
 
@@ -310,7 +333,7 @@ export function recordToolCallAudit(
     const failure = outcome === "error" ? classifyAuditFailure(input.error) : undefined;
     const fields: ToolCallAuditFields = {
       timestamp: now().toISOString(),
-      transport: auditTransport(determineTransportMode()),
+      transport: auditLogSettings.transport,
       sessionId: sanitizeAuditSessionId(input.sessionId),
       authMethod: currentAuditAuthMethod(input.sessionHeader),
       gitlabUserId: readPositiveInteger(input.gitlabUserId),
@@ -324,7 +347,8 @@ export function recordToolCallAudit(
       durationMs: readDurationMs(input.startedAtMs, now()),
     };
     const line = JSON.stringify(buildAuditRecord(fields));
-    const writeLine = deps.writeLine ?? defaultWriteLine(deps.filePath ?? GITLAB_AUDIT_LOG_FILE);
+    const writeLine =
+      deps.writeLine ?? defaultWriteLine(deps.filePath ?? auditLogSettings.filePath);
     writeLine(line);
   } catch (error) {
     warnAuditWriteFailure(error, deps.warn);
@@ -427,29 +451,9 @@ function readAuditField(fields: ToolCallAuditFields, field: AuditField): unknown
   }
 }
 
-function auditTransport(mode: TransportMode): AuditTransport {
-  switch (mode) {
-    case TransportMode.STDIO:
-      return "stdio";
-    case TransportMode.SSE:
-      return "sse";
-    case TransportMode.STREAMABLE_HTTP:
-      return "streamable-http";
-    default: {
-      const exhaustive: never = mode;
-      return exhaustive;
-    }
-  }
-}
-
 function currentAuditAuthMethod(sessionHeader?: AuditSessionHeader): AuditAuthMethod | undefined {
   return resolveAuditAuthMethod({
-    remoteAuthorization: REMOTE_AUTHORIZATION,
-    mcpOAuth: GITLAB_MCP_OAUTH,
-    useOAuth: USE_OAUTH,
-    hasPat: Boolean(GITLAB_PERSONAL_ACCESS_TOKEN),
-    hasJobToken: Boolean(GITLAB_JOB_TOKEN),
-    hasCookie: Boolean(GITLAB_AUTH_COOKIE_PATH),
+    ...auditLogSettings.auth,
     sessionHeader,
   });
 }

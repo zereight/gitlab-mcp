@@ -1,6 +1,4 @@
-export const TOOL_PROFILES = ["full", "slim"] as const;
-
-export type ToolProfile = (typeof TOOL_PROFILES)[number];
+import type { ToolProfile } from "../config-tool-profile.js";
 
 /**
  * Tools omitted from the initial list when `GITLAB_TOOL_PROFILE=slim` and
@@ -38,22 +36,6 @@ export const SLIM_PROFILE_EXCLUDED_TOOLS: ReadonlySet<string> = new Set([
   "get_ci_catalog_resource",
   "create_group",
 ]);
-
-export function parseToolProfile(raw: string | undefined): ToolProfile {
-  if (raw === undefined) {
-    return "full";
-  }
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "" || normalized === "full") {
-    return "full";
-  }
-  if (normalized === "slim") {
-    return "slim";
-  }
-  throw new Error(
-    `Invalid GITLAB_TOOL_PROFILE: "${raw}". Expected one of: ${TOOL_PROFILES.join(", ")}`
-  );
-}
 
 /** Slim applies only when the caller did not pin an explicit toolset list. */
 export function shouldApplySlimToolProfile(

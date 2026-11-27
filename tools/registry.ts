@@ -1,5 +1,5 @@
 import { lazyJSONSchema, withLazyInputSchemas } from "../utils/schema.js";
-import { SSE, STREAMABLE_HTTP } from "../config.js";
+import { IS_REMOTE } from "../config.js";
 import { getToolDescription } from "./tool-descriptions.js";
 import {
   ApproveMergeRequestSchema,
@@ -292,8 +292,6 @@ import {
 } from "../schemas.js";
 import { GitLabApiRequestSchema } from "./gitlab-api-request.js";
 import { HelpInputSchema } from "../server/mcp-help.js";
-
-const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
 // Define all available tools. Input schemas are built on first read (see withLazyInputSchemas).
 export const allTools = withLazyInputSchemas([

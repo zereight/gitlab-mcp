@@ -39,6 +39,6 @@
 /auth-cli.ts                        @zereight
 /auth-retry.ts                      @zereight
 /oauth*.ts                          @zereight
-/personal-access-token.ts           @zereight
+/config-personal-access-token.ts    @zereight
 /stateless/                         @zereight
 /utils/download-token.ts            @zereight

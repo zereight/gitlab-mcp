@@ -68,6 +68,7 @@
     "lint": "eslint .",
     "check:runtime-deps": "node scripts/check-runtime-deps.mjs",
     "check:skill-sync": "tsx scripts/check-skill-sync.ts",
+    "check:module-cycles": "tsx scripts/check-module-cycles.ts",
     "docs:tools": "tsx scripts/generate-tool-docs.ts && tsx scripts/generate-tool-coverage.ts",
     "lint:fix": "eslint . --fix",
     "release": "bash scripts/release.sh",

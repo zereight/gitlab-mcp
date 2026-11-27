@@ -11,7 +11,7 @@ import {
   readPersonalAccessTokenFile,
   resolvePersonalAccessToken,
   type PersonalAccessTokenSource,
-} from "../personal-access-token.js";
+} from "../config-personal-access-token.js";
 
 const SERVER_ENTRY = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
