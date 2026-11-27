@@ -38,7 +38,28 @@ describe("When the help workflow guide is requested", () => {
     });
   });
 
+  describe("with pipelines", () => {
+    it("should recommend the wait tools instead of a polling loop", () => {
+      const guide = getWorkflowGuide("pipelines");
+
+      assert.match(guide, /wait_for_pipeline/);
+      assert.match(guide, /wait_for_job/);
+      assert.match(guide, /instead of calling/);
+      assert.match(guide, /in a loop/);
+    });
+  });
+
   describe("with token-saving", () => {
+    it("should recommend the opt-in list summary and per-tool compact settings", () => {
+      const guide = getWorkflowGuide("token-saving");
+
+      assert.match(guide, /opt-in/);
+      assert.match(guide, /GITLAB_MCP_LIST_SUMMARY_DEFAULT=true/);
+      assert.match(guide, /--list-summary-default/);
+      assert.match(guide, /GITLAB_MCP_COMPACT_TOOLS=/);
+      assert.match(guide, /--compact-tools/);
+    });
+
     it("should prefer jmespath, compact results, and paginated logs", () => {
       const guide = getWorkflowGuide("token-saving");
 

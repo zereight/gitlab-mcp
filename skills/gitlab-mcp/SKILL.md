@@ -97,6 +97,7 @@ History: `list_issue_label_events` / `list_issue_state_events` for label and sta
 - Lint configs: `validate_ci_lint`, `validate_project_ci_lint`
 - Catalog: `list_ci_catalog_resources`, `get_ci_catalog_resource`
 - Pipelines/jobs/deployments: see reference/pipelines.md
+- Wait for CI: `wait_for_pipeline` / `wait_for_job` return once the status is terminal; call them instead of polling `list_pipelines`, `get_pipeline`, or `list_pipeline_jobs` in a loop
 
 ### Work Items (see reference/work-items.md)
 
@@ -130,6 +131,8 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - Do not dump a full `get_merge_request_diffs` payload into the conversation. List paths with `list_merge_request_changed_files`, then fetch 3–5 files per `get_merge_request_file_diff` call.
 - Prefer a `jmespath` filter or `GITLAB_MCP_COMPACT_RESULTS` / `--compact-results` before asking the model to read a large JSON reply.
 - Paginate `get_pipeline_job_output` with `limit` and `offset` instead of fetching an entire job log in one call.
+- Pass `summary: true` on `list_*` tools and `mr_discussions` when high-signal fields are enough.
+- Recommended opt-in server settings (both default off): `GITLAB_MCP_LIST_SUMMARY_DEFAULT=true` / `--list-summary-default` treats an omitted `summary` as `true` on most list tools (`summary: false` skips the summary; an oversized reply can still be compacted if that tool is listed), and `GITLAB_MCP_COMPACT_TOOLS` / `--compact-tools` compacts oversized replies from only the listed tools (for example `get_pipeline_job_output`) without turning on `GITLAB_MCP_COMPACT_RESULTS`.
 
 ## Parameter Hints
 

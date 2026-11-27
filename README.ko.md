@@ -125,7 +125,7 @@ Human CLI는 compact되지 않습니다. 파괴적 도구와 `GITLAB_TOOL_POLICY
 
 **로컬 OAuth / MCP OAuth / 원격 인증 차이는?** 로컬 OAuth는 서버와 같은 머신에서 브라우저를 엽니다. MCP OAuth는 공개 HTTPS 서버와 Claude.ai 같은 클라이언트용입니다. 원격 인증은 호출자의 PAT 또는 job token을 전달하며 OAuth 흐름이 없습니다.
 
-**큰 응답을 줄이려면?** 도구 호출에 `jmespath`를 넘기세요. 또는 `GITLAB_MCP_COMPACT_RESULTS=true`로 큰 MCP 응답을 미리보기 + CLI 명령으로 바꿉니다. 전체 페이로드가 필요하면 CLI를 쓰세요.
+**큰 응답을 줄이려면?** 도구 호출에 `jmespath`를 넘기세요. 또는 `GITLAB_MCP_COMPACT_RESULTS=true`로 큰 MCP 응답을 미리보기 + CLI 명령으로 바꿉니다. 전체 페이로드가 필요하면 CLI를 쓰세요. 권장 opt-in 설정(둘 다 기본 꺼짐): `GITLAB_MCP_LIST_SUMMARY_DEFAULT=true`(`--list-summary-default=true`)는 호출이 `summary: false`를 넘기지 않으면 대부분의 지원되는 list 도구에서 요약을 돌려주고, `GITLAB_MCP_COMPACT_TOOLS`(`--compact-tools`)는 지정한 도구(예: `get_pipeline_job_output`)의 큰 응답만 compact합니다. [환경 변수 레퍼런스](./docs/configuration/environment-variables.md#compact-mcp-results)를 참고하세요.
 
 **`api` toolset이 위험한 이유는?** `gitlab_api_request`는 그룹/프로젝트 허용 목록, 다른 도구 필터, 도구별 안전 검사를 우회합니다. 프롬프트 인젝션이 이 도구를 구동할 수 있습니다. `GITLAB_TOOLSETS`에 `api`를 직접 넣을 때만 켜세요. `all`, `discover_tools`, `GITLAB_TOOLS`는 켜지 않습니다.
 

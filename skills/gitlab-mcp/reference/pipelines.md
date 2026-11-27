@@ -107,6 +107,14 @@ trigger_pipeline             -> run a pipeline with a trigger token
 2. `list_pipeline_jobs` -> find failed job(s)
 3. `get_pipeline_job_output` -> read error logs
 
+### Wait for a pipeline or job to finish
+
+1. `wait_for_pipeline` (pipeline ID) or `wait_for_job` (job ID) -> returns once the status is terminal (success, failed, canceled, skipped, or manual)
+2. Optional timeout_seconds (default 300, max 600) and poll_interval_seconds (default 5, max 30); on timeout the call fails (the message may omit the last status)
+3. If it failed: `list_pipeline_jobs` -> `get_pipeline_job_output`
+
+Use one wait call instead of calling `list_pipelines`, `get_pipeline`, or `list_pipeline_jobs` in a loop.
+
 ### Retry failed pipeline
 
 1. `retry_pipeline` -> retries all failed jobs

@@ -9,6 +9,19 @@ Use an API URL, not the GitLab web root:
 
 ## Compact MCP results
 
+`GITLAB_MCP_COMPACT_RESULTS`, `GITLAB_MCP_COMPACT_TOOLS`, and
+[`GITLAB_MCP_LIST_SUMMARY_DEFAULT`](#gitlab_mcp_list_summary_default) are off by
+default, so existing clients keep full replies. To shrink MCP replies, the
+recommended opt-in pair is list summaries plus per-tool compaction for the large
+read tools:
+
+```bash
+export GITLAB_MCP_LIST_SUMMARY_DEFAULT=true
+export GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_job_output
+```
+
+CLI: `--list-summary-default=true --compact-tools=get_merge_request_diffs,get_file_contents,get_pipeline_job_output`
+
 ### `GITLAB_MCP_COMPACT_RESULTS`
 
 Optional. Set to `true` to replace oversized MCP tool replies with a JSON preview
@@ -25,15 +38,15 @@ compact mode and by `GITLAB_MCP_COMPACT_TOOLS`.
 
 ### `GITLAB_MCP_COMPACT_TOOLS`
 
-Optional. Comma-separated tool names whose oversized replies are compacted even
-when `GITLAB_MCP_COMPACT_RESULTS` is off. Replies at or under the character
-threshold stay intact. Unset means no extra tools are compacted, so existing
-clients keep full payloads.
+Optional, recommended opt-in. Comma-separated tool names whose oversized replies
+are compacted even when `GITLAB_MCP_COMPACT_RESULTS` is off. Replies at or under
+the character threshold stay intact. Unset means no extra tools are compacted, so
+existing clients keep full payloads.
 
 Example for the large read tools:
 
 ```bash
-GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_job_output
+export GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_job_output
 ```
 
 CLI: `--compact-tools`
@@ -60,12 +73,15 @@ is unchanged.
 
 ### `GITLAB_MCP_LIST_SUMMARY_DEFAULT`
 
-Optional. Set to `true` so `list_*` tools and `mr_discussions` treat an omitted
-`summary` argument as `true`. Use it on shared servers where you cannot teach
-every client to pass `summary: true`. A client that passes `summary: false`
-still gets the full GitLab JSON, and the `summary` description in `tools/list`
-says the server defaults to `true`. A `jmespath` filter runs on the summarized
-reply, so pass `summary: false` when it needs other fields.
+Optional, recommended opt-in. Set to `true` so `list_*` tools and
+`mr_discussions` treat an omitted `summary` argument as `true`. Use it on shared
+servers where you cannot teach every client to pass `summary: true`. A client
+that passes `summary: false` skips the summary and gets the unsummarized GitLab
+JSON, and the `summary` description in `tools/list` says the server defaults to
+`true`. If that tool is also listed in `GITLAB_MCP_COMPACT_TOOLS` or
+`GITLAB_MCP_COMPACT_RESULTS` is on, an oversized reply is still compacted to a
+preview. A `jmespath` filter runs on the summarized reply, so pass
+`summary: false` when it needs other fields.
 `list_webhook_events` keeps its own `summary` flag. Default `false` leaves list
 replies unchanged.
 
