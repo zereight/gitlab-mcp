@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 291 |
-| Invoked | 193 |
-| Coverage | 66.3% |
+| Invoked | 195 |
+| Coverage | 67.0% |
 
 ## By toolset
 
@@ -21,7 +21,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Branches & Commits](#branches) | 7 | 16 | 43.8% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
 | [Merge Requests](#merge_requests) | 16 | 46 | 34.8% |
-| [Issues](#issues) | 14 | 27 | 51.9% |
+| [Issues](#issues) | 16 | 27 | 59.3% |
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 5 | 18 | 27.8% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
@@ -174,11 +174,11 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`mark_all_todos_done`](../tools/issues.md#mark_all_todos_done) — `test/test-todos.ts`
 - [ ] [`create_issue_note`](../tools/issues.md#create_issue_note)
 - [ ] [`update_issue_note`](../tools/issues.md#update_issue_note)
-- [ ] [`list_issue_links`](../tools/issues.md#list_issue_links)
+- [x] [`list_issue_links`](../tools/issues.md#list_issue_links) — `test/live/list-issue-links-summary.test.ts`
 - [ ] [`list_issue_discussions`](../tools/issues.md#list_issue_discussions)
 - [x] [`list_issue_label_events`](../tools/issues.md#list_issue_label_events) — `test/test-issue-resource-events.ts`
 - [x] [`list_issue_state_events`](../tools/issues.md#list_issue_state_events) — `test/test-issue-resource-events.ts`
-- [ ] [`get_issue_link`](../tools/issues.md#get_issue_link)
+- [x] [`get_issue_link`](../tools/issues.md#get_issue_link) — `test/live/list-issue-links-summary.test.ts`
 - [x] [`create_issue_link`](../tools/issues.md#create_issue_link) — `test/allowed-project-target-scope.test.ts`
 - [ ] [`delete_issue_link`](../tools/issues.md#delete_issue_link)
 - [ ] [`create_note`](../tools/issues.md#create_note)
