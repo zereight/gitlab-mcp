@@ -38,6 +38,7 @@
 # Authentication, OAuth, and token handling
 /auth-cli.ts                        @zereight
 /auth-retry.ts                      @zereight
+/auth/                              @zereight
 /oauth*.ts                          @zereight
 /personal-access-token.ts           @zereight
 /stateless/                         @zereight

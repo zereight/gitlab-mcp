@@ -110,14 +110,14 @@ function buildDownloadUrl(type: string, projectId: string, params: Record<string
   } else {
     // Fallback for SSE/static-token mode (no session auth context)
     // Priority matches buildAuthHeaders: OAuth > PAT > JOB token
-    const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
+    const staticToken = getOAuthAccessToken() || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
     if (staticToken) {
       let header: string;
       let headerValue: string;
-      if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
+      if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !getOAuthAccessToken()) {
         header = "JOB-TOKEN";
         headerValue = String(staticToken);
-      } else if (IS_OLD && !OAUTH_ACCESS_TOKEN) {
+      } else if (IS_OLD && !getOAuthAccessToken()) {
         // OAuth tokens always use Bearer (see buildAuthHeaders)
         header = "Private-Token";
         headerValue = String(staticToken);
@@ -167,17 +167,14 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { NextFunction, Request, Response } from "express";
-import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
-import os from "node:os";
 import { fetch as undiciFetch, File, FormData, type Response as UndiciResponse } from "undici";
 import path from "node:path";
-import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { URL } from "node:url";
 import { z } from "zod";
 
-import { createGitLabOAuthClient, ensureOAuthToken, GitLabOAuth } from "./oauth.js";
+import { createGitLabOAuthClient } from "./oauth.js";
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { isCliInvocation, resolveCli } from "./cli/router.js";
@@ -239,6 +236,14 @@ import {
   usesJobTokenHeader,
   withPublicBaseUrl,
 } from "./server/gitlab-request-context.js";
+import {
+  configureSessionStore,
+  ensureSessionForRequest,
+  ensureValidOAuthToken,
+  fetch,
+  getOAuthAccessToken,
+  setOAuthClient,
+} from "./auth/session-store.js";
 import {
   apiUrlUserinfoWarning,
   configuredApiUrlErrors,
@@ -1392,9 +1397,6 @@ function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction
   next();
 }
 
-let OAUTH_ACCESS_TOKEN: string | null = null;
-let oauthClient: GitLabOAuth | null = null;
-
 /**
  * Loaded once at startup. Null when OAUTH_STATELESS_MODE is disabled.
  * When set, the OAuth provider and (later phases) the Mcp-Session-Id path
@@ -1465,22 +1467,6 @@ export function hasStatelessSessionId(req: {
   headers: Record<string, string | string[] | undefined>;
 }): boolean {
   return Boolean(OAUTH_STATELESS_MODE && STATELESS_MATERIAL && readMcpSessionIdHeader(req));
-}
-
-/**
- * Ensure the OAuth token is valid before making an API call.
- * Refreshes the token lazily (only when a tool is actually called).
- * This avoids background timers that cause issues with multiple instances.
- */
-async function ensureValidOAuthToken(): Promise<void> {
-  try {
-    await ensureOAuthToken(oauthClient, OAUTH_ACCESS_TOKEN, token => {
-      OAUTH_ACCESS_TOKEN = token;
-    });
-  } catch (error) {
-    logger.error({ err: error }, "Failed to refresh OAuth token");
-    throw error;
-  }
 }
 
 // Permission mode gate: readonly exposes only read tools; modify blocks delete/teardown tools; full allows all
@@ -1569,7 +1555,7 @@ configureGitLabRequestContext({
   getDefaultApiUrl: () => GITLAB_API_URL,
   getDefaultAllowedProjectIds: () => GITLAB_ALLOWED_PROJECT_IDS,
   getDispatcherForUrl: apiUrl => clientPool.getDispatcherForUrl(apiUrl),
-  getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
+  getOAuthAccessToken,
 });
 
 // The wiki, milestone, label, tag, variable, webhook, snippet, and todo handlers call back into the fetch, error
@@ -1621,61 +1607,6 @@ configureTodoTools({
   rejectIfStrictProjectScope,
 });
 
-// Create cookie jar with clean Netscape file parsing
-// Resolve cookie path once using os.homedir() for cross-platform support
-const resolvedCookiePath = GITLAB_AUTH_COOKIE_PATH
-  ? GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-    ? path.join(os.homedir(), GITLAB_AUTH_COOKIE_PATH.slice(2))
-    : GITLAB_AUTH_COOKIE_PATH
-  : null;
-
-const createCookieJar = async (): Promise<CookieJar | null> => {
-  if (!resolvedCookiePath) return null;
-
-  let cookieContent: string;
-  try {
-    cookieContent = await fs.promises.readFile(resolvedCookiePath, "utf8");
-  } catch (error) {
-    logger.error({ error, path: resolvedCookiePath }, "Failed to read cookie file");
-    return null;
-  }
-
-  const jar = new CookieJar();
-  for (let line of cookieContent.split("\n")) {
-    // Handle #HttpOnly_ prefix
-    if (line.startsWith("#HttpOnly_")) {
-      line = line.slice(10);
-    }
-    // Skip comments and empty lines
-    if (line.startsWith("#") || !line.trim()) {
-      continue;
-    }
-
-    // Parse Netscape format: domain, flag, path, secure, expires, name, value
-    const parts = line.split("\t");
-    if (parts.length >= 7) {
-      const [domain, , cookiePath, secure, expires, name, value] = parts;
-
-      // Build cookie string in standard format
-      const secureFlag = secure === "TRUE" ? "; Secure" : "";
-      const expiresFlag =
-        expires === "0"
-          ? ""
-          : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
-      const cookieStr = `${name}=${value}; Domain=${domain}; Path=${cookiePath}${secureFlag}${expiresFlag}`;
-
-      // Use tough-cookie's parse function for robust parsing
-      const cookie = parseCookie(cookieStr);
-      if (cookie) {
-        const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
-        jar.setCookieSync(cookie, url);
-      }
-    }
-  }
-
-  return jar;
-};
-
 // Auth retry helpers — extracted to auth-retry.ts for testability (no side effects)
 export {
   headersToPlainObject,
@@ -1683,92 +1614,11 @@ export {
   wrapWithAuthRetry,
   type AuthRetryConfig,
 } from "./auth-retry.js";
-import { wrapWithAuthRetry, type FetchFn } from "./auth-retry.js";
 import { validateConfiguration } from "./config-validate.js";
 
-/** Build AuthRetryConfig from module globals (lazy — reads globals at call time). */
-function defaultAuthRetryConfig() {
-  return {
-    isOAuthEnabled: () => USE_OAUTH && oauthClient != null,
-    refreshToken: (force: boolean) => oauthClient!.getAccessToken(force),
-    onTokenRefreshed: (token: string) => {
-      OAUTH_ACCESS_TOKEN = token;
-    },
-    buildAuthHeaders,
-    logger,
-  };
-}
-
-// Cookie jar and fetch - reloaded when cookie file changes
-let cookieJar: CookieJar | null = null;
-let fetch: FetchFn = wrapWithAuthRetry(undiciFetch, defaultAuthRetryConfig());
-let lastCookieMtime = 0;
-let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
-// Auth proxies may redirect and set cookies on the first request. We make a throwaway
-// request so subsequent requests have the correct cookies. Reset when cookies reload.
-let initialSessionRequestMade = false;
-
-// Cookie jar is loaded on first request via reloadCookiesIfChanged (lastCookieMtime=0 triggers load)
-
-async function reloadCookiesIfChanged(): Promise<void> {
-  if (!resolvedCookiePath) return;
-  if (cookieReloadLock) return cookieReloadLock;
-
-  cookieReloadLock = (async () => {
-    try {
-      const mtime = (await fs.promises.stat(resolvedCookiePath)).mtimeMs;
-      if (mtime !== lastCookieMtime) {
-        logger.info(
-          { oldMtime: lastCookieMtime, newMtime: mtime },
-          lastCookieMtime === 0 ? "Loading cookie file" : "Cookie file changed, reloading"
-        );
-        lastCookieMtime = mtime;
-        const newJar = await createCookieJar();
-        cookieJar = newJar;
-        fetch = wrapWithAuthRetry(
-          newJar ? fetchCookie(undiciFetch, newJar) : undiciFetch,
-          defaultAuthRetryConfig()
-        );
-        initialSessionRequestMade = false;
-      }
-    } catch {
-      // File deleted or inaccessible - clear cached cookies
-      if (cookieJar) {
-        logger.info("Cookie file removed, clearing cached cookies");
-        cookieJar = null;
-        fetch = wrapWithAuthRetry(undiciFetch, defaultAuthRetryConfig());
-        lastCookieMtime = 0;
-        initialSessionRequestMade = false;
-      }
-    }
-  })();
-
-  try {
-    await cookieReloadLock;
-  } finally {
-    cookieReloadLock = null;
-  }
-}
-
-async function ensureSessionForRequest(): Promise<void> {
-  if (!resolvedCookiePath) return;
-
-  await reloadCookiesIfChanged();
-
-  if (!cookieJar || initialSessionRequestMade) return;
-
-  try {
-    const response = await fetch(`${getEffectiveApiUrl()}/user`, {
-      ...getFetchConfig(),
-      redirect: "follow",
-    });
-    // 401 means auth failed but the request completed - cookies were still exchanged
-    // 403 means insufficient scope (e.g. missing User: Read) but auth is valid
-    initialSessionRequestMade = response.ok || response.status === 401 || response.status === 403;
-  } catch {
-    logger.debug("Session warmup request failed, will retry on next request");
-  }
-}
+// Session and token state lives in auth/session-store.ts. The cookie jar still loads
+// lazily on the first request (lastCookieMtime starts at 0).
+configureSessionStore({ logger });
 
 /**
  * Reject tools that cannot be limited to allowed projects when
@@ -16220,7 +16070,7 @@ function initOAuthClient(): void {
         "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
     );
   }
-  oauthClient = createGitLabOAuthClient(GITLAB_API_URL.replace(/\/api\/v4$/, ""));
+  setOAuthClient(createGitLabOAuthClient(GITLAB_API_URL.replace(/\/api\/v4$/, "")));
 }
 
 /**
