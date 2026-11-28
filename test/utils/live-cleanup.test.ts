@@ -89,6 +89,24 @@ describe("live cleanup: deleteScratch", () => {
     }
   });
 
+  test("429 waits that would pass the 5 minute ceiling in total give up without the later sleep", async () => {
+    const h = harness([429, { "Retry-After": "240" }], [429, { "Retry-After": "120" }], [204]);
+    await h.run();
+    assert.deepEqual(h.calls, [429, 429]);
+    assert.deepEqual(h.waits, Array(8).fill(30_000));
+    assert.deepEqual(h.logs, [
+      "could not delete branch scratch (429, advertised wait exceeds the 5 minute ceiling); delete it by hand",
+    ]);
+  });
+
+  test("429 waits that add up to exactly 5 minutes are slept in full", async () => {
+    const h = harness([429, { "Retry-After": "180" }], [429, { "Retry-After": "120" }], [204]);
+    await h.run();
+    assert.deepEqual(h.calls, [429, 429, 204]);
+    assert.deepEqual(h.waits, Array(10).fill(30_000));
+    assert.deepEqual(h.logs, []);
+  });
+
   test("429 on every attempt logs once and does not throw", async () => {
     const h = harness([429, { "Retry-After": "1" }]);
     await h.run();

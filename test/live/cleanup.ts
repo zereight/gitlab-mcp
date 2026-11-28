@@ -18,6 +18,7 @@ export async function deleteScratch(
   const sleep = io.sleep ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms)));
   const log = io.log ?? (line => process.stderr.write(`${line}\n`));
   const now = io.now ?? Date.now;
+  let waited = 0;
   for (let attempt = 0; ; attempt++) {
     const response = await send();
     if (response.ok || response.status === 404) return;
@@ -26,11 +27,12 @@ export async function deleteScratch(
       return;
     }
     const wait = retryDelayMs(response, attempt, now());
-    if (wait > MAX_TOTAL_WAIT_MS) {
+    if (waited + wait > MAX_TOTAL_WAIT_MS) {
       log(`could not delete ${what} (429, advertised wait exceeds the 5 minute ceiling); ${hint}`);
       return;
     }
     // Sleep out the whole wait in capped chunks; only the DELETE after it counts as an attempt.
     await sleepInChunks(wait, sleep);
+    waited += wait;
   }
 }
