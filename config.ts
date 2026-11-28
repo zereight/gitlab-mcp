@@ -316,3 +316,41 @@ export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PAT
 
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");
 export const GITLAB_POOL_MAX_SIZE = _poolMaxSizeRaw ? Number.parseInt(_poolMaxSizeRaw, 10) : 100;
+
+// ---------------------------------------------------------------------------
+// Server identity, project scope, and request limits
+// ---------------------------------------------------------------------------
+
+export const MCP_SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
+export const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
+export const GITLAB_ALLOWED_PROJECT_IDS =
+  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
+    .map(id => id.trim())
+    .filter(Boolean) || [];
+export const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE
+  ? Number.parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE, 10)
+  : 20;
+
+// The getters below read process.env when called, not at module load. Callers
+// keep the same timing they had when the read was inline in index.ts.
+
+/** Raw GITLAB_GRAPHQL_URL. Callers apply their own "|| default" fallback. */
+export function getGitlabGraphqlUrlOverride(): string | undefined {
+  return process.env.GITLAB_GRAPHQL_URL;
+}
+
+export function getMaxSessions(): number {
+  return Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
+}
+
+export function getMaxRequestsPerMinute(): number {
+  return Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10);
+}
+
+/** Invalid or non-positive values fall back to 20 per hour. */
+export function getOauthRegisterRateLimitPerHour(): number {
+  const parsedRegisterLimit = Number(process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR);
+  return Number.isInteger(parsedRegisterLimit) && parsedRegisterLimit >= 1
+    ? parsedRegisterLimit
+    : 20;
+}

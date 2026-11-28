@@ -577,3 +577,48 @@ export function readProjectIdFromApiRelativePath(relativePath: string): string |
   }
   return projectId;
 }
+
+export function toAllowedMcpHost(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed || trimmed.includes(" ")) return null;
+
+  try {
+    if (trimmed.includes("://")) return new URL(trimmed).host.toLowerCase();
+    if (trimmed.includes("/")) return null;
+    return new URL(`http://${trimmed}`).host.toLowerCase();
+  } catch {
+    try {
+      return new URL(`http://[${trimmed}]`).host.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function toAllowedMcpOrigin(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const origin = new URL(trimmed).origin;
+    return origin === "null" ? null : origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    // Same rule as GITLAB_API_URL: fetch() rejects a URL that carries userinfo.
+    url.username = "";
+    url.password = "";
+    return { host: url.host, apiUrl: normalizeGitLabApiUrl(url.toString()) };
+  } catch {
+    return null;
+  }
+}

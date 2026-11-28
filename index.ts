@@ -56,6 +56,14 @@ import {
   GITLAB_MCP_LIST_SUMMARY_DEFAULT,
   GITLAB_TOOL_PROFILE,
   GITLAB_DOWNLOAD_DIR,
+  GITLAB_ALLOWED_PROJECT_IDS,
+  GITLAB_COMMIT_FILES_PER_PAGE,
+  GITLAB_PROJECT_ID,
+  MCP_SERVER_NAME,
+  getGitlabGraphqlUrlOverride,
+  getMaxRequestsPerMinute,
+  getMaxSessions,
+  getOauthRegisterRateLimitPerHour,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -183,7 +191,7 @@ import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { finalizeToolCallResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
-import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
+import { parseAllowedRedirectUris } from "./oauth-consent.js";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -233,14 +241,15 @@ import {
 } from "./server/gitlab-request-context.js";
 import {
   apiUrlUserinfoWarning,
-  commaSplitHint,
   configuredApiUrlErrors,
   encodeGitLabPath,
   encodeGitLabPathSegment,
-  invalidListEntryError,
   isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
   parseConfiguredGitLabApiUrls,
+  toAllowedGitLabApiUrl,
+  toAllowedMcpHost,
+  toAllowedMcpOrigin,
   type ApiUrlSource,
   uploadFilenameForms,
 } from "./utils/url.js";
@@ -760,7 +769,6 @@ const maskingPolicyResolver = createMaskingPolicyResolver({
   workspaceDir: GITLAB_MASKING_WORKSPACE_DIR,
 });
 
-const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
 // No `title`: clients would show it instead of `name`, hiding MCP_SERVER_NAME.
 const SERVER_DESCRIPTION =
   "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more.";
@@ -818,7 +826,7 @@ function createServer(): McpServer {
 
   const mcpServer = new McpServer(
     {
-      name: SERVER_NAME,
+      name: MCP_SERVER_NAME,
       version: SERVER_VERSION,
       description: SERVER_DESCRIPTION,
       websiteUrl: SERVER_WEBSITE_URL,
@@ -1296,35 +1304,6 @@ function formatHostWithPort(host: string, port: number): string | null {
   return `${normalized}:${port}`;
 }
 
-function toAllowedMcpHost(value: string): string | null {
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed || trimmed.includes(" ")) return null;
-
-  try {
-    if (trimmed.includes("://")) return new URL(trimmed).host.toLowerCase();
-    if (trimmed.includes("/")) return null;
-    return new URL(`http://${trimmed}`).host.toLowerCase();
-  } catch {
-    try {
-      return new URL(`http://[${trimmed}]`).host.toLowerCase();
-    } catch {
-      return null;
-    }
-  }
-}
-
-function toAllowedMcpOrigin(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  try {
-    const origin = new URL(trimmed).origin;
-    return origin === "null" ? null : origin.toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
 // Loopback hosts are allowed on any port: DNS rebinding requires the browser
 // to send the attacker's hostname, and Docker port mapping (-p 3333:3002)
 // makes the external port unknowable to the server.
@@ -1411,228 +1390,6 @@ function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction
   }
 
   next();
-}
-
-function validateConfiguration(): void {
-  const errors: string[] = [];
-
-  // Validate SESSION_TIMEOUT_SECONDS
-  const timeoutStr = process.env.SESSION_TIMEOUT_SECONDS;
-  if (timeoutStr) {
-    const timeout = Number.parseInt(timeoutStr, 10);
-    // Allow values >=1 for testing purposes, but recommend 60-86400 for production
-    if (Number.isNaN(timeout) || timeout < 1 || timeout > 86400) {
-      errors.push(
-        `SESSION_TIMEOUT_SECONDS must be between 1 and 86400 seconds, got: ${timeoutStr}`
-      );
-    }
-    if (timeout < 60) {
-      logger.warn(
-        `SESSION_TIMEOUT_SECONDS=${timeout} is below recommended minimum of 60 seconds. Only use low values for testing.`
-      );
-    }
-  }
-
-  // Validate MAX_SESSIONS
-  const maxSessionsStr = process.env.MAX_SESSIONS;
-  if (maxSessionsStr) {
-    const maxSessions = Number.parseInt(maxSessionsStr, 10);
-    if (Number.isNaN(maxSessions) || maxSessions < 1 || maxSessions > 10000) {
-      errors.push(`MAX_SESSIONS must be between 1 and 10000, got: ${maxSessionsStr}`);
-    }
-  }
-
-  // Validate MAX_REQUESTS_PER_MINUTE
-  const maxReqStr = process.env.MAX_REQUESTS_PER_MINUTE;
-  if (maxReqStr) {
-    const maxReq = Number.parseInt(maxReqStr, 10);
-    if (Number.isNaN(maxReq) || maxReq < 1 || maxReq > 1000) {
-      errors.push(`MAX_REQUESTS_PER_MINUTE must be between 1 and 1000, got: ${maxReqStr}`);
-    }
-  }
-
-  // Validate OAUTH_REGISTER_RATE_LIMIT_PER_HOUR
-  const registerRateLimitStr = process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR;
-  if (registerRateLimitStr) {
-    const limit = Number(registerRateLimitStr);
-    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
-      errors.push(
-        `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR must be an integer between 1 and 1000, got: ${registerRateLimitStr}`
-      );
-    }
-  }
-
-  // Validate PORT
-  const portStr = getConfig("port", "PORT");
-  if (portStr) {
-    const port = Number.parseInt(portStr, 10);
-    if (Number.isNaN(port) || port < 1 || port > 65535) {
-      errors.push(`PORT must be between 1 and 65535, got: ${portStr}`);
-    }
-  }
-
-  errors.push(...configuredGitLabApiUrlErrors());
-
-  // No entry is echoed: a comma inside a password splits these lists too.
-  const allowedHosts = getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS")?.split(",") || [];
-  let hasInvalidAllowedHost = false;
-  allowedHosts.forEach((host, index) => {
-    if (host.trim() && !toAllowedGitLabApiUrl(host)) {
-      hasInvalidAllowedHost = true;
-      errors.push(
-        invalidListEntryError(
-          "GITLAB_ALLOWED_HOSTS",
-          index,
-          allowedHosts.length,
-          "is not a valid host or URL"
-        )
-      );
-    }
-  });
-  if (hasInvalidAllowedHost && allowedHosts.length > 1) {
-    errors.push(commaSplitHint("GITLAB_ALLOWED_HOSTS"));
-  }
-
-  const mcpAllowedHosts = getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS")?.split(",") || [];
-  mcpAllowedHosts.forEach((host, index) => {
-    if (host.trim() && !toAllowedMcpHost(host)) {
-      errors.push(
-        invalidListEntryError(
-          "MCP_ALLOWED_HOSTS",
-          index,
-          mcpAllowedHosts.length,
-          "is not a valid host or URL"
-        )
-      );
-    }
-  });
-
-  const mcpAllowedOrigins =
-    getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
-  mcpAllowedOrigins.forEach((origin, index) => {
-    if (origin.trim() && !toAllowedMcpOrigin(origin)) {
-      errors.push(
-        invalidListEntryError(
-          "MCP_ALLOWED_ORIGINS",
-          index,
-          mcpAllowedOrigins.length,
-          "is not a valid origin URL"
-        )
-      );
-    }
-  });
-
-  // Validate auth configuration
-  const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
-  const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
-  // getConfig() would ignore GITLAB_PERSONAL_ACCESS_TOKEN_FILE.
-  const hasToken = !!GITLAB_PERSONAL_ACCESS_TOKEN;
-  const hasJobToken = !!getConfig("job-token", "GITLAB_JOB_TOKEN");
-  const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
-  const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
-  const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
-  const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
-  const sse = getConfig("sse", "SSE") === "true";
-  const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
-  const allowUnauthenticatedRemoteSse =
-    getConfig(
-      "sse-dangerously-allow-unauthenticated-remote",
-      "SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE"
-    ) === "true";
-
-  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
-    errors.push(
-      "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
-    );
-  }
-
-  const streamableHttpAuthToken = getConfig(
-    "streamable-http-auth-token",
-    "STREAMABLE_HTTP_AUTH_TOKEN"
-  );
-  if (
-    streamableHttp &&
-    (hasToken || hasJobToken || hasCookie || useOAuth) &&
-    !remoteAuth &&
-    !mcpOAuth &&
-    !streamableHttpAuthToken
-  ) {
-    errors.push(
-      "STREAMABLE_HTTP=true/--streamable-http with server-side GitLab credentials requires REMOTE_AUTHORIZATION=true/--remote-auth=true, GITLAB_MCP_OAUTH=true/--mcp-oauth=true, or STREAMABLE_HTTP_AUTH_TOKEN/--streamable-http-auth-token"
-    );
-  }
-
-  if (sse && !sseAuthToken && !allowUnauthenticatedRemoteSse) {
-    errors.push(
-      "SSE=true requires SSE_AUTH_TOKEN (or explicitly set SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true)"
-    );
-  }
-
-  if (mcpOAuth) {
-    if (!mcpServerUrl) {
-      errors.push(
-        "MCP_SERVER_URL is required when GITLAB_MCP_OAUTH=true (e.g. https://mcp.example.com)"
-      );
-    } else {
-      try {
-        const u = new URL(mcpServerUrl);
-        const isInsecure = u.protocol !== "https:";
-        const isLocalhost = u.hostname === "localhost" || u.hostname === "127.0.0.1";
-        const allowInsecure = process.env.MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL === "true";
-        if (isInsecure && !isLocalhost && !allowInsecure) {
-          errors.push(
-            "MCP_SERVER_URL must use HTTPS in production " +
-              "(set MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true for local dev)"
-          );
-        }
-      } catch {
-        errors.push(`MCP_SERVER_URL is not a valid URL: ${mcpServerUrl}`);
-      }
-    }
-
-    if (!getConfig("api-url", "GITLAB_API_URL")) {
-      errors.push("GITLAB_API_URL is required when GITLAB_MCP_OAUTH=true");
-    }
-
-    if (!getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID")) {
-      errors.push(
-        "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
-          "(create an OAuth application in GitLab Admin with the required scopes)"
-      );
-    }
-
-    if (getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true") {
-      try {
-        new RedirectUriPolicy(
-          parseAllowedRedirectUris(
-            getConfig("oauth-allowed-redirect-uris", "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS")
-          )
-        );
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
-      }
-    }
-  }
-
-  const enableDynamicApiUrl =
-    getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
-  if (enableDynamicApiUrl && !remoteAuth) {
-    errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
-  }
-
-  const enableDynamicProjectScope =
-    getConfig("enable-dynamic-project-scope", "ENABLE_DYNAMIC_PROJECT_SCOPE") === "true";
-  if (enableDynamicProjectScope && !remoteAuth) {
-    errors.push("ENABLE_DYNAMIC_PROJECT_SCOPE=true requires REMOTE_AUTHORIZATION=true");
-  }
-
-  if (errors.length > 0) {
-    logger.error("Configuration validation failed:");
-    errors.forEach(err => logger.error(`  - ${err}`));
-    exitAfterFlush(1);
-  }
-
-  logger.info("Configuration validation passed");
 }
 
 let OAUTH_ACCESS_TOKEN: string | null = null;
@@ -1805,7 +1562,7 @@ const clientPool = new GitLabClientPool({
   poolMaxSize: GITLAB_POOL_MAX_SIZE,
 });
 
-// GITLAB_API_URL and GITLAB_ALLOWED_PROJECT_IDS are defined further down; the getters
+// GITLAB_API_URL is defined further down; the getters
 // read them at call time, after module evaluation.
 configureGitLabRequestContext({
   logger,
@@ -1927,6 +1684,7 @@ export {
   type AuthRetryConfig,
 } from "./auth-retry.js";
 import { wrapWithAuthRetry, type FetchFn } from "./auth-retry.js";
+import { validateConfiguration } from "./config-validate.js";
 
 /** Build AuthRetryConfig from module globals (lazy — reads globals at call time). */
 function defaultAuthRetryConfig() {
@@ -2089,22 +1847,6 @@ if (ignoredExplicitTools.length > 0) {
   );
 }
 
-function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  try {
-    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    // Same rule as GITLAB_API_URL: fetch() rejects a URL that carries userinfo.
-    url.username = "";
-    url.password = "";
-    return { host: url.host, apiUrl: normalizeGitLabApiUrl(url.toString()) };
-  } catch {
-    return null;
-  }
-}
-
 function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl: string }> {
   return value
     .split(",")
@@ -2156,16 +1898,6 @@ for (const { host, apiUrl } of [
  */
 const isTrustedGitLabRedirectHost = (host: string): boolean =>
   GITLAB_ALLOWED_API_URLS_BY_HOST.has(host);
-
-const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const GITLAB_ALLOWED_PROJECT_IDS =
-  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
-    .map(id => id.trim())
-    .filter(Boolean) || [];
-
-const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE
-  ? Number.parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE, 10)
-  : 20;
 
 const GITLAB_REPO_FILE_ENCODING =
   getConfig("repo-file-encoding", "GITLAB_REPO_FILE_ENCODING", "text") === "base64"
@@ -2924,7 +2656,7 @@ function getGraphQLUrl(): string {
   const restPath = apiUrl.pathname || "";
   const idx = restPath.lastIndexOf("/api/v4");
   const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-  return process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+  return getGitlabGraphqlUrlOverride() || `${apiUrl.origin}${prefix}/api/graphql`;
 }
 
 /**
@@ -10767,7 +10499,7 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
   const restPath = apiUrl.pathname || "";
   const idx = restPath.lastIndexOf("/api/v4");
   const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-  const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+  const graphqlUrl = getGitlabGraphqlUrlOverride() || `${apiUrl.origin}${prefix}/api/graphql`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000);
@@ -11003,8 +10735,7 @@ async function handleToolCall(params: any, context: ToolCallContext) {
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
         const idx = restPath.lastIndexOf("/api/v4");
         const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-        const graphqlUrl =
-          process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+        const graphqlUrl = getGitlabGraphqlUrlOverride() || `${apiUrl.origin}${prefix}/api/graphql`;
 
         // Add timeout to avoid hanging requests
         const controller = new AbortController();
@@ -14545,7 +14276,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
   return {
     defaultApiUrl: GITLAB_API_URL,
     enableDynamicApiUrl: ENABLE_DYNAMIC_API_URL,
-    maxRequestsPerMinute: Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
+    maxRequestsPerMinute: getMaxRequestsPerMinute(),
     resolveTrustedGitLabApiUrl,
     encodeGitLabPathSegment,
     encodeGitLabPath,
@@ -14640,11 +14371,8 @@ async function startSSEServer(): Promise<void> {
   // Mirror the Streamable HTTP controls so the SSE transport cannot be used to
   // exhaust the process: a session cap, a per-IP creation rate limit and an idle
   // timeout that closes connections which never send anything.
-  const maxSessions = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
-  const maxSseConnectionsPerMinute = Number.parseInt(
-    process.env.MAX_REQUESTS_PER_MINUTE || "60",
-    10
-  );
+  const maxSessions = getMaxSessions();
+  const maxSseConnectionsPerMinute = getMaxRequestsPerMinute();
   const idleTimeoutMs = Math.max(SESSION_TIMEOUT_SECONDS, 1) * 1000;
 
   const sseConnectionRateLimit = rateLimit({
@@ -14855,8 +14583,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   const openGetStreams = new Set<string>();
 
   // Configuration and limits
-  const MAX_SESSIONS = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
-  const MAX_REQUESTS_PER_MINUTE = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10);
+  const MAX_SESSIONS = getMaxSessions();
+  const MAX_REQUESTS_PER_MINUTE = getMaxRequestsPerMinute();
 
   // Metrics tracking
   const metrics = {
@@ -15587,9 +15315,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then delegate to
     // ipKeyGenerator for correct IPv6 subnet handling.
     const rateLimitOptions = { keyGenerator: mcpRateLimitKeyGenerator };
-    const parsedRegisterLimit = Number(process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR);
-    const OAUTH_REGISTER_RATE_LIMIT_PER_HOUR =
-      Number.isInteger(parsedRegisterLimit) && parsedRegisterLimit >= 1 ? parsedRegisterLimit : 20;
+    const OAUTH_REGISTER_RATE_LIMIT_PER_HOUR = getOauthRegisterRateLimitPerHour();
     const clientRegistrationRateLimitOptions = {
       ...rateLimitOptions,
       windowMs: 60 * 60 * 1000, // 1 hour
@@ -16508,7 +16234,7 @@ async function runServer() {
     emitStartupConfigWarnings();
 
     // Validate configuration before starting server
-    validateConfiguration();
+    validateConfiguration({ logger, exitAfterFlush, configuredGitLabApiUrlErrors });
 
     // Initialize OAuth token if OAuth is enabled
     if (USE_OAUTH) {
