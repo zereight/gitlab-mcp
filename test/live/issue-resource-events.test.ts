@@ -15,6 +15,7 @@ import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
 import { deleteScratch } from "./cleanup.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -32,6 +33,8 @@ const SKIP_REASON = !GITLAB_TOKEN
     ? "no test project; set TEST_PROJECT_ID"
     : false;
 
+// Callers retry a 429: gitlabJson and the label POST through fetchWithBackoff, the
+// cleanup DELETE through deleteScratch.
 async function gitlab(
   method: string,
   path: string,
@@ -52,7 +55,7 @@ async function gitlabJson(
   path: string,
   body?: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const response = await gitlab(method, path, body);
+  const response = await fetchWithBackoff(() => gitlab(method, path, body));
   if (!response.ok) {
     assert.fail(`${method} ${path} failed: ${response.status} ${await response.text()}`);
   }
@@ -83,7 +86,7 @@ describe("live: issue label and state events (#1003)", { skip: SKIP_REASON }, ()
     extraArgs: Record<string, unknown> = {}
   ): Promise<Array<Record<string, unknown>>> {
     assert.ok(client, "MCP client should be connected");
-    const result = await client.callTool(tool, {
+    const result = await callToolWithBackoff(client, tool, {
       project_id: TEST_PROJECT_ID,
       issue_iid: issueIid,
       ...extraArgs,
@@ -98,10 +101,12 @@ describe("live: issue label and state events (#1003)", { skip: SKIP_REASON }, ()
     const user = await gitlabJson("GET", "/user");
     username = String(user.username);
 
-    const labelResponse = await gitlab("POST", `${projectPath}/labels`, {
-      name: LABEL_NAME,
-      color: "#6699cc",
-    });
+    const labelResponse = await fetchWithBackoff(() =>
+      gitlab("POST", `${projectPath}/labels`, {
+        name: LABEL_NAME,
+        color: "#6699cc",
+      })
+    );
     // 409: the label exists from an earlier run.
     if (!labelResponse.ok && labelResponse.status !== 409) {
       assert.fail(

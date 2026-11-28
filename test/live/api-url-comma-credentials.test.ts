@@ -30,6 +30,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { splitCommaSeparatedUrls } from "../../utils/redact-url.js";
 import { ambiguousApiUrlCommaError, normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -158,9 +159,8 @@ async function getProjectOverStdioAsync(apiUrl: string): Promise<ProjectOverStdi
   let payload: Record<string, unknown> = {};
   try {
     await client.connect(transport);
-    const result = await client.callTool({
-      name: "get_project",
-      arguments: { project_id: String(TEST_PROJECT_ID) },
+    const result = await callToolWithBackoff(client, "get_project", {
+      project_id: String(TEST_PROJECT_ID),
     });
     assert.notStrictEqual(result.isError, true, "get_project should succeed");
     const text = (result.content as Array<{ text?: string }>).map(part => part.text ?? "").join("");

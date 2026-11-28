@@ -18,6 +18,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -38,9 +39,10 @@ const SKIP_REASON = !GITLAB_TOKEN
 const SENSITIVE_FIELDS = ["runners_token", "import_url"];
 
 async function getProject(): Promise<Record<string, unknown>> {
-  const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(String(TEST_PROJECT_ID))}`,
-    { headers: { "PRIVATE-TOKEN": GITLAB_TOKEN ?? "" } }
+  const response = await fetchWithBackoff(() =>
+    fetch(`${GITLAB_API_URL}/projects/${encodeURIComponent(String(TEST_PROJECT_ID))}`, {
+      headers: { "PRIVATE-TOKEN": GITLAB_TOKEN ?? "" },
+    })
   );
   assert.strictEqual(response.status, 200, "the test project should be readable");
   return (await response.json()) as Record<string, unknown>;
@@ -69,13 +71,12 @@ describe("live: update_default_branch redacts project fields", { skip: SKIP_REAS
   after(async () => {
     try {
       if (originalBranch && (await getProject()).default_branch !== originalBranch) {
-        const response = await fetch(
-          `${GITLAB_API_URL}/projects/${encodeURIComponent(String(TEST_PROJECT_ID))}`,
-          {
+        const response = await fetchWithBackoff(() =>
+          fetch(`${GITLAB_API_URL}/projects/${encodeURIComponent(String(TEST_PROJECT_ID))}`, {
             method: "PUT",
             headers: { "PRIVATE-TOKEN": GITLAB_TOKEN ?? "", "Content-Type": "application/json" },
             body: JSON.stringify({ default_branch: originalBranch }),
-          }
+          })
         );
         assert.strictEqual(response.status, 200, "restoring the default branch should succeed");
       }
@@ -93,7 +94,7 @@ describe("live: update_default_branch redacts project fields", { skip: SKIP_REAS
 
   test("update_default_branch changes the branch and returns no runners_token or import_url", async () => {
     assert.ok(client, "MCP client should be connected");
-    const result = await client.callTool("update_default_branch", {
+    const result = await callToolWithBackoff(client, "update_default_branch", {
       project_id: String(TEST_PROJECT_ID),
       default_branch: TARGET_BRANCH,
     });

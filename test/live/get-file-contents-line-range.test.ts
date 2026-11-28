@@ -20,6 +20,7 @@ import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
 import { deleteScratch } from "./cleanup.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -50,6 +51,8 @@ const ORIGINAL = [
   "last line without newline",
 ].join("\n");
 
+// Callers retry a 429: gitlabJson through fetchWithBackoff, the
+// cleanup DELETE through deleteScratch.
 async function gitlab(
   method: string,
   path: string,
@@ -70,7 +73,7 @@ async function gitlabJson(
   path: string,
   body?: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const response = await gitlab(method, path, body);
+  const response = await fetchWithBackoff(() => gitlab(method, path, body));
   if (!response.ok) {
     assert.fail(`${method} ${path} failed: ${response.status} ${await response.text()}`);
   }
@@ -109,7 +112,7 @@ describe("live: get_file_contents line range", { skip: SKIP_REASON }, () => {
     range: { offset?: number; limit?: number }
   ): Promise<FileRead> {
     assert.ok(reader, "MCP client should be connected");
-    const result = await reader.callTool("get_file_contents", {
+    const result = await callToolWithBackoff(reader, "get_file_contents", {
       project_id: TEST_PROJECT_ID,
       file_path: filePath,
       ref: branch,

@@ -22,6 +22,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -67,7 +68,7 @@ async function call(
   args: Record<string, unknown>
 ): Promise<ToolOutcome> {
   try {
-    const result = await client.callTool(name, args);
+    const result = await callToolWithBackoff(client, name, args);
     const text = (result.content as Array<{ text?: string }>)
       .map(part => part.text ?? "")
       .join("\n");
