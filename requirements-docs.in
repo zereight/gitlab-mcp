@@ -2,4 +2,4 @@
 # dependency by hash; regenerate it after editing this file:
 #   pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --strip-extras --output-file=requirements-docs.txt requirements-docs.in
 mkdocs-material>=9.5,<10
-pymdown-extensions>=13.1
+pymdown-extensions>=13.1.2
