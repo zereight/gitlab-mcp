@@ -973,9 +973,10 @@ function createServer(): McpServer {
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
         // Optional project fields can be filters on global queries. Only supply
         // the default when the corresponding handler actually uses it. Keep this
-        // list synchronized with getFileContents, listMyIssues, listIssues, and
-        // listMergeRequests: those are the handlers with optional project input
-        // that may call getEffectiveProjectId("") at runtime.
+        // list synchronized with getFileContents, listMyIssues, listIssues,
+        // listMergeRequests, and the snippet tools: those are the handlers with
+        // optional project input that may call getEffectiveProjectId("") at runtime.
+        // Snippet tools use the default project whenever a project scope is active.
         const usesDefaultProject =
           inputSchema?.required?.includes("project_id") ||
           toolName === "get_file_contents" ||
@@ -983,7 +984,15 @@ function createServer(): McpServer {
             (Boolean(GITLAB_PROJECT_ID) || getEffectiveAllowedProjectIds().length > 0)) ||
           ((toolName === "list_issues" || toolName === "list_merge_requests") &&
             ENABLE_STRICT_PROJECT_SCOPE &&
-            getEffectiveAllowedProjectIds().length > 0);
+            getEffectiveAllowedProjectIds().length > 0) ||
+          ([
+            "list_snippets",
+            "get_snippet",
+            "create_snippet",
+            "update_snippet",
+            "delete_snippet",
+          ].includes(toolName) &&
+            (Boolean(GITLAB_PROJECT_ID) || getEffectiveAllowedProjectIds().length > 0));
         const maskingScope = maskingPolicyResolver
           ? getManagedMaskingProjectIds(
               inputSchema,
