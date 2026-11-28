@@ -31,6 +31,7 @@ export async function deleteScratch(
       log(`could not delete ${what} (429, advertised wait exceeds the 5 minute ceiling); ${hint}`);
       return;
     }
+    log(`GitLab returned 429; retrying in ${Math.ceil(wait / 1000)}s`);
     // Sleep out the whole wait in capped chunks; only the DELETE after it counts as an attempt.
     await sleepInChunks(wait, sleep);
     waited += wait;

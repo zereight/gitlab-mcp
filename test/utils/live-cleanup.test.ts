@@ -45,7 +45,7 @@ describe("live cleanup: deleteScratch", () => {
     await h.run();
     assert.deepEqual(h.calls, [429, 204]);
     assert.deepEqual(h.waits, [2000]);
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, ["GitLab returned 429; retrying in 2s"]);
   });
 
   test("429 waits until RateLimit-Reset without Retry-After", async () => {
@@ -53,7 +53,7 @@ describe("live cleanup: deleteScratch", () => {
     const h = harness([429, { "RateLimit-Reset": reset }], [204]);
     await h.run();
     assert.deepEqual(h.waits, [7000]);
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, ["GitLab returned 429; retrying in 7s"]);
   });
 
   test("429 without headers backs off exponentially", async () => {
@@ -61,7 +61,11 @@ describe("live cleanup: deleteScratch", () => {
     await h.run();
     assert.deepEqual(h.calls, [429, 429, 429, 204]);
     assert.deepEqual(h.waits, [1000, 2000, 4000]);
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, [
+      "GitLab returned 429; retrying in 1s",
+      "GitLab returned 429; retrying in 2s",
+      "GitLab returned 429; retrying in 4s",
+    ]);
   });
 
   test("429 with a wait over the 30s cap sleeps in capped chunks, then retries once", async () => {
@@ -69,7 +73,7 @@ describe("live cleanup: deleteScratch", () => {
     await h.run();
     assert.deepEqual(h.calls, [429, 204]);
     assert.deepEqual(h.waits, [30_000, 30_000, 30_000]);
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, ["GitLab returned 429; retrying in 90s"]);
   });
 
   test("429 with a wait over the 5 minute ceiling gives up without sleeping", async () => {
@@ -95,6 +99,7 @@ describe("live cleanup: deleteScratch", () => {
     assert.deepEqual(h.calls, [429, 429]);
     assert.deepEqual(h.waits, Array(8).fill(30_000));
     assert.deepEqual(h.logs, [
+      "GitLab returned 429; retrying in 240s",
       "could not delete branch scratch (429, advertised wait exceeds the 5 minute ceiling); delete it by hand",
     ]);
   });
@@ -104,15 +109,24 @@ describe("live cleanup: deleteScratch", () => {
     await h.run();
     assert.deepEqual(h.calls, [429, 429, 204]);
     assert.deepEqual(h.waits, Array(10).fill(30_000));
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, [
+      "GitLab returned 429; retrying in 180s",
+      "GitLab returned 429; retrying in 120s",
+    ]);
   });
 
-  test("429 on every attempt logs once and does not throw", async () => {
+  test("429 on every attempt logs each wait, then gives up without throwing", async () => {
     const h = harness([429, { "Retry-After": "1" }]);
     await h.run();
     assert.equal(h.calls.length, 5);
     assert.equal(h.waits.length, 4);
-    assert.deepEqual(h.logs, ["could not delete branch scratch (429); delete it by hand"]);
+    assert.deepEqual(h.logs, [
+      "GitLab returned 429; retrying in 1s",
+      "GitLab returned 429; retrying in 1s",
+      "GitLab returned 429; retrying in 1s",
+      "GitLab returned 429; retrying in 1s",
+      "could not delete branch scratch (429); delete it by hand",
+    ]);
   });
 
   test("a non-429 error is not retried, logs, and does not throw", async () => {
@@ -138,6 +152,6 @@ describe("live cleanup: deleteScratch", () => {
       { message: "disconnect failed" }
     );
     assert.deepEqual(h.calls, [429, 204]);
-    assert.deepEqual(h.logs, []);
+    assert.deepEqual(h.logs, ["GitLab returned 429; retrying in 1s"]);
   });
 });
