@@ -17,6 +17,7 @@ const pathBuildingSources = [
   readSource("../tools/todos.ts"),
   readSource("../tools/dependency-proxy.ts"),
   readSource("../tools/releases.ts"),
+  readSource("../tools/orbit.ts"),
 ];
 
 const rawPathSegmentPatterns = [
@@ -69,6 +70,7 @@ const serverSources = [
   ["tools/todos.ts", "../tools/todos.ts"],
   ["tools/dependency-proxy.ts", "../tools/dependency-proxy.ts"],
   ["tools/releases.ts", "../tools/releases.ts"],
+  ["tools/orbit.ts", "../tools/orbit.ts"],
   ["downloads/proxy.ts", "../downloads/proxy.ts"],
   ["oauth-proxy.ts", "../oauth-proxy.ts"],
 ] as const;

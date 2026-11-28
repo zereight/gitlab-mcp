@@ -382,6 +382,7 @@ import { configureVariableTools, handleVariableToolCall } from "./tools/variable
 import { configureWebhookTools, handleWebhookToolCall } from "./tools/webhooks.js";
 import { configureSnippetTools, handleSnippetToolCall } from "./tools/snippets.js";
 import { configureTodoTools, handleTodoToolCall } from "./tools/todos.js";
+import { configureOrbitTools, handleOrbitToolCall } from "./tools/orbit.js";
 import {
   configureDependencyProxyTools,
   handleDependencyProxyToolCall,
@@ -675,10 +676,6 @@ import {
   type MergeRequestThreadPosition,
   type MyIssuesOptions,
   MyIssuesSchema,
-  OrbitQuerySchema,
-  OrbitSchemaSchema,
-  OrbitStatusSchema,
-  OrbitToolsSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -1815,8 +1812,8 @@ configureGitLabRequestContext({
   getOAuthAccessToken: () => OAUTH_ACCESS_TOKEN,
 });
 
-// The wiki, milestone, label, tag, variable, webhook, snippet, and todo handlers call back into the fetch, error
-// handling, and project scope helpers below; fetch is read at call time because the cookie
+// The wiki, milestone, label, tag, variable, webhook, snippet, todo, and orbit handlers call back into the fetch,
+// error handling, and project scope helpers below; fetch is read at call time because the cookie
 // reload replaces it.
 configureWikiTools({
   getFetch: () => fetch,
@@ -1859,6 +1856,11 @@ configureSnippetTools({
   isProjectScopeActive: () => getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID,
 });
 configureTodoTools({
+  getFetch: () => fetch,
+  handleGitLabError,
+  rejectIfStrictProjectScope,
+});
+configureOrbitTools({
   getFetch: () => fetch,
   handleGitLabError,
   rejectIfStrictProjectScope,
@@ -10332,59 +10334,6 @@ async function listProjectVulnerabilities(
   };
 }
 
-/**
- * Execute a GitLab Orbit graph query.
- * Note: the `llm` format returns compact plain text, not JSON.
- */
-async function orbitQuery(query: Record<string, unknown>, format: "raw" | "llm"): Promise<unknown> {
-  const url = new URL(`${getEffectiveApiUrl()}/orbit/query`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify({ query, format }),
-  });
-
-  await handleGitLabError(response);
-  if (format === "raw") {
-    return response.json();
-  }
-  return response.text();
-}
-
-async function orbitGetSchema(): Promise<unknown> {
-  const url = new URL(`${getEffectiveApiUrl()}/orbit/schema`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  return response.json();
-}
-
-async function orbitGetStatus(): Promise<unknown> {
-  const url = new URL(`${getEffectiveApiUrl()}/orbit/status`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  return response.json();
-}
-
-async function orbitListTools(): Promise<unknown> {
-  const url = new URL(`${getEffectiveApiUrl()}/orbit/tools`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  return response.json();
-}
-
 async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
   const data = await executeGraphQL<{
     vulnerability:
@@ -14006,34 +13955,11 @@ async function handleToolCall(params: any, context: ToolCallContext) {
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
-      case "orbit_query": {
-        rejectIfStrictProjectScope("orbit_query");
-        const args = OrbitQuerySchema.parse(params.arguments);
-        const result = await orbitQuery(args.query, args.format);
-        const text = typeof result === "string" ? result : JSON.stringify(result);
-        return { content: [{ type: "text", text }] };
-      }
-
-      case "orbit_get_schema": {
-        rejectIfStrictProjectScope("orbit_get_schema");
-        OrbitSchemaSchema.parse(params.arguments);
-        const result = await orbitGetSchema();
-        return { content: [{ type: "text", text: JSON.stringify(result) }] };
-      }
-
-      case "orbit_get_status": {
-        rejectIfStrictProjectScope("orbit_get_status");
-        OrbitStatusSchema.parse(params.arguments);
-        const result = await orbitGetStatus();
-        return { content: [{ type: "text", text: JSON.stringify(result) }] };
-      }
-
-      case "orbit_list_tools": {
-        rejectIfStrictProjectScope("orbit_list_tools");
-        OrbitToolsSchema.parse(params.arguments);
-        const result = await orbitListTools();
-        return { content: [{ type: "text", text: JSON.stringify(result) }] };
-      }
+      case "orbit_query":
+      case "orbit_get_schema":
+      case "orbit_get_status":
+      case "orbit_list_tools":
+        return await handleOrbitToolCall(params);
 
       case "upload_markdown": {
         if (IS_REMOTE) {
