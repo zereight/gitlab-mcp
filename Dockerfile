@@ -1,7 +1,7 @@
 # bookworm-slim (glibc): node:*-alpine (musl) crashes under QEMU arm64
 # emulation with "uncaught target signal 4 (Illegal instruction)" during npm ci,
 # hanging the multi-platform CI build until the job timeout.
-FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS builder
+FROM node:22.23.5-bookworm-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS builder
 
 COPY . /app
 COPY tsconfig.json /tsconfig.json
