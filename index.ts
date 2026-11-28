@@ -165,7 +165,7 @@ import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
 import { fetch as undiciFetch, File, FormData, type Response as UndiciResponse } from "undici";
 import path from "node:path";
-import { CookieJar, parse as parseCookie } from "tough-cookie";
+import { CookieJar } from "tough-cookie";
 import { URL } from "node:url";
 import { z } from "zod";
 
@@ -185,6 +185,7 @@ import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
+import { loadNetscapeCookies } from "./utils/netscape-cookie-jar.js";
 import {
   getForwardedPublicBaseUrl,
   getForwardedRequestHost,
@@ -1884,38 +1885,7 @@ const createCookieJar = async (): Promise<CookieJar | null> => {
   }
 
   const jar = new CookieJar();
-  for (let line of cookieContent.split("\n")) {
-    // Handle #HttpOnly_ prefix
-    if (line.startsWith("#HttpOnly_")) {
-      line = line.slice(10);
-    }
-    // Skip comments and empty lines
-    if (line.startsWith("#") || !line.trim()) {
-      continue;
-    }
-
-    // Parse Netscape format: domain, flag, path, secure, expires, name, value
-    const parts = line.split("\t");
-    if (parts.length >= 7) {
-      const [domain, , cookiePath, secure, expires, name, value] = parts;
-
-      // Build cookie string in standard format
-      const secureFlag = secure === "TRUE" ? "; Secure" : "";
-      const expiresFlag =
-        expires === "0"
-          ? ""
-          : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
-      const cookieStr = `${name}=${value}; Domain=${domain}; Path=${cookiePath}${secureFlag}${expiresFlag}`;
-
-      // Use tough-cookie's parse function for robust parsing
-      const cookie = parseCookie(cookieStr);
-      if (cookie) {
-        const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
-        jar.setCookieSync(cookie, url);
-      }
-    }
-  }
-
+  loadNetscapeCookies(cookieContent, jar, logger);
   return jar;
 };
 
