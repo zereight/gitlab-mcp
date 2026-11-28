@@ -394,6 +394,11 @@ import {
 } from "./tools/discover-activation.js";
 import { selectCallableHiddenToolNames, selectExposedTools } from "./tools/exposed-tools.js";
 import {
+  assertToolAllowedByPermissionMode,
+  createPermissionModeGate,
+  type PermissionModeConfig,
+} from "./tools/permission.js";
+import {
   createListedToolsCache,
   decorateToolsForList,
   type ListedToolDecorationContext,
@@ -1726,17 +1731,13 @@ async function ensureValidOAuthToken(): Promise<void> {
   }
 }
 
-// Permission mode gate: readonly exposes only read tools; modify blocks delete/teardown tools; full allows all
-function isToolAllowedByPermissionMode(toolName: string): boolean {
-  switch (GITLAB_PERMISSION_MODE) {
-    case "readonly":
-      return readOnlyTools.has(toolName);
-    case "modify":
-      return !deleteTools.has(toolName);
-    default:
-      return true;
-  }
-}
+// Permission mode gate logic lives in tools/permission.ts; this binds it to the configured mode.
+const permissionModeConfig: PermissionModeConfig = {
+  mode: GITLAB_PERMISSION_MODE,
+  readOnlyTools,
+  deleteTools,
+};
+const isToolAllowedByPermissionMode = createPermissionModeGate(permissionModeConfig);
 
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
   const compiled = compileDeniedToolsRegex(
@@ -10960,13 +10961,7 @@ async function handleToolCall(params: any, context: ToolCallContext) {
     }
 
     // Centralized permission guard: reject disallowed tools even if client bypasses list_tools filtering
-    if (!isToolAllowedByPermissionMode(params.name)) {
-      throw new Error(
-        GITLAB_PERMISSION_MODE === "readonly"
-          ? `${params.name} is not allowed in read-only mode`
-          : `${params.name} is not allowed in modify mode (delete and teardown operations are disabled)`
-      );
-    }
+    assertToolAllowedByPermissionMode(permissionModeConfig, params.name);
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
     switch (params.name) {
