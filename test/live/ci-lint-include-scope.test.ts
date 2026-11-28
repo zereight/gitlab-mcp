@@ -17,6 +17,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -60,7 +61,7 @@ describe("live: CI lint includes under a project allowlist", { skip: SKIP_REASON
   }
 
   async function lint(client: StdioTestClient, content: string) {
-    const result = await client.callTool("validate_ci_lint", {
+    const result = await callToolWithBackoff(client, "validate_ci_lint", {
       project_id: String(TEST_PROJECT_ID),
       content,
       include_jobs: true,

@@ -16,6 +16,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -58,7 +59,7 @@ describe("live: release tag hint (release-not-found-hint)", { skip: SKIP_REASON 
     // Either way the message carries the GitLab body and the recovery hint.
     let text: string;
     try {
-      const result = await client.callTool("get_release", {
+      const result = await callToolWithBackoff(client, "get_release", {
         project_id: TEST_PROJECT_ID,
         tag_name: missingTag,
       });

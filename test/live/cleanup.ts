@@ -1,29 +1,12 @@
-const MAX_ATTEMPTS = 5;
-const MAX_WAIT_MS = 30_000;
-// 5 minute ceiling: give up instead of sleeping out a longer advertised wait,
-// so CI teardown cannot hang.
-const MAX_TOTAL_WAIT_MS = 5 * 60_000;
+import {
+  MAX_ATTEMPTS,
+  MAX_TOTAL_WAIT_MS,
+  retryDelayMs,
+  sleepInChunks,
+  type BackoffIo,
+} from "./rate-limit.js";
 
-export interface DeleteScratchIo {
-  sleep?: (ms: number) => Promise<void>;
-  log?: (line: string) => void;
-  now?: () => number;
-}
-
-function retryDelayMs(response: Response, attempt: number, now: number): number {
-  const retryAfter = response.headers.get("retry-after");
-  let ms = Number.NaN;
-  if (retryAfter !== null && retryAfter.trim() !== "") {
-    const seconds = Number(retryAfter);
-    ms = Number.isNaN(seconds) ? Date.parse(retryAfter) - now : seconds * 1000;
-  }
-  const reset = response.headers.get("ratelimit-reset");
-  if (Number.isNaN(ms) && reset !== null && reset.trim() !== "") {
-    ms = Number(reset) * 1000 - now;
-  }
-  if (Number.isNaN(ms)) ms = 1000 * 2 ** attempt;
-  return Math.max(ms, 0);
-}
+export type DeleteScratchIo = BackoffIo;
 
 // GitLab rate-limits bursts with 429; 404 means the resource is already gone.
 export async function deleteScratch(
@@ -35,6 +18,7 @@ export async function deleteScratch(
   const sleep = io.sleep ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms)));
   const log = io.log ?? (line => process.stderr.write(`${line}\n`));
   const now = io.now ?? Date.now;
+  let waited = 0;
   for (let attempt = 0; ; attempt++) {
     const response = await send();
     if (response.ok || response.status === 404) return;
@@ -42,16 +26,14 @@ export async function deleteScratch(
       log(`could not delete ${what} (${response.status}); ${hint}`);
       return;
     }
-    let wait = retryDelayMs(response, attempt, now());
-    if (wait > MAX_TOTAL_WAIT_MS) {
+    const wait = retryDelayMs(response, attempt, now());
+    if (waited + wait > MAX_TOTAL_WAIT_MS) {
       log(`could not delete ${what} (429, advertised wait exceeds the 5 minute ceiling); ${hint}`);
       return;
     }
+    log(`GitLab returned 429; retrying in ${Math.ceil(wait / 1000)}s`);
     // Sleep out the whole wait in capped chunks; only the DELETE after it counts as an attempt.
-    do {
-      const chunk = Math.min(wait, MAX_WAIT_MS);
-      await sleep(chunk);
-      wait -= chunk;
-    } while (wait > 0);
+    await sleepInChunks(wait, sleep);
+    waited += wait;
   }
 }

@@ -17,6 +17,7 @@ import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
 import { deleteScratch } from "./cleanup.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -35,6 +36,8 @@ const SKIP_REASON = !GITLAB_TOKEN
     ? "no test project; set TEST_PROJECT_ID"
     : false;
 
+// Callers retry a 429: gitlabJson through fetchWithBackoff, the
+// cleanup DELETE through deleteScratch.
 async function gitlab(
   method: string,
   path: string,
@@ -55,7 +58,7 @@ async function gitlabJson(
   path: string,
   body?: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const response = await gitlab(method, path, body);
+  const response = await fetchWithBackoff(() => gitlab(method, path, body));
   if (!response.ok) {
     assert.fail(`${method} ${path} failed: ${response.status} ${await response.text()}`);
   }
@@ -77,7 +80,7 @@ describe("live: list_issue_links follows the list summary default", { skip: SKIP
     extraArgs: Record<string, unknown> = {}
   ): Promise<Array<Record<string, unknown>>> {
     assert.ok(client, "MCP client should be connected");
-    const result = await client.callTool("list_issue_links", {
+    const result = await callToolWithBackoff(client, "list_issue_links", {
       project_id: TEST_PROJECT_ID,
       issue_iid: sourceIid,
       ...extraArgs,
@@ -167,7 +170,7 @@ describe("live: list_issue_links follows the list summary default", { skip: SKIP
   test("issue_link_id from the summary is enough for get_issue_link", async () => {
     assert.ok(client, "MCP client should be connected");
     const [link] = await callLinks();
-    const result = await client.callTool("get_issue_link", {
+    const result = await callToolWithBackoff(client, "get_issue_link", {
       project_id: TEST_PROJECT_ID,
       issue_iid: sourceIid,
       issue_link_id: link.issue_link_id,

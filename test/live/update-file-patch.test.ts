@@ -16,6 +16,7 @@ import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
 import { deleteScratch } from "./cleanup.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -50,6 +51,8 @@ const ORIGINAL = [
   "",
 ].join("\n");
 
+// Callers retry a 429: gitlabJson and other reads through fetchWithBackoff, the
+// cleanup DELETE through deleteScratch.
 async function gitlab(
   method: string,
   path: string,
@@ -70,7 +73,7 @@ async function gitlabJson(
   path: string,
   body?: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const response = await gitlab(method, path, body);
+  const response = await fetchWithBackoff(() => gitlab(method, path, body));
   if (!response.ok) {
     assert.fail(`${method} ${path} failed: ${response.status} ${await response.text()}`);
   }
@@ -92,7 +95,9 @@ describe("live: update_file_patch", { skip: SKIP_REASON }, () => {
   let client: StdioTestClient | undefined;
 
   async function rawBytes(): Promise<Buffer> {
-    const response = await gitlab("GET", `${fileApiPath}/raw?ref=${encodeURIComponent(branch)}`);
+    const response = await fetchWithBackoff(() =>
+      gitlab("GET", `${fileApiPath}/raw?ref=${encodeURIComponent(branch)}`)
+    );
     if (!response.ok) {
       assert.fail(`reading ${filePath} failed: ${response.status} ${await response.text()}`);
     }
@@ -109,7 +114,7 @@ describe("live: update_file_patch", { skip: SKIP_REASON }, () => {
 
   async function callPatch(args: Record<string, unknown>) {
     assert.ok(client, "MCP client should be connected");
-    return client.callTool("update_file_patch", {
+    return callToolWithBackoff(client, "update_file_patch", {
       project_id: TEST_PROJECT_ID,
       file_path: filePath,
       branch,

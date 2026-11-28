@@ -17,6 +17,7 @@ import assert from "node:assert";
 import dotenv from "dotenv";
 import { StdioTestClient } from "../clients/stdio-client.js";
 import { normalizeGitLabApiUrl } from "../../utils/url.js";
+import { callToolWithBackoff, fetchWithBackoff } from "./rate-limit.js";
 
 dotenv.config();
 
@@ -44,15 +45,18 @@ describe("live: execute_graphql does not return credential fields", { skip: SKIP
   let projectPath = "";
 
   before(async () => {
-    const project = await fetch(projectUrl(), { headers: headers() });
+    const project = await fetchWithBackoff(() => fetch(projectUrl(), { headers: headers() }));
     assert.strictEqual(project.status, 200, "the test project should be readable");
     projectPath = ((await project.json()) as { path_with_namespace: string }).path_with_namespace;
 
-    const created = await fetch(`${projectUrl()}/triggers`, {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({ description: `gitlab-mcp-e2e-graphql-${Date.now()}` }),
-    });
+    const description = `gitlab-mcp-e2e-graphql-${Date.now()}`;
+    const created = await fetchWithBackoff(() =>
+      fetch(`${projectUrl()}/triggers`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ description }),
+      })
+    );
     assert.strictEqual(created.status, 201, "creating a pipeline trigger should succeed");
     const trigger = (await created.json()) as { id: number; token: string };
     triggerId = trigger.id;
@@ -77,10 +81,12 @@ describe("live: execute_graphql does not return credential fields", { skip: SKIP
       await client?.disconnect();
     } finally {
       if (triggerId !== undefined) {
-        const deleted = await fetch(`${projectUrl()}/triggers/${triggerId}`, {
-          method: "DELETE",
-          headers: headers(),
-        });
+        const deleted = await fetchWithBackoff(() =>
+          fetch(`${projectUrl()}/triggers/${triggerId}`, {
+            method: "DELETE",
+            headers: headers(),
+          })
+        );
         assert.strictEqual(deleted.status, 204, "deleting the pipeline trigger should succeed");
       }
     }
@@ -89,7 +95,7 @@ describe("live: execute_graphql does not return credential fields", { skip: SKIP
   async function run(query: string): Promise<{ isError: boolean; text: string }> {
     assert.ok(client, "MCP client should be connected");
     try {
-      const result = await client.callTool("execute_graphql", { query });
+      const result = await callToolWithBackoff(client, "execute_graphql", { query });
       const text = (result.content as Array<{ text?: string }>)
         .map(part => part.text ?? "")
         .join("");
