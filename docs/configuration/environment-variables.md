@@ -98,8 +98,7 @@ summary would drop the content they return or does not read their reply shape:
 `list_project_vulnerabilities`, `list_dependency_proxy_blobs`,
 `list_ci_catalog_resources`, `list_work_item_notes`,
 `list_custom_field_definitions`, and `list_work_item_statuses`. These also keep the full reply, because the summary
-would drop an id or type that other tools need: `list_issue_links`
-(`issue_link_id`, `link_type`), `list_pipeline_trigger_jobs`
+would drop an id or type that other tools need: `list_pipeline_trigger_jobs`
 (`downstream_pipeline.id`), `list_project_variables` and `list_group_variables`
 (`environment_scope`), `list_merge_request_changed_files` (`old_path` and the
 new/deleted/renamed flags), `list_work_items` (`type`), and `list_namespaces`
