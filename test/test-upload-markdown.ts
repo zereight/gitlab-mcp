@@ -15,7 +15,7 @@ interface ContentBlock {
 }
 
 interface JsonRpcResponse {
-  result?: { content?: ContentBlock[] };
+  result?: { content?: ContentBlock[]; isError?: boolean };
   error?: { message: string; code?: number };
 }
 
@@ -265,6 +265,22 @@ describe('upload_markdown', () => {
       msg.toLowerCase().includes('traversal') || msg.toLowerCase().includes('invalid'),
       `Expected traversal rejection, got: ${msg}`
     );
+  });
+
+  test('path errors are tool results that say where file_path is resolved', async () => {
+    const cases: Array<[string, RegExp]> = [
+      ['/etc/passwd', /^Invalid file_path: absolute paths are not allowed\./],
+      ['../../../etc/passwd', /^Invalid file_path: directory traversal is not allowed\./],
+      [`mcp-upload-missing-${process.pid}.txt`, /^File not found: /],
+    ];
+    for (const [filePath, firstLine] of cases) {
+      const raw = await callUploadMarkdown({ project_id: TEST_PROJECT_ID, file_path: filePath }, env);
+      assert.ok(!raw.error, `Unexpected RPC error for ${filePath}: ${raw.error?.message}`);
+      assert.strictEqual(raw.result?.isError, true, `Expected an isError result for ${filePath}`);
+      const text = raw.result?.content?.[0]?.text ?? '';
+      assert.match(text, firstLine);
+      assert.match(text, /\nNext: pass a path relative to the MCP server's working directory/);
+    }
   });
 
   test('rejects file_path that is a symlink escape', async () => {

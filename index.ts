@@ -10525,10 +10525,25 @@ async function markdownUpload(
     fileBuffer = Buffer.from(content, "base64");
     fileName = filename || "upload";
   } else if (filePath) {
-    // Local file mode — reject absolute/traversal/symlink escapes before reading
-    const { buffer, basename: safeBasename } = readSafeExistingFile(filePath, "file_path");
-    fileBuffer = buffer;
-    fileName = safeBasename;
+    // Local file mode — reject absolute/traversal/symlink escapes before reading.
+    // The path rules are input errors the model can fix, so return them as tool
+    // results with a hint, like the other input errors.
+    let safeFile: { buffer: Buffer; basename: string };
+    try {
+      safeFile = readSafeExistingFile(filePath, "file_path");
+    } catch (error) {
+      if (error instanceof Error && /^(Invalid file_path:|File not found:)/.test(error.message)) {
+        throw new ToolInputError(
+          withRecoveryHint(
+            error.message,
+            "pass a path relative to the MCP server's working directory (absolute paths and '..' are rejected); copy the file there first if it is elsewhere."
+          )
+        );
+      }
+      throw error;
+    }
+    fileBuffer = safeFile.buffer;
+    fileName = safeFile.basename;
   } else {
     throw new ToolInputError(
       withRecoveryHint(

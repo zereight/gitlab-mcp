@@ -366,7 +366,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`whoami`](../tools/users.md#whoami) — `test/test-health-check.ts`
 - [x] [`list_events`](../tools/users.md#list_events) — `test/test-blank-filters.ts`
 - [ ] [`get_project_events`](../tools/users.md#get_project_events)
-- [x] [`upload_markdown`](../tools/users.md#upload_markdown) — `test/test-remote-downloads.ts`, `test/test-upload-markdown.ts`
+- [x] [`upload_markdown`](../tools/users.md#upload_markdown) — `test/live/upload-markdown-path-hints.test.ts`, `test/test-remote-downloads.ts`, `test/test-upload-markdown.ts`
 - [x] [`download_attachment`](../tools/users.md#download_attachment) — `test/test-download-attachment.ts`, `test/test-remote-downloads.ts`
 
 ## Variables
