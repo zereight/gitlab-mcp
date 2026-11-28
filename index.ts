@@ -181,6 +181,7 @@ import {
 import { runSetup } from "./cli/setup.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { finalizeToolCallResult, readOwnRecord } from "./cli/compact-mcp-result.js";
+import { toolUsesDefaultProject } from "./tools/default-project-usage.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { parseAllowedRedirectUris, RedirectUriPolicy } from "./oauth-consent.js";
@@ -972,18 +973,13 @@ function createServer(): McpServer {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
         // Optional project fields can be filters on global queries. Only supply
-        // the default when the corresponding handler actually uses it. Keep this
-        // list synchronized with getFileContents, listMyIssues, listIssues, and
-        // listMergeRequests: those are the handlers with optional project input
-        // that may call getEffectiveProjectId("") at runtime.
-        const usesDefaultProject =
-          inputSchema?.required?.includes("project_id") ||
-          toolName === "get_file_contents" ||
-          (toolName === "my_issues" &&
-            (Boolean(GITLAB_PROJECT_ID) || getEffectiveAllowedProjectIds().length > 0)) ||
-          ((toolName === "list_issues" || toolName === "list_merge_requests") &&
-            ENABLE_STRICT_PROJECT_SCOPE &&
-            getEffectiveAllowedProjectIds().length > 0);
+        // the default when the corresponding handler actually uses it. The per-tool
+        // declaration is in tools/default-project-usage.ts.
+        const usesDefaultProject = toolUsesDefaultProject(toolName, inputSchema, {
+          hasDefaultProject: Boolean(GITLAB_PROJECT_ID),
+          hasAllowedProjectIds: () => getEffectiveAllowedProjectIds().length > 0,
+          strictProjectScope: ENABLE_STRICT_PROJECT_SCOPE,
+        });
         const maskingScope = maskingPolicyResolver
           ? getManagedMaskingProjectIds(
               inputSchema,
